@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Road Trip Station</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --panel: rgba(255,255,255,.88); --ink: #1f2a33; --line: rgba(31,42,51,.14); --on: #ff8a3d; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #a9c98a; font-family: "Noto Sans Thai", system-ui, sans-serif; color: var(--ink); }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; gap: 5px; background: var(--panel); padding: 5px; border-radius: 10px; border: 1px solid var(--line); }
+  button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 7px; padding: 4px 9px; cursor: pointer; }
+  button.on { background: var(--on); color: #fff; border-color: var(--on); }
+  #tip { position: fixed; pointer-events: none; padding: 3px 9px; border-radius: 8px; background: rgba(31,42,51,.9); color: #fff; font-size: 13px; font-weight: 700; transform: translate(14px, 10px); display: none; white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="ui"></div>
+<div id="tip"></div>
+<script>
+// ============================================================
+//  ต้นแบบปั๊มน้ำมันแบบ 2D (มุมกระดานเอียงแบบเกม) — โหมด Road Trip · GRID_PLAN §8.8
+//  เดินอิสระ ไม่จำกัดระยะ (คลิกช่องไหนก็ได้ · คลิกกิจกรรม = เดินไปแล้วเล่น)
+// ============================================================
+const cv = document.getElementById("cv"), g = cv.getContext("2d");
+const LW = 1280, LH = 720, BC = 24, BR = 16, TAU = Math.PI * 2;
+let PITCH = 38 * Math.PI / 180, SN = Math.sin(PITCH), CS = Math.cos(PITCH);
+const D = 30, F = 1150, OX = 640, OY = 455;
+function P(x, y, z = 0) { // กระดาน (x ช่อง, y แถว, z สูง) → จอ
+  const X = x - BC / 2, Y = y - BR / 2, depth = D - Y * CS - z * SN, s = F / depth;
+  return [OX + X * s, OY + (Y * SN - z * CS) * s, s];
+}
+let view = { k: 1, tx: 0, ty: 0 }, DPR = 1;
+function resize() { DPR = Math.min(devicePixelRatio, 2); cv.width = innerWidth * DPR; cv.height = innerHeight * DPR; }
+addEventListener("resize", resize); resize();
+function baseScale() { return Math.min(cv.width / LW, cv.height / LH); }
+function setXf() { const b = baseScale() * view.k; g.setTransform(b, 0, 0, b, (cv.width - LW * b) / 2 + view.tx * DPR, (cv.height - LH * b) / 2 + view.ty * DPR); }
+function toLogical(cx, cy) { const b = baseScale() * view.k; return [(cx * DPR - (cv.width - LW * b) / 2 - view.tx * DPR) / b, (cy * DPR - (cv.height - LH * b) / 2 - view.ty * DPR) / b]; }
+function unproject(sx, sy) { // จอ → พื้นกระดาน (z=0) — ค้นแบบ Newton สั้น ๆ
+  let x = BC / 2, y = BR / 2;
+  for (let i = 0; i < 30; i++) { const [px, py] = P(x, y), [ax, ay] = P(x + 0.01, y), [bx, by] = P(x, y + 0.01);
+    const j11 = (ax - px) / 0.01, j12 = (bx - px) / 0.01, j21 = (ay - py) / 0.01, j22 = (by - py) / 0.01, det = j11 * j22 - j12 * j21, ex = sx - px, ey = sy - py;
+    x += (j22 * ex - j12 * ey) / det; y += (-j21 * ex + j11 * ey) / det; }
+  return [x, y];
+}
+
+// ---------- วาดพื้นฐาน
+const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); let r = n >> 16, gg = (n >> 8) & 255, b = n & 255; r = Math.min(255, r * f); gg = Math.min(255, gg * f); b = Math.min(255, b * f); return `rgb(${r | 0},${gg | 0},${b | 0})`; };
+function poly(pts, fill, stroke) { g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.2; g.stroke(); } }
+// กล่อง 2.5D: หน้าบนสว่าง · หน้าหันกล้องกลาง · ข้างเข้ม
+function boxD(x0, y0, x1, y1, z0, z1, col, o = {}) {
+  const c = BC / 2, top = o.top || shade(col, 1.12), front = o.front || col, side = o.side || shade(col, 0.78), ln = o.line === false ? null : "rgba(30,30,40,.25)";
+  if (x0 > c) poly([P(x0, y0, z0), P(x0, y1, z0), P(x0, y1, z1), P(x0, y0, z1)], side, ln);
+  if (x1 < c) poly([P(x1, y0, z0), P(x1, y1, z0), P(x1, y1, z1), P(x1, y0, z1)], side, ln);
+  poly([P(x0, y1, z0), P(x1, y1, z0), P(x1, y1, z1), P(x0, y1, z1)], front, ln);
+  if (!o.noTop) poly([P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)], top, ln);
+}
+// สี่เหลี่ยมบนหน้าหันกล้อง (y = yf) — ใช้วาดประตู หน้าต่าง ป้าย
+function faceRect(x0, x1, yf, z0, z1, fill) { poly([P(x0, yf + 0.002, z0), P(x1, yf + 0.002, z0), P(x1, yf + 0.002, z1), P(x0, yf + 0.002, z1)], fill); }
+function faceText(txt, x0, x1, yf, z0, z1, bg, fg = "#fff") {
+  faceRect(x0, x1, yf, z0, z1, bg);
+  const [ax, ay, s] = P((x0 + x1) / 2, yf + 0.003, (z0 + z1) / 2);
+  g.fillStyle = fg; g.font = `800 ${Math.round((z1 - z0) * s * 0.62)}px "Noto Sans Thai", sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, ax, ay + 1);
+}
+function ellipseAt(x, y, z, rx, ry, fill) { const [sx, sy, s] = P(x, y, z); g.beginPath(); g.ellipse(sx, sy, rx * s, ry * s * SN, 0, 0, TAU); g.fillStyle = fill; g.fill(); }
+function shadowAt(x, y, r) { ellipseAt(x, y, 0, r, r, night ? "rgba(0,8,30,.35)" : "rgba(40,50,40,.22)"); }
+function post(x, y, h, w, col) { const [ax, ay, s] = P(x, y, 0), [, by] = P(x, y, h); g.fillStyle = col; g.fillRect(ax - w * s / 2, by, w * s, ay - by); g.fillStyle = "rgba(0,0,0,.18)"; g.fillRect(ax, by, w * s / 2, ay - by); }
+function ball(x, y, z, r, col) { const [sx, sy, s] = P(x, y, z); const gr = g.createRadialGradient(sx - r * s * 0.35, sy - r * s * 0.35, r * s * 0.1, sx, sy, r * s); gr.addColorStop(0, shade(col, 1.35)); gr.addColorStop(1, shade(col, 0.8)); g.fillStyle = gr; g.beginPath(); g.arc(sx, sy, r * s, 0, TAU); g.fill(); }
+
+// ---------- เสียง (สังเคราะห์สั้น ๆ)
+let ac = null, sfxBus, noiseBuf;
+function initAudio() { if (ac) return; ac = new AudioContext(); sfxBus = ac.createGain(); sfxBus.gain.value = 0.7; sfxBus.connect(ac.destination); noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+function env(gn, t, a, v, d) { gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + a); gn.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
+function tone(type, f, t, d, v, o = {}) { const os = ac.createOscillator(), gn = ac.createGain(); os.type = type; os.frequency.setValueAtTime(f, t); if (o.to) os.frequency.exponentialRampToValueAtTime(o.to, t + d); env(gn, t, 0.005, v, d); os.connect(gn).connect(sfxBus); os.start(t); os.stop(t + d + 0.05); }
+function noise(t, d, v, type, f) { const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), gn = ac.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f; env(gn, t, 0.003, v, d); s.connect(fl).connect(gn).connect(sfxBus); s.start(t); s.stop(t + d + 0.05); }
+const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
+function sfx(n) { initAudio(); const t = ac.currentTime; ({
+  pop: () => { noise(t, 0.1, 0.25, "lowpass", 500); tone("sine", 2200, t + 0.05, 0.1, 0.05); },
+  ding: () => { tone("sine", 1320, t, 0.3, 0.08); tone("sine", 990, t + 0.25, 0.4, 0.08); },
+  creak: () => tone("sawtooth", 260, t, 0.5, 0.04, { to: 170 }),
+  whoosh: () => noise(t, 0.7, 0.2, "bandpass", 900),
+  clank: () => { tone("square", 880, t, 0.1, 0.05); tone("square", 1320, t + 0.05, 0.1, 0.04); },
+  boing: () => { tone("sine", 300, t, 0.15, 0.15, { to: 700 }); tone("sine", 700, t + 0.15, 0.25, 0.12, { to: 300 }); },
+  game: () => [72, 76, 79, 84, 79, 84, 88].forEach((m, i) => tone("square", mtof(m), t + i * 0.09, 0.08, 0.05)),
+  sing: () => [67, 69, 71, 74, 71, 69, 67, 64].forEach((m, i) => tone("triangle", mtof(m), t + i * 0.3, 0.28, 0.08)),
+  sizzle: () => noise(t, 1.4, 0.05, "highpass", 3500),
+  zoom: () => tone("sine", 900, t, 0.25, 0.05, { to: 1500 }),
+  splash: () => noise(t, 0.4, 0.15, "bandpass", 2400),
+  step: () => noise(t, 0.03, 0.05, "lowpass", 900),
+})[n](); }
+
+// ---------- สถานะ
+let night = false, showGrid = true, showLabels = true;
+const parts = []; // อนุภาคลอย
+function emit(o) { parts.push({ life: 1, dur: 1, vx: 0, vy: 0, vz: 1, ...o, t: 0 }); }
+const blocked = new Set(), K = (x, y) => x + "," + y;
+const objs = [];
+function obj(o) { objs.push(o); if (o.block) for (let x = Math.floor(o.x0); x < Math.ceil(o.x1); x++) for (let y = Math.floor(o.y0); y < Math.ceil(o.y1); y++) blocked.add(K(x, y)); return o; }
+const T = { door: 0, roller: 1, wash: 0, karaoke: 0, crystal: 0, spicy: 0, fish: 0, dog: 0, arcade: 0, claw: 0, wc: 0, ferris: 0.25, fill: [0, 0, 0, 0] };
+let now = 0;
+
+// ---------- รถตู้ (จอดใต้หลังคาปั๊ม)
+obj({ name: "รถตู้", x0: 9.5, y0: 11.15, x1: 13.6, y1: 12.85, block: true, draw() {
+  shadowAt(11.55, 12.0, 2.2);
+  for (const x of [10.3, 12.8]) ellipseAt(x, 12.86, 0.28, 0.32, 0.32, "#1e1f22");
+  boxD(9.5, 11.15, 13.6, 12.85, 0.25, 0.95, "#7fb8d8");
+  boxD(9.5, 11.15, 13.6, 12.85, 0.95, 1.75, "#f6efe0", { top: "#fbf6ea" });
+  faceRect(9.5, 13.6, 12.85, 0.93, 0.98, "#d9dde2");
+  for (const [a, b] of [[9.75, 10.7], [10.9, 11.85], [12.05, 12.95]]) faceRect(a, b, 12.85, 1.08, 1.6, "#2f4a5e");
+  faceRect(13.15, 13.55, 12.85, 1.08, 1.55, "#2f4a5e");
+  for (const x of [10.3, 12.8]) { const [sx, sy, s] = P(x, 12.87, 0.3); g.fillStyle = "#1e1f22"; g.beginPath(); g.arc(sx, sy, 0.3 * s, 0, TAU); g.fill(); g.fillStyle = "#f4f1ea"; g.beginPath(); g.arc(sx, sy, 0.17 * s, 0, TAU); g.fill(); }
+  const [hx, hy, s] = P(13.62, 12.4, 0.7); g.fillStyle = night ? "#fff6c8" : "#fff2d0"; g.beginPath(); g.arc(hx, hy, 0.09 * s, 0, TAU); g.fill();
+} });
+
+// ---------- หลังคาปั๊ม (วาดทับทีหลังสุด โปร่ง) + ตู้น้ำมัน
+const pumps = [[8.4, 9.8], [9.6, 9.8], [13.4, 9.8], [14.6, 9.8]];
+for (const [x0, x1] of [[7.9, 10.1], [12.9, 15.1]]) obj({ x0, y0: 9.45, x1, y1: 10.15, draw() { boxD(x0, 9.45, x1, 10.15, 0, 0.12, "#d9d4c8"); } });
+pumps.forEach(([x, y], i) => obj({ name: "ตู้น้ำมัน", x0: x - 0.3, y0: y - 0.25, x1: x + 0.3, y1: y + 0.25, block: true, spot: [Math.floor(x), 10], draw() {
+  boxD(x - 0.3, y - 0.25, x + 0.3, y + 0.25, 0.12, 1.25, "#f7f5f0");
+  boxD(x - 0.31, y - 0.26, x + 0.31, y + 0.26, 1.25, 1.45, "#ff8a3d");
+  const [sx, sy, s] = P(x, y + 0.255, 0.95); g.fillStyle = "#0b1410"; g.fillRect(sx - 0.22 * s, sy - 0.12 * s, 0.44 * s, 0.22 * s);
+  g.fillStyle = "#7dffcf"; g.font = `800 ${0.14 * s}px monospace`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(T.fill[i].toFixed(1), sx, sy);
+  g.strokeStyle = "#2d333b"; g.lineWidth = 0.05 * s; g.beginPath(); const [ax, ay] = P(x - 0.2, y + 0.26, 0.75), [bx, by] = P(x - 0.35, y + 0.4, 0.35); g.moveTo(ax, ay); g.quadraticCurveTo(bx, ay, bx, by); g.stroke();
+}, act() { const st = { i }; T.fill[i] = 0; sfx("pop"); anims.push({ dur: 2.2, fn: (k) => (T.fill[i] = k * 60), end: () => { sfx("ding"); emit({ x, y: y + 0.4, z: 1.8, text: "⛽", vz: 0.8, dur: 1.4 }); } }); } }));
+const pillars = [[7.6, 9.0], [15.4, 9.0], [7.6, 13.0], [15.4, 13.0]];
+pillars.forEach(([x, y]) => obj({ x0: x - 0.2, y0: y - 0.2, x1: x + 0.2, y1: y + 0.2, block: true, draw() { post(x, y, 2.6, 0.32, "#f7f5f0"); } }));
+function drawCanopy() {
+  const a = THREE_clamp(1.15 - view.k * 0.35, 0.25, 0.75);
+  g.save(); g.globalAlpha = a;
+  boxD(7.2, 8.6, 15.8, 13.4, 2.6, 2.85, "#f7f5f0", { top: "#fbfaf6" });
+  faceRect(7.2, 15.8, 13.4, 2.6, 2.85, "#ff8a3d");
+  g.restore();
+  faceText("⛽ ECHO", 10.2, 12.8, 13.401, 2.6, 2.85, "#ff8a3d");
+  if (night) { const fl = Math.sin(now * 23) > 0.85 || Math.sin(now * 7.1) > 0.97 ? 0.25 : 1; for (const x of [9, 11.5, 14]) for (const y of [10, 12]) glow(x, y, 0.5, 2.2, `rgba(255,240,200,${0.35 * fl})`); }
+}
+const THREE_clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function glow(x, y, z, r, col) { const [sx, sy, s] = P(x, y, z); const gr = g.createRadialGradient(sx, sy, 0, sx, sy, r * s); gr.addColorStop(0, col); gr.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = gr; g.beginPath(); g.arc(sx, sy, r * s, 0, TAU); g.fill(); }
+
+// ---------- มินิมาร์ท
+obj({ name: "มินิมาร์ท", x0: 0.3, y0: 0.3, x1: 6.7, y1: 4.6, block: true, spot: [4, 5], draw() {
+  boxD(0.3, 0.3, 6.7, 4.6, 0, 2.3, "#f3efe6");
+  boxD(0.25, 0.25, 6.75, 4.65, 2.3, 2.75, "#3fae7a");
+  faceText("มินิมาร์ท 24", 1.4, 5.6, 4.651, 2.33, 2.72, "#3fae7a");
+  faceRect(0.6, 3.8, 4.6, 0.1, 1.8, night ? "#ffe9a8" : "#9fd3f0");
+  for (let k = 0; k < 5; k++) faceRect(0.75 + k * 0.62, 1.2 + k * 0.62, 4.6, 0.1, 0.9 + (k % 2) * 0.3, ["#d9534f", "#f2c94c", "#5aa0e0", "#3fae7a", "#ff8a3d"][k]);
+  if (night) { const [sx, sy, s] = P(2.2, 4.6, 1.15 + Math.sin(now * 1.5) * 0.08); g.globalAlpha = 0.55 + Math.sin(now * 3) * 0.25; g.fillStyle = "#f0f6ff"; g.beginPath(); g.arc(sx, sy, 0.32 * s, Math.PI, 0); g.lineTo(sx + 0.32 * s, sy + 0.5 * s); for (let k = 0; k < 4; k++) g.lineTo(sx + (0.24 - k * 0.16) * s, sy + (k % 2 ? 0.5 : 0.38) * s); g.lineTo(sx - 0.32 * s, sy + 0.5 * s); g.fill(); g.fillStyle = "#1f2a33"; g.beginPath(); g.arc(sx - 0.1 * s, sy, 0.05 * s, 0, TAU); g.arc(sx + 0.1 * s, sy, 0.05 * s, 0, TAU); g.fill(); g.globalAlpha = 1; }
+  faceRect(4.2, 5.4, 4.6, 0.05, 1.9, "#2d333b");
+  faceRect(4.25 + T.door * 1.1, 5.35 + T.door * 1.1, 4.601, 0.05, 1.85, night ? "#ffe9a8" : "#b8e2f6");
+  for (let k = 0; k < 8; k++) { const [a] = P(0.3 + k * 0.8, 4.65, 2.3), [b, by, s] = P(1.1 + k * 0.8, 5.05, 2.0); g.fillStyle = k % 2 ? "#3fae7a" : "#ffffff"; poly([P(0.3 + k * 0.8, 4.65, 2.3), P(1.1 + k * 0.8, 4.65, 2.3), P(1.1 + k * 0.8, 5.1, 2.0), P(0.3 + k * 0.8, 5.1, 2.0)], k % 2 ? "#3fae7a" : "#ffffff"); }
+}, act() { T.door = 1; sfx("ding"); setTimeout(() => (T.door = 0), 2200); } });
+
+// ---------- อู่ซ่อมรถ
+obj({ name: "อู่ซ่อมรถ", x0: 17.3, y0: 0.3, x1: 23.7, y1: 4.6, block: true, spot: [19, 5], draw() {
+  boxD(17.3, 0.3, 23.7, 4.6, 0, 2.6, "#8a9199");
+  faceText("อู่ · อัปเกรด", 18.3, 22.7, 4.601, 2.1, 2.5, "#2d333b");
+  faceRect(17.9, 21.4, 4.6, 0, 1.9, "#14181d");
+  const h = 1.9 * T.roller; for (let k = 0; k < 12; k++) { const z1 = 1.9 - k * 0.16; if (z1 - 0.16 < 1.9 - h) break; faceRect(17.9, 21.4, 4.601, Math.max(1.9 - h, z1 - 0.16), z1, k % 2 ? "#aab3bc" : "#c9d0d6"); }
+  for (let k = 0; k < 3; k++) ellipseAt(22.6, 5.0, 0.12 + k * 0.22, 0.38, 0.38, "#1e1f22");
+  boxD(21.8, 4.75, 22.2, 5.05, 0, 0.55, "#d8453b");
+}, act() { T.roller = T.roller > 0.5 ? 0.06 : 1; sfx("creak"); } });
+
+// ---------- ล้างรถ
+obj({ name: "ล้างรถ", x0: 19.4, y0: 8.2, x1: 23.6, y1: 12.3, block: true, spot: [18, 10], draw() {
+  boxD(19.4, 8.2, 23.6, 8.5, 0, 2.0, "#5aa0e0");
+  for (const [x, y] of [[20.4, 9.2], [22.4, 9.2], [20.4, 11.2], [22.4, 11.2]]) {
+    const [sx, sy, s] = P(x, y, 0), [, ty] = P(x, y, 1.8);
+    for (let k = 0; k < 8; k++) { const ph = now * (T.wash > 0 ? 14 : 0.4) + k; g.fillStyle = Math.sin(ph) > 0 ? "#3fc1c9" : "#ff6fa8"; g.fillRect(sx - 0.32 * s * Math.abs(Math.cos(ph)), ty + k * (sy - ty) / 8, 0.64 * s * Math.abs(Math.cos(ph)), (sy - ty) / 8 - 1); }
+  }
+  boxD(19.4, 12.0, 23.6, 12.3, 0, 2.0, "#5aa0e0");
+  g.save(); g.globalAlpha = 0.85; boxD(19.3, 8.1, 23.7, 12.4, 2.0, 2.25, "#5aa0e0"); g.restore();
+  faceText("ล้างรถ", 20.3, 22.7, 12.401, 2.0, 2.25, "#3d7fc0");
+}, act() { T.wash = 3.2; sfx("whoosh"); for (let k = 0; k < 26; k++) emit({ x: 20 + Math.random() * 3, y: 8.8 + Math.random() * 3, z: 0.3 + Math.random(), vz: 0.6 + Math.random(), bubble: true, dur: 2 + Math.random() }); } });
+
+// ---------- ห้องน้ำปริศนา
+obj({ name: "ห้องน้ำปริศนา", x0: 0.3, y0: 8.3, x1: 2.7, y1: 10.7, block: true, spot: [1, 11], draw() {
+  boxD(0.3, 8.3, 2.7, 10.7, 0, 2.0, "#f2e9d8");
+  boxD(0.2, 8.2, 2.8, 10.8, 2.0, 2.2, "#a26bff");
+  faceText("ห้องน้ำ", 0.7, 2.3, 10.801, 2.02, 2.18, "#a26bff");
+  faceRect(1.0, 1.9, 10.7, 0, 1.45, T.wc > 0 ? "#1b1426" : "#a26bff");
+  if (T.wc > 0) faceRect(1.9, 2.15, 10.7, 0, 1.45, "#8a55e0");
+}, act() { T.wc = 1; sfx("creak"); setTimeout(() => { sfx("whoosh"); for (let k = 0; k < 18; k++) emit({ x: walker.x, y: walker.y, z: 0.6, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, vz: Math.random() * 2, star: true, dur: 0.9 });
+  let tx, ty; do { tx = Math.floor(Math.random() * BC); ty = Math.floor(Math.random() * 14); } while (blocked.has(K(tx, ty))); walker.x = tx + 0.5; walker.y = ty + 0.5; path = []; T.wc = 0;
+  for (let k = 0; k < 18; k++) emit({ x: walker.x, y: walker.y, z: 0.6, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, vz: Math.random() * 2, star: true, dur: 0.9 }); }, 800); } });
+
+// ---------- หน้าร้าน: ตู้คีบ · กาชา · ตู้เกม · คาราโอเกะ · หมา
+const prizeCols = ["#ff6fa8", "#ffd23f", "#5aa0e0", "#3fae7a", "#a26bff"];
+obj({ name: "ตู้คีบตุ๊กตา", x0: 0.6, y0: 5.6, x1: 1.4, y1: 6.4, block: true, spot: [1, 7], draw() {
+  boxD(0.6, 5.6, 1.4, 6.4, 0, 0.55, "#ff6fa8");
+  g.save(); g.globalAlpha = 0.35; boxD(0.62, 5.62, 1.38, 6.38, 0.55, 1.45, "#bfe6ff", { line: false }); g.restore();
+  for (let k = 0; k < 6; k++) ball(0.78 + (k % 3) * 0.22, 5.8 + Math.floor(k / 3) * 0.3, 0.66, 0.1, prizeCols[k % 5]);
+  const cz = 1.4 - Math.sin(Math.min(1, T.claw) * Math.PI) * 0.65; const [ax, ay] = P(1, 6, 1.45), [bx, by, s] = P(1, 6, cz); g.strokeStyle = "#c9d0d6"; g.lineWidth = 0.03 * s; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); g.beginPath(); g.moveTo(bx - 0.1 * s, by + 0.1 * s); g.lineTo(bx, by); g.lineTo(bx + 0.1 * s, by + 0.1 * s); g.stroke();
+  boxD(0.58, 5.58, 1.42, 6.42, 1.45, 1.65, "#ff6fa8");
+}, act() { T.claw = 0.0001; sfx("clank"); anims.push({ dur: 1.4, fn: (k) => (T.claw = k), end: () => { T.claw = 0; if (Math.random() < 0.6) { sfx("boing"); emit({ x: 1, y: 6.5, z: 0.8, vy: 1.2, vz: 2.2, grav: true, ball: prizeCols[Math.floor(Math.random() * 5)], dur: 1.4 }); } } }); } });
+obj({ name: "ตู้กาชา", x0: 2.6, y0: 5.6, x1: 3.4, y1: 6.4, block: true, spot: [3, 7], draw() {
+  boxD(2.6, 5.6, 3.4, 6.4, 0, 0.7, "#d9534f");
+  g.save(); g.globalAlpha = 0.4; ball(3, 6, 1.05, 0.38, "#cfeeff"); g.restore();
+  for (let k = 0; k < 7; k++) ball(2.85 + (k % 3) * 0.15, 5.95 + (k % 2) * 0.1, 0.85 + Math.floor(k / 3) * 0.12, 0.08, prizeCols[k % 5]);
+}, act() { sfx("pop"); emit({ x: 3, y: 6.45, z: 0.35, vy: 1.6, vz: 1.0, grav: true, ball: prizeCols[Math.floor(Math.random() * 5)], dur: 1.6 }); } });
+obj({ name: "ตู้เกม", x0: 4.6, y0: 5.6, x1: 5.4, y1: 6.4, block: true, spot: [5, 7], draw() {
+  boxD(4.6, 5.6, 5.4, 6.4, 0, 1.6, "#2d333b");
+  faceRect(4.72, 5.28, 6.4, 0.95, 1.4, T.arcade > 0 ? `hsl(${(now * 600) % 360},90%,60%)` : "#3344ff");
+  boxD(4.58, 6.4, 5.42, 6.65, 0.75, 0.85, "#a26bff");
+  boxD(4.58, 5.58, 5.42, 6.42, 1.6, 1.85, "#a26bff", { front: night ? "#d7b8ff" : "#a26bff" });
+}, act() { T.arcade = 2; sfx("game"); } });
+obj({ name: "คาราโอเกะ", x0: 6.3, y0: 5.3, x1: 8.0, y1: 7.0, block: true, spot: [7, 8], draw() {
+  boxD(6.3, 5.3, 8.0, 7.0, 0, 0.12, "#7a3fa8");
+  for (const [x, y] of [[6.4, 5.4], [7.9, 5.4], [6.4, 6.9], [7.9, 6.9]]) post(x, y, 1.9, 0.08, "#c9d0d6");
+  post(7.3, 6.4, 1.0, 0.04, "#c9d0d6"); ball(7.3, 6.4, 1.05, 0.06, "#2d333b");
+  ball(7.15, 6.15, 1.6, 0.16, T.karaoke > 0 ? `hsl(${(now * 400) % 360},80%,75%)` : "#e6e6e6");
+  g.save(); g.globalAlpha = 0.9; boxD(6.25, 5.25, 8.05, 7.05, 1.9, 2.0, "#7a3fa8"); g.restore();
+}, act() { T.karaoke = 3; sfx("sing"); for (let k = 0; k < 10; k++) setTimeout(() => emit({ x: 7.15 + (Math.random() - 0.5), y: 6.2, z: 1.2, vz: 0.9, vx: (Math.random() - 0.5) * 0.4, text: Math.random() < 0.5 ? "♪" : "♫", col: prizeCols[k % 5], dur: 1.6 }), k * 260); } });
+obj({ name: "หมาประจำปั๊ม", x0: 9.1, y0: 7.2, x1: 9.9, y1: 7.8, block: true, spot: [9, 8], draw() {
+  const j = T.dog > 0 ? Math.abs(Math.sin(now * 12)) * 0.3 : 0; shadowAt(9.5, 7.5, 0.4);
+  boxD(9.15, 7.35, 9.75, 7.65, 0.2 + j, 0.5 + j, "#d9a066", { line: false });
+  for (const x of [9.2, 9.65]) post(x, 7.62, 0.22 + j, 0.07, "#c48d55");
+  ball(9.82, 7.5, 0.62 + j, 0.17, "#d9a066"); ball(9.97, 7.55, 0.58 + j, 0.06, "#2d333b");
+  const [tx, ty, s] = P(9.13, 7.5, 0.48 + j); g.strokeStyle = "#c48d55"; g.lineWidth = 0.06 * s; g.lineCap = "round"; g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx - 0.15 * s + Math.sin(now * (T.dog > 0 ? 30 : 6)) * 0.12 * s, ty - 0.22 * s); g.stroke();
+  ellipseAt(10.3, 7.65, 0.03, 0.17, 0.17, "#d9534f");
+}, act() { T.dog = 2; sfx("boing"); emit({ x: 9.8, y: 7.5, z: 1.1, text: "♥", col: "#ff6fa8", vz: 0.8, dur: 1.2 }); } });
+
+// ---------- ลานกลาง
+obj({ name: "หมอดู", x0: 8.6, y0: 1.6, x1: 10.4, y1: 3.4, block: true, spot: [9, 4], draw() {
+  shadowAt(9.5, 2.5, 1.1);
+  const [ax, ay, s] = P(9.5, 2.5, 2.4), [lx, ly] = P(8.5, 3.0, 0), [rx, ry] = P(10.5, 3.0, 0), [cx, cy] = P(9.5, 3.4, 0);
+  g.fillStyle = "#5b3a9a"; g.beginPath(); g.moveTo(ax, ay); g.lineTo(lx, ly); g.quadraticCurveTo(cx, cy + 8, rx, ry); g.closePath(); g.fill();
+  g.fillStyle = "#4a2d82"; g.beginPath(); g.moveTo(ax, ay); g.lineTo(cx - 0.35 * s, cy); g.lineTo(cx + 0.35 * s, cy); g.closePath(); g.fill();
+  ball(9.5, 2.5, 2.45, 0.08, "#ffd23f");
+  const pulse = T.crystal > 0 ? 0.7 + Math.sin(now * 12) * 0.3 : 0.25; glow(9.5, 3.45, 0.55, 0.6, `rgba(170,110,255,${pulse})`); ball(9.5, 3.45, 0.55, 0.14, "#c9a6ff");
+}, act() { T.crystal = 2.5; sfx("zoom"); } });
+obj({ name: "แข่งกินเผ็ด", x0: 12.2, y0: 2.2, x1: 14.2, y1: 3.0, block: true, spot: [13, 4], draw() {
+  shadowAt(13.2, 2.6, 1.0);
+  for (const x of [12.3, 14.1]) post(x, 2.95, 0.5, 0.06, "#2d333b");
+  boxD(12.2, 2.2, 14.2, 3.0, 0.5, 0.95, "#c4604a");
+  faceText("เผ็ด", 12.6, 13.8, 3.001, 0.55, 0.88, "#d9342c");
+  for (let k = 0; k < 3; k++) ellipseAt(12.6 + k * 0.6, 2.6, 0.97, 0.16, 0.16, "#f6efe0");
+  post(13.2, 2.6, 1.9, 0.04, "#c9d0d6");
+  const [ux, uy, s] = P(13.2, 2.6, 2.0); g.fillStyle = "#ff5a36"; g.beginPath(); g.ellipse(ux, uy + 0.12 * s, 1.1 * s, 0.4 * s, 0, Math.PI, 0); g.fill();
+}, act() { T.spicy = 2; sfx("sizzle"); for (let k = 0; k < 20; k++) emit({ x: 13.2 + (Math.random() - 0.5) * 1.2, y: 2.9, z: 1.0, vz: 1.2 + Math.random(), fire: true, dur: 0.9 + Math.random() * 0.4 }); } });
+obj({ name: "บ่อตกปลา", x0: 10.1, y0: 4.1, x1: 12.9, y1: 5.9, block: true, spot: [11, 6], draw() {
+  ellipseAt(11.5, 5.0, 0.02, 1.55, 1.05, "#9a8f7e"); ellipseAt(11.5, 5.0, 0.03, 1.38, 0.9, night ? "#244d73" : "#3f8fc4");
+  for (let k = 0; k < 4; k++) ellipseAt(11.5 + Math.cos(k * 1.6) * 0.9, 5 + Math.sin(k * 1.6) * 0.5, 0.04, 0.18, 0.18, "#5f9a4a");
+  const bz = 0.06 + Math.sin(now * (T.fish > 0 ? 20 : 2)) * (T.fish > 0 ? 0.06 : 0.02); ball(11.9, 4.8, bz, 0.06, "#d9534f");
+  const [rx, ry] = P(12.9, 5.6, 1.2), [bx, by] = P(11.9, 4.8, bz); g.strokeStyle = "rgba(60,40,30,.7)"; g.lineWidth = 1; g.beginPath(); g.moveTo(rx, ry); g.lineTo(bx, by); g.stroke();
+  post(12.9, 5.6, 1.2, 0.03, "#5a3a22");
+}, act() { T.fish = 2.2; sfx("splash"); setTimeout(() => emit({ x: 11.9, y: 4.8, z: 0.1, vx: 0.8, vz: 2.6, grav: true, fish: true, dur: 1.1 }), 1000); } });
+obj({ name: "ชิงช้าสวรรค์", x0: 14.6, y0: 0.6, x1: 16.4, y1: 1.4, block: true, spot: [15, 2], draw() {
+  const cx = 15.5, cy = 1.0, cz = 2.6, R = 2.0;
+  for (const s of [-1, 1]) { const [ax, ay] = P(cx + s * 0.9, cy, 0), [bx, by, sc] = P(cx, cy, cz); g.strokeStyle = "#f7f5f0"; g.lineWidth = 0.12 * sc; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke(); }
+  const [hx, hy, s] = P(cx, cy, cz);
+  g.strokeStyle = "#ff6fa8"; g.lineWidth = 0.08 * s; g.beginPath(); g.ellipse(hx, hy, R * s, R * s * CS * 1.0, 0, 0, TAU); g.stroke();
+  const rot = now * T.ferris;
+  for (let k = 0; k < 8; k++) { const a = rot + k / 8 * TAU, [px, py] = P(cx + Math.cos(a) * R, cy, cz + Math.sin(a) * R); g.strokeStyle = "rgba(255,255,255,.8)"; g.lineWidth = 0.03 * s; g.beginPath(); g.moveTo(hx, hy); g.lineTo(px, py); g.stroke(); g.fillStyle = prizeCols[k % 5]; g.fillRect(px - 0.2 * s, py, 0.4 * s, 0.32 * s); if (night) glow(cx + Math.cos(a) * R, cy, cz + Math.sin(a) * R, 0.5, "rgba(255,230,160,.5)"); }
+  ball(cx, cy, cz, 0.12, "#f7f5f0");
+}, act() { T.ferris = 1.4; sfx("whoosh"); setTimeout(() => (T.ferris = 0.25), 3000); } });
+
+// ---------- ของประดับ
+obj({ x0: 21.3, y0: 13.2, x1: 21.7, y1: 13.6, block: true, draw() {
+  post(21.5, 13.4, 3.0, 0.16, "#f7f5f0");
+  boxD(20.6, 13.3, 22.4, 13.5, 3.0, 4.3, "#f7f5f0");
+  faceText("⛽ ECHO", 20.75, 22.25, 13.501, 3.95, 4.25, "#ff8a3d");
+  faceRect(20.75, 22.25, 13.5, 3.08, 3.88, "#0b1410");
+  const [sx, sy, s] = P(21.5, 13.51, 3.48); g.font = `800 ${0.2 * s}px monospace`; g.textAlign = "center"; g.fillStyle = "#7dffcf"; g.fillText("91  38.45", sx, sy - 0.2 * s); g.fillText("95  39.85", sx, sy + 0.02 * s); g.fillText("D   32.94", sx, sy + 0.24 * s);
+} });
+for (const [x, y] of [[5.5, 9], [16.5, 7]]) obj({ x0: x - 0.4, y0: y - 0.2, x1: x + 0.4, y1: y + 0.2, block: true, draw() { boxD(x - 0.45, y - 0.2, x + 0.45, y + 0.2, 0.3, 0.4, "#b98552"); for (const dx of [-0.35, 0.35]) post(x + dx, y + 0.15, 0.3, 0.06, "#2d333b"); } });
+for (const [x, y] of [[6.5, 8.5], [16.5, 8.5], [3.5, 12.5]]) obj({ x0: x - 0.3, y0: y - 0.3, x1: x + 0.3, y1: y + 0.3, block: true, draw() { boxD(x - 0.25, y - 0.25, x + 0.25, y + 0.25, 0, 0.4, "#c4604a"); ball(x, y, 0.75, 0.38, "#76ad52"); } });
+
+// ---------- หมากผู้เล่น (เดินอิสระ)
+const walker = { x: 11.5, y: 13.5, name: "me" };
+let path = [], pendingAct = null;
+function bfs(sx, sy, tx, ty) {
+  const start = K(sx, sy), goal = K(tx, ty), prev = new Map([[start, null]]), q = [[sx, sy]];
+  while (q.length) { const [x, y] = q.shift(); if (K(x, y) === goal) break;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = x + dx, ny = y + dy, k = K(nx, ny);
+      if (nx < 0 || ny < 0 || nx >= BC || ny >= BR || prev.has(k) || blocked.has(k)) continue;
+      if (dx && dy && (blocked.has(K(x + dx, y)) || blocked.has(K(x, y + dy)))) continue;
+      prev.set(k, [x, y]); q.push([nx, ny]); } }
+  if (!prev.has(goal)) return null;
+  const out = []; for (let c = [tx, ty]; c; c = prev.get(K(...c))) out.unshift(c); return out.slice(1);
+}
+function walkTo(tx, ty, act) {
+  if (blocked.has(K(tx, ty))) return;
+  const p = bfs(Math.floor(walker.x), Math.floor(walker.y), tx, ty); if (!p) return;
+  path = p.map(([x, y]) => [x + 0.5, y + 0.5]); pendingAct = act || null; if (!p.length && act) { act(); pendingAct = null; }
+}
+function drawWalker() {
+  const bob = path.length ? Math.abs(Math.sin(now * 14)) * 0.12 : 0;
+  shadowAt(walker.x, walker.y, 0.42);
+  ellipseAt(walker.x, walker.y, 0.04, 0.42, 0.42, "#ff8a3d"); ellipseAt(walker.x, walker.y, 0.08, 0.36, 0.36, "#ffa766");
+  const [bx, by, s] = P(walker.x, walker.y, 0.1), [px, py] = P(walker.x, walker.y, 1.15 + bob), r = 0.42 * s;
+  g.strokeStyle = "#c9d0d6"; g.lineWidth = 0.05 * s; g.beginPath(); g.moveTo(bx, by); g.lineTo(px, py + r); g.stroke();
+  g.save(); g.beginPath(); g.arc(px, py, r, 0, TAU); g.clip();
+  const gr = g.createLinearGradient(0, py - r, 0, py + r); gr.addColorStop(0, "#ff8a3d"); gr.addColorStop(1, "#22324f"); g.fillStyle = gr; g.fillRect(px - r, py - r, 2 * r, 2 * r);
+  g.fillStyle = "#f6e2cc"; g.beginPath(); g.arc(px, py - r * 0.12, r * 0.38, 0, TAU); g.fill();
+  g.fillStyle = "#3a2a22"; g.beginPath(); g.arc(px, py - r * 0.24, r * 0.42, Math.PI, 0); g.fill();
+  g.fillStyle = "#ff8a3d"; g.beginPath(); g.ellipse(px, py + r * 0.95, r * 0.7, r * 0.55, 0, 0, TAU); g.fill();
+  g.restore(); g.strokeStyle = "#ff8a3d"; g.lineWidth = 0.08 * s; g.beginPath(); g.arc(px, py, r, 0, TAU); g.stroke();
+}
+
+// ---------- อนิเมชันตามเวลา
+const anims = [];
+function tickAnims(dt) { for (let i = anims.length - 1; i >= 0; i--) { const a = anims[i]; a.t = (a.t || 0) + dt; const k = Math.min(1, a.t / a.dur); a.fn(k); if (k >= 1) { anims.splice(i, 1); a.end && a.end(); } } }
+function drawParts(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.t += dt; if (p.t > p.dur) { parts.splice(i, 1); continue; }
+    if (p.grav) p.vz -= 6 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0.05, p.z + p.vz * dt);
+    const k = p.t / p.dur, [sx, sy, s] = P(p.x, p.y, p.z); g.globalAlpha = 1 - k * k;
+    if (p.text) { g.fillStyle = p.col || "#fff"; g.font = `800 ${0.5 * s}px "Noto Sans Thai", sans-serif`; g.textAlign = "center"; g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 3; g.strokeText(p.text, sx, sy); g.fillText(p.text, sx, sy); }
+    else if (p.bubble) { g.strokeStyle = "rgba(255,255,255,.9)"; g.lineWidth = 1.5; g.beginPath(); g.arc(sx, sy, 0.12 * s, 0, TAU); g.stroke(); }
+    else if (p.fire) { const gr = g.createRadialGradient(sx, sy, 0, sx, sy, 0.3 * s); gr.addColorStop(0, "rgba(255,240,150,1)"); gr.addColorStop(0.5, "rgba(255,110,30,.8)"); gr.addColorStop(1, "rgba(255,40,0,0)"); g.fillStyle = gr; g.beginPath(); g.arc(sx, sy, 0.3 * s * (1 + k), 0, TAU); g.fill(); }
+    else if (p.star) { g.fillStyle = "#e6d2ff"; g.beginPath(); g.arc(sx, sy, 0.08 * s, 0, TAU); g.fill(); }
+    else if (p.ball) { g.globalAlpha = 1; ball(p.x, p.y, p.z, 0.13, p.ball); }
+    else if (p.fish) { g.fillStyle = "#ff8a3d"; g.beginPath(); g.ellipse(sx, sy, 0.25 * s, 0.12 * s, -p.vz * 0.3, 0, TAU); g.fill(); }
+    g.globalAlpha = 1;
+  }
+}
+
+// ---------- พื้น
+function drawGround() {
+  g.fillStyle = night ? "#2a3a2c" : "#a9c98a"; g.fillRect(-2000, -2000, 6000, 6000);
+  for (let y = 0; y < BR; y++) for (let x = 0; x < BC; x++) {
+    const road = y >= 14;
+    const c = road ? (night ? "#2c3038" : "#5a5f67") : ((x + y) % 2 ? (night ? "#5f6066" : "#d3d0c8") : (night ? "#66676d" : "#dcd9d1"));
+    poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], c, showGrid && !road ? "rgba(40,30,20,.12)" : null);
+  }
+  for (let x = 0; x < BC; x += 2) poly([P(x + 0.2, 14.94), P(x + 1.2, 14.94), P(x + 1.2, 15.06), P(x + 0.2, 15.06)], "#f3efe2");
+  poly([P(0, 13.95), P(BC, 13.95), P(BC, 14.05), P(0, 14.05)], "#f3efe2");
+  for (let k = 0; k < 7; k++) poly([P(0.5 + k * 2.4, 12.2), P(0.6 + k * 2.4, 12.2), P(0.6 + k * 2.4, 13.6), P(0.5 + k * 2.4, 13.6)], "rgba(255,255,255,.7)");
+}
+
+// ---------- ป้าย + ไฮไลต์
+function drawLabel(text, x, y, z) {
+  const [sx, sy, s] = P(x, y, z); g.font = `700 ${Math.max(11, 0.36 * s)}px "Noto Sans Thai", sans-serif`; const w = g.measureText(text).width + 16, h = Math.max(18, 0.56 * s);
+  g.fillStyle = "rgba(31,42,51,.85)"; g.beginPath(); g.roundRect(sx - w / 2, sy - h / 2, w, h, h / 2); g.fill(); g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, sx, sy + 1);
+}
+const LBL = { "มินิมาร์ท": [3.5, 4.6, 3.3], "อู่ซ่อมรถ": [20.5, 4.6, 3.1], "ล้างรถ": [21.5, 12.3, 2.7], "ห้องน้ำปริศนา": [1.5, 10.7, 2.6], "ตู้คีบตุ๊กตา": [1, 6.4, 2.0], "ตู้กาชา": [3, 6.4, 1.8], "ตู้เกม": [5, 6.4, 2.2], "คาราโอเกะ": [7.15, 7.0, 2.4], "หมาประจำปั๊ม": [9.6, 7.6, 1.3], "หมอดู": [9.5, 3.4, 2.9], "แข่งกินเผ็ด": [13.2, 3.0, 2.5], "บ่อตกปลา": [11.5, 6.0, 0.9], "ชิงช้าสวรรค์": [15.5, 1.4, 5.0] };
+let hoverObj = null, hoverTile = null;
+function tileOutline(x, y, col) { poly([P(x, y), P(x + 1, y), P(x + 1, y + 1), P(x, y + 1)], col, "rgba(255,255,255,.8)"); }
+
+// ---------- วาดทั้งฉาก
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t; now += dt;
+  for (const k of ["wash", "karaoke", "crystal", "spicy", "fish", "dog", "arcade"]) T[k] = Math.max(0, T[k] - dt);
+  tickAnims(dt);
+  if (path.length) { const [tx, ty] = path[0], dx = tx - walker.x, dy = ty - walker.y, L = Math.hypot(dx, dy), st = dt * 6.5;
+    if (L <= st) { walker.x = tx; walker.y = ty; path.shift(); sfx && ac && sfx("step"); if (!path.length && pendingAct) { pendingAct(); pendingAct = null; } } else { walker.x += dx / L * st; walker.y += dy / L * st; } }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = night ? "#2a3a2c" : "#a9c98a"; g.fillRect(0, 0, cv.width, cv.height);
+  setXf();
+  drawGround();
+  if (hoverTile && !blocked.has(K(...hoverTile))) tileOutline(hoverTile[0], hoverTile[1], "rgba(255,210,122,.45)");
+  if (path.length) { const [ex, ey] = path[path.length - 1]; tileOutline(Math.floor(ex), Math.floor(ey), "rgba(255,138,61,.4)"); for (const [px, py] of path) ellipseAt(px, py, 0.02, 0.08, 0.08, "rgba(255,138,61,.8)"); }
+  const list = objs.map((o) => ({ y: o.y1, x: (o.x0 + o.x1) / 2, d: () => o.draw(), o })).concat([{ y: walker.y + 0.3, x: walker.x, d: drawWalker }]);
+  list.sort((a, b) => a.y - b.y || Math.abs(b.x - BC / 2) - Math.abs(a.x - BC / 2));
+  for (const it of list) { if (it.o && it.o === hoverObj) { g.save(); g.shadowColor = "#ffd27a"; g.shadowBlur = 18; it.d(); g.restore(); } else it.d(); }
+  drawCanopy();
+  drawParts(dt);
+  if (night) { g.save(); g.globalCompositeOperation = "multiply"; g.fillStyle = "#3a4a7a"; g.fillRect(-2000, -2000, 6000, 6000); g.restore();
+    g.save(); g.globalCompositeOperation = "lighter"; glow(3.5, 5.0, 1.0, 3, "rgba(255,220,140,.25)"); glow(11.5, 11, 2.4, 6, "rgba(255,240,200,.18)"); glow(21.5, 13.6, 3.5, 2, "rgba(120,255,200,.25)"); glow(15.5, 1, 2.6, 3, "rgba(255,200,240,.18)"); glow(9.5, 3.45, 0.55, 1.2, "rgba(170,110,255,.3)"); g.restore(); }
+  if (showLabels) for (const [n, [x, y, z]] of Object.entries(LBL)) drawLabel(n, x, y, z);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- เมาส์: คลิกช่อง = เดิน · คลิกกิจกรรม = เดินไปแล้วเล่น · ลาก = เลื่อน · ล้อ = ซูม
+const tip = document.getElementById("tip");
+function pickAt(cx, cy) {
+  const [lx, ly] = toLogical(cx, cy); const [bx, by] = unproject(lx, ly);
+  // ตรวจวัตถุ: ช่องพื้นที่ใต้เมาส์ หรือ กรอบภาพบนจอ (สูง)
+  let hit = null;
+  for (const o of objs) { if (!o.name || o.name === "รถตู้") continue;
+    if (bx >= o.x0 - 0.1 && bx <= o.x1 + 0.1 && by >= o.y0 - 0.1 && by <= o.y1 + 0.6) { hit = o; break; }
+    const lb = LBL[o.name]; if (lb) { const [sx, sy] = P(lb[0], lb[1], lb[2]); if (Math.abs(lx - sx) < 60 && ly > sy - 14 && ly < P(lb[0], lb[1], 0)[1]) { const [ox0] = P(o.x0, o.y1, 0), [ox1] = P(o.x1, o.y1, 0); if (lx > ox0 - 6 && lx < ox1 + 6) hit = o; } } }
+  return { hit, tile: bx >= 0 && by >= 0 && bx < BC && by < BR ? [Math.floor(bx), Math.floor(by)] : null };
+}
+let drag = null;
+cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty, moved: false }; });
+addEventListener("pointermove", (e) => {
+  if (drag && (e.buttons & 1)) { const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 5) drag.moved = true; if (drag.moved) { view.tx = drag.tx + dx; view.ty = drag.ty + dy; } }
+  const { hit, tile } = pickAt(e.clientX, e.clientY); hoverObj = hit; hoverTile = hit ? null : tile;
+  cv.style.cursor = hit ? "pointer" : tile ? "crosshair" : "default";
+  tip.style.display = hit ? "block" : "none"; if (hit) { tip.textContent = hit.name; tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px"; }
+});
+cv.addEventListener("pointerup", (e) => {
+  if (drag && !drag.moved) { initAudio(); const { hit, tile } = pickAt(e.clientX, e.clientY);
+    if (hit) { if (hit.spot) walkTo(hit.spot[0], hit.spot[1], () => hit.act && hit.act()); else hit.act && hit.act(); }
+    else if (tile) walkTo(tile[0], tile[1]); }
+  drag = null;
+});
+cv.addEventListener("wheel", (e) => { e.preventDefault(); const k0 = view.k; view.k = THREE_clamp(view.k * (e.deltaY < 0 ? 1.12 : 1 / 1.12), 0.8, 2.6);
+  const cx = e.clientX - innerWidth / 2, cy = e.clientY - innerHeight / 2; view.tx = cx - (cx - view.tx) * view.k / k0; view.ty = cy - (cy - view.ty) * view.k / k0; }, { passive: false });
+
+// ---------- ปุ่ม
+const ui = document.getElementById("ui");
+function btn(t, fn, on) { const b = document.createElement("button"); b.textContent = t; if (on) b.className = "on"; b.onclick = () => fn(b); ui.appendChild(b); return b; }
+btn("กลางคืน", (b) => { night = !night; b.classList.toggle("on", night); });
+btn("ตาราง", (b) => { showGrid = !showGrid; b.classList.toggle("on", showGrid); }, true);
+btn("ป้าย", (b) => { showLabels = !showLabels; b.classList.toggle("on", showLabels); }, true);
+btn("มุมเอียง", (b) => { const top = PITCH > 1; PITCH = (top ? 38 : 75) * Math.PI / 180; SN = Math.sin(PITCH); CS = Math.cos(PITCH); b.classList.toggle("on", !top); });
+document.fonts.load("800 20px 'Noto Sans Thai'");
+</script>
+</body>
+</html>
