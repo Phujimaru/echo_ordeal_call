@@ -725,7 +725,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         )}
       </div>
 
-      <OcButton variant="ghost" className="ocl-back oc-enter d2" onClick={back}>← ย้อนกลับ</OcButton>
+      <OcButton className="ocl-back oc-back oc-enter d2" onClick={back}><span aria-hidden="true">←</span>ย้อนกลับ</OcButton>
     </div>
   );
 }

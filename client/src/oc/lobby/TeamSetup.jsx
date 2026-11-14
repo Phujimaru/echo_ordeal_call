@@ -78,7 +78,7 @@ export default function TeamSetup({ state }) {
         <b>{readyCount} / {state.players.length}</b>
       </div>
 
-      <OcButton variant="ghost" className="ocl-back" onClick={() => socket.emit("teamBackToMode")}>← ย้อนกลับ</OcButton>
+      <OcButton className="ocl-back oc-back" onClick={() => socket.emit("teamBackToMode")}><span aria-hidden="true">←</span>ย้อนกลับ</OcButton>
     </div>
   );
 }

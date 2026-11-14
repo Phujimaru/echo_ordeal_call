@@ -348,8 +348,18 @@
 :root[data-ui="dark"] .oc-screen :is(.oc-h1, .oc-h2, .oc-label, .oc-muted) { color: var(--oc-ink); }
 :root[data-ui="dark"] .oc-screen :is(.oc-label, .oc-muted) { color: var(--oc-ink-2); }
 /* ปุ่ม/ช่องกรอก/ป้าย (theme.css) */
-:root[data-ui="dark"] .oc-screen :is(.oc-btn:not(.primary):not(.ghost), .oc-input, .oc-chip:not(.on)) { background: var(--ui-surf); }
-:root[data-ui="dark"] .oc-screen .oc-btn:not(.primary):not(.ghost):hover { background: var(--ui-surf-hi); }
+:root[data-ui="dark"] .oc-screen :is(.oc-btn:not(.primary):not(.ghost):not(.oc-back), .oc-input, .oc-chip:not(.on)) { background: var(--ui-surf); }
+:root[data-ui="dark"] .oc-screen .oc-btn:not(.primary):not(.ghost):not(.oc-back):hover { background: var(--ui-surf-hi); }
+/* ปุ่มย้อนกลับ (theme.css .oc-back): กระจกกรมท่าลายหกเหลี่ยมเดียวกับปุ่มเมนู launcher โหมดมืด */
+:root[data-ui="dark"] .oc-btn.oc-back {
+  --ob-frame: rgba(127, 184, 230, 0.45); --ob-sheen: rgba(127, 200, 255, 0.35); color: #eaf4ff;
+  background:
+    linear-gradient(90deg, #2bb8ff 0 4px, transparent 4px),
+    repeating-linear-gradient(60deg, rgba(127, 184, 230, 0.09) 0 1px, transparent 1px 14px),
+    repeating-linear-gradient(-60deg, rgba(127, 184, 230, 0.09) 0 1px, transparent 1px 14px),
+    linear-gradient(115deg, rgba(22, 46, 86, 0.96), rgba(16, 34, 66, 0.96) 40%, rgba(10, 22, 44, 0.96));
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+}
 :root[data-ui="dark"] .oc-screen .oc-input::placeholder { color: var(--oc-ink-3); }
 :root[data-ui="dark"] .oc-screen .oc-tag:not(.on):not(.ocl-modetag):not(.ocl-worldtag) { background: var(--ui-surf-a); }
 /* หมุดโหมด/สนาม/ภูมิภาค (lobby.css): แคปซูลน้ำเงินเข้ม ตัวอักษรอ่อน · พื้นสี่เหลี่ยมของ .oc-tag ห้ามโผล่ */

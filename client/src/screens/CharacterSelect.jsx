@@ -570,7 +570,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
         <OcButton variant="primary" className="cs-confirm" disabled={!canConfirm} tabIndex={sel ? undefined : -1} onClick={confirm}>{confirmLabel}</OcButton>
       </div>
 
-      <OcButton className="cs-back oc-enter d2" onClick={onBack}>
+      <OcButton className="cs-back oc-back oc-enter d2" onClick={onBack}>
         <span aria-hidden="true">←</span>
         {backLabel}
       </OcButton>

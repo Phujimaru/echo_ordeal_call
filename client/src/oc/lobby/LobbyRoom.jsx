@@ -150,7 +150,7 @@ export default function LobbyRoom({ state, ring, vh, armed, onArm, lowQ, onToggl
         )}
       </div>
 
-      <OcButton variant="ghost" className="ocl-back oc-enter d2" onClick={onBack}>← ย้อนกลับ</OcButton>
+      <OcButton className="ocl-back oc-back oc-enter d2" onClick={onBack}><span aria-hidden="true">←</span>ย้อนกลับ</OcButton>
     </div>
   );
 }

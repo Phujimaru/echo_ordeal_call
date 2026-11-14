@@ -59,8 +59,7 @@
 @media (prefers-reduced-motion: reduce) { .cs-scan { display: none; } }
 
 /* ปุ่มย้อนกลับ — มุมซ้ายล่างเสมอ */
-.cs-back { position: absolute; z-index: 6; left: max(28px, 3vw); bottom: 44px; padding: 12px 18px; font-size: 14px; }
-.cs-back span { color: var(--oc-azure); }
+.cs-back { position: absolute; z-index: 6; left: max(28px, 3vw); bottom: 44px; }
 
 .cs-tip { position: absolute; z-index: 7; left: 0; top: 0; pointer-events: none; background: var(--oc-ink); color: #fff; font: 500 13px/1 var(--oc-f-body); padding: 7px 10px; white-space: nowrap; }
 
@@ -238,7 +237,7 @@
 }
 .cs-confirm-wrap.open { transform: none; opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0.16s, 0.16s, 0s; }
 @media (prefers-reduced-motion: reduce) { .cs-confirm-wrap { transition: none; } }
-.cs-confirm { min-width: 184px; padding: 15px 28px; font-size: 16px; }
+.cs-confirm { min-width: 200px; padding-block: 16px; font-size: 16px; }
 /* โหมดของตัวละคร (นักบินปริศนา: สายลับ / ผู้กอบกู้) — ปุ่มคู่ข้างปุ่มยืนยัน */
 .cs-modes { display: flex; border: 1px solid var(--oc-azure); background: rgba(255, 255, 255, 0.92); }
 .cs-mode {
