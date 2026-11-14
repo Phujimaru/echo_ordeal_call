@@ -65,7 +65,7 @@ const MOV_HORSE = 5;
 const RANGE = [1, 4];
 const RANGE_HORSE = [1, 5];
 const NO_STRIKE = [1, 0];
-const HORSE_HP = 3;
+const HORSE_HP = 5; // เดิม 3 + เกราะ 2 ของไจโรย้ายมาที่ม้า (ผู้ใช้สั่ง 2026-11-14 — server/combat.js STAT_BONUS_OF)
 const HORSE_CD = 3;          // ม้าตาย = เรียกไม่ได้ 3 เทิร์น (ผู้ใช้สั่ง 2026-10-20 — เดิม 2)
 const BALL_DMG = 1;          // กลับคืนเจ้าของ / วิชาลับ (ต่อขา)
 const RECALL_HEAL = 1;

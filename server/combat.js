@@ -33,13 +33,24 @@ const Summon = require("./summon");
 
 // ตัวละครเจ้าของค่าสถานะพื้นฐาน (เลือด/เกราะ/แต้มสกิลสูงสุด) — เจ้าหญิง Echo ตอนเปลี่ยนสกิลยังใช้ของ Echo (characters/echo.js)
 const statId = (p) => CHAR_HOOKS.echo.statId(p);
+// ค่าสถานะเพิ่มทุกตัวละคร (ผู้ใช้สั่ง 2026-11-14): พลังชีวิต +3 เกราะ +2 บวกท้ายค่าของตัวละคร (รวมทุกร่าง/ร่างที่ Echo สวม — ตาม statId)
+//  เคท & เอมิลิโกะ: +2/+2 คนละตัว · ไม่มีเกราะ (ดิโอ): พลังชีวิต +5 ทั้งหมด
+//  ขี่ม้า (ไจโร/ดิเอโก้): ตัวได้แค่พลังชีวิต +3 · เกราะ +2 ไปเพิ่มให้ม้า (ม้ารับดาเมจ 3 → 5 — HORSE_HP ใน gyro_zeppeli.js / HORSE.hp ใน diego_alt.js)
+//  ยูนิตที่ถูกเรียก (summon) ไม่ได้ — คืนค่าของตัวเองก่อนถึงตรงนี้
+const STAT_BONUS = { hp: 3, armor: 2 };
+const STAT_BONUS_OF = {
+  kate: { hp: 2, armor: 2 }, emiliko: { hp: 2, armor: 2 },
+  dio_brando: { hp: 5, armor: 0 },
+  gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 },
+};
+const statBonusOf = (p) => (p && STAT_BONUS_OF[statId(p)]) || STAT_BONUS;
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
 function maxHpOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxHp)) return p.summon.maxHp; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[statId(p)];
   // Fodlan: ร่างอสูรศิลาตรา เลือดสูงสุด +5 (server/fodlan/stage5.js persist.maxHpBonus)
   // ผลึกชีวิต (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalHp — ล้างทุกแมตช์ใหม่)
-  return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + require("./fodlan").maxHpBonus(p) + ((p && p.crystalHp) || 0);
+  return (hook && hook.maxHp ? hook.maxHp(p) : MAX_HP) + statBonusOf(p).hp + require("./fodlan").maxHpBonus(p) + ((p && p.crystalHp) || 0);
 }
 // ฟื้นเลือดจริงแบบเคารพสถานะ "ไม่ใช้งานต่อ" / "ไร้ทางเยียวยา" — คืนจำนวนที่ฟื้นได้จริง
 // ผกผัน (patch 2.2.1): การฟื้นเลือดกลับกลายเป็นเสียเลือดแทน (ไม่สนเกราะ)
@@ -213,7 +224,7 @@ function maxArmorOf(p) {
   if (p && p.summon && Number.isFinite(p.summon.maxArmor)) return p.summon.maxArmor; // ยูนิตที่ถูกเรียก (server/summon.js)
   const hook = p && CHAR_HOOKS[statId(p)];
   // ผลึกเกราะ (ไอเทมร้านค้า): +1 ถาวรต่อเม็ด (p.crystalArmor)
-  return (hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR) + ((p && p.crystalArmor) || 0);
+  return (hook && hook.maxArmor ? hook.maxArmor(p, MAX_ARMOR) : MAX_ARMOR) + statBonusOf(p).armor + ((p && p.crystalArmor) || 0);
 }
 // ตายกลางเทิร์น (เลือดหมดจากสกิล/ผลสถานะ): ตกรอบทันที
 // force = true: ข้ามระบบกันตายทั้งหมด — ยังผ่านการเก็บกวาดท้ายฟังก์ชันตามปกติทุกอย่าง

@@ -123,7 +123,7 @@ test('พุ่มหญ้า: สกิลโจมตีแบบพื้น
   Math.random = () => 0.99; // ไม่หลบ
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'down' });
-  assert.ok(P.B.hp + P.B.armor < 10, 'โดนคลื่นดาบ');
+  assert.ok(P.B.hp + P.B.armor < engine.maxHpOf(P.B) + engine.maxArmorOf(P.B), 'โดนคลื่นดาบ');
   assert.equal(view('C', 'B').pos, null, 'พุ่มหญ้าไม่โผล่เพราะโดนตี');
   // โอเบรอน (6,3) ม่านแห่งราตรี รอบตัว 4: B ในพุ่มมองไม่เห็น = ไม่ได้บัฟ
   P = setup([['O', 'oberon_summer', 6, 3], ['B', 'dummy', 6, 4], ['C', 'dummy', 8, 3]]);

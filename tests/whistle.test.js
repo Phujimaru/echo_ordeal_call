@@ -42,10 +42,10 @@ function freeSpot(near) {
 }
 
 test('โอกาสติด: ปกติ 20% · ต่ำกว่าครึ่ง 70% · เหลือ 1 = 100% (คิดจากเลือดสูงสุดของตัวนั้น)', () => {
-  const p = mk(null, { hp: 7 });
+  const p = mk(null, { hp: 10 }); // เลือดสูงสุด 10 (7 + โบนัสทุกตัว 3 — server/combat.js STAT_BONUS)
   assert.equal(Whistle.chanceOf(p), 20);
-  p.hp = 4; assert.equal(Whistle.chanceOf(p), 20, '4/7 ยังไม่ต่ำกว่าครึ่ง');
-  p.hp = 3; assert.equal(Whistle.chanceOf(p), 70);
+  p.hp = 5; assert.equal(Whistle.chanceOf(p), 20, '5/10 ยังไม่ต่ำกว่าครึ่ง');
+  p.hp = 4; assert.equal(Whistle.chanceOf(p), 70);
   p.hp = 1; assert.equal(Whistle.chanceOf(p), 100);
 });
 

@@ -198,7 +198,7 @@ test('เฟส 4: ฟ้าผ่าต้นเทิร์น 3 จุด เ
   withRandom(0, () => Zero.onRoundStart());
   assert.equal(match.zero.bolt.tiles.length, 3);
   assert.equal(ps.p0.hp, 5, 'โดนฟ้าผ่า −2');
-  assert.equal(ps.p1.hp, 7);
+  assert.equal(ps.p1.hp, engine.maxHpOf(ps.p1));
 });
 
 test('ปลดผนึก: กลับแผนที่/ตำแหน่งเดิม · ทุกคนเสีย 2 ยกเว้นคนทุบ · เวลาโลกเดินต่อจากที่หยุด', () => {

@@ -88,7 +88,7 @@ const WORLD = { cunning: 5, cd: 3 };
 const PLOT = { cost: 4, ammo: 2, len: 4, dmg: 3, push: 2, bleed: 2 }; // ผู้ใช้สั่ง 2026-10-22: กระสุน 2 นัด (เคยลดเป็น 1) · ดาเมจ 3 (เดิม 4)
 const STOP_SKILLS = 3; // ตาหยุดเวลา: กดสกิลรวมกันได้ 3 ครั้ง (ทุกช่อง) แทนตีปกติ/โควตาเดิม (ผู้ใช้สั่ง 2026-10-20 · เนิร์ฟ 5 → 4 → 3 ถึง 2026-10-22)
 const CUNNING_MAX = 10;
-const HORSE = { hp: 3, cd: 3, name: "ซิลเวอร์ บูลเล็ต" };
+const HORSE = { hp: 5, cd: 3, name: "ซิลเวอร์ บูลเล็ต" }; // hp เดิม 3 + เกราะ 2 ของดิเอโก้ย้ายมาที่ม้า (ผู้ใช้สั่ง 2026-11-14)
 // จังหวะเอฟเฟกต์ (ms) — ต้องตรงกับ DIEGO_FX ใน client/src/board/diegoFx.js (GRID_PLAN §7.12)
 const DIEGO_FX = {
   throw: 650, oil: 450, explode: 900, ignite: 450, netTrap: 700, knife: 450, shot: 380, firstAid: 600,

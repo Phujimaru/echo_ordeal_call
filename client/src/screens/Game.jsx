@@ -953,7 +953,7 @@ function statusEntries(p, full) {
     const g = p.gyro;
     out.push({ key: "gyroBalls", v: 1, icon: "🟢", label: `${g.hand}/2`, cls: "bg-emerald-600 text-white", desc: "ตีปกติใช้ลูก 1 ลูก ลูกตกที่เป้า ไม่มีลูกในมือจะตีไม่ได้จนกว่าจะเรียกกลับด้วยกลับคืนเจ้าของ" });
     out.push({ key: "gyroGolden", v: 1, icon: "🌀", label: `${g.golden}/30`, cls: "bg-amber-300 text-gray-900", desc: "ได้ตอนขี่ม้าเดิน เท่ากับช่วงเดินตรงที่ยาวที่สุดในตา วิชาลับใช้ 5 ท่าไม้ตายใช้ 20 สะสมได้สูงสุด 30" });
-    if (g.mounted) out.push({ key: "gyroHorse", v: 1, icon: "🐎", label: `${g.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินและระยะตีเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
+    if (g.mounted) out.push({ key: "gyroHorse", v: 1, icon: "🐎", label: `${g.horseHp}/5`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินและระยะตีเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
     else if (g.horseCd > 0) out.push({ key: "gyroHorseCd", v: g.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงเรียกม้าได้อีก" });
     if (g.empowered) out.push({ key: "gyroEmpowered", v: 1, icon: "✨", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-yellow-400 text-gray-900", desc: "ตีปกติครั้งถัดไปในตานี้ทำให้เป้ากระเด็นจนสุดขอบ เสียหายตามจำนวนช่องสูงสุด 6 และถูกตรึง 2 เทิร์น ไม่ตีก่อนจบตาจะหายไป" });
     else if (g.ultCd > 0) out.push({ key: "gyroUltCd", v: g.ultCd, turns: true, icon: "⏳", label: "การหมุนที่สมบูรณ์แบบ", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
@@ -973,7 +973,7 @@ function statusEntries(p, full) {
     if (d.cunning != null) out.push({ key: "diegoCunning", v: 1, icon: "🧠", label: `${d.cunning}/${d.cunningMax}`, cls: "bg-yellow-500 text-gray-900", desc: "ได้ 1 ทุกครั้งที่ใช้คลังเครื่องมือ และเมื่อราดน้ำมันโดนศัตรู ระเบิด ตาข่ายดักติด หรือกองไฟเผาศัตรู ใช้ 5 เพื่อกดท่าไม้ตาย" });
     if (d.ammo > 0) out.push({ key: "diegoAmmo", v: 1, icon: "🔫", label: `${d.ammo}/${d.ammoMax}`, cls: "bg-stone-700 text-white", desc: "ปืนลูกโม่ยิงได้ตาละ 1 นัด กระสุนหมดแล้วต้องรีโหลด 5 เทิร์น" });
     else if (d.reloadCd > 0) out.push({ key: "diegoReload", v: d.reloadCd, turns: true, icon: "🔫", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงได้กระสุนเต็ม 4 นัดและยิงได้อีก" });
-    if (d.mounted) out.push({ key: "diegoHorse", v: 1, icon: "🐎", label: `${d.horseHp}/3`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
+    if (d.mounted) out.push({ key: "diegoHorse", v: 1, icon: "🐎", label: `${d.horseHp}/5`, cls: "bg-amber-700 text-white", desc: "ม้ารับความเสียหายก่อนเกราะทีละ 1 ระยะเดินเพิ่ม 1 ม้าล้มแล้วเรียกไม่ได้ 3 เทิร์น" });
     else if (d.horseCd > 0) out.push({ key: "diegoHorseCd", v: d.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงเรียกม้าได้อีก" });
     if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "เวลาหยุดอยู่ ได้ตาเดินใหม่ ตีปกติไม่ได้แต่ใช้สกิลรวมได้ 3 ครั้ง ความเสียหายที่ทำใส่คนอื่นลงตอนเวลาเดินต่อ" });
     else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "ศัตรูทำให้เสียหายก่อนจบเทิร์น การกระทำนั้นถูกยกเลิกแล้วหยุดเวลาทันที ถ้าไม่โดนจะได้หยุดเวลาต้นเทิร์นหน้าก่อนทุกคน" });

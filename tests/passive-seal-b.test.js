@@ -77,7 +77,7 @@ test('ไจโร: ม้า/ทองคำ/ผลัก ปิดเมื่
   assert.equal(P.A.gyro.golden, 3);
   assert.deepEqual(h.counterPush(engine, P.A, P.B, {}), { push: true });
   assert.equal(h.absorbDamage(engine, P.A), true);
-  assert.equal(P.A.gyro.horseHp, 2);
+  assert.equal(P.A.gyro.horseHp, 4);
 
   seal(P.A);
   assert.equal(h.mov(P.A), 4);
@@ -86,7 +86,7 @@ test('ไจโร: ม้า/ทองคำ/ผลัก ปิดเมื่
   assert.equal(P.A.gyro.golden, 3);
   assert.equal(h.counterPush(engine, P.A, P.B, {}), null);
   assert.equal(h.absorbDamage(engine, P.A), false);
-  assert.equal(P.A.gyro.horseHp, 2);
+  assert.equal(P.A.gyro.horseHp, 4);
   assert.equal(h.charAction(engine, P.A, 'horse'), false);
   assert.equal(P.A.gyro.mounted, true, 'สถานะขี่ค้างไว้');
   // ตีโดน (ไม่เสริม) = ไม่ผลัก
