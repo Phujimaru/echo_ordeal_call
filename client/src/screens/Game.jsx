@@ -2049,7 +2049,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (me?.bagSlots || state.bagSlots || 5);
   const openShop = shopId ? shopList.find((sh) => sh.id === shopId) || null : null; // ข้อมูลสดของร้านที่เปิดอยู่ (ร้านหายไป = ปิดเอง)
   // Gate of Babylon (me.remoteShop — กิลกาเมช): ซื้อจากร้านไหนก็ได้บนแผนที่ ไม่ต้องยืนติด
-  const shopBlock = !myTurn || canto ? "ไม่ใช่ตาของคุณ" : !openShop || (!nearShops.includes(openShop) && !me?.remoteShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
+  // Road Trip จุดพัก: ไม่มีตาเดิน — ทุกคนซื้อพร้อมกันได้ (server shop.js freeShop) · ผู้ใช้แจ้งบัค 2026-11-14
+  const rtShopFree = state.gameMode === "roadtrip" && state.roadtrip && state.roadtrip.phase === "stop" && !!me?.alive;
+  const shopBlock = !rtShopFree && (!myTurn || canto) ? "ไม่ใช่ตาของคุณ" : !openShop || (!nearShops.includes(openShop) && !me?.remoteShop) ? "ต้องอยู่ติดร้าน" : bagFull ? "กระเป๋าเต็ม" : null;
   const viewShop = (sh) => { if (!sh) return; clickSound(); socket.emit("viewShop", { shopId: sh.id }); setShopId(sh.id); };
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
