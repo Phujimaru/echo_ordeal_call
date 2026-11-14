@@ -55,7 +55,9 @@
   <div class="row" id="modes"></div>
   <div class="row" id="radio"><b>วิทยุ</b></div>
   <div class="row" id="paint"><input id="plate" maxlength="9" value="กข 4567"></div>
-  <div class="row" id="parts"></div>
+  <div class="row" id="upg"><b>อัปเกรด</b></div>
+  <div class="row" id="stats"></div>
+  <div class="row" id="parts"><b>ของแต่ง</b></div>
 </div>
 <div id="tip"></div>
 <div id="ytwrap"><div id="ytbox"></div></div>
@@ -64,6 +66,8 @@
   <div class="col">
     <div class="km" id="km">0.0 กม.</div>
     <div class="bar"><i id="nb"></i></div>
+    <div class="bar"><i id="fb" style="background:linear-gradient(90deg,#ffb36b,#ff5a36)"></i></div>
+    <div class="km" id="hp" style="font-size:14px"></div>
     <div class="st" id="st"></div>
   </div>
 </div>
@@ -666,6 +670,10 @@ function sfx(name) {
     crash: () => { noise(t, 0.5, 0.5, d, "lowpass", 600); tone("square", 90, t, 0.2, 0.25, d, { glideTo: 50 }); noise(t + 0.03, 0.25, 0.12, d, "highpass", 4000); },
     whoosh: () => noise(t, 0.9, 0.22, d, "bandpass", 900, 0.8, 0.15),
     lane: () => noise(t, 0.25, 0.05, d, "bandpass", 3200, 6, 0.03),
+    gun: () => { for (let k = 0; k < 3; k++) { noise(t + k * 0.13, 0.14, 0.45, d, "lowpass", 1400); tone("square", 140, t + k * 0.13, 0.08, 0.2, d, { glideTo: 55 }); noise(t + k * 0.13, 0.04, 0.2, d, "highpass", 5000); } },
+    sizzle: () => noise(t, 1.6, 0.05, d, "highpass", 3500, 0.7, 0.2),
+    zoom: () => tone("sine", 900, t, 0.25, 0.04, d, { glideTo: 1500 }),
+    upg: () => { tone("triangle", 660, t, 0.12, 0.08, d); tone("triangle", 990, t + 0.08, 0.18, 0.08, d); },
   })[name]();
 }
 function engineStart() {
@@ -1026,13 +1034,14 @@ const always = grp();
   for (const z of [-0.5, 0.6]) { const wp = mesh(box(0.03, 0.03, 0.8), trim, 3.32, 1.95, z, always); wp.rotation.y = 0.35; }
 }
 const wheels = [];
+const hubMat = cream.clone();
 const tireMat = std(0x1e1f22, { roughness: 0.92 });
 for (const x of [2.6, -2.6]) for (const z of [HW - 0.22, -HW + 0.22]) {
   const g = new THREE.Group(); g.position.set(x, 0.56, z); g.rotation.order = "YZX"; wheelRig.add(g);
   const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 40), tireMat); tire.rotation.x = Math.PI / 2; g.add(tire);
   for (const s of [-1, 1]) { const tr = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 10, 40), tireMat); tr.position.z = s * 0.2; g.add(tr); }
   for (const s of [-1, 1]) { const ww = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 10, 40), std(0xf4f1ea, { roughness: 0.6 })); ww.position.z = s * 0.205; ww.scale.z = 0.35; g.add(ww); }
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.44, 32), cream); hub.rotation.x = Math.PI / 2; g.add(hub);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.44, 32), hubMat); hub.rotation.x = Math.PI / 2; g.add(hub);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 12), chrome); cap.scale.z = 1.25; cap.rotation.x = Math.PI / 2; g.add(cap);
   for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), chrome); const an = k / 5 * TAU; b.position.set(Math.cos(an) * 0.19, Math.sin(an) * 0.19, Math.sign(z) * 0.22); g.add(b); }
   shadowAll(g); wheels.push(g);
@@ -1097,11 +1106,17 @@ document.fonts.load("700 44px 'Noto Sans Thai'").finally(() => LABELS.forEach((l
 // =====================================================================  upgrade parts
 const parts = {};
 function part(name, roof, build) { const g = grp(); build(g); shadowAll(g); g.visible = false; parts[name] = { g, roof, on: false }; }
+let turretHead, muzzle;
 part("ป้อมปืน", true, (g) => {
   const m = std(0x4b5563, { metalness: 0.6, roughness: 0.35 });
-  mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.25, 28), m, -2.3, 3.6, 0, g);
-  mesh(rbox(0.9, 0.42, 0.75, 0.08), m, -2.25, 3.92, 0, g);
-  for (const z of [0.15, -0.15]) mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 14), trim, -1.35, 3.95, z, g).rotation.z = Math.PI / 2;
+  mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.25, 28), m, -2.5, 3.6, 0, g);
+  turretHead = grp(-2.5, 3.72, 0, g);
+  mesh(rbox(0.9, 0.42, 0.75, 0.08), m, 0.05, 0.2, 0, turretHead);
+  mesh(rbox(0.5, 0.3, 0.06, 0.03), m, -0.1, 0.25, 0.42, turretHead);
+  for (const z of [0.15, -0.15]) mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 14), trim, 0.95, 0.23, z, turretHead).rotation.z = Math.PI / 2;
+  mesh(rbox(0.3, 0.5, 0.12, 0.04), trim, -0.45, 0.05, 0, turretHead);
+  muzzle = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(64, 64, (c) => { const gr = c.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,250,210,1)"); gr.addColorStop(0.4, "rgba(255,170,60,.9)"); gr.addColorStop(1, "rgba(255,90,0,0)"); c.fillStyle = gr; c.fillRect(0, 0, 64, 64); }), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+  muzzle.position.set(1.7, 0.23, 0); muzzle.scale.setScalar(0.9); muzzle.visible = false; turretHead.add(muzzle);
 });
 part("กันชนหนาม", false, (g) => {
   mesh(rbox(0.25, 0.5, W + 0.3, 0.06), std(0x8a8f96, { metalness: 0.7, roughness: 0.3 }), 4.4, 0.85, 0, g);
@@ -1121,9 +1136,9 @@ part("ไนตรัส", false, (g) => {
 part("แร็คหลังคา", true, (g) => {
   for (const z of [-1.4, 1.4]) mesh(box(4.2, 0.08, 0.08), chrome, -1.8, 3.62, z, g);
   for (let k = 0; k < 4; k++) mesh(box(0.08, 0.08, 2.9), chrome, -3.7 + k * 1.25, 3.62, 0, g);
-  mesh(rbox(1.1, 0.55, 0.9, 0.08), std(0xc9853e), -3.1, 3.93, -0.6, g);
-  mesh(rbox(0.8, 0.45, 0.8, 0.08), std(0x6c8f4e), -3.0, 3.88, 0.55, g);
-  mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.9, 18), std(0x3f6fb5), -1.6, 3.95, 0, g).rotation.x = Math.PI / 2;
+  mesh(rbox(0.8, 0.5, 0.8, 0.08), std(0xc9853e), -3.5, 3.91, -0.85, g);
+  mesh(rbox(0.7, 0.42, 0.7, 0.08), std(0x6c8f4e), -3.5, 3.87, 0.85, g);
+  mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.8, 18), std(0x3f6fb5), -3.5, 3.88, 0, g).rotation.x = Math.PI / 2;
 });
 let flag;
 part("ธง", true, (g) => {
@@ -1136,6 +1151,222 @@ part("ตุ๊กตาหน้ารถ", false, (g) => {
   mesh(new THREE.SphereGeometry(0.1, 18, 12), m, 3.05, 2.17, 0.55, g);
   for (const z of [-0.06, 0.06]) mesh(new THREE.SphereGeometry(0.04, 8, 8), m, 3.05, 2.26, 0.55 + z, g);
 });
+
+// =====================================================================  roof deck (ดาดฟ้า — ขึ้นทางซันรูฟ)
+const roofDeck = grp(0, 0, 0, roofTop); roofDeck.visible = false;
+const RY = 3.49; // ผิวหลังคา
+{
+  const rows = 6, tile = (i) => 1.5 - i;
+  const ROOF_KIND = [["look", "none", "look"], ["none", "hatch", "none"], ["fire", "none", "rest"], ["none", "rest", "none"], ["none", "gun", "none"], ["store", "store", "store"]];
+  const RC = { look: 0x8fd0ff, hatch: 0x9be3b0, fire: 0xff8d8d, rest: 0xffe08a, gun: 0xff5a36, store: 0xd8cbb4, none: 0xf6efe0 };
+  for (let i = 0; i < rows; i++) for (let c = -1; c <= 1; c++) {
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92), new THREE.MeshBasicMaterial({ color: RC[ROOF_KIND[i][c + 1]], transparent: true, opacity: 0.38, depthWrite: false }));
+    t.rotation.x = -Math.PI / 2; t.position.set(tile(i), RY + 0.005, c); roofDeck.add(t);
+  }
+  const pts = [];
+  for (let i = 0; i <= rows; i++) { const x = 2 - i; pts.push(x, RY + 0.01, -1.5, x, RY + 0.01, 1.5); }
+  for (let c = 0; c <= 3; c++) { const z = -1.5 + c; pts.push(2, RY + 0.01, z, 2 - rows, RY + 0.01, z); }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
+  roofDeck.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x2a2018, transparent: true, opacity: 0.4 })));
+  for (const z of [-1, 1]) {
+    mesh(new THREE.CylinderGeometry(0.025, 0.025, 6.1, 8), chrome, -1.0, RY + 0.42, z * (HW - 0.06), roofDeck).rotation.z = Math.PI / 2;
+    for (let k = 0; k < 7; k++) mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.42, 6), chrome, 2.0 - k, RY + 0.21, z * (HW - 0.06), roofDeck);
+  }
+}
+const binoc = grp(1.5, RY, -1, roofDeck);
+for (const a of [0, 2.1, 4.2]) { const l = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.8, 6), trim, 0, 0.38, 0, binoc); l.rotation.set(0.25 * Math.cos(a), 0, 0.25 * Math.sin(a)); }
+for (const z of [-0.07, 0.07]) mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.26, 14), std(0x2d333b), 0.04, 0.82, z, binoc).rotation.z = Math.PI / 2;
+interactive(binoc, "กล้องส่องทางไกล", () => { sfx("zoom"); if (!drive.on) { controls.minDistance = 0.05; flyTo([1.4, RY + 0.95, -1], [60, 2.5, -1]); } else setCam("roof"); });
+const scope = grp(1.5, RY, 1, roofDeck);
+for (const a of [0, 2.1, 4.2]) { const l = mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 6), chrome, 0, 0.33, 0, scope); l.rotation.set(0.25 * Math.cos(a), 0, 0.25 * Math.sin(a)); }
+mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.9, 16), cream, 0.1, 0.85, 0, scope).rotation.z = -1.0;
+interactive(scope, "กล้องดูดาว", () => { sfx("zoom"); if (!drive.on) { controls.minDistance = 0.05; flyTo([1.4, RY + 0.9, 1], [20, 40, 4]); } });
+const grill = grp(-0.5, RY, -1, roofDeck);
+mesh(new THREE.SphereGeometry(0.3, 20, 10, 0, TAU, Math.PI / 2, Math.PI / 2), std(0x1f2226, { roughness: 0.5 }), 0, 0.62, 0, grill);
+for (const a of [0, 2.1, 4.2]) mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.62, 6), trim, Math.cos(a) * 0.18, 0.31, Math.sin(a) * 0.18, grill);
+const coals = mesh(new THREE.CircleGeometry(0.27, 20), new THREE.MeshStandardMaterial({ color: 0x331a10, emissive: 0xff5a1f, emissiveIntensity: 0 }), 0, 0.6, 0, grill); coals.rotation.x = -Math.PI / 2;
+for (let k = 0; k < 3; k++) mesh(rbox(0.16, 0.04, 0.07, 0.02), std(0xb5543a), -0.08 + k * 0.08, 0.63, (k - 1) * 0.1, grill);
+const smoke = [];
+for (let k = 0; k < 8; k++) { const sp = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), new THREE.MeshStandardMaterial({ color: 0xdddddd, transparent: true, opacity: 0, depthWrite: false })); sp.userData.k = k / 8; grill.add(sp); smoke.push(sp); }
+let grillOn = false;
+interactive(grill, "เตาปิ้งย่าง", () => { grillOn = !grillOn; if (grillOn) sfx("sizzle"); coals.material.emissiveIntensity = grillOn ? 1.6 : 0; });
+const frameMetal = std(0xdfe4e8, { metalness: 0.5, roughness: 0.3 });
+const lounge = grp(-0.5, RY, 1, roofDeck);
+{
+  const fab = std(0x3fae7a, { roughness: 0.9, side: THREE.DoubleSide });
+  mesh(box(0.7, 0.03, 0.45), fab, 0, 0.3, 0, lounge).rotation.z = -0.12;
+  mesh(box(0.55, 0.03, 0.45), fab, -0.45, 0.5, 0, lounge).rotation.z = 0.9;
+  for (const z of [-0.23, 0.23]) { mesh(box(0.8, 0.025, 0.025), frameMetal, -0.05, 0.25, z, lounge).rotation.z = -0.15; mesh(box(0.025, 0.3, 0.025), frameMetal, 0.3, 0.15, z, lounge); }
+}
+interactive(lounge, "เก้าอี้อาบแดด", () => sfx("soft"));
+const umb = grp(-1.05, RY, 1.1, roofDeck);
+mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 8), frameMetal, 0, 0.7, 0, umb);
+const canopy = grp(0, 1.4, 0, umb);
+mesh(new THREE.ConeGeometry(0.75, 0.3, 12, 1, true), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.8, map: canvasTex(128, 16, (g) => { for (let k = 0; k < 12; k++) { g.fillStyle = k % 2 ? "#ff8a3d" : "#fff6e0"; g.fillRect(k * 128 / 12, 0, 128 / 12 + 1, 16); } }) }), 0, 0, 0, canopy);
+const canopyA = anim(canopy, "scale", "x"), canopyB = anim(canopy, "scale", "z");
+interactive(umb, "ร่ม", () => { const v = canopyA.tgt > 0.5 ? 0.15 : 1; canopyA.tgt = canopyB.tgt = v; sfx("swish"); });
+mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshStandardMaterial({ map: canvasTex(64, 64, (g) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#d9534f" : "#fff6e0"; g.fillRect(i * 8, j * 8, 8, 8); } }), roughness: 1 }), -1.5, RY + 0.008, 0, roofDeck).rotation.x = -Math.PI / 2;
+let turretFire = 0, turretAim = 0;
+interactive(parts["ป้อมปืน"].g, "ป้อมปืน", () => { turretAim = (Math.random() - 0.5) * 1.6; turretFire = 0.5; sfx("gun"); });
+let roofMode = false;
+const roofLabels = grp(0, 0, 0, roofDeck);
+document.fonts.load("700 44px 'Noto Sans Thai'").finally(() => {
+  for (const [t, x, y, z] of [["กล้องส่องทางไกล", 1.5, RY + 1.3, -1], ["กล้องดูดาว", 1.5, RY + 1.4, 1], ["ซันรูฟ", 0.5, RY + 0.6, 0], ["เตาปิ้งย่าง", -0.5, RY + 1.1, -1], ["เก้าอี้อาบแดด", -0.5, RY + 0.9, 1], ["เสื่อ", -1.5, RY + 0.5, 0], ["ป้อมปืน", -2.5, RY + 1.0, 0], ["ที่เก็บของ", -3.5, RY + 0.9, 0]]) {
+    const n = labelGroup.children.length; label(t, x, y, z); const sp = labelGroup.children[n]; labelGroup.remove(sp); roofLabels.add(sp);
+  }
+});
+function setRoof(on) {
+  roofMode = on; roofDeck.visible = on; roofBtn.classList.toggle("on", on);
+  if (on && shell === "cut") setShell("out");
+  if (on && !drive.on) { controls.minDistance = 3; flyTo([5.5, 9.5, 6.5], [-1, 3.5, 0]); }
+}
+
+// =====================================================================  ของแต่งเพิ่ม
+const balloons = [], decoBulbs = [], underLights = [];
+function sideDecal(name, draw, x, y, w, h) {
+  part(name, false, (g) => {
+    const tex = canvasTex(512, Math.round(512 * h / w), draw);
+    for (const side of [-1, 1]) { const m = mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), x, y, side * (HW + 0.017), g); if (side < 0) m.rotation.y = Math.PI; m.castShadow = false; }
+  });
+}
+sideDecal("ลายไฟ", (g, w, h) => {
+  for (let k = 0; k < 7; k++) {
+    const y0 = h * (0.15 + k * 0.11), len = w * (0.55 + Math.sin(k * 1.7) * 0.25);
+    const gr = g.createLinearGradient(w, 0, w - len, 0); gr.addColorStop(0, "#ffe066"); gr.addColorStop(0.45, "#ff8a1f"); gr.addColorStop(1, "rgba(220,40,20,0)");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(w, y0 - h * 0.09); g.quadraticCurveTo(w - len * 0.5, y0 - h * 0.16, w - len, y0); g.quadraticCurveTo(w - len * 0.45, y0 + h * 0.05, w, y0 + h * 0.09); g.fill();
+  }
+}, 1.7, 1.12, 2.8, 0.85);
+sideDecal("ลายดอกไม้", (g, w, h) => {
+  const cs = ["#ff6fa8", "#ffd23f", "#ffffff", "#ff8a3d", "#a26bff"];
+  for (let k = 0; k < 9; k++) {
+    const x = w * (0.08 + k * 0.105), y = h * (0.5 + Math.sin(k * 2.3) * 0.22), r = h * (0.16 + (k % 3) * 0.05);
+    g.fillStyle = cs[k % 5]; for (let p = 0; p < 6; p++) { const a = p / 6 * TAU; g.beginPath(); g.ellipse(x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.45, r * 0.3, a, 0, TAU); g.fill(); }
+    g.fillStyle = "#ffcf33"; g.beginPath(); g.arc(x, y, r * 0.3, 0, TAU); g.fill();
+  }
+}, -1.6, 1.12, 2.6, 0.8);
+{
+  const pivL = rearDoors.children[0], g = grp(0, 0, 0, pivL);
+  const sm = mesh(new THREE.CircleGeometry(0.2, 32), new THREE.MeshStandardMaterial({ map: canvasTex(128, 128, (c) => { c.fillStyle = "#ffd23f"; c.beginPath(); c.arc(64, 64, 62, 0, TAU); c.fill(); c.fillStyle = "#1f2a33"; c.beginPath(); c.arc(44, 50, 9, 0, TAU); c.arc(84, 50, 9, 0, TAU); c.fill(); c.lineWidth = 9; c.strokeStyle = "#1f2a33"; c.beginPath(); c.arc(64, 66, 34, 0.2, Math.PI - 0.2); c.stroke(); }), roughness: 0.4 }), -T / 2 - 0.012, 1.4, 1.25, g);
+  sm.rotation.y = -Math.PI / 2; sm.castShadow = false; g.visible = false; parts["หน้ายิ้ม"] = { g, roof: false, on: false };
+}
+part("ขนตา", false, (g) => {
+  for (const z of [-1.15, 1.15]) {
+    const arc = mesh(new THREE.TorusGeometry(0.24, 0.025, 6, 20, Math.PI), trim, 4.15, 1.27, z, g); arc.rotation.y = Math.PI / 2;
+    for (let k = 0; k < 6; k++) { const a = 0.35 + k / 5 * (Math.PI - 0.7); const l = mesh(box(0.02, 0.12, 0.02), trim, 4.16, 1.27 + Math.sin(a) * 0.3, z + Math.cos(a) * 0.3, g); l.rotation.x = -Math.cos(a) * 0.9; }
+  }
+});
+part("หูแมว", true, (g) => {
+  for (const z of [-0.85, 0.85]) {
+    const e = mesh(new THREE.ConeGeometry(0.32, 0.55, 4), paint, 1.9, RY + 0.27, z, g); e.rotation.y = Math.PI / 4; e.scale.x = 0.45;
+    const i = mesh(new THREE.ConeGeometry(0.2, 0.36, 4), std(0xf2a1b5), 2.0, RY + 0.22, z, g); i.rotation.y = Math.PI / 4; i.scale.x = 0.3;
+  }
+});
+part("เขากวาง", true, (g) => {
+  const m = std(0x8a5a32, { roughness: 0.8 });
+  for (const z of [-0.8, 0.8]) {
+    const s = Math.sign(z);
+    mesh(new THREE.CylinderGeometry(0.045, 0.06, 0.8, 8), m, 1.9, RY + 0.4, z, g).rotation.x = -s * 0.35;
+    for (const [h, a] of [[0.35, 0.9], [0.55, -0.7], [0.7, 0.6]]) { const b = mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.38, 6), m, 1.9 + a * 0.12, RY + h + 0.12, z + s * h * 0.35, g); b.rotation.set(-s * 0.9, 0, a); }
+  }
+});
+part("ครีบฉลาม", true, (g) => {
+  const sh = new THREE.Shape(); sh.moveTo(-0.6, 0); sh.quadraticCurveTo(-0.1, 0.4, 0.15, 0.9); sh.quadraticCurveTo(0.1, 0.35, 0.45, 0); sh.closePath();
+  const fg = new THREE.ExtrudeGeometry(sh, { depth: 0.08, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 3 }); fg.translate(0, 0, -0.04);
+  mesh(fg, std(0x6d8199, { roughness: 0.4 }), -1.0, RY, 0, g).rotation.y = Math.PI;
+});
+part("ล้อแม็กทอง", false, () => {});
+parts["ล้อแม็กทอง"].fx = (on) => { hubMat.color.setHex(on ? 0xe0b04a : 0xf6efe0); hubMat.metalness = on ? 0.9 : 0; hubMat.roughness = on ? 0.25 : 0.4; };
+part("ท่อคู่", false, (g) => {
+  for (const z of [-1, 1]) {
+    mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.9, 16), chrome, -3.98, 2.05, z * (HW + 0.12), g);
+    mesh(new THREE.CylinderGeometry(0.12, 0.09, 0.25, 16), chrome, -3.98, 3.55, z * (HW + 0.12), g);
+    for (const y of [1.2, 2.6]) mesh(box(0.06, 0.06, 0.14), trim, -3.98, y, z * (HW + 0.06), g);
+  }
+});
+{
+  const g = grp(0, 0.04, 0, van);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(7.6, W + 0.7), new THREE.MeshBasicMaterial({ color: 0xc86bff, transparent: true, opacity: 0.5, depthWrite: false })); pl.rotation.x = -Math.PI / 2; g.add(pl);
+  const L = new THREE.PointLight(0xc86bff, 0, 9, 1.5); L.position.y = 0.3; g.add(L); underLights.push(L);
+  g.visible = false; parts["ไฟใต้ท้อง"] = { g, roof: false, on: false };
+}
+part("ป้ายหลังคา", true, (g) => {
+  const tex = canvasTex(512, 128, (c) => { const gr = c.createLinearGradient(0, 0, 512, 0); gr.addColorStop(0, "#ff8a3d"); gr.addColorStop(1, "#a26bff"); c.fillStyle = gr; c.fillRect(0, 0, 512, 128); c.fillStyle = "#fff"; c.font = "800 78px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("ROAD TRIP", 256, 68); });
+  const m = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.2 }); decoBulbs.push(m);
+  mesh(rbox(0.22, 0.42, 1.5, 0.05), cream, 1.25, RY + 0.32, 0, g);
+  for (const s of [1, -1]) { const p = mesh(new THREE.PlaneGeometry(1.42, 0.36), m, 1.25 + s * 0.115, RY + 0.32, 0, g); p.rotation.y = s * Math.PI / 2; p.castShadow = false; }
+  for (const z of [-0.5, 0.5]) mesh(box(0.06, 0.12, 0.06), trim, 1.25, RY + 0.06, z, g);
+});
+part("ลูกโป่ง", false, (g) => {
+  const cols = [0xff5a6e, 0xffd23f, 0x5aa0e0];
+  cols.forEach((c, i) => {
+    const b = grp(3.25 - i * 0.18, 2.95 + i * 0.2, HW + 0.4 + (i - 1) * 0.18, g); b.userData = { x: b.position.x, y: b.position.y };
+    mesh(new THREE.SphereGeometry(0.2, 20, 16), std(c, { roughness: 0.25 }), 0, 0, 0, b).scale.y = 1.2;
+    const str = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -0.24, 0), new THREE.Vector3(3.25 - b.position.x, 2.12 - b.position.y, HW + 0.32 - b.position.z)]), new THREE.LineBasicMaterial({ color: 0xffffff }));
+    b.add(str); balloons.push(b);
+  });
+});
+part("ไฟประดับนอก", true, (g) => {
+  const cols = [0xff6b6b, 0xffd27a, 0x7dffcf, 0x8fb8ff, 0xf2a1e8].map((c) => { const m = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.25 }); decoBulbs.push(m); return m; });
+  for (const z of [-1, 1]) for (let k = 0; k < 20; k++) { const x = 2.2 - k * 0.32, b = mesh(new THREE.SphereGeometry(0.04, 8, 6), cols[k % 5], x, 3.33 - Math.abs(Math.sin(k * 0.8)) * 0.05, z * (HW + 0.04), g); b.castShadow = false; }
+});
+part("เซิร์ฟบอร์ด", true, (g) => {
+  const b = mesh(new THREE.SphereGeometry(1, 32, 12), std(0x3fc1c9, { roughness: 0.3 }), -1.2, RY + 0.12, -0.95, g); b.scale.set(1.5, 0.05, 0.28); b.rotation.y = 0.05;
+  mesh(box(2.4, 0.012, 0.05), std(0xffffff), -1.2, RY + 0.17, -0.95, g);
+});
+part("กันชนกันวัว", false, (g) => {
+  for (const z of [-0.95, 0.95]) { const t = mesh(new THREE.TorusGeometry(0.42, 0.05, 10, 24, Math.PI), chrome, 4.48, 0.95, z, g); t.rotation.y = Math.PI / 2; mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 10), chrome, 4.38, 0.62, z * 1.45, g).rotation.z = Math.PI / 2; }
+  mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.9, 12), chrome, 4.48, 1.37, 0, g).rotation.x = Math.PI / 2;
+  mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.9, 12), chrome, 4.48, 0.75, 0, g).rotation.x = Math.PI / 2;
+});
+part("บังแดดกระจกหน้า", false, (g) => {
+  const tex = canvasTex(512, 64, (c) => { const gr = c.createLinearGradient(0, 0, 512, 0); gr.addColorStop(0, "#2d6be0"); gr.addColorStop(0.5, "#a26bff"); gr.addColorStop(1, "#ff5a6e"); c.fillStyle = gr; c.fillRect(0, 0, 512, 64); c.fillStyle = "#fff"; c.font = "800 40px sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("★ ROAD TRIP ★", 256, 34); });
+  const a = Math.atan2(1.33, -0.63), nx = 1.33 / 1.47, ny = 0.63 / 1.47;
+  const st = mesh(box(0.3, 0.01, W - 0.4), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }), 2.82 + nx * 0.1, 2.98 + ny * 0.1, 0, g);
+  st.rotation.z = a; st.castShadow = false;
+  st.material.map.center.set(0.5, 0.5); st.material.map.rotation = Math.PI / 2;
+});
+
+// =====================================================================  อัปเกรด (ค่าสถานะรถ — รีเซ็ตทุกรอบเล่น)
+parts["ป้อมปืน"].upg = parts["กันชนหนาม"].upg = parts["ไนตรัส"].upg = true;
+const UPG = { "ตัวถัง": { lv: 0, max: 3 }, "เครื่องยนต์": { lv: 0, max: 3 }, "ถังน้ำมัน": { lv: 0, max: 3 }, "ช่วงล่าง": { lv: 0, max: 3 }, "ไนตรัส": { lv: 0, max: 3 }, "ป้อมปืน": { lv: 0, max: 3 }, "กันชน": { lv: 0, max: 3 }, "ที่เก็บของ": { lv: 0, max: 3 } };
+const STAT = { hp: 20, kmh: 100, fuel: 40, grip: 1, slots: 6 };
+const upgVis = { armor: [null, grp(), grp(), grp()], engine: [null, grp(), grp(), grp()], fuel: [null, grp(), grp(), grp()] };
+const steel = std(0x5d6670, { metalness: 0.7, roughness: 0.45 }), rivet = std(0xaab3bc, { metalness: 0.8, roughness: 0.3 });
+for (const side of [-1, 1]) {
+  const z = side * (HW + 0.04);
+  for (const [x0, x1] of [[-1.75, 1.75], [3.4, 3.95], [-3.95, -3.4]]) {
+    mesh(rbox(x1 - x0, 0.5, 0.05, 0.02), steel, (x0 + x1) / 2, 1.15, z, upgVis.armor[1]);
+    for (let x = x0 + 0.12; x < x1 - 0.05; x += 0.35) for (const y of [0.95, 1.35]) mesh(new THREE.SphereGeometry(0.025, 8, 6), rivet, x, y, z + side * 0.03, upgVis.armor[1]);
+  }
+  for (const wi of [1, 2, 3]) { const w = WINDOWS[wi]; for (let x = w[0][0] + 0.15; x < w[1][0]; x += 0.28) mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.05, 8), steel, x, 2.575, side * (HW + 0.05), upgVis.armor[2]); for (const y of [2.1, 3.05]) mesh(box(w[1][0] - w[0][0], 0.04, 0.04), steel, (w[0][0] + w[1][0]) / 2, y, side * (HW + 0.05), upgVis.armor[2]); }
+}
+mesh(rbox(0.08, 0.55, 2.4, 0.03), steel, 4.24, 1.1, 0, upgVis.armor[3]);
+for (let k = 0; k < 4; k++) mesh(box(0.09, 0.05, 2.0), trim, 4.25, 0.95 + k * 0.1, 0, upgVis.armor[3]);
+for (const z of [-1, 1]) mesh(rbox(0.5, 0.42, 0.06, 0.02), steel, -4.18, 1.15, z * 1.2, upgVis.armor[3]);
+mesh(rbox(0.55, 0.12, 0.65, 0.04), chrome, 3.76, 1.85, 0, upgVis.engine[1]);
+mesh(box(0.06, 0.08, 0.5), trim, 4.04, 1.85, 0, upgVis.engine[1]);
+for (const z of [-1, 1]) mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.5, 12), chrome, -0.5, 0.35, z * (HW + 0.06), upgVis.engine[2]).rotation.z = Math.PI / 2;
+{ const bl = grp(3.65, 1.95, 0, upgVis.engine[3]); mesh(rbox(0.5, 0.32, 0.55, 0.05), chrome, 0, 0, 0, bl); for (const z of [-0.12, 0.12]) { mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.3, 14), chrome, 0.05, 0.3, z, bl); mesh(new THREE.TorusGeometry(0.08, 0.015, 6, 16), trim, 0.05, 0.45, z, bl).rotation.x = Math.PI / 2; } mesh(box(0.04, 0.4, 0.5), trim, 0.27, -0.05, 0, bl); }
+function jerry(x, z, side, parent, col) { const j = grp(x, 1.45, z, parent); mesh(rbox(0.32, 0.46, 0.14, 0.04), std(col, { roughness: 0.4 }), 0, 0, 0, j); mesh(box(0.2, 0.05, 0.05), trim, 0, 0.26, 0, j); mesh(box(0.28, 0.04, 0.02), trim, 0, -0.08, side * 0.075, j); }
+jerry(-3.75, -(HW + 0.1), -1, upgVis.fuel[1], 0xd9534f);
+jerry(-3.75, HW + 0.1, 1, upgVis.fuel[2], 0x3fae7a);
+mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.5, 18), chrome, 0.4, 0.45, HW + 0.08, upgVis.fuel[3]).rotation.z = Math.PI / 2;
+const cargoPod = mesh(rbox(0.85, 0.38, 1, 0.15), std(0x2d333b, { roughness: 0.4 }), -3.45, RY + 0.22, 0, roofTop);
+function baseY() { const S = STYLES[style]; return S.bottom - 0.5 * S.s[1] + 0.05 * UPG["ช่วงล่าง"].lv; }
+function applyUpg() {
+  const L = (n) => UPG[n].lv;
+  STAT.hp = [20, 30, 40, 55][L("ตัวถัง")]; STAT.kmh = [100, 115, 130, 150][L("เครื่องยนต์")]; STAT.fuel = [40, 60, 80, 100][L("ถังน้ำมัน")];
+  STAT.grip = [1, 1.3, 1.6, 2][L("ช่วงล่าง")]; STAT.slots = [6, 8, 10, 12][L("ที่เก็บของ")];
+  parts["ป้อมปืน"].on = L("ป้อมปืน") > 0; if (turretHead) turretHead.scale.setScalar(0.8 + 0.12 * L("ป้อมปืน"));
+  parts["กันชนหนาม"].on = L("กันชน") > 0; parts["กันชนหนาม"].g.scale.set(1, 0.8 + 0.12 * L("กันชน"), 1); parts["กันชนหนาม"].g.position.y = (1 - parts["กันชนหนาม"].g.scale.y) * 0.85;
+  parts["ไนตรัส"].on = L("ไนตรัส") > 0;
+  for (const k of ["armor", "engine", "fuel"]) { const n = { armor: "ตัวถัง", engine: "เครื่องยนต์", fuel: "ถังน้ำมัน" }[k]; for (let i = 1; i <= 3; i++) upgVis[k][i].visible = L(n) >= i; }
+  cargoPod.visible = L("ที่เก็บของ") > 0; cargoPod.scale.z = [1, 1.0, 1.7, 2.5][L("ที่เก็บของ")];
+  if (!drive.on) { drive.fuel = STAT.fuel; drive.hp = STAT.hp; } else { drive.fuel = Math.min(drive.fuel, STAT.fuel); drive.hp = Math.min(drive.hp, STAT.hp); }
+  document.querySelectorAll("#upg button").forEach((b) => { const u = UPG[b.dataset.n]; b.textContent = b.dataset.n + " " + "●".repeat(u.lv) + "○".repeat(u.max - u.lv); b.classList.toggle("on", u.lv > 0); });
+  $("stats").textContent = `HP ${STAT.hp} · ${STAT.kmh} กม./ชม. · ${STAT.fuel} ลิตร · เกาะถนน ×${STAT.grip} · ไนตรัส ${L("ไนตรัส")} · ปืน ${L("ป้อมปืน")} · ชน ${L("กันชน")} · ${STAT.slots} ช่อง`;
+  applyStyle(style); setShell(shell);
+}
 
 // =====================================================================  body styles
 const goofy = grp(), goofyRoof = grp(0, 0, 0, goofy);
@@ -1178,10 +1409,11 @@ const STYLES = {
 let style = "ปกติ";
 function applyStyle(n) {
   style = n; const S = STYLES[n];
-  body.scale.set(...S.s); body.position.y = S.bottom - 0.5 * S.s[1];
+  body.scale.set(...S.s); body.position.y = baseY();
   wheels.forEach((w) => {
     const sx = Math.sign(w.position.x), sz = Math.sign(w.position.z);
-    w.scale.set(S.wr, S.wr, S.ww); w.position.set(sx * 2.6 * S.s[0], 0.56 * S.wr, sz * ((HW - 0.22) * S.s[2] + (S.ww - 1) * 0.12));
+    const L = UPG ? UPG["ช่วงล่าง"].lv : 0, wr = S.wr * (1 + 0.05 * L), ww = S.ww * (1 + 0.12 * L);
+    w.scale.set(wr, wr, ww); w.position.set(sx * 2.6 * S.s[0], 0.56 * wr, sz * ((HW - 0.22) * S.s[2] + (ww - 1) * 0.12));
   });
   goofy.visible = n === "ติ๊งต๊อง"; cool.visible = n === "เท่";
   cool.userData.under.position.y = (0.05 - body.position.y) / S.s[1];
@@ -1207,7 +1439,7 @@ function setShell(m) {
 }
 
 // =====================================================================  driving
-const drive = { on: false, v: 0, lane: 0, z: 0, zv: 0, km: 0, nitro: 1, boosting: false, steer: 0, roll: 0, pitch: 0, shake: 0, lastV: 0, hitCd: 0 };
+const drive = { fuel: 40, hp: 20, on: false, v: 0, lane: 0, z: 0, zv: 0, km: 0, nitro: 1, boosting: false, steer: 0, roll: 0, pitch: 0, shake: 0, lastV: 0, hitCd: 0 };
 let camMode = "chase";
 const keys = {};
 function toggleDrive() {
@@ -1219,7 +1451,8 @@ function toggleDrive() {
   driveBtn.classList.toggle("on", drive.on);
   controls.enabled = !drive.on;
   if (drive.on) {
-    engineStart(); if (station < 0) setStation(0);
+    engineStart(); if (station < 0 && !ytOn) setStation(0);
+    drive.fuel = STAT.fuel; drive.hp = STAT.hp; drive.nitro = 1;
     traffic.forEach((t, i) => { respawnCar(t, true); t.x = 40 + i * 25; t.car.visible = true; });
     setCam("chase");
   } else {
@@ -1249,7 +1482,7 @@ addEventListener("keydown", (e) => {
   if (k === "arrowleft" || k === "a") { if (drive.lane > -1) { drive.lane--; sfx("lane"); } }
   if (k === "arrowright" || k === "d") { if (drive.lane < 1) { drive.lane++; sfx("lane"); } }
   if (k === " ") { sfx(style === "ติ๊งต๊อง" ? "goofyHorn" : "horn"); e.preventDefault(); }
-  if (k === "shift" && drive.nitro > 0.15) sfx("whoosh");
+  if (k === "shift" && UPG["ไนตรัส"].lv && drive.nitro > 0.15) sfx("whoosh");
   if (k === "r") setStation(station + 1 >= STATIONS.length ? -1 : station + 1);
   if (k === "c") { const i = CAMS.findIndex((c) => c[0] === camMode); setCam(CAMS[(i + 1) % CAMS.length][0]); }
   if (k === "escape" || k === "enter") toggleDrive();
@@ -1258,13 +1491,16 @@ addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
 
 function updateDrive(dt, t) {
   const up = keys.arrowup || keys.w, down = keys.arrowdown || keys.s;
-  drive.boosting = !!keys.shift && drive.nitro > 0.02;
-  drive.nitro = Math.max(0, Math.min(1, drive.nitro + (drive.boosting ? -0.35 : 0.08) * dt));
-  const tgt = drive.boosting ? 46 : up ? 31 : down ? 5 : 19;
+  const NL = UPG["ไนตรัส"].lv, VMAX = STAT.kmh / 4;
+  drive.boosting = !!keys.shift && NL > 0 && drive.nitro > 0.02 && drive.fuel > 0;
+  drive.nitro = Math.max(0, Math.min(1, drive.nitro + (drive.boosting ? -0.5 / NL : 0.05 + 0.03 * NL) * dt));
+  drive.fuel = Math.max(0, drive.fuel - drive.v * dt * 0.012 * (drive.boosting ? 2 : 1));
+  let tgt = drive.boosting ? VMAX * 1.45 : up ? VMAX : down ? 5 : VMAX * 0.62;
+  if (drive.fuel <= 0) tgt = Math.min(tgt, 4);
   drive.v += (tgt - drive.v) * Math.min(1, dt * (drive.boosting ? 1.5 : down ? 2.2 : 0.75));
   const acc = (drive.v - drive.lastV) / Math.max(dt, 1e-3); drive.lastV = drive.v;
   const tz = drive.lane * LANE, pz = drive.z;
-  drive.z += (tz - drive.z) * Math.min(1, dt * 4.2);
+  drive.z += (tz - drive.z) * Math.min(1, dt * [3.2, 4.2, 5.2, 6.6][UPG["ช่วงล่าง"].lv]);
   drive.zv = (drive.z - pz) / Math.max(dt, 1e-3);
   drive.km += drive.v * 4 * dt / 360;
   // ท่าทางรถ
@@ -1290,7 +1526,9 @@ function updateDrive(dt, t) {
     tr.car.userData.tail.emissiveIntensity = night ? 2 : 0.6;
     if (Math.abs(tr.x) < 6.3 && Math.abs(tr.lane * LANE - drive.z) < 2.6 && drive.hitCd <= 0) {
       drive.hitCd = 0.6; sfx("crash"); bump(0.6);
-      if (tr.x > 0) { tr.x = 6.5; drive.v = Math.min(drive.v, tr.v) * 0.6; } else { tr.x = -6.5; tr.v *= 0.6; }
+      const BL = UPG["กันชน"].lv;
+      drive.hp = Math.max(0, drive.hp - Math.max(1, 4 - BL));
+      if (tr.x > 0) { if (BL) { tr.x = 6.5 + 4 * BL; tr.v += 6 * BL; drive.v *= 0.9; } else { tr.x = 6.5; drive.v = Math.min(drive.v, tr.v) * 0.6; } } else { tr.x = -6.5; tr.v *= 0.6; }
     }
   }
   boostFx.visible = drive.boosting;
@@ -1302,7 +1540,9 @@ function updateDrive(dt, t) {
   needle.rotation.z = -(Math.PI * 0.75 + Math.min(drive.v * 4, 180) / 180 * Math.PI * 1.5) + Math.PI;
   document.getElementById("spd").textContent = Math.round(drive.v * 4);
   document.getElementById("km").textContent = drive.km.toFixed(1) + " กม.";
-  document.getElementById("nb").style.width = (drive.nitro * 100).toFixed(0) + "%";
+  document.getElementById("nb").style.width = (UPG["ไนตรัส"].lv ? drive.nitro * 100 : 0).toFixed(0) + "%";
+  document.getElementById("fb").style.width = (drive.fuel / STAT.fuel * 100).toFixed(0) + "%";
+  document.getElementById("hp").textContent = "HP " + Math.ceil(drive.hp) + "/" + STAT.hp + " · " + drive.fuel.toFixed(0) + " ลิตร";
   // กล้อง
   drive.shake = Math.max(0, drive.shake - dt * 1.6);
   const sh = drive.shake + (drive.boosting ? 0.06 : 0);
@@ -1371,6 +1611,7 @@ btn("modes", "กลางคืน", (b) => { night = !night; b.classList.toggl
 btn("modes", "หมุนรอบ", (b) => { controls.autoRotate = !controls.autoRotate; b.classList.toggle("on", controls.autoRotate); });
 const driveBtn = btn("modes", "ขับ", () => toggleDrive());
 const rearBtn = btn("modes", "เปิดท้าย", () => toggleRear());
+const roofBtn = btn("modes", "หลังคา", () => setRoof(!roofMode));
 btn("radio", "ปิด", () => { station = -1; ytStop(); drawRadio(); document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k === 0)); $("st").textContent = ""; }, "on");
 STATIONS.forEach((s, i) => btn("radio", s.name, () => setStation(i)));
 const ytBtn = btn("radio", "YouTube", () => { if (ytOn) return; if (ytCurrent) ytPlay(ytCurrent); else if (ytQueue.length) ytPlay(ytQueue.shift()); else $("yt").focus(); });
@@ -1388,7 +1629,9 @@ PAINTS.forEach(([n, c], i) => {
   b.onclick = () => { paint.color.setHex(c); interactives.forEach((g) => g.traverse((m) => { if (m.isMesh && m.material.userData?.isPaint) m.material.color.setHex(c); })); document.querySelectorAll("#paint .sw").forEach((x) => x.classList.remove("on")); b.classList.add("on"); };
   $("paint").insertBefore(b, $("plate"));
 });
-Object.keys(parts).forEach((n) => btn("parts", n, (b) => { parts[n].on = !parts[n].on; b.classList.toggle("on", parts[n].on); setShell(shell); }));
+Object.keys(parts).forEach((n) => { if (!parts[n].upg) btn("parts", n, (b) => { parts[n].on = !parts[n].on; b.classList.toggle("on", parts[n].on); if (parts[n].fx) parts[n].fx(parts[n].on); setShell(shell); }); });
+Object.keys(UPG).forEach((n) => { const b = btn("upg", "", () => { UPG[n].lv = (UPG[n].lv + 1) % (UPG[n].max + 1); sfx("upg"); applyUpg(); }); b.dataset.n = n; });
+applyUpg();
 const plateIn = $("plate");
 plateIn.addEventListener("input", () => drawPlate(plateIn.value.trim() || " "));
 document.fonts.load("800 62px 'Noto Sans Thai'").finally(() => drawPlate(plateIn.value));
@@ -1445,7 +1688,7 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
   const S = STYLES[style];
-  body.position.y = S.bottom - 0.5 * S.s[1];
+  body.position.y = baseY();
   if (style === "ติ๊งต๊อง") {
     const k = Math.sin(t * (drive.on ? 11 : 3)) * (drive.on ? 0.045 : 0.015);
     body.scale.set(S.s[0] * (1 - k * 0.5), S.s[1] * (1 + k), S.s[2] * (1 - k * 0.5));
@@ -1458,7 +1701,7 @@ function frame() {
     camera.position.lerpVectors(camAnim.p0, camAnim.p1, k); controls.target.lerpVectors(camAnim.t0, camAnim.t1, k);
     if (camAnim.t >= 1) camAnim = null;
   }
-  wheels.forEach((w) => (w.rotation.z -= drive.v * dt / (0.56 * S.wr)));
+  wheels.forEach((w) => (w.rotation.z -= drive.v * dt / (0.56 * w.scale.x)));
   // จังหวะเพลง → ของในรถเต้น
   let beatPulse = 0;
   if (ac) { while (beats.length && beats[0] <= ac.currentTime) { beats.shift(); lastBeat = ac.currentTime; } if (station >= 0 && lastBeat > 0) beatPulse = Math.max(0, 1 - (ac.currentTime - lastBeat) * 4); }
@@ -1474,6 +1717,11 @@ function frame() {
   dice.forEach((d) => { if (d.userData.spin > 0) { d.userData.spin -= dt * 1.2; d.rotation.x += dt * 25 * d.userData.spin; d.rotation.z += dt * 19 * d.userData.spin; d.position.y = 0.77 + Math.abs(Math.sin(t * 20)) * 0.06 * d.userData.spin; } else d.position.y = 0.77; });
   if (microT > 0) { microT -= dt; microWin.material.emissiveIntensity = microT > 0 ? 1.2 : 0; }
   fridgeLight.intensity = fridgeA.tgt ? 2.5 : 0;
+  if (turretHead) { turretHead.rotation.y += (turretAim - turretHead.rotation.y) * Math.min(1, dt * 10); if (turretFire > 0) { turretFire -= dt; muzzle.visible = Math.sin(turretFire * 60) > 0; muzzle.scale.setScalar(0.7 + Math.random() * 0.5); } else muzzle.visible = false; }
+  smoke.forEach((sp, i) => { sp.userData.k = (sp.userData.k + dt * 0.45) % 1; const k = sp.userData.k; sp.position.set(Math.sin(k * 9 + i) * 0.08 - k * drive.v * 0.05, 0.7 + k * 1.4, Math.cos(k * 7 + i) * 0.06); sp.scale.setScalar(0.6 + k * 2); sp.material.opacity = grillOn ? (1 - k) * 0.45 : 0; });
+  balloons.forEach((b, i) => { b.position.y = b.userData.y + Math.sin(t * 1.6 + i) * 0.06; b.position.x = b.userData.x - drive.v * 0.012 + Math.sin(t * 1.1 + i * 2) * 0.05; });
+  decoBulbs.forEach((m) => (m.emissiveIntensity = night ? 2 : 0.25));
+  underLights.forEach((l) => (l.intensity = night && parts["ไฟใต้ท้อง"].on ? 12 : 0));
   guitar.rotation.x *= Math.pow(0.02, dt);
   for (const a of animated) a.obj[a.prop][a.axis] += (a.tgt - a.obj[a.prop][a.axis]) * Math.min(1, dt * 8);
   if (flag) { const p = flag.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, Math.sin(t * (drive.on ? 12 : 3) + x * 6) * 0.07 * (x + 0.45)); } p.needsUpdate = true; }
