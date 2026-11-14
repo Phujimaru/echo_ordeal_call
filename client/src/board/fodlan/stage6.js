@@ -12,7 +12,7 @@
 // ============================================================
 import { LW, P, PS, depthOf, faceVisible, gEllipse, glow, onScreen, quad, rng, sceneSize } from "../boardGeo";
 import { EOS_AREA, MAPS } from "../boardRules";
-import { fxActive, fxOnce, fxT } from "./index";
+import { fxActive, fxOnce, fxT, fxStart, fxSubT } from "./index";
 import { eosAudio } from "../../eos/eosAudio";
 import { drawVitalBar } from "../boardDraw";
 
@@ -1768,16 +1768,32 @@ function drawAltHouse(g, x, y, b, same, C, night, s) {
 
 // =================================================================== ตำแหน่งนุ่ม (รถ/ปีศาจเลื่อนไปที่ใหม่)
 const MOVES = new Map(); // id → { fx, fy, tx, ty, t0, ms, path }
-function smooth(id, x, y, now, ms, path = null) {
+//  start = เวลาเริ่มเดิน (ตามอนทีละตัว — ยังไม่ถึงคิว = ยืนที่เดิม) · ไม่ส่ง = เริ่มเดี๋ยวนี้
+function smooth(id, x, y, now, ms, path = null, start = null) {
   let m = MOVES.get(id);
   if (!m) { m = { fx: x, fy: y, tx: x, ty: y, t0: -1e9, ms, path: null }; MOVES.set(id, m); }
   if (m.tx !== x || m.ty !== y) {
     const cur = posOf(m, now);
-    Object.assign(m, { fx: cur.x, fy: cur.y, tx: x, ty: y, t0: now, ms, path: path && path.length > 1 ? path : null });
+    Object.assign(m, { fx: cur.x, fy: cur.y, tx: x, ty: y, t0: start != null ? Math.max(now - 50, start) : now, ms, path: path && path.length > 1 ? path : null });
   }
   return posOf(m, now);
 }
+// ปีศาจ (fd.daemons): ทางเดินจาก mob_move (ตามคิว) หรือ daemon_move เดิม → [ms, path, start]
+function daemonWalk(fd, id, now) {
+  const w = mobWalk(fd, id, now, DAEMON_MS);
+  return w.path ? [w.ms, w.path, w.start] : [DAEMON_MS, pathOf(fd, "daemon_move", id), null];
+}
+// ทางเดินของมอนตัวนี้ในเหตุการณ์ mob_move ล่าสุด + เวลาเริ่ม/ความยาว (ตามอนทีละตัว · server mobTimeline)
+function mobWalk(fd, id, now, fallbackMs) {
+  const e = (fd.fx || []).slice().reverse().find((ev) => ev.kind === "mob_move" && ev.moves && ev.moves.some((mm) => mm.id === id));
+  if (!e) return { path: null, ms: fallbackMs, start: null };
+  const mv = e.moves.find((mm) => mm.id === id);
+  if (!e.seqd) return { path: mv.path, ms: fallbackMs, start: null };
+  const t0 = fxStart(e, now);
+  return { path: mv.path, ms: Math.max(60, mv.ms || fallbackMs), start: t0 == null ? null : t0 + (mv.at || 0) };
+}
 function posOf(m, now) {
+  if (now < m.t0) { const a = m.path ? m.path[0] : { x: m.fx, y: m.fy }; return { x: a.x, y: a.y, moving: false }; } // ยังไม่ถึงคิว
   const k = Math.max(0, Math.min(1, (now - m.t0) / m.ms));
   if (m.path) {
     const n = m.path.length - 1, f = ease(k) * n, i = Math.min(n - 1, Math.floor(f)), r = f - i;
@@ -1890,8 +1906,8 @@ function mobAttackOf(id, now) {
   if (!e || !Array.isArray(e.attacks)) return null;
   const a = e.attacks.find((it) => it.id === id);
   if (!a) return null;
-  const p = fxT(e, now, fx.mob_attack);
-  return p < 1 ? { a, p } : null;
+  const p = e.seqd ? fxSubT(e, a, now, fx.mob_attack) : fxT(e, now, fx.mob_attack); // ตามอนทีละตัว: พุ่งตามคิวของตัวเอง
+  return p >= 0 && p < 1 ? { a, p } : null;
 }
 // หลอดเลือด/เกราะของปีศาจ/ศัตรู AI — แบบเดียวกับหมากผู้เล่น (boardDraw drawVitalBar) ขนาดตามช่อง (ผู้ใช้แจ้ง 2026-11-09: จุดแดงลอยอ่านไม่ออก)
 function hpPips(g, x, y, z, hp, maxHp, armor, maxArmor = armor, hpTone = null) {
@@ -3138,7 +3154,7 @@ export function ground(g, fd, info, now, lowQ = false) {
   }
   // วงมืดใต้ปีศาจ
   for (const d of fd.daemons || []) {
-    const pos = smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "mob_move", d.id) || pathOf(fd, "daemon_move", d.id));
+    const pos = smooth(d.id, d.x, d.y, now, ...daemonWalk(fd, d.id, now));
     const [x, y, s] = P(pos.x + 0.5, pos.y + 0.5);
     g.fillStyle = "rgba(60,0,40,.35)"; g.beginPath(); g.ellipse(x, y, s * 0.45, s * 0.17, 0, 0, TAU); g.fill();
   }
@@ -3238,7 +3254,7 @@ export function items(list, g, fd, info, units, now, lowQ) {
   }
   // ปีศาจ
   for (const d of fd.daemons || []) {
-    const pos = mobPos(units, d.id, smooth(d.id, d.x, d.y, now, DAEMON_MS, pathOf(fd, "mob_move", d.id) || pathOf(fd, "daemon_move", d.id)));
+    const pos = mobPos(units, d.id, smooth(d.id, d.x, d.y, now, ...daemonWalk(fd, d.id, now)));
     const cx = pos.x + 0.5, cy = pos.y + 0.55;
     list.push({
       d: depthOf(cx, cy),
@@ -3270,7 +3286,8 @@ export function items(list, g, fd, info, units, now, lowQ) {
   const hitE = lastFx("mob_hit");
   for (const m of fd.mobs || []) {
     if (m.type === "gold") { // โชโกโบะทอง (วิ่งหนี — ภาพโชโกโบะเรืองทอง + ประกาย)
-      const gp = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, 700, pathOf(fd, "mob_move", m.id)));
+      const gw = mobWalk(fd, m.id, now, 700);
+      const gp = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, gw.ms, gw.path, gw.start));
       const gh = mobFacing(m.id, gp);
       list.push({ d: depthOf(gp.x + 0.5, gp.y + 0.55), f: () => drawGoldChoco(g, m, gp.x + 0.5, gp.y + 0.55, now, lowQ, gp.moving, screenFace(gp.x + 0.5, gp.y + 0.5, gh) > 0) });
       continue;
@@ -3293,7 +3310,8 @@ export function items(list, g, fd, info, units, now, lowQ) {
       continue;
     }
     const beast = m.type === "beast";
-    const pos = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, MOB_MS, pathOf(fd, "mob_move", m.id)));
+    const wk = mobWalk(fd, m.id, now, MOB_MS);
+    const pos = mobPos(units, m.id, smooth(`mob:${m.id}`, m.x, m.y, now, wk.ms, wk.path, wk.start));
     let head = mobFacing(m.id, pos), lunge = 0;
     const atk = mobAttackOf(m.id, now), tu = atk ? unitAt(units, atk.a.target) : null;
     if (tu) {
@@ -3416,23 +3434,18 @@ function playFx(e) {
       break;
     }
     case "turret_shot": sfx("turret_shot"); break;
-    case "mob_move": {
-      const ts = new Set((e.moves || []).map((m) => m.type));
-      if (ts.has("beast")) sfx("beast_step", { gain: 0.8 });
-      if (ts.has("magitek")) sfx("magitek_step", { gain: 0.7 });
-      if (ts.has("daemon")) sfx("daemon_growl", { gain: 0.6 });
+    case "mob_move": { // ตามอนทีละตัว: เสียงก้าวของแต่ละตัวตอนเริ่มเดินตามคิว (จำกัด 8 เสียง)
+      const STEP = { beast: ["beast_step", 0.8], magitek: ["magitek_step", 0.7], daemon: ["daemon_growl", 0.6] };
+      if (!e.seqd) { const ts = new Set((e.moves || []).map((m) => m.type)); for (const k of ts) if (STEP[k]) sfx(STEP[k][0], { gain: STEP[k][1] }); break; }
+      for (const m of (e.moves || []).slice(0, 8)) if (STEP[m.type]) sfx(STEP[m.type][0], { gain: STEP[m.type][1] * 0.8, delay: (m.at || 0) / 1000 });
       break;
     }
     case "mob_attack": {
-      const dl = (e.delay || 0) / 1000; // รอมอนเดินถึง
-      const ts = new Set((e.attacks || []).map((a) => a.type));
-      if (ts.has("beast")) sfx("beast_attack", { delay: 0.1 + dl });
-      if (ts.has("magitek")) sfx("magitek_attack", { delay: 0.1 + dl });
-      if (ts.has("daemon")) sfx("daemon_attack", { delay: 0.1 + dl });
-      if (ts.has("boss")) sfx("beast_attack", { delay: 0.1 + dl });
-      const walls = (e.pillars || []).filter((h) => h.wall), pls = (e.pillars || []).filter((h) => !h.wall);
-      if (pls.length) sfx(pls.some((h) => h.lost) ? "dome_off" : "crystal_pick", { delay: 0.25 + dl, gain: 0.8 });
-      if (walls.length) sfx(walls.some((h) => h.broke) ? "barrel_explode" : "car_hit", { delay: 0.25 + dl, gain: 0.7 });
+      const dl = (e.delay || 0) / 1000; // แบบเดิม: รอมอนเดินถึง · ตามคิว: แต่ละตัวตีตาม at ของตัวเอง
+      const HIT = { beast: "beast_attack", magitek: "magitek_attack", daemon: "daemon_attack", boss: "beast_attack" };
+      const done = new Set();
+      for (const a of e.attacks || []) { if (!HIT[a.type] || done.has(a.id)) continue; done.add(a.id); sfx(HIT[a.type], { delay: 0.12 + dl + (a.at || 0) / 1000 }); }
+      for (const h of e.pillars || []) sfx(h.wall ? (h.broke ? "barrel_explode" : "car_hit") : h.lost ? "dome_off" : "crystal_pick", { delay: 0.25 + dl + (h.at || 0) / 1000, gain: h.wall ? 0.7 : 0.8 });
       break;
     }
     case "mob_die": sfx(e.type === "beast" ? "beast_roar" : "magitek_die", { gain: e.type === "beast" ? 0.7 : 1 }); if (e.loot && e.loot.length) sfx("hunt_done", { delay: 0.5, gain: 0.7 }); break;
@@ -3463,15 +3476,15 @@ function playFx(e) {
     case "town_light": sfx("dome_on", { gain: 0.7 }); break;
     case "tram": sfx("train_horn", { gain: 0.45, dur: 1.2 }); sfx("chocobo_run", { delay: 0.3, gain: 0.35, dur: 1.8 }); break;
     case "boss_die": sfx("daemon_die"); sfx("royal_arms", { delay: 0.6 }); sfx("hunt_done", { delay: 1.2 }); break;
-    case "mob_heal": sfx("camp_buff", { gain: 0.45, delay: (e.delay || 0) / 1000 }); break;
-    case "mob_shot": sfx("turret_shot", { gain: 0.8, delay: (e.delay || 0) / 1000 }); break;
-    case "mob_blink": sfx("dome_off", { gain: 0.6 }); break;
+    case "mob_heal": for (const h of (e.heals || []).slice(0, 6)) sfx("camp_buff", { gain: 0.45, delay: ((e.delay || 0) + (h.at || 0)) / 1000 }); break;
+    case "mob_shot": for (const h of (e.shots || []).slice(0, 8)) sfx("turret_shot", { gain: 0.8, delay: ((e.delay || 0) + (h.at || 0)) / 1000 }); break;
+    case "mob_blink": for (const h of (e.list || []).slice(0, 6)) sfx("dome_off", { gain: 0.6, delay: (h.at || 0) / 1000 }); break;
     case "town_garage": sfx("car_start", { gain: 0.8 }); break;
     case "armiger": sfx("royal_arms", { gain: 1 }); sfx("tomb_open", { delay: 0.3, gain: 0.7 }); break;
     case "town_diner": sfx("camp_meal", { gain: 0.8 }); break;
     case "town_shrine": sfx("camp_buff", { gain: 0.9 }); break;
     case "town_ranch": sfx("chocobo_call", { gain: 0.9 }); break;
-    case "mob_pull": sfx("car_hit", { gain: 0.6, delay: (e.delay || 0) / 1000 }); break;
+    case "mob_pull": for (const h of (e.list || []).slice(0, 6)) sfx("car_hit", { gain: 0.6, delay: ((e.delay || 0) + (h.at || 0)) / 1000 + 0.3 }); break;
     case "mob_rune_set": sfx("camp_buff", { gain: 0.5 }); break;
     case "mob_rune": if ((e.list || []).some((r) => !r.fizzle)) sfx("barrel_explode", { gain: 0.8 }); break;
     case "mob_split": sfx("crystal_break", { gain: 0.7 }); break;
@@ -4334,10 +4347,16 @@ function pveGround(g, fd, now, lowQ) {
     glowAt(g, gp[0], gp[1], 40, "255,210,110", 0.4 + 0.2 * Math.sin(now / 300));
   }
 }
+// ตามอนทีละตัว (e.seqd — server mobTimeline): ความคืบหน้าของรายการย่อยตามคิว (ยังไม่ถึง < 0 · จบ = 1) · เหตุการณ์แบบเดิม = p ทั้งก้อน
+let FX_NOW = 0;
+const subP = (e, item, p, ms) => (e.seqd ? fxSubT(e, item, FX_NOW, ms) : p);
+const live = (q) => q >= 0 && q < 1;
 // ฉาก PVE รอบสอง (คืน true = วาดแล้ว)
-function pve2Fx(g, e, p, lowQ, units) {
+function pve2Fx(g, e, p0, lowQ, units) {
+  let p = p0;
   if (e.kind === "mob_heal") {
     for (const h of e.heals || []) {
+      p = subP(e, h, p0, fx.mob_heal); if (!live(p)) continue;
       const [x, y, s] = P(h.x + 0.5, h.y + 0.5, 0.6 + p * 1.2);
       g.fillStyle = `rgba(110,255,160,${1 - p})`;
       g.fillRect(x - 2, y - 7, 4, 14); g.fillRect(x - 7, y - 2, 14, 4);
@@ -4347,6 +4366,7 @@ function pve2Fx(g, e, p, lowQ, units) {
   }
   if (e.kind === "mob_shot") {
     for (const sh of e.shots || []) {
+      p = subP(e, sh, p0, fx.mob_shot); if (!live(p)) continue;
       const a = P(sh.from.x + 0.5, sh.from.y + 0.5, 1.1), b = P(sh.to.x + 0.5, sh.to.y + 0.5, 0.8), al = p < 0.3 ? 1 : Math.max(0, 1 - (p - 0.3) / 0.7);
       if (sh.kind === "arrow" || sh.kind === "web") { // ลูกธนู / ก้อนใย พุ่งเป็นวิถีโค้ง
         const q = Math.min(1, p / 0.45), hx = a[0] + (b[0] - a[0]) * q, hy = a[1] + (b[1] - a[1]) * q - Math.sin(q * Math.PI) * 26;
@@ -4376,6 +4396,7 @@ function pve2Fx(g, e, p, lowQ, units) {
   }
   if (e.kind === "mob_blink") { // ควันม่วงจุดเดิม → จุดใหม่
     for (const b of e.list || []) {
+      p = subP(e, b, p0, fx.mob_blink); if (!live(p)) continue;
       if (!lowQ) { puff(g, b.from.x + 0.5, b.from.y + 0.5, 0.5 + p, p, e.seq + 1, 8, "150,70,220", 0.35); puff(g, b.to.x + 0.5, b.to.y + 0.5, 0.5 + p, p, e.seq + 2, 8, "150,70,220", 0.35); }
       const [x, y, s] = P(b.to.x + 0.5, b.to.y + 0.5, 0.6); glowAt(g, x, y, s * (0.6 + p), "190,90,255", (1 - p) * 0.8);
     }
@@ -4383,6 +4404,7 @@ function pve2Fx(g, e, p, lowQ, units) {
   }
   if (e.kind === "mob_pull") { // โซ่จากมอนถึงเป้า (เป้าถูกลากตามโซ่)
     for (const c of e.list || []) {
+      p = subP(e, c, p0, fx.mob_pull); if (!live(p)) continue;
       const a = P(c.x + 0.5, c.y + 0.5, 0.8), q = Math.min(1, p / 0.5), fx0 = c.from.x + (c.to.x - c.from.x) * q, fy0 = c.from.y + (c.to.y - c.from.y) * q, b = P(fx0 + 0.5, fy0 + 0.5, 0.8), al = p < 0.6 ? 1 : (1 - p) / 0.4;
       g.strokeStyle = `rgba(200,200,215,${al})`; g.lineWidth = 3; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]);
       glowAt(g, b[0], b[1], 18, "220,220,240", al * 0.7);
@@ -4827,8 +4849,10 @@ function stage3Fx(g, e, p, now, lowQ, units, out, Y0) {
   }
   if (e.kind === "supply_load") { const c = P(e.x + 0.5, e.y + 0.5, 0.9 + p * 0.8); emoji(g, "📦", c[0], c[1], c[2] * 0.4, 1 - p); return true; }
   if (e.kind === "mob_attack") {
-    for (const h of e.pillars || []) if (h.wall && h.at && p > 0.25) { const q = (p - 0.25) / 0.75; puff(g, h.at.x + 0.5, h.at.y + 0.5, 0.3, q, e.seq + h.at.x, lowQ ? 4 : (h.broke ? 14 : 7), "150,140,125", h.broke ? 0.3 : 0.18); }
+    const p0 = p;
+    for (const h of e.pillars || []) if (h.wall && h.at && (p = subP(e, h, p0, fx.mob_attack)) > 0.25 && p < 1) { const q = (p - 0.25) / 0.75; puff(g, h.at.x + 0.5, h.at.y + 0.5, 0.3, q, e.seq + h.at.x, lowQ ? 4 : (h.broke ? 14 : 7), "150,140,125", h.broke ? 0.3 : 0.18); }
     for (const a of e.attacks || []) {
+      p = subP(e, a, p0, fx.mob_attack); if (!live(p)) continue;
       const u = unitAt(units, a.target);
       if (!u) continue;
       const [x, y, s] = P(u.x, u.y, 0.6);
@@ -5019,8 +5043,9 @@ export function air(g, fd, info, units, now, lowQ, view) {
   }
   p4AirAlways(g, fd, now); // ขั้น 4: ไฟหน้ารถไฟที่ขอบแผนที่ระหว่างเตือน
   const out = { flash: 0 };
+  FX_NOW = now;
   for (const e0 of fxActive(fd, now)) {
-    const e = p4Norm(e0), p = fxT(e, now, fx[e.kind] || 1500);
+    const e = p4Norm(e0), p = fxT(e, now, e.seqd ? 1 : fx[e.kind] || 1500); // seqd: ฉากย่อยคำนวณเองตามคิว (subP) — p ทั้งก้อนไม่ใช้
     if (stage2Fx(g, e, p, now, lowQ)) continue;
     if (stage3Fx(g, e, p, now, lowQ, units, out, Y0)) continue;
     if (p4Fx(g, e, p, now, lowQ, units, out, !!fd.night)) continue;

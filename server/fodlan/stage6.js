@@ -62,7 +62,10 @@ const MOB_OWNER = { id: "eos", name: "Eos", position: 0, customColor: null, team
 const SEIZE_SECS = 1.4;
 const REVIVE_TURNS = 3;       // ตายแล้วฟื้นหลัง 3 เทิร์น
 const SIGHT_EXTRA = 4;        // เห็นผู้เล่นอื่นในระยะเดิน + 4 ช่อง
-const MOB_WALK_MS = 1000; // ช่วงมอนเดิน (client MOB_MS) — ฉากตีเริ่มหลังจากนี้
+const MOB_WALK_MS = 1000; // (เดิม) ช่วงมอนเดินพร้อมกัน — ตอนนี้ใช้ MOB_SEQ (ทีละตัว) แทน
+// ตามอนทีละตัวแบบ Road Trip (ผู้ใช้ 2026-11-14 "ทำให้มอนขยับแบบเดียวกัน กล้องคงไว้ตามเดิม"):
+//  ตามลำดับที่ server คิด แต่ละตัว = เดินทีละช่อง (step ms/ช่อง) แล้วพุ่งตี (hit ms) — ตัวถัดไปรอ · รวมยาวเกิน max = เร่งทั้งชุด (ช้าสุด ×minK)
+const MOB_SEQ = { step: 130, hit: 560, gap: 60, max: 7000, minK: 0.3 };
 const SECS = { dropship: 1.8, mobs: 1.4, revive: 1.2, lightning: 1.8, daemonSpawn: 1.6, daemonAct: 1.4, dawn: 1.4 };
 
 const K = (x, y) => `${x},${y}`;
@@ -1149,8 +1152,30 @@ function fairHit(s, p, n, src) {
   by[src.id] = (by[src.id] || 0) + out;
   return out;
 }
+// ลำดับเวลาของตามอน (MOB_SEQ): เรียงตามลำดับที่มอนได้ตาจริง (list) · ตัวที่ไม่มีรายการ = ไม่กินเวลา · คืนเวลารวม (ms)
+function mobTimeline(list, L, s) {
+  const of = (arr, id, key = "id") => arr.filter((e) => e && e[key] === id);
+  const rows = list.map((m) => {
+    const mv = of(L.moves, m.id);
+    const hits = [...of(L.attacks, m.id), ...of(L.pillarHits, m.id), ...of(L.heals, m.id, "by"), ...of(L.shots, m.id), ...of(L.blinks, m.id), ...of(L.pulls, m.id)];
+    const boom = ((s.fight && s.fight.defer) || []).filter((d) => d.id === m.id);
+    const tiles = mv.reduce((n, e) => n + Math.max(1, (Array.isArray(e.path) ? e.path.length : 2) - 1), 0);
+    return { mv, hits, boom, tiles };
+  }).filter((r) => r.mv.length || r.hits.length || r.boom.length);
+  const raw = rows.reduce((t, r) => t + r.tiles * MOB_SEQ.step + (r.mv.length ? MOB_SEQ.gap : 0) + (r.hits.length || r.boom.length ? MOB_SEQ.hit : 0), 0);
+  const k = raw > MOB_SEQ.max ? Math.max(MOB_SEQ.minK, MOB_SEQ.max / raw) : 1;
+  let t = 0;
+  for (const r of rows) {
+    for (const e of r.mv) { const n = Math.max(1, (Array.isArray(e.path) ? e.path.length : 2) - 1); e.at = Math.round(t); e.ms = Math.round(n * MOB_SEQ.step * k); t += e.ms; }
+    if (r.mv.length) t += MOB_SEQ.gap * k;
+    if (r.hits.length || r.boom.length) { for (const e of r.hits) e.at = Math.round(t); for (const d of r.boom) d.at = Math.round(t); t += MOB_SEQ.hit * k; }
+  }
+  // รายการที่ไม่ได้อยู่ในตามอนปกติ (ไม่มี at) = ต้นฉาก
+  for (const arr of Object.values(L)) for (const e of arr) if (e && e.at == null) e.at = 0;
+  return Math.round(t);
+}
 function actMonsters(ctx, s) {
-  s.fight = { by: {} };
+  s.fight = { by: {}, defer: [] };
   try { return actMonstersRaw(ctx, s); } finally { s.fight = null; }
 }
 function actMonstersRaw(ctx, s) {
@@ -1261,13 +1286,19 @@ function actMonstersRaw(ctx, s) {
   }
   // ต้นเทิร์นเหตุการณ์เดียวสำหรับ client (เดิน → ตี) · ชื่อเดิม mob_move / mob_attack ใช้ทั้งปีศาจและศัตรูอื่น
   //  delay (ผู้ใช้ 2026-11-14 "อยู่ๆ ก็ไหลเข้ามาแล้วเกิดความเสียหายเลย ไม่ทันรู้ตัว"): มีมอนเดิน = ฉากตี/ยิง/ดึงรอจนเดินถึงก่อน (client เลื่อนเอฟเฟกต์ + เลขดาเมจ + หลอดเลือดตาม)
-  const hitDelay = moves.length ? MOB_WALK_MS : 0;
-  if (moves.length) ctx.fx("mob_move", { moves });
-  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits, delay: hitDelay });
-  if (heals.length) ctx.fx("mob_heal", { heals, delay: hitDelay });
-  if (shots.length) ctx.fx("mob_shot", { shots, delay: hitDelay });
-  if (acc.blinks.length) ctx.fx("mob_blink", { list: acc.blinks });
-  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls, delay: hitDelay });
+  //  ทีละตัว (MOB_SEQ): ทุกรายการได้ at (ms นับจากต้นฉากมอน) · ทางเดินได้ ms · client เล่นตาม at (ไม่ขยับกล้อง)
+  const total = mobTimeline(list, { moves, attacks, pillarHits, heals, shots, blinks: acc.blinks, pulls: acc.pulls }, s);
+  s.mobSeqMs = total;
+  const firstAt = (arr) => arr.reduce((v, e) => Math.min(v, e.at || 0), Infinity);
+  const span = (arr) => arr.reduce((v, e) => Math.max(v, e.at || 0), 0);
+  if (moves.length) ctx.fx("mob_move", { moves, seqd: 1, dur: total + 400 });
+  if (attacks.length || pillarHits.length) ctx.fx("mob_attack", { attacks, pillars: pillarHits, seqd: 1, dur: Math.max(span(attacks), span(pillarHits)) + 900, delay: 0, first: Math.min(firstAt(attacks), firstAt(pillarHits)) });
+  if (heals.length) ctx.fx("mob_heal", { heals, seqd: 1, dur: span(heals) + 1200 });
+  if (shots.length) ctx.fx("mob_shot", { shots, seqd: 1, dur: span(shots) + 700 });
+  if (acc.blinks.length) ctx.fx("mob_blink", { list: acc.blinks, seqd: 1, dur: span(acc.blinks) + 900 });
+  if (acc.pulls.length) ctx.fx("mob_pull", { list: acc.pulls, seqd: 1, dur: span(acc.pulls) + 900 });
+  for (const d of (s.fight && s.fight.defer) || []) ctx.fx(d.kind, { ...d.data, delay: d.at || 0 }); // ระเบิดของปีศาจระเบิด = ตามจังหวะของตัวมันเอง
+  if (s.fight) s.fight.defer = [];
   if (acc.runes.length) ctx.fx("mob_rune_set", { list: acc.runes });
   if (sieges.length) { ctx.fx("town_siege", { list: sieges }); const z = sieges[sieges.length - 1]; if (!z.out) ctx.log(`👹 ปีศาจทุบไฟเมือง ${ZONE_NAMES[z.zone] || z.zone} (${z.hp}/${lightMax(s)})`); }
   return moves.length || attacks.length || pillarHits.length || heals.length || shots.length || booms.length || sieges.length || out.big || runeOut.length || regenOut.length || acc.runes.length || acc.pulls.length || acc.blinks.length ? 1 : 0;
@@ -1309,7 +1340,8 @@ function bomberBlast(ctx, s, m, self) {
   if (pl) hitPillar(ctx, s, pl, m);
   if (self) lazySummon().remove(m);
   ctx.bump();
-  ctx.fx("mob_boom", { id: m.id, x: at.x, y: at.y, tiles, hits });
+  if (s.fight && s.fight.defer) s.fight.defer.push({ id: m.id, kind: "mob_boom", data: { id: m.id, x: at.x, y: at.y, tiles, hits } }); // ระหว่างตามอน = เล่นตามคิวของตัวมันเอง (mobTimeline)
+  else ctx.fx("mob_boom", { id: m.id, x: at.x, y: at.y, tiles, hits });
   ctx.log(`💥 ${m.name}ระเบิด!${hits.length ? ` โดน ${hits.length} ตัว` : ""}`);
   return { at, hits };
 }
@@ -2470,7 +2502,7 @@ function preRound(ctx, st) {
   secs = Math.max(secs, E.onNight(ctx, s, H(), realNight));
   secs = Math.max(secs, SKY.onNight(ctx, s, realNight, !!E.ev(s).blood)); // จันทร์เต็มดวง (คืนที่ไม่ใช่สีเลือด) // พระจันทร์สีเลือด (ก่อนเกิดปีศาจ — จำนวน ×1.5) · เตือนบอสต้นคืน
   // มอนเตอร์ที่อยู่แล้วขยับก่อน (ตัวที่เพิ่งเกิดเทิร์นนี้ยังไม่ขยับ)
-  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs + MOB_WALK_MS / 1000); // เดิน (MOB_WALK_MS) แล้วค่อยตี
+  if (actMonsters(ctx, s)) secs = Math.max(secs, SECS.mobs + (s.mobSeqMs || 0) / 1000); // ตามอนทีละตัว (mobTimeline) แล้วค่อยไปต่อ
   if (freshNight) secs = Math.max(secs, spawnDaemons(ctx, s) ? SECS.daemonSpawn : 0);
   else if (night) {
     // เกิดซ้ำทุกเทิร์นกลางคืน จนครบจำนวนของคืนนั้น
@@ -2903,7 +2935,7 @@ function playerInfo(ctx, st, p) {
 }
 
 module.exports = {
-  FLASH, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
+  FLASH, MOB_SEQ, mobTimeline, campRest, MOB_CAP, mobRoom, bigBusy, bigFree, H, SKY, magnetOn, DOME_HP, gateShut, turretUp, CITY_WALL, hitWall, fixWall, isCityWall, DOME_COOLDOWN,
   absorbDamage, ALLY, allyNear, CAR_HP, CHOCO_HP, CAR_FIX, CHOCO_FEED, MECH, TEAM_MEALS, FISH_MAX,
   incoming(ctx, st, p, n, src, kind) { const s = st && st.eos; if (!s || !p) return n; if (isMob(p)) return ELT.toMob(ctx, s, H(), p, MBS.incoming(ctx, s, p, n, src), src); if (!(src && isMob(src))) return n; const out = fairHit(s, p, AR.guard(armRec(s, p), ELT.toHero(ctx, s, H(), p, n, src)), src); sumHit(s, p, src, out); return out; }, // ทหารโล่ · Shield of the Just
   rangeMod(ctx, st, p, r) { const s = st && st.eos, add = s && p && !p.summon ? AR.rangeOf(armRec(s, p)) : 0; return add && Array.isArray(r) ? [r[0], r[1] + add] : r; }, // Bow of the Clever
