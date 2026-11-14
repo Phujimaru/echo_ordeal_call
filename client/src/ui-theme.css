@@ -388,7 +388,7 @@
 :root[data-ui="dark"] .oc-screen .ocl-slot { background: var(--ui-surf); }
 :root[data-ui="dark"] .oc-screen .ocl-slot[data-ready="true"] .ocl-slot-state { color: #fff; }
 /* เลือกตัวละคร (charselect.css) */
-:root[data-ui="dark"] .oc-screen .cs-me { background: var(--ui-surf-a); }
+:root[data-ui="dark"] .oc-screen .cs-me { --me-bg: linear-gradient(110deg, rgba(22, 46, 86, 0.95), rgba(10, 22, 44, 0.95)); --me-ink: #eaf4ff; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 4px color-mix(in srgb, var(--pc) 18%, transparent); }
 :root[data-ui="dark"] .oc-screen .cs-chip:not(.on) { background: var(--ui-surf-a); }
 :root[data-ui="dark"] .oc-screen .cs-chip:not(.on):hover { background: color-mix(in srgb, var(--c) 22%, #13284a); }
 :root[data-ui="dark"] .oc-screen .cs-tip { background: #e8f0fa; color: #13284a; }

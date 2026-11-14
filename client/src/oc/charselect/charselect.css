@@ -15,9 +15,35 @@
 .cs-screen .oc-globe[data-dragging] { cursor: grabbing; }
 
 .cs-top { position: absolute; top: 56px; left: max(16px, 6vw); z-index: 5; display: flex; flex-direction: column; gap: 10px; max-width: min(560px, 50vw); pointer-events: none; }
-.cs-me { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; font: 600 13px/1 var(--oc-f-ui); color: var(--oc-ink); background: rgba(255, 255, 255, 0.86); border: 1px solid var(--oc-line); padding: 7px 10px; }
-.cs-me .p { font: 400 11px/1 var(--oc-f-logo); color: var(--oc-azure); }
-.cs-me b { font-weight: 600; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ป้ายผู้เล่นมุมซ้ายบน (ผู้ใช้สั่ง 2026-11-14 "โค้งๆ เท่ๆ"): แคปซูลขอบไล่สีผู้เล่น→ฟ้า · เหรียญกลมสีผู้เล่นใส่ลำดับ + วงแหวนทึบไล่สี + เงาวาว (ไม่เอาเส้นประหมุน — ผู้ใช้สั่ง) · แสงวาบเป็นระยะ */
+.cs-me {
+  --pc: var(--oc-azure); --me-bg: linear-gradient(110deg, rgba(255, 255, 255, 0.96), rgba(236, 245, 255, 0.92)); --me-ink: var(--oc-ink);
+  position: relative; overflow: hidden; isolation: isolate; align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 11px; padding: 4px 20px 4px 4px; border-radius: 999px; border: 1.5px solid transparent;
+  background: var(--me-bg) padding-box, linear-gradient(100deg, var(--pc), #2bb8ff 55%, rgba(43, 184, 255, 0.25)) border-box;
+  box-shadow: 0 6px 18px rgba(28, 63, 110, 0.18), 0 0 0 4px color-mix(in srgb, var(--pc) 14%, transparent);
+}
+.cs-me::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; transform: translateX(-120%);
+  background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, #2bb8ff 30%, transparent) 50%, transparent 65%); animation: csMeSheen 5s 1.2s infinite; }
+@keyframes csMeSheen { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+.cs-me-orb {
+  position: relative; flex: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font: 400 15px/1 var(--oc-f-logo); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); gap: 1px;
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--pc) 45%, #fff), var(--pc) 58%, color-mix(in srgb, var(--pc) 65%, #000));
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55), 0 0 12px color-mix(in srgb, var(--pc) 60%, transparent);
+}
+.cs-me-orb i { font-style: normal; font-size: 9px; opacity: 0.85; margin-top: 3px; }
+.cs-me-orb::before { /* วงแหวนทึบไล่สีผู้เล่น→ฟ้า (นิ่ง) */
+  content: ""; position: absolute; inset: -3px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 210deg, var(--pc), #2bb8ff 45%, #ffffff 55%, var(--pc) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+}
+.cs-me-orb::after { /* เงาวาวมุมซ้ายบน */
+  content: ""; position: absolute; left: 6px; top: 4px; width: 18px; height: 9px; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0)); transform: rotate(-20deg);
+}
+.cs-me b { font: 700 16px/1 var(--oc-f-ui); letter-spacing: 0.02em; color: var(--me-ink); max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .cs-me::after { animation: none; } }
 
 /* ---------- ปุ่มหมวด (ปุ่มเล็กแยกกัน เรียงลงด้านซ้าย กึ่งกลางแนวตั้ง) — ซ่อนระหว่างเลือกตัว ---------- */
 .cs-filter-wrap {

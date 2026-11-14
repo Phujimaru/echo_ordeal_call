@@ -455,9 +455,8 @@ export default function CharacterSelect({ roster, position, color: myColor, name
       <div className="cs-top oc-enter">
         {title && <h1 className="oc-h2">{title}</h1>}
         {position != null && (
-          <span className="cs-me">
-            <i className="oc-diamond" style={{ background: color }} />
-            <span className="p">P{position}</span>
+          <span className="cs-me" style={{ "--pc": color }}>
+            <span className="cs-me-orb"><i>P</i>{position}</span>
             <b>{name || "ผู้เล่น"}</b>
           </span>
         )}
