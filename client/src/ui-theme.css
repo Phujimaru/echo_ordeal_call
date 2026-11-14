@@ -332,6 +332,7 @@
 :root[data-ui="dark"] .oc-mark { color: #8fa9cc; }
 :root[data-ui="dark"] .oc-mark b { color: #7fb8e6; }
 :root[data-ui="dark"] .oc-tick { border-color: rgba(127, 184, 230, .55); }
+:root[data-ui="dark"] .oc-screen .oc-tick:is(.tl, .br) { border-color: #ff7a1a; } /* ธีม RISING RESONANCE */
 
 /* ============================================================
    โหมดมืด: หน้าก่อนเข้าเกม (.oc-screen — เลือกที่นั่ง · เลือกตัวละคร/สถิติ · ห้องรอ · โหวตสนาม · จัดทีม)
@@ -355,8 +356,6 @@
   --ob-frame: rgba(127, 184, 230, 0.45); --ob-sheen: rgba(127, 200, 255, 0.35); color: #eaf4ff;
   background:
     linear-gradient(90deg, #2bb8ff 0 4px, transparent 4px),
-    repeating-linear-gradient(60deg, rgba(127, 184, 230, 0.09) 0 1px, transparent 1px 14px),
-    repeating-linear-gradient(-60deg, rgba(127, 184, 230, 0.09) 0 1px, transparent 1px 14px),
     linear-gradient(115deg, rgba(22, 46, 86, 0.96), rgba(16, 34, 66, 0.96) 40%, rgba(10, 22, 44, 0.96));
   filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
 }

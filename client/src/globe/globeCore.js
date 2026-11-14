@@ -23,7 +23,8 @@ export const REGION_GEO = [
 ];
 
 export const COLORS = {
-  azure: 0x3d8bd9, sky: 0x7fb8e6, ice: 0xbee3f8, ink: 0x1c3f6e, echo: 0x9b4f96, echoGlow: 0xc99ad6, mute: 0x8ba3c2,
+  azure: 0x3d8bd9, sky: 0x7fb8e6, ice: 0xbee3f8, ink: 0x1c3f6e, echo: 0xff7a1a, echoGlow: 0xffb27a, // echo = ส้มธีม RISING RESONANCE (เดิมม่วง 0x9b4f96)
+  mute: 0x8ba3c2,
 };
 
 export function dirFromPhiTheta(phi, theta) {

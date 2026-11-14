@@ -6,13 +6,13 @@
   --paper: #eef3f9;
   --frost: #dce7f3;
   --ice: #bee3f8;
-  --sky: #7fb8e6;
+  --sky: #2bb8ff; /* ธีม RISING RESONANCE (2026-11-14): ฟ้าสด */
   --azure: #3d8bd9;
   --ink: #1c3f6e;
   --ink-2: #4f6e95;
   --ink-3: #8ba3c2;
-  --echo: #9b4f96;
-  --echo-deep: #6e2c7a;
+  --echo: #ff7a1a; /* ธีม RISING RESONANCE: ม่วง ECHO → ส้ม */
+  --echo-deep: #d9560b;
   --hp: #d2455b;
   --glass: rgba(255, 255, 255, 0.74);
   --line: rgba(61, 139, 217, 0.28);
@@ -71,6 +71,15 @@ body.can-drag .globe { cursor: grab; }
 .tick.tr { top: 18px; right: 18px; border-left: 0; border-bottom: 0; }
 .tick.bl { bottom: 18px; left: 18px; border-right: 0; border-top: 0; }
 .tick.br { bottom: 18px; right: 18px; border-left: 0; border-top: 0; }
+/* ธีม RISING RESONANCE (ผู้ใช้สั่ง 2026-11-14 glitch · ส้ม/ฟ้า/กรมท่า): มุมจอส้มคู่ทแยง + แถบสัญญาณขาดวาบผ่านจอเป็นระยะ (ตรงกับ client oc/theme.css) */
+.tick.tl, .tick.br { border-color: #ff7a1a !important; }
+.chrome::before, .chrome::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; opacity: 0; pointer-events: none; mix-blend-mode: multiply; }
+.chrome::before { background: linear-gradient(90deg, transparent 8%, #ff7a1a 8% 31%, transparent 31% 52%, #ff7a1a 52% 58%, transparent 58%); animation: ocBarA 7.3s steps(1) infinite; }
+.chrome::after { height: 3px; background: linear-gradient(90deg, transparent 22%, #2bb8ff 22% 47%, transparent 47% 71%, #2bb8ff 71% 90%, transparent 90%); animation: ocBarB 9.1s steps(1) infinite; }
+@keyframes ocBarA { 0%, 61%, 64%, 100% { opacity: 0; top: 30%; } 62% { opacity: 0.75; top: 31%; transform: translateX(-3%); } 63% { opacity: 0.6; top: 64%; transform: translateX(4%); } }
+@keyframes ocBarB { 0%, 33%, 36%, 100% { opacity: 0; top: 70%; } 34% { opacity: 0.7; top: 18%; transform: translateX(3%); } 35% { opacity: 0.55; top: 47%; transform: translateX(-2%); } }
+:root[data-ui="dark"] .chrome::before, :root[data-ui="dark"] .chrome::after { mix-blend-mode: screen; }
+@media (prefers-reduced-motion: reduce) { .chrome::before, .chrome::after { animation: none; } }
 .mark { position: absolute; top: 22px; left: 52px; font: 500 11px/1 var(--f-ui); color: var(--ink-2); }
 .mark b { color: var(--azure); font-weight: 600; }
 .foot { position: absolute; bottom: 22px; left: 52px; font: 500 12px/1 var(--f-ui); color: var(--ink-3); font-variant-numeric: tabular-nums; }
@@ -163,7 +172,7 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
 .boot .btn { pointer-events: auto; }
 .boot-bar { width: min(320px, 70vw); height: 2px; background: var(--frost); position: relative; overflow: hidden; margin-top: 10px; transition: opacity 0.6s ease, visibility 0s; }
 #boot.ready .boot-bar { opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s 0.6s; } /* โหลดเสร็จ = แถบจางหาย เหลือโลโก้ + แตะเพื่อเริ่ม */
-.boot-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--sky), var(--azure)); transition: width 0.3s ease; }
+.boot-bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #ff7a1a, var(--sky)); transition: width 0.3s ease; }
 .boot-status { font: 500 13px/1.4 var(--f-ui); color: var(--ink-2); min-height: 1.4em; font-variant-numeric: tabular-nums; }
 .boot-error { font: 500 14px/1.5 var(--f-ui); color: var(--hp); max-width: min(520px, 90vw); }
 .tap { font: 600 16px/1 var(--f-ui); color: #1f6fd6; animation: pulse 1.8s ease-in-out infinite; } /* เดิมม่วง → ฟ้า (ผู้ใช้สั่ง 2026-11-14) */
@@ -197,8 +206,6 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   background:
     linear-gradient(90deg, var(--mb-bar) 0 6px, transparent 6px),
-    repeating-linear-gradient(60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
-    repeating-linear-gradient(-60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
     linear-gradient(115deg, var(--mb-bg1), var(--mb-bg2) 40%, var(--mb-bg3)); }
 .menu .mb-bg::before { content: ""; position: absolute; inset: 5px 5px 5px 11px; border: 1px solid var(--mb-frame);
   clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
@@ -221,8 +228,6 @@ body.leaving .screen, body.leaving .chrome, body.leaving .ocv { opacity: 0; poin
 .menu button.main { --mb-bar: #1f6fd6; height: 80px; }
 .menu button.main .mb-bg { background:
     linear-gradient(180deg, #1f6fd6, #2bb8ff) 0 0 / 7px 100% no-repeat,
-    repeating-linear-gradient(60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
-    repeating-linear-gradient(-60deg, var(--mb-lat) 0 1px, transparent 1px 16px),
     linear-gradient(115deg, var(--mb-bg1), var(--mb-bg2) 40%, var(--mb-bg3)); }
 .menu button.main .mb-hex { animation: mbHex 1.8s ease-in-out infinite; }
 .menu button.main .t { font-size: 24px; }

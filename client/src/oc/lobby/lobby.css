@@ -238,7 +238,7 @@
 }
 .ocl-at-num {
   flex: none; min-width: 17px; height: 17px; padding: 0 3px; box-sizing: border-box; border-radius: 999px; display: grid; place-items: center;
-  font: 400 8.5px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff; background: #9b4f96;
+  font: 400 8.5px/1 var(--oc-f-logo); letter-spacing: 0.02em; color: #fff; background: var(--oc-echo);
 }
 .ocl-areatag.back { opacity: 0; }
 

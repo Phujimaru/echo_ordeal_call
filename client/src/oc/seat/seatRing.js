@@ -80,7 +80,7 @@ export function createSeatRing(core, { onSeat, onEmpty }) {
     sats.forEach((s, i) => {
       const seat = i + 1, mine = st.pos === seat, other = !mine && st.taken.includes(seat);
       s.body.material.color.set(mine ? st.color : other ? 0x8ba3c2 : 0xffffff);
-      s.frame.material.color.set(mine ? 0x9b4f96 : other ? 0x8ba3c2 : 0x3d8bd9);
+      s.frame.material.color.set(mine ? 0xff7a1a : other ? 0x8ba3c2 : 0x3d8bd9);
       s.frame.scale.setScalar(mine ? 1.35 : 1);
     });
   };

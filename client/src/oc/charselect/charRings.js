@@ -61,8 +61,8 @@ function drawCard(ctx, c, status, entry) {
     ctx.filter = "none";
   } else {
     const g = ctx.createLinearGradient(0, 0, TW, TH);
-    g.addColorStop(0, dim ? "#b9c3cf" : "#c99ad6");
-    g.addColorStop(1, dim ? "#8ba3c2" : "#3d8bd9");
+    g.addColorStop(0, dim ? "#b9c3cf" : "#ffb27a"); // ธีม RISING RESONANCE: ส้ม→ฟ้า (เดิมม่วง)
+    g.addColorStop(1, dim ? "#8ba3c2" : "#2bb8ff");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, TW, TH);
     ctx.font = "92px 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";

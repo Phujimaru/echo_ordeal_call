@@ -16,14 +16,12 @@
 
 .cs-top { position: absolute; top: 56px; left: max(16px, 6vw); z-index: 5; display: flex; flex-direction: column; gap: 10px; max-width: min(560px, 50vw); pointer-events: none; }
 /* ป้ายผู้เล่นมุมซ้ายบน (ผู้ใช้สั่ง 2026-11-14 "โค้งๆ เท่ๆ · ไม่เอาวงกลม/เส้นประหมุน · ใช้ลวดลายและสไตล์ผสมกัน")
-   แคปซูลโค้ง + ลายตาข่ายหกเหลี่ยม (ภาษาเดียวกับปุ่ม) + ขอบไล่สีผู้เล่น→ฟ้า · ป้ายลำดับทรงเฉียงสีผู้เล่นลายเส้นทแยง ตัดด้วยเส้นฟ้า · แสงวาบเป็นระยะ */
+   แคปซูลโค้ง + ขอบไล่สีผู้เล่น→ฟ้า · ป้ายลำดับทรงเฉียงสีผู้เล่นลายเส้นทแยง ตัดด้วยเส้นฟ้า · แสงวาบเป็นระยะ */
 .cs-me {
   --pc: var(--oc-azure); --me-bg: linear-gradient(110deg, rgba(255, 255, 255, 0.96), rgba(236, 245, 255, 0.92)); --me-lat: rgba(61, 139, 217, 0.1); --me-ink: var(--oc-ink);
   position: relative; overflow: hidden; isolation: isolate; align-self: flex-start;
   display: inline-flex; align-items: stretch; height: 40px; padding-right: 22px; border-radius: 999px; border: 1.5px solid transparent;
   background:
-    repeating-linear-gradient(60deg, var(--me-lat) 0 1px, transparent 1px 12px) padding-box,
-    repeating-linear-gradient(-60deg, var(--me-lat) 0 1px, transparent 1px 12px) padding-box,
     var(--me-bg) padding-box,
     linear-gradient(100deg, var(--pc), #2bb8ff 55%, rgba(43, 184, 255, 0.25)) border-box;
   box-shadow: 0 6px 18px rgba(28, 63, 110, 0.18), 0 0 0 4px color-mix(in srgb, var(--pc) 12%, transparent);

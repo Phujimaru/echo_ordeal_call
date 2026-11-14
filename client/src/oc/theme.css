@@ -32,6 +32,14 @@
   --oc-cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
 }
 
+/* ---------- ธีมเวอร์ชัน RISING RESONANCE (ผู้ใช้สั่ง 2026-11-14): glitch · ส้ม/ฟ้า/กรมท่า — เฉพาะหน้าก่อนเข้าเกม (.oc-screen) ----------
+   ม่วง ECHO เดิม (--oc-echo*) ถูกแทนด้วยส้มในหน้าเหล่านี้ทั้งหมด · ฟ้าเส้น/มุมจอ = ฟ้าสด · ตัวหนังสือ = กรมท่า · ในด่านไม่แตะ
+   ห้ามเพิ่มพื้นหลังลายตาราง/ตาข่ายบ่อยๆ (ผู้ใช้: "ตาลาย") */
+.oc-screen {
+  --oc-echo: #ff7a1a; --oc-echo-deep: #d9560b; --oc-echo-glow: #ffb27a;
+  --oc-sky: #2bb8ff; --oc-ink: #13305a; --oc-line: rgba(43, 140, 220, 0.3);
+  --rr-o: #ff7a1a; --rr-b: #2bb8ff; --rr-n: #0b1a2e;
+}
 /* ---------- พื้นหน้าจอ: ขาวอมฟ้า + กริดสำรวจ ---------- */
 .oc-screen {
   position: fixed; inset: 0; overflow: hidden;
@@ -59,6 +67,25 @@
 .oc-tick.tr { top: 18px; right: 18px; border-left: 0; border-bottom: 0; }
 .oc-tick.bl { bottom: 18px; left: 18px; border-right: 0; border-top: 0; }
 .oc-tick.br { bottom: 18px; right: 18px; border-left: 0; border-top: 0; }
+.oc-screen .oc-tick.tl, .oc-screen .oc-tick.br { border-color: var(--rr-o); }
+/* แถบสัญญาณขาดวาบผ่านจอเป็นระยะ (ส้ม/ฟ้า) */
+.oc-screen .oc-chrome::before, .oc-screen .oc-chrome::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 2px; opacity: 0; pointer-events: none; mix-blend-mode: multiply;
+}
+.oc-screen .oc-chrome::before { background: linear-gradient(90deg, transparent 8%, var(--rr-o) 8% 31%, transparent 31% 52%, var(--rr-o) 52% 58%, transparent 58%); animation: ocBarA 7.3s steps(1) infinite; }
+.oc-screen .oc-chrome::after { height: 3px; background: linear-gradient(90deg, transparent 22%, var(--rr-b) 22% 47%, transparent 47% 71%, var(--rr-b) 71% 90%, transparent 90%); animation: ocBarB 9.1s steps(1) infinite; }
+@keyframes ocBarA { 0%, 61%, 64%, 100% { opacity: 0; top: 30%; } 62% { opacity: 0.75; top: 31%; transform: translateX(-3%); } 63% { opacity: 0.6; top: 64%; transform: translateX(4%); } }
+@keyframes ocBarB { 0%, 33%, 36%, 100% { opacity: 0; top: 70%; } 34% { opacity: 0.7; top: 18%; transform: translateX(3%); } 35% { opacity: 0.55; top: 47%; transform: translateX(-2%); } }
+:root[data-ui="dark"] .oc-screen .oc-chrome::before, :root[data-ui="dark"] .oc-screen .oc-chrome::after { mix-blend-mode: screen; }
+/* หัวข้อ: ขอบสีแยกส้ม/ฟ้า + กระตุกเป็นระยะ */
+.oc-screen :is(.oc-h1, .oc-h2) { text-shadow: -1px 0 rgba(255, 122, 26, 0.45), 1px 0 rgba(43, 184, 255, 0.5); animation: ocHeadGlitch 6.7s steps(1) infinite; }
+@keyframes ocHeadGlitch {
+  0%, 90%, 93.5%, 100% { transform: none; }
+  91% { transform: translate(2px, 0) skewX(-7deg); text-shadow: -3px 0 rgba(255, 122, 26, 0.85), 3px 0 rgba(43, 184, 255, 0.85); }
+  92% { transform: translate(-2px, 0); text-shadow: 2px 0 rgba(255, 122, 26, 0.8), -2px 0 rgba(43, 184, 255, 0.8); }
+  93% { transform: translate(1px, 0) skewX(4deg); }
+}
+@media (prefers-reduced-motion: reduce) { .oc-screen :is(.oc-h1, .oc-h2), .oc-screen .oc-chrome::before, .oc-screen .oc-chrome::after { animation: none; } }
 .oc-mark { position: absolute; top: 22px; left: 52px; font: 500 11px/1 var(--oc-f-ui); letter-spacing: 0.14em; color: var(--oc-ink-2); }
 .oc-mark b { color: var(--oc-azure); font-weight: 600; }
 /* ---------- ชื่อแพตช์แบบบัค (GlitchName — ผู้ใช้สั่ง 2026-11-14 · คู่สีส้ม #ff7a1a / ฟ้า #2bb8ff เหมือน glitch บนลูกโลก) ---------- */
@@ -131,7 +158,7 @@
 .oc-btn.ghost:hover { color: var(--oc-ink); }
 .oc-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 /* ปุ่มยืนยัน (primary) + ปุ่มย้อนกลับ (.oc-back) — ภาษาเดียวกับปุ่มเมนู launcher / ปุ่มโจมตีในเกม (ผู้ใช้สั่ง 2026-11-14)
-   มุมตัดเฉียง · ลายตาข่ายหกเหลี่ยม · กรอบเส้นใน · แถบสีซ้าย · บั้งลูกศร (ยืนยัน) · แสงวาบตอนชี้ · น้ำเงิน→ฟ้า (ไม่ใช่ม่วงแล้ว) */
+   มุมตัดเฉียง · กรอบเส้นใน · แถบสีซ้าย · บั้งลูกศร (ยืนยัน) · แสงวาบตอนชี้ · น้ำเงิน→ฟ้า (ไม่ใช่ม่วงแล้ว) */
 .oc-btn.primary, .oc-btn.oc-back {
   --ob-cut: polygon(11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%, 0 11px);
   isolation: isolate; overflow: hidden; border: 0; clip-path: var(--ob-cut);
@@ -154,8 +181,6 @@
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='14' viewBox='0 0 26 14'%3E%3Cg fill='%23fff'%3E%3Cpath d='M0 0h4l4 7-4 7H0l4-7z' opacity='.35'/%3E%3Cpath d='M9 0h4l4 7-4 7H9l4-7z' opacity='.65'/%3E%3Cpath d='M18 0h4l4 7-4 7h-4l4-7z'/%3E%3C/g%3E%3C/svg%3E") right 12px center / 20px 11px no-repeat,
     linear-gradient(180deg, #8fd8ff, #ffffff) 0 0 / 5px 100% no-repeat,
-    repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 14px),
-    repeating-linear-gradient(-60deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 14px),
     linear-gradient(115deg, #1f5fbf, #1f7fe0 50%, #2bb8ff);
   filter: drop-shadow(0 4px 10px rgba(31, 95, 191, 0.35));
 }
@@ -166,8 +191,6 @@
   color: #1c3f6e; padding: 12px 20px 12px 22px; font-size: 14px; clip-path: var(--ob-cut);
   background:
     linear-gradient(90deg, #2bb8ff 0 4px, transparent 4px),
-    repeating-linear-gradient(60deg, rgba(61, 139, 217, 0.1) 0 1px, transparent 1px 14px),
-    repeating-linear-gradient(-60deg, rgba(61, 139, 217, 0.1) 0 1px, transparent 1px 14px),
     linear-gradient(115deg, #ffffff, #f7fafd 40%, #dce7f3);
   filter: drop-shadow(0 4px 10px rgba(28, 63, 110, 0.18));
 }
