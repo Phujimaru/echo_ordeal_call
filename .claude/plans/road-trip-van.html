@@ -4,21 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Road Trip Van</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   :root { --panel: rgba(255,255,255,.88); --ink: #1f2a33; --line: rgba(31,42,51,.14); --on: #ff8a3d; }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe6f2; color: var(--ink);
     font-family: "Noto Sans Thai", system-ui, sans-serif; }
   canvas { display: block; }
-  #ui { position: fixed; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 8px; max-width: calc(100vw - 24px); }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: var(--panel); padding: 6px; border-radius: 10px;
+  #ui { position: fixed; left: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; max-width: min(560px, calc(100vw - 24px)); }
+  .row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; background: var(--panel); padding: 5px; border-radius: 10px;
     border: 1px solid var(--line); backdrop-filter: blur(6px); }
+  .row b { font-size: 12px; padding: 0 4px; opacity: .6; }
   button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; color: var(--ink);
-    border-radius: 7px; padding: 5px 10px; cursor: pointer; }
+    border-radius: 7px; padding: 4px 9px; cursor: pointer; }
   button:hover { border-color: var(--on); }
   button.on { background: var(--on); color: #fff; border-color: var(--on); }
-  .sw { width: 26px; height: 26px; padding: 0; border-radius: 50%; }
-  .sw.on { outline: 3px solid var(--ink); outline-offset: 1px; background-image: none; }
+  .sw { width: 24px; height: 24px; padding: 0; border-radius: 50%; }
+  .sw.on { outline: 3px solid var(--ink); outline-offset: 1px; }
+  #plate { font: inherit; font-weight: 700; font-size: 14px; width: 110px; padding: 3px 8px; border: 2px solid var(--ink); border-radius: 6px; background: #fbf8ef; text-align: center; }
+  #tip { position: fixed; pointer-events: none; padding: 3px 9px; border-radius: 8px; background: rgba(31,42,51,.9); color: #fff;
+    font-size: 13px; font-weight: 700; transform: translate(14px, 10px); display: none; white-space: nowrap; }
+  #hud { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: none; align-items: flex-end; gap: 18px;
+    background: rgba(17,24,33,.78); color: #fff; padding: 10px 18px; border-radius: 16px; backdrop-filter: blur(6px); }
+  #hud .spd { font-size: 46px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  #hud .u { font-size: 12px; opacity: .7; margin-left: 4px; }
+  #hud .col { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
+  #hud .km { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #hud .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.18); overflow: hidden; }
+  #hud .bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #38e8ff, #a26bff); }
+  #hud .st { font-size: 13px; color: #ffd27a; font-weight: 700; }
+  #drivecams { display: none; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -30,16 +44,29 @@
 <body>
 <div id="ui">
   <div class="row" id="views"></div>
+  <div class="row" id="drivecams"></div>
   <div class="row" id="styles"></div>
   <div class="row" id="modes"></div>
-  <div class="row" id="paint"></div>
+  <div class="row" id="radio"><b>วิทยุ</b></div>
+  <div class="row" id="paint"><input id="plate" maxlength="9" value="กข 4567"></div>
   <div class="row" id="parts"></div>
+</div>
+<div id="tip"></div>
+<div id="hud">
+  <div><span class="spd" id="spd">0</span><span class="u">กม./ชม.</span></div>
+  <div class="col">
+    <div class="km" id="km">0.0 กม.</div>
+    <div class="bar"><i id="nb"></i></div>
+    <div class="st" id="st"></div>
+  </div>
 </div>
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
-// ---------- renderer / scene ----------
+// =====================================================================  renderer / scene
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -47,10 +74,15 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 400);
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = envTex;
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.05, 700);
 camera.position.set(11, 6.5, 11);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 1.7, 0);
@@ -59,59 +91,176 @@ controls.minDistance = 3;
 controls.maxDistance = 45;
 controls.maxPolarAngle = Math.PI * 0.497;
 
-const hemi = new THREE.HemisphereLight(0xe3f3ff, 0x7d6c56, 1.15);
+const hemi = new THREE.HemisphereLight(0xe3f3ff, 0x7d6c56, 0.7);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff0d8, 2.5);
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.6);
 sun.position.set(9, 15, 7);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -11, right: 11, top: 11, bottom: -11, near: 1, far: 50 });
+Object.assign(sun.shadow.camera, { left: -12, right: 12, top: 12, bottom: -12, near: 1, far: 50 });
 sun.shadow.bias = -0.0004;
-scene.add(sun);
+sun.shadow.normalBias = 0.02;
+scene.add(sun); scene.add(sun.target);
 
-// ---------- ground / road ----------
-const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0.05, ...o });
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), std(0xb7c98c, { roughness: 1 }));
+const TAU = Math.PI * 2;
+const hash = (a, b = 0, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+const rand = (a, b) => a + Math.random() * (b - a);
+const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.05, ...o });
+const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const rbox = (w, h, d, r = 0.05) => new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001));
+function shadowAll(o) { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; }
+function canvasTex(w, h, draw) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+
+// =====================================================================  sky / world
+const skyU = { top: { value: new THREE.Color(0x5fa8e6) }, bot: { value: new THREE.Color(0xeaf3f6) } };
+const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyU,
+  vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }",
+  fragmentShader: "uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h = clamp(vP.y*1.8+0.05,0.,1.); gl_FragColor = vec4(mix(bot,top,pow(h,0.65)),1.); }",
+}));
+scene.add(sky);
+const stars = (() => {
+  const p = [];
+  for (let i = 0; i < 700; i++) { const u = Math.random() * TAU, v = Math.random() * 0.45 + 0.08; p.push(Math.cos(u) * Math.cos(v) * 450, Math.sin(v) * 450, Math.sin(u) * Math.cos(v) * 450); }
+  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 }));
+})();
+stars.visible = false; scene.add(stars);
+
+const grassTex = canvasTex(256, 256, (g) => {
+  g.fillStyle = "#9fbf6e"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) { g.fillStyle = `hsl(${85 + Math.random() * 30},${35 + Math.random() * 25}%,${38 + Math.random() * 22}%)`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2 + Math.random() * 4); }
+});
+grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; grassTex.repeat.set(100, 100);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }));
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-const road = new THREE.Mesh(new THREE.PlaneGeometry(400, 9.6), std(0x5a5f67, { roughness: 0.95 }));
-road.rotation.x = -Math.PI / 2; road.position.y = 0.01; road.receiveShadow = true; scene.add(road);
-const lineMat = std(0xf3efe2);
-const roadDeco = new THREE.Group(); scene.add(roadDeco);
-for (let x = -200; x < 200; x += 4) {
-  const d = new THREE.Mesh(new THREE.PlaneGeometry(2, 0.18), lineMat);
-  d.rotation.x = -Math.PI / 2; d.position.set(x, 0.02, -2.9); d.receiveShadow = true; roadDeco.add(d);
+
+const LANE = 3.3, ROAD_W = 10.8;
+const asphaltTex = canvasTex(256, 256, (g) => {
+  g.fillStyle = "#575c64"; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 5000; i++) { const l = 28 + Math.random() * 22; g.fillStyle = `hsl(215,6%,${l}%)`; g.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
+  for (let i = 0; i < 6; i++) { g.strokeStyle = "rgba(20,22,26,.25)"; g.lineWidth = 2; g.beginPath(); g.moveTo(Math.random() * 256, Math.random() * 256); g.lineTo(Math.random() * 256, Math.random() * 256); g.stroke(); }
+});
+asphaltTex.wrapS = asphaltTex.wrapT = THREE.RepeatWrapping; asphaltTex.repeat.set(60, 1.4);
+const road = new THREE.Mesh(new THREE.PlaneGeometry(500, ROAD_W), new THREE.MeshStandardMaterial({ map: asphaltTex, roughness: 0.92 }));
+road.rotation.x = -Math.PI / 2; road.position.y = 0.012; road.receiveShadow = true; scene.add(road);
+const lineMat = std(0xf3efe2, { roughness: 0.6 });
+for (const z of [-ROAD_W / 2 + 0.25, ROAD_W / 2 - 0.25]) {
+  const e = new THREE.Mesh(new THREE.PlaneGeometry(500, 0.16), lineMat); e.rotation.x = -Math.PI / 2; e.position.set(0, 0.02, z); scene.add(e);
 }
-for (const z of [-4.5, 4.5]) {
-  const e = new THREE.Mesh(new THREE.PlaneGeometry(400, 0.16), lineMat);
-  e.rotation.x = -Math.PI / 2; e.position.set(0, 0.02, z); scene.add(e);
+const shoulderMat = std(0xc9b48a, { roughness: 1 });
+for (const z of [-ROAD_W / 2 - 0.9, ROAD_W / 2 + 0.9]) {
+  const s = new THREE.Mesh(new THREE.PlaneGeometry(500, 1.8), shoulderMat); s.rotation.x = -Math.PI / 2; s.position.set(0, 0.008, z); s.receiveShadow = true; scene.add(s);
 }
 
-// ---------- van dimensions ----------
+const SPAN = 180; // ของข้างทางวนทุก 180 หน่วย
+const scrollers = [];
+function scroller(o, k = 1) { o.userData.k = k; scrollers.push(o); scene.add(o); return o; }
+for (let x = -SPAN / 2; x < SPAN / 2; x += 5) for (const z of [-LANE / 2, LANE / 2]) {
+  const d = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.16), lineMat); d.rotation.x = -Math.PI / 2; d.position.set(x, 0.022, z); d.receiveShadow = true; scroller(d);
+}
+const leafMats = [std(0x5f9a4a, { roughness: 0.9 }), std(0x76ad52, { roughness: 0.9 }), std(0x4e8a5a, { roughness: 0.9 }), std(0x8db85a, { roughness: 0.9 })];
+const barkMat = std(0x7a5636, { roughness: 1 });
+function makeTree(i) {
+  const g = new THREE.Group(), kind = i % 3, leaf = leafMats[i % leafMats.length];
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 1.6, 8), barkMat); trunk.position.y = 0.8; g.add(trunk);
+  if (kind === 0) { for (let k = 0; k < 3; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(1.5 - k * 0.35, 1.7, 9), leaf); c.position.y = 1.9 + k * 0.85; g.add(c); } }
+  else if (kind === 1) { for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85 + hash(i, k) * 0.4, 1), leaf); s.position.set((hash(i, k, 1) - 0.5) * 1.2, 2.2 + hash(i, k, 2) * 0.9, (hash(i, k, 3) - 0.5) * 1.2); g.add(s); } }
+  else { trunk.scale.set(0.8, 2.2, 0.8); trunk.position.y = 1.75; for (let k = 0; k < 6; k++) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.28, 2.2, 5), leaf); f.position.set(0, 3.6, 0); f.rotation.set(1.15, k / 6 * TAU, 0, "YXZ"); f.translateY(0.9); g.add(f); } }
+  const s = 0.8 + hash(i, 9) * 0.7; g.scale.setScalar(s); return shadowAll(g);
+}
+for (let i = 0; i < 90; i++) {
+  const t = makeTree(i), side = i % 2 ? 1 : -1;
+  t.position.set(-SPAN / 2 + hash(i, 1) * SPAN, 0, side * (ROAD_W / 2 + 3 + hash(i, 2) * 40));
+  t.rotation.y = hash(i, 3) * TAU; scroller(t);
+}
+for (let i = 0; i < 70; i++) {
+  const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35 + hash(i, 5) * 0.35, 0), leafMats[(i + 1) % 4]);
+  b.position.set(-SPAN / 2 + hash(i, 6) * SPAN, 0.2, (i % 2 ? 1 : -1) * (ROAD_W / 2 + 2 + hash(i, 7) * 12)); b.scale.y = 0.7; shadowAll(b); scroller(b);
+}
+const lampMats = [];
+for (let x = -SPAN / 2; x < SPAN / 2; x += 18) {
+  const g = new THREE.Group(), m = std(0x9aa3ad, { metalness: 0.6, roughness: 0.35 });
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 5.4, 10), m); p.position.y = 2.7; g.add(p);
+  const arm = new THREE.Mesh(box(0.08, 0.08, 1.6), m); arm.position.set(0, 5.3, 0.75); g.add(arm);
+  const lm = new THREE.MeshStandardMaterial({ color: 0xfff3d0, emissive: 0xffd68a, emissiveIntensity: 0 }); lampMats.push(lm);
+  const head = new THREE.Mesh(rbox(0.5, 0.14, 0.3, 0.05), lm); head.position.set(0, 5.22, 1.5); g.add(head);
+  g.position.set(x, 0, -ROAD_W / 2 - 1.2); shadowAll(g); scroller(g);
+}
+const hills = new THREE.Group(); scene.add(hills);
+for (let i = 0; i < 14; i++) {
+  const h = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 10), std(i % 2 ? 0x7da86a : 0x6b9a78, { roughness: 1 }));
+  const side = i % 2 ? 1 : -1; h.scale.set(30 + hash(i, 1) * 40, 10 + hash(i, 2) * 14, 18 + hash(i, 3) * 10);
+  h.position.set(-200 + i * 32, -2, side * (110 + hash(i, 4) * 60)); hills.add(h);
+}
+const clouds = [];
+const cloudMat = std(0xffffff, { roughness: 1, emissive: 0xffffff, emissiveIntensity: 0.15 });
+for (let i = 0; i < 12; i++) {
+  const g = new THREE.Group();
+  for (let k = 0; k < 5; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(2 + hash(i, k) * 2.2, 1), cloudMat); s.position.set(k * 2.4 - 5, hash(i, k, 1) * 1.5, (hash(i, k, 2) - 0.5) * 3); s.scale.y = 0.6; g.add(s); }
+  g.position.set(-150 + i * 27, 36 + hash(i, 5) * 14, -80 + hash(i, 6) * 160); scene.add(g); clouds.push(g);
+}
+
+// =====================================================================  traffic
+const traffic = [];
+const CAR_COLS = [0xe8504a, 0xf2c94c, 0x5aa0e0, 0xf0f0ea, 0x3fae7a, 0x9b6bd8];
+function makeCar(i) {
+  const g = new THREE.Group(), paintC = new THREE.MeshPhysicalMaterial({ color: CAR_COLS[i % CAR_COLS.length], roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+  const b = new THREE.Mesh(rbox(4.3, 0.85, 2.0, 0.25), paintC); b.position.y = 0.85; g.add(b);
+  const c = new THREE.Mesh(rbox(2.3, 0.75, 1.8, 0.25), paintC); c.position.set(-0.3, 1.6, 0); g.add(c);
+  const gl = new THREE.Mesh(rbox(2.32, 0.5, 1.82, 0.2), std(0x22323f, { roughness: 0.1, metalness: 0.3 })); gl.position.set(-0.3, 1.65, 0); gl.scale.set(0.98, 1, 1.002); g.add(gl);
+  for (const x of [1.35, -1.35]) for (const z of [0.9, -0.9]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.3, 18), std(0x1e1f22)); w.rotation.x = Math.PI / 2; w.position.set(x, 0.42, z); g.add(w); }
+  const tl = new THREE.MeshStandardMaterial({ color: 0xd8342c, emissive: 0xff2a1a, emissiveIntensity: 0.6 });
+  for (const z of [0.7, -0.7]) { const l = new THREE.Mesh(box(0.06, 0.18, 0.36), tl); l.position.set(-2.16, 1.0, z); g.add(l); }
+  g.userData.tail = tl;
+  return shadowAll(g);
+}
+for (let i = 0; i < 5; i++) {
+  const car = makeCar(i); car.visible = false; scene.add(car);
+  traffic.push({ car, lane: [-1, 0, 1][i % 3], v: 0, x: 0 });
+}
+function respawnCar(t, ahead) {
+  t.lane = [-1, 0, 1][Math.floor(Math.random() * 3)];
+  t.v = rand(9, 17); t.x = ahead ? rand(60, 110) : rand(-70, -50);
+  if (!ahead) t.v = drive.v + rand(4, 8);
+}
+
+// =====================================================================  van
 // ด้านหน้ารถ = +X · ขวามือคนขับ = +Z (พวงมาลัยขวาแบบไทย) · ห้องใน 3 × 7 ช่อง
-const W = 3.4, HW = W / 2;
-const tileX = (i) => 2.5 - i;          // แถว 0 (หน้า) … 6 (ท้าย)
-const tileZ = (c) => c;                // คอลัมน์ -1 ซ้าย · 0 กลาง · +1 ขวา
+const W = 3.4, HW = W / 2, T = 0.12;
+const tileX = (i) => 2.5 - i;
 const FLOOR = 0.62;
 
 const van = new THREE.Group(); scene.add(van);
-const exterior = new THREE.Group(); van.add(exterior);   // เปลือกทึบ (โหมดภายนอก)
-const cutaway = new THREE.Group(); van.add(cutaway);     // ผนังผ่า (โหมดภายใน)
-const interior = new THREE.Group(); van.add(interior);   // เฟอร์นิเจอร์
-const always = new THREE.Group(); van.add(always);       // ล้อ ไฟ กระจกหน้า
-const parts = {}; // ชิ้นอัปเกรด
+const body = new THREE.Group(); van.add(body);
+const wheelRig = new THREE.Group(); van.add(wheelRig);
+function mesh(geo, mat, x = 0, y = 0, z = 0, parent = body) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return shadowAll(m); }
+function grp(x = 0, y = 0, z = 0, parent = body) { const g = new THREE.Group(); g.position.set(x, y, z); parent.add(g); return g; }
+const interactives = [];
+const animated = [];
+function anim(obj, prop, axis) { const a = { obj, prop, axis, tgt: obj[prop][axis] }; animated.push(a); return a; }
+function interactive(g, name, act) {
+  g.userData.act = act; g.userData.iname = name;
+  g.traverse((m) => { if (m.isMesh) { const o = m.material; m.material = o.clone(); if (o === paint) m.material.userData.isPaint = true; m.userData.owner = g; m.userData.baseEm = m.material.emissive ? m.material.emissive.clone() : null; } });
+  interactives.push(g); return g;
+}
 
-const paint = std(0x7fb8d8, { roughness: 0.45, metalness: 0.15 });
-const cream = std(0xf6efe0, { roughness: 0.6 });
-const trim = std(0x2d333b, { roughness: 0.6 });
-const chrome = std(0xd9dde2, { roughness: 0.25, metalness: 0.8 });
-const glass = new THREE.MeshStandardMaterial({ color: 0x23384a, roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+
+const paint = new THREE.MeshPhysicalMaterial({ color: 0x7fb8d8, roughness: 0.32, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12 });
+const cream = new THREE.MeshPhysicalMaterial({ color: 0xf6efe0, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+const trim = std(0x2d333b, { roughness: 0.55 });
+const chrome = std(0xe3e7ec, { roughness: 0.15, metalness: 1 });
+const glass = new THREE.MeshPhysicalMaterial({ color: 0x29445a, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false });
 const lining = std(0xece3d0, { roughness: 0.9, side: THREE.DoubleSide });
+const headMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.15, roughness: 0.1 });
+const tailMat = new THREE.MeshStandardMaterial({ color: 0xd8342c, emissive: 0xff2a1a, emissiveIntensity: 0.1, roughness: 0.25 });
+const floorMat = new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => {
+  for (let i = 0; i < 8; i++) { g.fillStyle = `hsl(28,${38 + (i % 3) * 6}%,${36 + (i * 37 % 9)}%)`; g.fillRect(0, i * 32, 256, 32); g.fillStyle = "rgba(0,0,0,.25)"; g.fillRect(0, i * 32, 256, 2); g.fillRect((i * 97) % 256, i * 32, 2, 32); }
+}), roughness: 0.65 });
 
-function shadowAll(o) { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; }
-function mesh(geo, mat, x = 0, y = 0, z = 0, parent) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); (parent || van).add(m); return shadowAll(m); }
-const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-
-// ---------- side profile ----------
 function bottomWithArches(s) {
   s.moveTo(-4.1, 0.5);
   s.lineTo(-3.35, 0.5); s.absarc(-2.6, 0.5, 0.75, Math.PI, 0, true);
@@ -119,346 +268,828 @@ function bottomWithArches(s) {
   s.lineTo(4.1, 0.5);
 }
 function fullProfile() {
-  const s = new THREE.Shape();
-  bottomWithArches(s);
+  const s = new THREE.Shape(); bottomWithArches(s);
   s.lineTo(4.1, 1.35); s.quadraticCurveTo(4.1, 1.72, 3.75, 1.76);
   s.lineTo(3.35, 1.85); s.lineTo(2.72, 3.18); s.quadraticCurveTo(2.62, 3.4, 2.36, 3.4);
-  s.lineTo(-3.8, 3.4); s.quadraticCurveTo(-4.1, 3.4, -4.1, 3.1);
-  s.lineTo(-4.1, 0.5);
+  s.lineTo(-3.8, 3.4); s.quadraticCurveTo(-4.1, 3.4, -4.1, 3.1); s.lineTo(-4.1, 0.5);
   return s;
 }
-function lowProfile() {
-  const s = new THREE.Shape();
-  bottomWithArches(s);
-  s.lineTo(4.1, 1.3); s.lineTo(-4.1, 1.3); s.lineTo(-4.1, 0.5);
-  return s;
-}
+function lowProfile() { const s = new THREE.Shape(); bottomWithArches(s); s.lineTo(4.1, 1.3); s.lineTo(-4.1, 1.3); s.lineTo(-4.1, 0.5); return s; }
 const WINDOWS = [
-  [[1.95, 2.02], [3.12, 2.02], [2.62, 3.1], [1.95, 3.1]],      // ประตูคนขับ/ข้างคนขับ
-  [[0.1, 2.05], [1.75, 2.05], [1.75, 3.1], [0.1, 3.1]],        // แถว 1
-  [[-1.9, 2.05], [-0.1, 2.05], [-0.1, 3.1], [-1.9, 3.1]],      // แถว 3
-  [[-3.75, 2.05], [-2.1, 2.05], [-2.1, 3.1], [-3.75, 3.1]],    // แถว 5
+  [[1.95, 2.02], [3.12, 2.02], [2.62, 3.1], [1.95, 3.1]],
+  [[0.1, 2.05], [1.75, 2.05], [1.75, 3.1], [0.1, 3.1]],
+  [[-1.9, 2.05], [-0.1, 2.05], [-0.1, 3.1], [-1.9, 3.1]],
+  [[-3.75, 2.05], [-2.1, 2.05], [-2.1, 3.1], [-3.75, 3.1]],
 ];
 const winPath = (pts, Cls = THREE.Path) => { const p = new Cls(); p.moveTo(...pts[0]); pts.slice(1).forEach((q) => p.lineTo(...q)); p.closePath(); return p; };
 
-// ---------- exterior shell (solid) ----------
+// ---------- ผนัง/หลังคา/หัวรถ (ใช้ร่วมทั้งมองนอกและข้างใน)
+function sideWall(z0, full, lineZ) {
+  const g = grp(); const s = full ? fullProfile() : lowProfile();
+  if (full) WINDOWS.forEach((w) => s.holes.push(winPath(w)));
+  mesh(new THREE.ExtrudeGeometry(s, { depth: T, bevelEnabled: false, curveSegments: 24 }), paint, 0, 0, z0, g);
+  const ln = new THREE.Mesh(new THREE.ShapeGeometry(s, 24), lining); ln.position.z = lineZ; ln.receiveShadow = true; g.add(ln);
+  if (full) WINDOWS.forEach((w) => { const gm = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w, THREE.Shape)), glass); gm.position.z = z0 + T / 2; g.add(gm); });
+  else mesh(box(8.2, 0.06, T + 0.02), cream, 0, 1.31, z0 + T / 2, g);
+  return g;
+}
+const shellLeft = sideWall(-HW, true, -HW + T + 0.004);
+const shellRightFull = sideWall(HW - T, true, HW - T - 0.004);
+const shellRightLow = sideWall(HW - T, false, HW - T - 0.004);
+const shellNose = grp();
+mesh(rbox(0.8, 1.24, W, 0.12), paint, 3.7, 1.12, 0, shellNose);
+mesh(box(0.42, 0.06, W - 0.02), paint, 3.55, 1.75, 0, shellNose);
+const shellRoof = grp();
+for (const [x0, x1, z0, z1] of [[-3.9, 0.02, -HW, HW], [0.98, 2.42, -HW, HW], [0.02, 0.98, -HW, -0.48], [0.02, 0.98, 0.48, HW]]) {
+  mesh(box(x1 - x0, 0.1, z1 - z0), cream, (x0 + x1) / 2, 3.35, (z0 + z1) / 2, shellRoof);
+  mesh(box(x1 - x0, 0.02, z1 - z0), lining, (x0 + x1) / 2, 3.29, (z0 + z1) / 2, shellRoof);
+}
+// ขอบมน (หัวกระจกหน้า · มุมท้ายบน · ขอบหลังคาสองข้าง)
+mesh(new THREE.CylinderGeometry(0.24, 0.24, W, 32), cream, 2.48, 3.16, 0, shellRoof).rotation.x = Math.PI / 2;
+mesh(new THREE.CylinderGeometry(0.3, 0.3, W, 32), cream, -3.8, 3.1, 0, shellRoof).rotation.x = Math.PI / 2;
+for (const z of [-1, 1]) mesh(new THREE.CylinderGeometry(0.07, 0.07, 6.3, 16), cream, -0.72, 3.36, z * (HW - 0.035), shellRoof).rotation.z = Math.PI / 2;
+
+// ---------- ลายนอกตัวรถ (ทูโทน ครีมบน/สีล่าง · คิ้วโครเมียม · ขอบยาง · ซุ้มล้อ)
+const exL = grp(), exR = grp(), exTop = grp();
+function upperShape() {
+  const s = new THREE.Shape(); s.moveTo(-4.1, 1.75); s.lineTo(3.78, 1.75); s.lineTo(3.35, 1.85); s.lineTo(2.72, 3.18);
+  s.quadraticCurveTo(2.62, 3.4, 2.36, 3.4); s.lineTo(-3.8, 3.4); s.quadraticCurveTo(-4.1, 3.4, -4.1, 3.1); s.closePath();
+  WINDOWS.forEach((w) => s.holes.push(winPath(w))); return s;
+}
+function frameShape(w) {
+  const cx = w.reduce((a, p) => a + p[0], 0) / w.length, cy = w.reduce((a, p) => a + p[1], 0) / w.length;
+  const s = winPath(w.map(([x, y]) => [x + Math.sign(x - cx) * 0.055, y + Math.sign(y - cy) * 0.055]), THREE.Shape); s.holes.push(winPath(w)); return s;
+}
+const creamSide = new THREE.MeshPhysicalMaterial({ color: 0xf6efe0, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.2, side: THREE.DoubleSide });
+const rubber = std(0x1b1e22, { roughness: 0.8, side: THREE.DoubleSide });
+for (const [side, g] of [[-1, exL], [1, exR]]) {
+  const zo = side * HW, sz = (d) => zo + side * d;
+  const up = new THREE.Mesh(new THREE.ShapeGeometry(upperShape(), 24), creamSide); up.position.z = sz(0.003); g.add(shadowAll(up));
+  WINDOWS.forEach((w) => { const f = new THREE.Mesh(new THREE.ShapeGeometry(frameShape(w)), rubber); f.position.z = sz(0.007); g.add(f); });
+  mesh(rbox(7.85, 0.06, 0.04, 0.015), chrome, -0.18, 1.75, sz(0.014), g);                     // คิ้วเอว
+  mesh(rbox(7.4, 0.04, 0.03, 0.01), chrome, -0.4, 0.66, sz(0.012), g);                        // คิ้วล่าง
+  for (const x of [2.6, -2.6]) { const f = mesh(new THREE.TorusGeometry(0.79, 0.07, 10, 32, Math.PI), rubber, x, 0.5, sz(0.02), g); f.scale.z = 0.6; }
+  mesh(rbox(0.16, 0.08, 0.03, 0.01), std(0xffa22b, { emissive: 0xff8a00, emissiveIntensity: 0.3 }), 3.75, 1.0, sz(0.012), g);   // ไฟข้างหน้า
+  mesh(rbox(0.12, 0.08, 0.03, 0.01), tailMat0(), -3.95, 1.0, sz(0.012), g);                          // ไฟข้างท้าย
+  for (let k = 0; k < 5; k++) mesh(rbox(0.32, 0.035, 0.03, 0.01), rubber, -3.45, 1.12 + k * 0.09, sz(0.01), g); // ช่องลม
+  mesh(box(0.05, 0.42, 0.42), trim, 1.75, 0.42, sz(-0.25), g); mesh(box(0.05, 0.42, 0.42), trim, -3.45, 0.42, sz(-0.25), g); // บังโคลน
+  mesh(box(0.025, 1.2, 0.02), rubber, 3.3, 1.2, sz(0.01), g);                                        // ร่องประตูหน้า
+  mesh(box(0.025, 2.0, 0.02), rubber, 1.92, 1.55, sz(0.01), g);
+  mesh(rbox(0.26, 0.06, 0.06, 0.02), chrome, 2.3, 1.88, sz(0.04), g);                               // มือจับประตูหน้า
+}
+// ประตูเลื่อน + บันไดข้าง + ฝาถัง (ฝั่งซ้าย)
+mesh(box(0.025, 2.0, 0.02), rubber, 0.0, 1.55, -HW - 0.01, exL);
+mesh(rbox(1.4, 0.06, 0.06, 0.02), chrome, 0.92, 3.22, -HW - 0.03, exL);
+mesh(rbox(0.3, 0.06, 0.06, 0.02), chrome, 0.35, 1.88, -HW - 0.04, exL);
+mesh(rbox(1.6, 0.06, 0.28, 0.02), chrome, 0.92, 0.42, -HW - 0.12, exL);
+mesh(new THREE.CircleGeometry(0.12, 24), chrome, -3.05, 1.35, -HW - 0.012, exL).rotation.y = Math.PI;
+mesh(rbox(1.6, 0.03, 0.36, 0.01), std(0x111418), 0.92, 0.39, -HW - 0.14, exL);
+// หลังคา: ช่องระบายอากาศ
+const vent = grp(-2.6, 3.5, 0, exTop);
+mesh(rbox(0.7, 0.14, 0.55, 0.05), cream, 0, 0, 0, vent);
+for (let k = 0; k < 4; k++) mesh(box(0.06, 0.02, 0.45), rubber, -0.22 + k * 0.15, 0.075, 0, vent);
+// หน้ารถ: ตราสัญลักษณ์ · ไฟเลี้ยว · กระจังโครเมียม
+const exFront = grp();
+mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 40), chrome, 4.11, 1.45, 0, exFront).rotation.z = Math.PI / 2;
+mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.045, 40), paint, 4.115, 1.45, 0, exFront).rotation.z = Math.PI / 2;
+{ const st = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + k / 10 * TAU, r = k % 2 ? 0.045 : 0.11; k ? st.lineTo(Math.cos(a) * r, Math.sin(a) * r) : st.moveTo(Math.cos(a) * r, Math.sin(a) * r); } const s = mesh(new THREE.ShapeGeometry(st), chrome, 4.14, 1.45, 0, exFront); s.rotation.y = Math.PI / 2; }
+for (const z of [-1.15, 1.15]) mesh(rbox(0.05, 0.1, 0.22, 0.03), std(0xffa22b, { emissive: 0xff8a00, emissiveIntensity: 0.3 }), 4.12, 0.98, z, exFront);
+function tailMat0() { return std(0xd8342c, { emissive: 0xff2a1a, emissiveIntensity: 0.2, roughness: 0.25 }); }
+
+// ---------- ประตูท้ายบานคู่ (เปิดออกได้ — ยิง/ใช้สกิลออกทางท้าย)
+const rearDoors = grp();
+const doorAnims = [];
+const DW = HW;
+for (const side of [-1, 1]) {
+  const piv = grp(-4.1 + T / 2, 0, side * HW, rearDoors), zc = (v) => -side * v;
+  mesh(box(T, 1.25, DW), paint, 0, 1.125, zc(DW / 2), piv);
+  mesh(box(T, 0.4, DW), cream, 0, 1.95, zc(DW / 2), piv);
+  mesh(box(T, 0.1, DW), cream, 0, 3.05, zc(DW / 2), piv);
+  mesh(box(T, 0.85, 0.22), cream, 0, 2.575, zc(0.11), piv);
+  mesh(box(T, 0.85, 0.24), cream, 0, 2.575, zc(DW - 0.12), piv);
+  const gl = mesh(box(0.02, 0.85, DW - 0.46), glass, 0, 2.575, zc((0.22 + DW - 0.24) / 2), piv); gl.castShadow = false;
+  mesh(box(0.012, 0.9, DW - 0.4), rubber, -T / 2 - 0.004, 2.575, zc((0.22 + DW - 0.24) / 2), piv).scale.set(1, 1, 1);
+  gl.position.x = -T / 2 - 0.012;
+  mesh(rbox(0.03, 0.06, DW, 0.01), chrome, -T / 2 - 0.014, 1.75, zc(DW / 2), piv);
+  mesh(rbox(0.07, 0.42, 0.2, 0.03), tailMat, -T / 2 - 0.03, 1.42, zc(0.14), piv);
+  mesh(rbox(0.07, 0.17, 0.2, 0.03), std(0xffa22b, { emissive: 0xff8a00, emissiveIntensity: 0.3 }), -T / 2 - 0.03, 1.1, zc(0.14), piv);
+  mesh(rbox(0.06, 0.06, 0.22, 0.02), chrome, -T / 2 - 0.035, 1.88, zc(DW - 0.22), piv);
+  mesh(box(0.01, 2.5, DW - 0.02), lining, T / 2 + 0.006, 1.25, zc(DW / 2), piv).scale.y = 0.62;
+  if (side > 0) {
+    const sp = grp(-T / 2 - 0.16, 1.18, zc(DW / 2 + 0.05), piv);
+    mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.26, 36), std(0x1e1f22, { roughness: 0.92 }), 0, 0, 0, sp).rotation.z = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.28, 36), cream, 0, 0, 0, sp).rotation.z = Math.PI / 2;
+    mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 36), paint, -0.15, 0, 0, sp).rotation.y = Math.PI / 2;
+    { const st = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = Math.PI / 2 + k / 10 * TAU, r = k % 2 ? 0.07 : 0.17; k ? st.lineTo(Math.cos(a) * r, Math.sin(a) * r) : st.moveTo(Math.cos(a) * r, Math.sin(a) * r); } mesh(new THREE.ShapeGeometry(st), paint, -0.145, 0, 0, sp).rotation.y = -Math.PI / 2; }
+    mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshStandardMaterial({ map: canvasTex(192, 256, (g) => {
+      const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, "#ff8a3d"); gr.addColorStop(1, "#7a3fa8"); g.fillStyle = gr; g.fillRect(0, 0, 192, 256);
+      g.fillStyle = "#ffd27a"; g.beginPath(); g.arc(96, 120, 46, 0, TAU); g.fill();
+      g.fillStyle = "#1f2a33"; g.beginPath(); g.moveTo(0, 256); g.lineTo(60, 150); g.lineTo(110, 200); g.lineTo(150, 140); g.lineTo(192, 256); g.fill();
+      g.fillStyle = "#fff"; g.font = "800 30px sans-serif"; g.textAlign = "center"; g.fillText("ROAD", 96, 46); g.fillText("TRIP", 96, 78);
+    }), roughness: 0.8 }), T / 2 + 0.014, 1.5, zc(DW / 2), piv).rotation.y = Math.PI / 2;
+  } else {
+    for (const zz of [0.42, 0.82]) mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.5, 10), chrome, -T / 2 - 0.1, 2.1, zc(zz), piv);
+    for (let k = 0; k < 7; k++) mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.4, 8), chrome, -T / 2 - 0.1, 1.0 + k * 0.36, zc(0.62), piv).rotation.x = Math.PI / 2;
+    for (const y of [1.0, 3.2]) mesh(box(0.1, 0.04, 0.04), chrome, -T / 2 - 0.05, y, zc(0.62), piv);
+  }
+  const a = anim(piv, "rotation", "y"); a.open = side < 0 ? -1.92 : 1.92; doorAnims.push(a);
+}
+let rearOpen = false;
+// ระยะโจมตีจากท้ายรถ (โชว์ตอนเปิดท้าย)
+const rangeGrid = grp(0, 0, 0, van);
 {
-  const bevel = 0.06;
-  const g = new THREE.ExtrudeGeometry(fullProfile(), { depth: W - bevel * 2, bevelEnabled: true, bevelSize: bevel, bevelThickness: bevel, bevelSegments: 3, curveSegments: 18 });
-  g.translate(0, 0, -(W - bevel * 2) / 2);
-  mesh(g, paint, 0, 0, 0, exterior);
-  // หลังคาครีม + คาดสีขาว
-  mesh(box(6.2, 0.08, W - 0.1), cream, -0.72, 3.44, 0, exterior);
-  for (const z of [HW + 0.004, -HW - 0.004]) {
-    mesh(box(8.1, 0.22, 0.02), cream, 0, 1.62, z, exterior);
-    for (const w of WINDOWS) {
-      const gm = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w, THREE.Shape)), glass);
-      gm.position.z = z + Math.sign(z) * 0.006; exterior.add(gm);
-      const fr = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w.map(([x, y]) => [x, y]), THREE.Shape)), trim);
-      fr.scale.set(1, 1, 1); fr.position.z = z; fr.renderOrder = -1;
-    }
-  }
-  // ประตูเลื่อนด้านซ้าย (−Z) + ประตูคนขับ seams
-  const seam = (x, y, h, z) => mesh(box(0.025, h, 0.02), trim, x, y, z, exterior);
-  seam(0.0, 1.55, 2.0, -HW - 0.01); seam(1.85, 1.55, 2.0, -HW - 0.01);
-  mesh(box(1.85, 0.03, 0.02), trim, 0.92, 0.56, -HW - 0.01, exterior);
-  mesh(box(1.4, 0.06, 0.06), chrome, 0.92, 3.22, -HW - 0.03, exterior); // ราง
-  mesh(box(0.28, 0.06, 0.06), chrome, 0.35, 1.85, -HW - 0.04, exterior); // มือจับ
-  for (const z of [-1, 1]) { seam(1.92, 1.55, 2.0, z * (HW + 0.01)); seam(3.3, 1.2, 1.2, z * (HW + 0.01)); mesh(box(0.25, 0.06, 0.06), chrome, 2.3, 1.85, z * (HW + 0.04), exterior); }
-  // ประตูท้ายบานคู่
-  mesh(box(0.02, 2.6, 0.03), trim, -4.17, 1.95, 0, exterior);
-  for (const z of [-0.18, 0.18]) mesh(box(0.06, 0.06, 0.22), chrome, -4.19, 1.85, z, exterior);
-  for (const z of [-0.85, 0.85]) {
-    const rg = mesh(box(0.02, 0.9, 1.25), glass, -4.172, 2.6, z, exterior); rg.castShadow = false;
-  }
-  // ซันรูฟ
-  const hatch = mesh(box(0.95, 0.1, 0.95), trim, 0.5, 3.5, 0, exterior);
-  mesh(box(0.85, 0.06, 0.85), glass, 0.5, 3.56, 0, exterior);
+  const rows = [[-1, 0, 1], [-1, 0, 1], [-2, -1, 0, 1, 2], [-2, -1, 0, 1, 2]];
+  rows.forEach((cols, k) => cols.forEach((c) => {
+    const t = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshBasicMaterial({ color: 0xff5a36, transparent: true, opacity: 0.4, depthWrite: false }));
+    t.rotation.x = -Math.PI / 2; t.position.set(-5.1 - k, 0.035, c); rangeGrid.add(t);
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.9, 0.9)), new THREE.LineBasicMaterial({ color: 0xffd27a }));
+    e.rotation.x = -Math.PI / 2; e.position.set(-5.1 - k, 0.04, c); rangeGrid.add(e);
+  }));
+}
+rangeGrid.visible = false;
+function toggleRear() {
+  rearOpen = !rearOpen;
+  doorAnims.forEach((a) => (a.tgt = rearOpen ? a.open : 0));
+  rangeGrid.visible = rearOpen; sfx("creak");
+  rearBtn.classList.toggle("on", rearOpen);
 }
 
-// ---------- cutaway shell ----------
+// ---------- ซันรูฟ (ฝาเปิดได้)
+const roofTop = grp(); // ของที่อยู่บนหลังคา — ซ่อนตอนผ่า
+const hatchLid = grp(0.98, 3.47, 0, roofTop);
+mesh(rbox(0.96, 0.08, 0.96, 0.03), trim, 0.5, 3.46, 0, roofTop).scale.set(1, 1, 1);
 {
-  const t = 0.12;
-  // ผนังไกล (ซ้าย −Z) มีช่องหน้าต่าง
-  const far = fullProfile(); WINDOWS.forEach((w) => far.holes.push(winPath(w)));
-  const fg = new THREE.ExtrudeGeometry(far, { depth: t, bevelEnabled: false, curveSegments: 18 });
-  mesh(fg, paint, 0, 0, -HW, cutaway);
-  const fl = new THREE.Mesh(new THREE.ShapeGeometry(far, 18), lining); fl.position.z = -HW + t + 0.004; cutaway.add(fl);
-  for (const w of WINDOWS) { const gm = new THREE.Mesh(new THREE.ShapeGeometry(winPath(w, THREE.Shape)), glass); gm.position.z = -HW + t / 2; cutaway.add(gm); }
-  mesh(box(8.2, 0.22, 0.02), cream, 0, 1.62, -HW - 0.01, cutaway);
-  // ผนังใกล้ (ขวา +Z) เตี้ย
-  const ng = new THREE.ExtrudeGeometry(lowProfile(), { depth: t, bevelEnabled: false, curveSegments: 18 });
-  mesh(ng, paint, 0, 0, HW - t, cutaway);
-  mesh(box(8.2, 0.06, t + 0.02), cream, 0, 1.31, HW - t / 2, cutaway);
-  // หัวรถ (ฝากระโปรง) + ผนังท้ายเตี้ย
-  mesh(box(0.8, 1.22, W), paint, 3.7, 1.11, 0, cutaway);
-  mesh(box(0.42, 0.06, W), paint, 3.55, 1.75, 0, cutaway);
-  mesh(box(t, 0.8, W), paint, -4.1 + t / 2, 0.9, 0, cutaway);
+  const lid = mesh(rbox(0.9, 0.06, 0.9, 0.03), trim, -0.45, 0.04, 0, hatchLid);
+  const lg = mesh(box(0.74, 0.02, 0.74), glass, -0.45, 0.075, 0, hatchLid); lg.castShadow = false;
 }
+mesh(box(0.8, 0.09, 0.8), std(0x111418), 0.5, 3.45, 0, roofTop); // ช่องมืด
 
-// ---------- floor + grid ----------
-const gridGroup = new THREE.Group(); van.add(gridGroup);
-mesh(box(7.3, 0.12, W - 0.2), std(0x6b5440, { roughness: 0.9 }), -0.5, FLOOR - 0.06, 0, interior);
-const TILE_COL = { drive: 0xffb36b, win: 0x8fd0ff, door: 0xb9a6ff, roof: 0x9be3b0, gear: 0xff8d8d, rest: 0xffe08a, none: 0xd8cbb4 };
+// ---------- พื้น + ตาราง
+const interior = grp();
+mesh(box(7.3, 0.12, W - 0.2), floorMat, -0.5, FLOOR - 0.06, 0, interior);
+const gridGroup = grp();
+const TILE_COL = { drive: 0xffb36b, win: 0x8fd0ff, door: 0xb9a6ff, roof: 0x9be3b0, gear: 0xff8d8d, rest: 0xffe08a, play: 0xf7a8d8, none: 0xd8cbb4 };
 const TILE_KIND = [
-  ["none", "none", "drive"],
-  ["door", "none", "win"],
-  ["none", "roof", "none"],
-  ["win", "none", "win"],
-  ["rest", "none", "gear"],
-  ["rest", "none", "gear"],
-  ["door", "door", "door"],
+  ["gear", "drive", "drive"], ["door", "none", "win"], ["gear", "roof", "none"], ["win", "play", "win"],
+  ["rest", "none", "gear"], ["rest", "none", "gear"], ["gear", "play", "gear"],
 ];
 for (let i = 0; i < 7; i++) for (let c = -1; c <= 1; c++) {
-  const kind = TILE_KIND[i][c + 1];
-  const t = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92), new THREE.MeshStandardMaterial({ color: TILE_COL[kind], transparent: true, opacity: 0.55, roughness: 1 }));
-  t.rotation.x = -Math.PI / 2; t.position.set(tileX(i), FLOOR + 0.006, tileZ(c)); t.receiveShadow = true; gridGroup.add(t);
+  const t = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.92), new THREE.MeshBasicMaterial({ color: TILE_COL[TILE_KIND[i][c + 1]], transparent: true, opacity: 0.32, depthWrite: false }));
+  t.rotation.x = -Math.PI / 2; t.position.set(tileX(i), FLOOR + 0.012, c); gridGroup.add(t);
 }
 {
   const pts = [];
-  for (let i = 0; i <= 7; i++) { const x = 3 - i; pts.push(x, FLOOR + 0.01, -1.5, x, FLOOR + 0.01, 1.5); }
-  for (let c = 0; c <= 3; c++) { const z = -1.5 + c; pts.push(3, FLOOR + 0.01, z, -4, FLOOR + 0.01, z); }
+  for (let i = 0; i <= 7; i++) { const x = 3 - i; pts.push(x, FLOOR + 0.014, -1.5, x, FLOOR + 0.014, 1.5); }
+  for (let c = 0; c <= 3; c++) { const z = -1.5 + c; pts.push(3, FLOOR + 0.014, z, -4, FLOOR + 0.014, z); }
   const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-  gridGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x3a2e22, transparent: true, opacity: 0.5 })));
+  gridGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x2a2018, transparent: true, opacity: 0.45 })));
 }
 
-// ---------- furniture ----------
+// =====================================================================  audio (เพลงวิทยุสังเคราะห์สด)
+let ac = null, master, musicBus, carFilter, sfxBus, noiseBuf, rockIn, engine = null;
+function initAudio() {
+  if (ac) { if (ac.state === "suspended") ac.resume(); return; }
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  master = ac.createGain(); master.gain.value = 0.85;
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3;
+  master.connect(comp).connect(ac.destination);
+  carFilter = ac.createBiquadFilter(); carFilter.type = "lowpass"; carFilter.frequency.value = 18000;
+  musicBus = ac.createGain(); musicBus.gain.value = 0.6; musicBus.connect(carFilter).connect(master);
+  sfxBus = ac.createGain(); sfxBus.gain.value = 0.75; sfxBus.connect(master);
+  noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+  const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const ws = ac.createWaveShaper(); const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(x * 6); } ws.curve = curve;
+  rockIn = ac.createGain(); rockIn.gain.value = 0.9; const rl = ac.createBiquadFilter(); rl.type = "lowpass"; rl.frequency.value = 3800;
+  const rg = ac.createGain(); rg.gain.value = 0.35; rockIn.connect(ws).connect(rl).connect(rg).connect(musicBus);
+}
+const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dur); }
+function tone(type, f, t, dur, vol, dest, o = {}) {
+  const osc = ac.createOscillator(); osc.type = type; osc.frequency.setValueAtTime(f, t);
+  if (o.glideTo) osc.frequency.exponentialRampToValueAtTime(o.glideTo, t + (o.glideT || dur));
+  if (o.det) osc.detune.value = o.det;
+  const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = o.cut || 18000; fl.Q.value = o.q || 0.7;
+  const g = ac.createGain(); env(g, t, o.a || 0.004, vol, dur);
+  osc.connect(fl).connect(g).connect(dest); osc.start(t); osc.stop(t + (o.a || 0.004) + dur + 0.05);
+}
+function noise(t, dur, vol, dest, type = "highpass", f = 1000, q = 0.7, a = 0.002) {
+  const s = ac.createBufferSource(); s.buffer = noiseBuf;
+  const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+  const g = ac.createGain(); env(g, t, a, vol, dur);
+  s.connect(fl).connect(g).connect(dest); s.start(t, Math.random() * 1.5); s.stop(t + a + dur + 0.05);
+}
+const dr = {
+  kick: (t, v, d) => tone("sine", 150, t, 0.3, 0.95 * v, d, { glideTo: 42, glideT: 0.12 }),
+  snare: (t, v, d) => { noise(t, 0.17, 0.4 * v, d, "highpass", 1400); tone("triangle", 190, t, 0.08, 0.3 * v, d); },
+  hat: (t, v, d) => noise(t, 0.035, 0.14 * v, d, "highpass", 8000),
+  ching: (t, open, d) => [2637, 3951, 5274].forEach((f, i) => tone("sine", f, t, open ? 0.7 : 0.07, 0.07 / (i + 1), d)),
+  tom: (t, v, d) => tone("sine", 120, t, 0.25, 0.5 * v, d, { glideTo: 75 }),
+};
+function khaen(f, t, dur, vol, d) {
+  for (const det of [-9, 9]) {
+    const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = det;
+    const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = Math.min(f * 2.4, 4000); bp.Q.value = 1.1;
+    const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.05);
+    g.gain.setValueAtTime(vol, t + dur * 0.75); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    const l = ac.createOscillator(); l.frequency.value = 5.2; const lg = ac.createGain(); lg.gain.value = f * 0.007; l.connect(lg).connect(o.frequency);
+    o.connect(bp).connect(g).connect(d); o.start(t); l.start(t); o.stop(t + dur + 0.05); l.stop(t + dur + 0.05);
+  }
+}
+const CH = { M: [0, 4, 7], m: [0, 3, 7], M7: [0, 4, 7, 11], m7: [0, 3, 7, 10], 5: [0, 7, 12] };
+const notesOf = ([r, q]) => CH[q].map((i) => r + i);
+const STATIONS = [
+  { name: "ป๊อป", freq: "FM 88.0", bpm: 118, prog: [[60, "M"], [55, "M"], [57, "m"], [53, "M"]], play(s, t, bar, ch, spb, d) {
+    const [r] = ch, N = notesOf(ch);
+    if (s === 0 || s === 8 || (s === 10 && bar % 2)) dr.kick(t, 1, d);
+    if (s === 4 || s === 12) dr.snare(t, 1, d);
+    if (s % 2 === 0) dr.hat(t, s % 4 === 2 ? 1 : 0.5, d);
+    if ([0, 3, 6, 8, 11, 14].includes(s)) tone("sawtooth", mtof(r - 24 + (s === 14 ? 7 : 0)), t, spb * 1.3, 0.16, d, { cut: 650 });
+    if (s % 4 === 2) N.forEach((n) => tone("triangle", mtof(n), t, spb * 0.9, 0.05, d, { cut: 3200 }));
+    const mask = [1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0];
+    if (mask[s] && bar % 8 < 6) {
+      const sc = [0, 2, 4, 7, 9], k = Math.floor(hash(bar % 4, s, 11) * 7);
+      const n = s % 4 === 0 ? N[k % N.length] + 12 : 72 + sc[k % 5];
+      tone("square", mtof(n), t, spb * 1.4, 0.045, d, { cut: 2600 });
+    }
+  } },
+  { name: "ลูกทุ่ง", freq: "FM 95.5", bpm: 132, prog: [[57, "m"], [55, "M"], [53, "M"], [55, "M"]], play(s, t, bar, ch, spb, d) {
+    const [r] = ch;
+    if (s === 0 || s === 8) dr.kick(t, 1, d);
+    if (s === 6 || s === 14) dr.tom(t, 1, d);
+    if (s % 8 === 0) dr.ching(t, false, d); if (s % 8 === 4) dr.ching(t, true, d);
+    if (s % 4 === 0) tone("triangle", mtof(r - 24 + (s % 8 === 4 ? 7 : 0)), t, spb * 2.2, 0.32, d, { cut: 900 });
+    if (s === 0) [0, 7].forEach((iv) => khaen(mtof(r - 12 + iv), t, spb * 16, 0.05, d));
+    const mask = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0];
+    if (mask[s]) { const sc = [0, 3, 5, 7, 10, 12, 15], k = Math.floor(hash(bar % 4, s, 21) * sc.length); khaen(mtof(69 + sc[k]), t, spb * (s % 4 === 0 ? 2.8 : 1.7), 0.11, d); }
+  } },
+  { name: "ร็อก", freq: "FM 101.5", bpm: 144, prog: [[52, "5"], [50, "5"], [48, "5"], [50, "5"]], play(s, t, bar, ch, spb, d) {
+    const [r] = ch, N = notesOf(ch);
+    if ([0, 3, 8, 10].includes(s)) dr.kick(t, 1.1, d);
+    if (s === 4 || s === 12) dr.snare(t, 1.3, d);
+    if (s % 2 === 0) dr.hat(t, 0.8, d);
+    if (s === 0 && bar % 4 === 0) noise(t, 1.3, 0.16, d, "highpass", 5000);
+    if (s % 2 === 0) { const long = s === 0; N.forEach((n) => tone("sawtooth", mtof(n), t, long ? spb * 3 : spb * 0.7, 0.09, rockIn, { cut: long ? 5000 : 1700 })); }
+    if (s % 2 === 0) tone("sawtooth", mtof(r - 12), t, spb * 0.8, 0.14, d, { cut: 700 });
+    if (bar % 4 === 3 && [0, 2, 3, 6, 8, 10, 11, 14].includes(s)) { const sc = [0, 3, 5, 7, 10, 12]; tone("square", mtof(r + 12 + sc[Math.floor(hash(bar, s, 31) * 6)]), t, spb * 1.1, 0.06, rockIn, { cut: 4000 }); }
+  } },
+  { name: "ชิล", freq: "FM 104.0", bpm: 80, prog: [[65, "M7"], [64, "m7"], [62, "m7"], [60, "M7"]], play(s, t, bar, ch, spb, d) {
+    const [r] = ch, N = notesOf(ch), tt = t + (s % 2 ? spb * 0.2 : 0);
+    if (s === 0 || s === 10) dr.kick(tt, 0.7, d); if (s === 7 && bar % 2) dr.kick(tt, 0.4, d);
+    if (s === 4 || s === 12) noise(tt, 0.16, 0.16, d, "bandpass", 1800, 0.8);
+    if (s % 2 === 0) dr.hat(tt, 0.35, d);
+    if (s === 0) N.forEach((n, i) => tone(i % 2 ? "sine" : "triangle", mtof(n), tt + i * 0.015, spb * 14, 0.05, d, { cut: 1500, a: 0.06 }));
+    if (s === 0 || s === 10) tone("sine", mtof(r - 24), tt, spb * 5, 0.3, d);
+    if (hash(bar % 8, s, 3) < 0.22) tone("triangle", mtof(N[Math.floor(hash(bar, s, 5) * N.length)] + 12), tt, spb * 3, 0.05, d, { cut: 2200 });
+    if (Math.random() < 0.3) noise(t + Math.random() * spb, 0.008, 0.06, d, "highpass", 3000);
+  } },
+  { name: "หลอน", freq: "AM 666", bpm: 60, prog: [[45, "m"], [44, "M"], [45, "m"], [46, "M"]], play(s, t, bar, ch, spb, d) {
+    const [r] = ch;
+    if (s === 0) { tone("sine", mtof(r - 12), t, spb * 16, 0.13, d, { a: 1.2 }); tone("sine", mtof(r - 12) * 1.013, t, spb * 16, 0.1, d, { a: 1.2 }); }
+    if (s % 4 === 0 && hash(bar, s, 7) < 0.45) { const sc = [0, 1, 3, 6, 7, 8]; tone("triangle", mtof(r + 36 + sc[Math.floor(hash(bar, s, 9) * 6)]), t, spb * 6, 0.035, d, { det: hash(bar, s) * 30 - 15 }); }
+    if (s === 8 && bar % 4 === 2) noise(t, 2.5, 0.06, d, "bandpass", 620, 5, 1.2);
+    if (s === 0 || s === 2) dr.kick(t, 0.45, d);
+  } },
+];
+let station = -1, nextT = 0, step = 0, bar = 0, schedId = null, lastBeat = -1;
+function sched() {
+  if (station < 0 || !ac) return;
+  const S = STATIONS[station], spb = 60 / S.bpm / 4;
+  while (nextT < ac.currentTime + 0.14) {
+    S.play(step, nextT, bar, S.prog[bar % S.prog.length], spb, musicBus);
+    if (step % 4 === 0) beats.push(nextT);
+    step++; if (step === 16) { step = 0; bar++; }
+    nextT += spb;
+  }
+}
+const beats = [];
+function setStation(i) {
+  initAudio();
+  noise(ac.currentTime, 0.38, 0.22, sfxBus, "bandpass", 1600, 1.5);
+  station = i; step = 0; bar = 0; nextT = ac.currentTime + 0.4;
+  if (!schedId) schedId = setInterval(sched, 25);
+  drawRadio();
+  document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k - 1 === i));
+  document.getElementById("st").textContent = i < 0 ? "" : STATIONS[i].freq + " " + STATIONS[i].name;
+}
+function sfx(name) {
+  initAudio(); const t = ac.currentTime, d = sfxBus;
+  ({
+    horn: () => { tone("square", 370, t, 0.4, 0.13, d, { cut: 2000, a: 0.01 }); tone("square", 466, t, 0.4, 0.11, d, { cut: 2000, a: 0.01 }); },
+    goofyHorn: () => { tone("square", 520, t, 0.18, 0.12, d, { cut: 2500, glideTo: 330 }); tone("square", 600, t + 0.2, 0.25, 0.12, d, { cut: 2500, glideTo: 380 }); },
+    pop: () => { noise(t, 0.12, 0.25, d, "lowpass", 500); tone("sine", 2300, t + 0.05, 0.12, 0.05, d); },
+    clank: () => { tone("square", 880, t, 0.12, 0.05, d, { cut: 3000 }); tone("square", 1320, t + 0.05, 0.1, 0.04, d, { cut: 3000 }); },
+    dice: () => { for (let k = 0; k < 6; k++) noise(t + k * 0.07 + Math.random() * 0.03, 0.02, 0.18, d, "highpass", 2500); },
+    strum: () => [40, 47, 52, 56, 59, 64].forEach((n, k) => tone("sawtooth", mtof(n), t + k * 0.028, 1.8, 0.05, d, { cut: 2200 })),
+    hum: () => { tone("sine", 120, t, 2, 0.06, d, { a: 0.1 }); tone("sine", 1760, t + 2.1, 1.2, 0.12, d); },
+    click: () => noise(t, 0.015, 0.25, d, "highpass", 2000),
+    creak: () => tone("sawtooth", 260, t, 0.5, 0.04, d, { cut: 900, glideTo: 180 }),
+    soft: () => noise(t, 0.15, 0.2, d, "lowpass", 350),
+    boing: () => { tone("sine", 300, t, 0.15, 0.15, d, { glideTo: 700 }); tone("sine", 700, t + 0.15, 0.25, 0.12, d, { glideTo: 300 }); },
+    swish: () => noise(t, 0.35, 0.12, d, "bandpass", 2400, 1.5, 0.1),
+    crash: () => { noise(t, 0.5, 0.5, d, "lowpass", 600); tone("square", 90, t, 0.2, 0.25, d, { glideTo: 50 }); noise(t + 0.03, 0.25, 0.12, d, "highpass", 4000); },
+    whoosh: () => noise(t, 0.9, 0.22, d, "bandpass", 900, 0.8, 0.15),
+    lane: () => noise(t, 0.25, 0.05, d, "bandpass", 3200, 6, 0.03),
+  })[name]();
+}
+function engineStart() {
+  initAudio(); if (engine) return;
+  const o1 = ac.createOscillator(), o2 = ac.createOscillator(); o1.type = "sawtooth"; o2.type = "square"; o2.detune.value = -1200;
+  const f = ac.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 280;
+  const g = ac.createGain(); g.gain.value = 0;
+  const ws = ac.createBufferSource(); ws.buffer = noiseBuf; ws.loop = true;
+  const wf = ac.createBiquadFilter(); wf.type = "bandpass"; wf.frequency.value = 500; wf.Q.value = 0.6;
+  const wg = ac.createGain(); wg.gain.value = 0;
+  o1.connect(f); o2.connect(f); f.connect(g).connect(master); ws.connect(wf).connect(wg).connect(master);
+  o1.start(); o2.start(); ws.start();
+  engine = { o1, o2, f, g, wg };
+}
+
+// =====================================================================  interactives
+// ---------- แผงหน้ารถ
+const dashMat = std(0x3a3f47, { roughness: 0.6 });
+mesh(rbox(0.6, 1.12, W - 0.3, 0.06), dashMat, 3.1, FLOOR + 0.56, 0, interior);
+mesh(rbox(0.42, 0.18, W - 0.3, 0.05), dashMat, 3.24, 1.78, 0, interior);
+// หน้าปัดความเร็ว
+const speedo = grp(2.785, 1.5, 1.0, interior); speedo.rotation.y = -Math.PI / 2;
+mesh(new THREE.CircleGeometry(0.17, 32), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => {
+  g.fillStyle = "#11161c"; g.beginPath(); g.arc(128, 128, 126, 0, TAU); g.fill();
+  g.strokeStyle = "#e8eef4"; g.lineWidth = 4;
+  for (let k = 0; k <= 12; k++) { const a = Math.PI * 0.75 + k / 12 * Math.PI * 1.5; g.beginPath(); g.moveTo(128 + Math.cos(a) * 112, 128 + Math.sin(a) * 112); g.lineTo(128 + Math.cos(a) * (k % 2 ? 100 : 88), 128 + Math.sin(a) * (k % 2 ? 100 : 88)); g.stroke(); }
+  g.fillStyle = "#e8eef4"; g.font = "700 26px sans-serif"; g.textAlign = "center";
+  for (let k = 0; k <= 6; k++) { const a = Math.PI * 0.75 + k / 6 * Math.PI * 1.5; g.fillText(String(k * 30), 128 + Math.cos(a) * 66, 137 + Math.sin(a) * 66); }
+}), emissive: 0xffffff, emissiveIntensity: 0.15, roughness: 0.4 }), 0, 0, 0, speedo).castShadow = false;
+const needle = grp(0, 0, 0.01, speedo);
+mesh(box(0.13, 0.012, 0.006), std(0xff5a36, { emissive: 0xff5a36, emissiveIntensity: 0.6 }), 0.065, 0, 0, needle);
+mesh(new THREE.TorusGeometry(0.17, 0.012, 8, 32), chrome, 0, 0, 0.005, speedo);
+
+// พวงมาลัย (บีบแตร)
+const wheelBase = grp(2.68, 1.6, 1.0, interior); wheelBase.rotation.z = -0.45;
+const steer = grp(0, 0, 0, wheelBase);
+mesh(new THREE.TorusGeometry(0.27, 0.035, 12, 40), std(0x22262c, { roughness: 0.5 }), 0, 0, 0, steer).rotation.y = Math.PI / 2;
+for (const a of [0, 2.2, 4.1]) { const sp = mesh(box(0.03, 0.26, 0.04), trim, 0, 0, 0, steer); sp.rotation.x = a; sp.translateY(0.13); }
+mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.05, 20), std(0xff8a3d), -0.01, 0, 0, steer).rotation.z = Math.PI / 2;
+mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.45, 12), trim, 0.22, 0, 0, wheelBase).rotation.z = Math.PI / 2;
+interactive(wheelBase, "แตร", () => { sfx(style === "ติ๊งต๊อง" ? "goofyHorn" : "horn"); bump(0.15); });
+
+// วิทยุ
+const radioCanvas = document.createElement("canvas"); radioCanvas.width = 320; radioCanvas.height = 96;
+const radioTex = new THREE.CanvasTexture(radioCanvas); radioTex.colorSpace = THREE.SRGBColorSpace;
+function drawRadio() {
+  const g = radioCanvas.getContext("2d");
+  g.fillStyle = "#0b1410"; g.fillRect(0, 0, 320, 96);
+  g.fillStyle = station < 0 ? "#26352d" : "#7dffcf"; g.font = "800 40px 'Noto Sans Thai', sans-serif"; g.textBaseline = "middle";
+  g.fillText(station < 0 ? "--.-" : STATIONS[station].freq, 14, 34);
+  if (station >= 0) { g.font = "700 26px 'Noto Sans Thai', sans-serif"; g.fillStyle = "#ffd27a"; g.fillText(STATIONS[station].name, 16, 74); }
+  radioTex.needsUpdate = true;
+}
+const radio = grp(2.79, 1.33, 0, interior);
+mesh(rbox(0.06, 0.26, 0.6, 0.02), std(0x1a1d22), 0, 0, 0, radio);
+{
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.11), new THREE.MeshStandardMaterial({ map: radioTex, emissive: 0xffffff, emissiveMap: radioTex, emissiveIntensity: 0.9 }));
+  scr.rotation.y = -Math.PI / 2; scr.position.set(-0.032, 0.04, -0.04); radio.add(scr);
+  for (const z of [0.2, -0.26]) mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.05, 16), chrome, -0.04, -0.06, z, radio).rotation.z = Math.PI / 2;
+  for (let k = 0; k < 5; k++) mesh(box(0.02, 0.03, 0.05), trim, -0.035, -0.08, -0.12 + k * 0.065, radio);
+}
+interactive(radio, "วิทยุ", () => setStation(station + 1 >= STATIONS.length ? -1 : station + 1));
+document.fonts.load("800 40px 'Noto Sans Thai'").finally(drawRadio);
+
+// ช่องเก็บของหน้ารถ
+const glove = grp(2.79, 1.1, -1.0, interior);
+mesh(rbox(0.04, 0.28, 0.6, 0.02), dashMat, 0, 0.14, 0, glove);
+mesh(rbox(0.03, 0.04, 0.16, 0.01), chrome, -0.03, 0.22, 0, glove);
+const gloveA = anim(glove, "rotation", "z");
+const gloveIn = grp(2.92, 1.18, -1.0, interior);
+mesh(box(0.15, 0.03, 0.4), std(0xf2d36b), 0, 0, 0, gloveIn).rotation.z = 0.3;
+mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 16), trim, 0, 0.05, -0.1, gloveIn).rotation.x = Math.PI / 2;
+interactive(glove, "ช่องเก็บของ", () => { gloveA.tgt = gloveA.tgt ? 0 : 1.05; sfx("click"); });
+
+// พัดลมหน้ารถ
+const fan = grp(3.2, 1.87, -0.6, interior);
+mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.04, 20), cream, 0, 0.02, 0, fan);
+mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.22, 10), cream, 0, 0.13, 0, fan);
+const fanHead = grp(0, 0.28, 0, fan); fanHead.rotation.y = 0.3;
+mesh(new THREE.TorusGeometry(0.15, 0.012, 6, 28), cream, -0.03, 0, 0, fanHead).rotation.y = Math.PI / 2;
+mesh(new THREE.SphereGeometry(0.05, 14, 10), cream, 0.03, 0, 0, fanHead);
+const fanBlades = grp(-0.02, 0, 0, fanHead);
+for (let k = 0; k < 4; k++) { const b = mesh(box(0.01, 0.13, 0.06), std(0x8fd0ff, { transparent: true, opacity: 0.85 }), 0, 0, 0, fanBlades); b.rotation.x = k / 4 * TAU; b.translateY(0.07); }
+let fanOn = false;
+interactive(fan, "พัดลม", () => { fanOn = !fanOn; sfx("click"); });
+
+// ตุ๊กตาหมาหัวโยก
+const bob = grp(3.22, 1.87, -0.12, interior);
+mesh(rbox(0.16, 0.12, 0.1, 0.04), std(0xc98d4e), 0, 0.06, 0, bob);
+const bobHead = grp(0, 0.16, 0, bob);
+mesh(new THREE.SphereGeometry(0.085, 18, 12), std(0xd9a066), 0, 0.05, 0, bobHead);
+mesh(new THREE.SphereGeometry(0.04, 12, 8), std(0xd9a066), -0.07, 0.03, 0, bobHead);
+mesh(new THREE.SphereGeometry(0.015, 8, 6), trim, -0.11, 0.04, 0, bobHead);
+for (const z of [-0.06, 0.06]) { mesh(new THREE.SphereGeometry(0.035, 10, 8), std(0x7a5232), 0.0, 0.11, z, bobHead).scale.set(0.6, 1.4, 0.6); mesh(new THREE.SphereGeometry(0.013, 8, 6), trim, -0.07, 0.08, z * 0.5, bobHead); }
+let bobKick = 0;
+interactive(bob, "หมาหัวโยก", () => { bobKick = 1; sfx("boing"); });
+
+// กระจกมองหลัง + พวงมาลัยดอกไม้
+mesh(box(0.04, 0.2, 0.04), trim, 2.68, 3.15, 0.05, interior);
+mesh(rbox(0.05, 0.11, 0.42, 0.03), trim, 2.7, 3.0, 0.05, interior);
+const garland = grp(2.72, 2.94, 0.05, interior);
+mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.2), std(0xffffff), 0, -0.1, 0, garland);
+for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; mesh(new THREE.SphereGeometry(0.022, 8, 6), std(k % 2 ? 0xfff8ea : 0xff9b2f, { roughness: 0.8 }), Math.cos(a) * 0.07, -0.28 + Math.sin(a) * 0.07, 0, garland); }
+mesh(new THREE.SphereGeometry(0.03, 8, 6), std(0xd8344c), 0, -0.38, 0, garland);
+let garlandV = 0;
+
+// คอนโซลกลาง + เกียร์ (เริ่มขับ)
+mesh(rbox(0.7, 0.5, 0.5, 0.05), dashMat, tileX(0), FLOOR + 0.25, 0, interior);
+for (const z of [-0.12, 0.12]) mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.02, 16), trim, 2.25, FLOOR + 0.505, z, interior);
+mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.12, 14), std(0xd94b3b), 2.25, FLOOR + 0.57, 0.12, interior); // แก้วน้ำ
+const gear = grp(2.65, FLOOR + 0.5, 0, interior);
+mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.32, 10), chrome, 0, 0.16, 0, gear);
+mesh(new THREE.SphereGeometry(0.055, 16, 12), std(0x15171a, { roughness: 0.3 }), 0, 0.34, 0, gear);
+const gearA = anim(gear, "rotation", "z");
+interactive(gear, "เกียร์", () => toggleDrive());
+interactive(rearDoors, "ประตูท้าย", () => toggleRear());
+
+// เบาะ
 const fabric = std(0x3f8f8a, { roughness: 0.95 });
-function seat(x, z, rotY = 0, w = 0.8) {
-  const g = new THREE.Group(); g.position.set(x, FLOOR, z); g.rotation.y = rotY; interior.add(g);
-  mesh(box(0.8, 0.42, w), fabric, 0, 0.3, 0, g);
-  mesh(box(0.16, 0.95, w), fabric, -0.36, 0.95, 0, g);
-  mesh(box(0.14, 0.22, w * 0.6), fabric, -0.38, 1.5, 0, g);
+function seat(x, z, w = 0.8) {
+  const g = grp(x, FLOOR, z, interior);
+  mesh(rbox(0.8, 0.42, w, 0.1), fabric, 0, 0.3, 0, g);
+  mesh(rbox(0.18, 0.95, w, 0.08), fabric, -0.36, 0.95, 0, g);
+  mesh(rbox(0.14, 0.22, w * 0.6, 0.06), fabric, -0.38, 1.52, 0, g);
   mesh(box(0.6, 0.1, 0.6), trim, 0, 0.05, 0, g);
+  for (let k = 0; k < 3; k++) mesh(box(0.7, 0.012, w - 0.06), std(0x347a75), 0.02, 0.515, 0, g).position.x = -0.2 + k * 0.2;
   return g;
 }
-// แถว 0
-seat(tileX(0), 1);                       // คนขับ
-seat(tileX(0), -1);                      // ข้างคนขับ
-mesh(box(0.55, 0.85, W - 0.25), trim, 3.1, FLOOR + 0.6, 0, interior);   // แผงหน้าปัด
-{ // พวงมาลัย
-  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 10, 28), trim);
-  wheel.position.set(2.82, 1.55, 1); wheel.rotation.y = Math.PI / 2; wheel.rotation.x = 0; wheel.rotateX(0); wheel.rotation.z = 0;
-  wheel.rotation.set(0, Math.PI / 2, 0); wheel.rotateX(-0.5); interior.add(shadowAll(wheel));
-  mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5), trim, 2.98, 1.45, 1, interior).rotation.z = 1.1;
-}
-mesh(box(0.7, 0.5, 0.55), trim, tileX(0), FLOOR + 0.25, 0, interior);       // คอนโซลกลาง
-const radio = mesh(box(0.2, 0.22, 0.5), std(0x222222), 2.84, 1.32, 0, interior);
-const radioGlow = new THREE.MeshStandardMaterial({ color: 0x55ffd0, emissive: 0x33ffc8, emissiveIntensity: 1.2 });
-mesh(box(0.02, 0.08, 0.3), radioGlow, 2.73, 1.36, 0, interior);
-// แถว 2 บันไดขึ้นซันรูฟ
-{
-  const lx = tileX(2) + 0.2, H = 3.35 - FLOOR;
-  for (const z of [-0.28, 0.28]) mesh(box(0.07, H, 0.07), chrome, lx, FLOOR + H / 2, z, interior);
-  for (let k = 1; k < 6; k++) mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.56), chrome, lx, FLOOR + k * H / 6, 0, interior).rotation.x = Math.PI / 2;
-}
-// แถว 4–5 เบาะยาวด้านซ้าย (หันเข้ากลาง)
-{
-  const g = new THREE.Group(); g.position.set((tileX(4) + tileX(5)) / 2, FLOOR, -1.05); interior.add(g);
-  mesh(box(1.9, 0.42, 0.8), fabric, 0, 0.3, 0, g);
-  mesh(box(1.9, 0.9, 0.16), fabric, 0, 0.92, -0.38, g);
-  mesh(box(0.35, 0.18, 0.5), cream, -0.7, 0.6, 0.05, g); // หมอน
-}
-// แถว 4 กล่องเครื่องมือ
-{
-  const g = new THREE.Group(); g.position.set(tileX(4), FLOOR, 1.05); interior.add(g);
-  mesh(box(0.8, 0.5, 0.55), std(0xd8453b, { roughness: 0.45, metalness: 0.3 }), 0, 0.25, 0, g);
-  mesh(box(0.82, 0.06, 0.57), std(0xa8322a), 0, 0.5, 0, g);
-  mesh(box(0.4, 0.04, 0.04), chrome, 0, 0.62, 0, g);
-  for (const x of [-0.2, 0.2]) mesh(box(0.04, 0.12, 0.04), chrome, x, 0.56, 0, g);
-  mesh(box(0.18, 0.1, 0.03), std(0xf2c94c), 0, 0.33, 0.29, g);
-}
-// แถว 5 ตู้เย็น
-{
-  const g = new THREE.Group(); g.position.set(tileX(5), FLOOR, 1.1); interior.add(g);
-  mesh(box(0.8, 1.35, 0.7), std(0xf7f7f4, { roughness: 0.35 }), 0, 0.675, 0, g);
-  mesh(box(0.82, 0.02, 0.72), std(0xc9c9c4), 0, 0.92, 0, g);
-  mesh(box(0.05, 0.4, 0.05), chrome, 0.22, 1.15, -0.37, g);
-  mesh(box(0.05, 0.25, 0.05), chrome, 0.22, 0.6, -0.37, g);
-  mesh(box(0.14, 0.14, 0.02), std(0xff8a3d), -0.15, 1.15, -0.36, g); // แม่เหล็กติดตู้
-}
-// หมากเทียบขนาด
-{
-  const g = new THREE.Group(); g.position.set(tileX(3), FLOOR, 0); interior.add(g);
-  const pm = std(0xff8a3d, { roughness: 0.4 });
-  mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.14, 24), pm, 0, 0.07, 0, g);
-  mesh(new THREE.CylinderGeometry(0.16, 0.28, 0.75, 24), pm, 0, 0.5, 0, g);
-  mesh(new THREE.SphereGeometry(0.22, 24, 16), pm, 0, 1.02, 0, g);
-}
-// ไฟห้องโดยสาร (กลางคืน)
-const cabinLight = new THREE.PointLight(0xffd59a, 0, 7, 1.6); cabinLight.position.set(-0.5, 3.0, 0); van.add(cabinLight);
+seat(tileX(0), 1); seat(tileX(0), -1);
 
-// ---------- always visible: windshield, wheels, lights, bumpers ----------
+// แถว 1: ถังดับเพลิง · สวิตช์ไฟ · ถังขยะ
+{
+  const g = grp(1.15, FLOOR, -1.42, interior);
+  mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.5, 18), std(0xd8342c, { roughness: 0.35 }), 0, 0.25, 0, g);
+  mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.08, 12), trim, 0, 0.54, 0, g);
+  mesh(box(0.14, 0.03, 0.03), trim, 0.06, 0.58, 0, g);
+  const bin = grp(1.2, FLOOR, 1.3, interior);
+  mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.35, 16, 1, true), std(0x6fae7a, { side: THREE.DoubleSide }), 0, 0.175, 0, bin);
+}
+let lightsOn = false;
+const sw = grp(1.85, 1.55, -1.565, interior);
+mesh(rbox(0.12, 0.18, 0.025, 0.01), cream, 0, 0, 0, sw);
+const swKnob = mesh(box(0.04, 0.07, 0.03), trim, 0, 0.02, 0.015, sw);
+interactive(sw, "สวิตช์ไฟ", () => { lightsOn = !lightsOn; swKnob.position.y = lightsOn ? -0.02 : 0.02; sfx("click"); applyLights(); });
+
+// แถว 2: บันได + แผนที่บนผนัง + พรม
+{
+  const lx = 0.72, H = 3.3 - FLOOR, lad = grp(0, 0, 0, interior);
+  for (const z of [-0.28, 0.28]) mesh(new THREE.CylinderGeometry(0.03, 0.03, H, 10), chrome, lx, FLOOR + H / 2, z, lad);
+  for (let k = 1; k < 7; k++) mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.56, 8), chrome, lx, FLOOR + k * H / 7, 0, lad).rotation.x = Math.PI / 2;
+}
+const hatchA = anim(hatchLid, "rotation", "z");
+{
+  const hit = grp(0.5, 3.25, 0, interior);
+  const pad = mesh(box(0.85, 0.05, 0.85), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), 0, 0, 0, hit); pad.castShadow = false;
+  mesh(box(0.06, 0.06, 0.2), chrome, 0.38, -0.02, 0, hit);
+  interactive(hit, "ซันรูฟ", () => { hatchA.tgt = hatchA.tgt ? 0 : 1.15; sfx("creak"); });
+}
+const mapTex = canvasTex(256, 180, (g) => {
+  g.fillStyle = "#f3e7c6"; g.fillRect(0, 0, 256, 180); g.strokeStyle = "#7a5a3a"; g.lineWidth = 6; g.strokeRect(3, 3, 250, 174);
+  g.fillStyle = "#a9d39a"; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(30 + i * 40, 40 + (i % 3) * 45, 26, 0, TAU); g.fill(); }
+  g.fillStyle = "#8ec5e6"; g.beginPath(); g.ellipse(200, 140, 50, 26, 0.3, 0, TAU); g.fill();
+  g.strokeStyle = "#d9534f"; g.lineWidth = 4; g.setLineDash([10, 7]); g.beginPath(); g.moveTo(20, 160); g.bezierCurveTo(80, 60, 150, 170, 230, 30); g.stroke(); g.setLineDash([]);
+  g.fillStyle = "#d9534f"; g.beginPath(); g.arc(230, 30, 9, 0, TAU); g.fill();
+});
+mesh(new THREE.PlaneGeometry(0.8, 0.56), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 0.8 }), 0.55, 1.45, -1.572, interior);
+mesh(new THREE.CircleGeometry(0.85, 40), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => {
+  const cs = ["#c4604a", "#f2c94c", "#5f7fb5", "#f6efe0"]; for (let k = 0; k < 8; k++) { g.fillStyle = cs[k % 4]; g.beginPath(); g.arc(128, 128, 128 - k * 16, 0, TAU); g.fill(); }
+}), roughness: 1 }), 0, FLOOR + 0.004, 0, interior).rotation.x = -Math.PI / 2;
+
+// แถว 3: โต๊ะเกม + ลูกเต๋า · รูปโพลารอยด์
+const table = grp(-0.5, FLOOR, 0, interior);
+mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.68, 12), chrome, 0, 0.34, 0, table);
+mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.03, 20), chrome, 0, 0.015, 0, table);
+mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.045, 36), std(0xb98552, { roughness: 0.5 }), 0, 0.7, 0, table);
+mesh(new THREE.PlaneGeometry(0.46, 0.46), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => {
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#c4604a" : "#f6efe0"; g.fillRect(i * 32, j * 32, 32, 32); }
+  for (let k = 0; k < 10; k++) { g.fillStyle = k % 2 ? "#1f2a33" : "#ffffff"; g.beginPath(); g.arc(16 + (k * 3 % 8) * 32, 16 + (k * 5 % 8) * 32, 11, 0, TAU); g.fill(); }
+}), roughness: 0.6 }), 0, 0.726, 0, table).rotation.x = -Math.PI / 2;
+const dice = [];
+for (const [x, z] of [[0.3, -0.1], [0.28, 0.12]]) {
+  const d = grp(x, 0.77, z, table); mesh(rbox(0.07, 0.07, 0.07, 0.012), std(0xffffff, { roughness: 0.3 }), 0, 0, 0, d);
+  for (const [px, pz] of [[0, 0], [0.018, 0.018], [-0.018, -0.018]]) mesh(new THREE.SphereGeometry(0.008, 6, 4), trim, px, 0.035, pz, d);
+  d.userData.spin = 0; dice.push(d);
+}
+mesh(rbox(0.16, 0.2, 0.06, 0.03), std(0xf2c94c), -0.25, 0.82, 0.18, table).rotation.y = 0.5;
+mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.1, 14), std(0x5aa0e0), -0.2, 0.77, -0.2, table);
+interactive(table, "โต๊ะเกม", () => { dice.forEach((d) => (d.userData.spin = 1)); sfx("dice"); });
+for (let k = 0; k < 3; k++) {
+  const pt = canvasTex(96, 112, (g) => { g.fillStyle = "#fff"; g.fillRect(0, 0, 96, 112); g.fillStyle = ["#8ec5e6", "#f2a1b5", "#a9d39a"][k]; g.fillRect(8, 8, 80, 76); g.fillStyle = "#fff6"; g.beginPath(); g.arc(48, 46, 18, 0, TAU); g.fill(); });
+  const p = mesh(new THREE.PlaneGeometry(0.2, 0.24), new THREE.MeshStandardMaterial({ map: pt, roughness: 0.6 }), -0.85 + k * 0.28, 1.62 + (k % 2) * 0.06, -1.572, interior);
+  p.rotation.z = (k - 1) * 0.12; p.castShadow = false;
+}
+
+// แถว 4–5 ซ้าย: เบาะยาว + หมอน
+const bench = grp((tileX(4) + tileX(5)) / 2, FLOOR, -1.05, interior);
+mesh(rbox(1.9, 0.42, 0.8, 0.1), fabric, 0, 0.3, 0, bench);
+mesh(rbox(1.9, 0.9, 0.18, 0.08), fabric, 0, 0.92, -0.37, bench);
+mesh(rbox(0.7, 0.08, 0.6, 0.04), std(0xc4604a, { roughness: 1 }), 0.45, 0.55, 0.05, bench); // ผ้าห่มพับ
+for (const [x, col] of [[-0.7, 0xf6efe0], [-0.25, 0xf2c94c]]) {
+  const p = grp(x, 0.62, -0.18, bench);
+  mesh(rbox(0.34, 0.3, 0.14, 0.07), std(col, { roughness: 1 }), 0, 0.12, 0, p).rotation.x = -0.25;
+  const pa = anim(p, "scale", "y"); pa.tgt = 1;
+  interactive(p, "หมอน", () => { p.scale.y = 0.45; sfx("soft"); });
+}
+
+// แถว 4 ขวา: กล่องเครื่องมือ
+const tool = grp(tileX(4), FLOOR, 1.05, interior);
+const red = std(0xd8453b, { roughness: 0.4, metalness: 0.35 });
+mesh(box(0.8, 0.45, 0.55), red, 0, 0.225, 0, tool);
+mesh(box(0.74, 0.02, 0.49), std(0x1a1d22), 0, 0.45, 0, tool);
+mesh(box(0.25, 0.03, 0.06), chrome, -0.1, 0.43, -0.05, tool);
+mesh(box(0.05, 0.03, 0.3), chrome, 0.2, 0.43, 0.05, tool);
+mesh(box(0.18, 0.1, 0.02), std(0xf2c94c), 0, 0.28, -0.28, tool);
+const toolLid = grp(0, 0.45, 0.275, tool);
+mesh(box(0.82, 0.06, 0.56), std(0xa8322a, { roughness: 0.4, metalness: 0.35 }), 0, 0.03, -0.28, toolLid);
+mesh(box(0.4, 0.04, 0.04), chrome, 0, 0.1, -0.28, toolLid);
+const toolA = anim(toolLid, "rotation", "x");
+interactive(tool, "กล่องเครื่องมือ", () => { toolA.tgt = toolA.tgt ? 0 : 1.25; sfx("clank"); });
+
+// แถว 5 ขวา: ตู้เย็น (ข้างในมีของ) + ไมโครเวฟ
+const fridge = grp(tileX(5), FLOOR, 1.1, interior);
+{
+  const wM = std(0xf7f7f4, { roughness: 0.3 }), inM = std(0xe9eef2, { roughness: 0.5 });
+  mesh(box(0.8, 1.35, 0.04), wM, 0, 0.675, 0.33, fridge);
+  for (const x of [-0.38, 0.38]) mesh(box(0.04, 1.35, 0.7), wM, x, 0.675, 0, fridge);
+  mesh(box(0.8, 0.04, 0.7), wM, 0, 0.02, 0, fridge); mesh(box(0.8, 0.04, 0.7), wM, 0, 1.33, 0, fridge);
+  for (const y of [0.45, 0.9]) mesh(box(0.72, 0.015, 0.6), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, roughness: 0.05 }), 0, y, 0.02, fridge);
+  const glowP = mesh(new THREE.PlaneGeometry(0.7, 1.25), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdff4ff, emissiveIntensity: 0 }), 0, 0.68, 0.305, fridge);
+  glowP.rotation.y = Math.PI; fridge.userData.glow = glowP.material;
+  const cans = [0xd8342c, 0x3fae7a, 0x5aa0e0, 0xf2c94c, 0xff8a3d];
+  for (let k = 0; k < 5; k++) mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.14, 14), std(cans[k], { metalness: 0.6, roughness: 0.3 }), -0.25 + k * 0.12, 0.535, 0.05, fridge);
+  for (let k = 0; k < 3; k++) mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.3, 14), new THREE.MeshPhysicalMaterial({ color: [0x7dd3a0, 0x9ad0ff, 0xffd27a][k], transparent: true, opacity: 0.75, roughness: 0.05 }), -0.2 + k * 0.17, 1.07, 0.05, fridge);
+  mesh(rbox(0.3, 0.12, 0.25, 0.04), std(0xfff3c8), 0.15, 0.1, 0.05, fridge);
+  mesh(new THREE.SphereGeometry(0.07, 14, 10), std(0xff8a3d), -0.2, 0.11, 0.05, fridge);
+}
+const fridgeDoor = grp(0.4, 0, -0.35, fridge);
+{
+  const wM = std(0xf7f7f4, { roughness: 0.3 });
+  mesh(rbox(0.8, 1.34, 0.06, 0.02), wM, -0.4, 0.675, -0.03, fridgeDoor);
+  mesh(box(0.81, 0.02, 0.065), std(0xc9c9c4), -0.4, 0.92, -0.03, fridgeDoor);
+  mesh(rbox(0.04, 0.38, 0.04, 0.015), chrome, -0.72, 1.12, -0.08, fridgeDoor);
+  mesh(rbox(0.04, 0.22, 0.04, 0.015), chrome, -0.72, 0.62, -0.08, fridgeDoor);
+  mesh(box(0.13, 0.13, 0.01), std(0xff8a3d), -0.25, 1.15, -0.065, fridgeDoor);
+  mesh(box(0.1, 0.1, 0.01), std(0x8fd3b0), -0.45, 1.25, -0.065, fridgeDoor).rotation.z = 0.2;
+}
+const fridgeA = anim(fridgeDoor, "rotation", "y");
+interactive(fridge, "ตู้เย็น", () => { fridgeA.tgt = fridgeA.tgt ? 0 : -1.7; fridge.userData.glow.emissiveIntensity = fridgeA.tgt ? 1.4 : 0; sfx("pop"); });
+const micro = grp(tileX(5), FLOOR + 1.35, 1.15, interior);
+mesh(rbox(0.6, 0.34, 0.42, 0.03), std(0xe6e6e0, { roughness: 0.4 }), 0, 0.17, 0, micro);
+const microWin = mesh(new THREE.PlaneGeometry(0.36, 0.22), new THREE.MeshStandardMaterial({ color: 0x1b232b, emissive: 0xffc46b, emissiveIntensity: 0, roughness: 0.1 }), -0.06, 0.17, -0.212, micro);
+microWin.rotation.y = Math.PI;
+for (let k = 0; k < 3; k++) mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 10), trim, 0.21, 0.25 - k * 0.07, -0.215, micro).rotation.x = Math.PI / 2;
+let microT = 0;
+interactive(micro, "ไมโครเวฟ", () => { if (microT <= 0) { microT = 2.1; sfx("hum"); } });
+
+// แถว 6: กระติก · กีตาร์ · กระเป๋า · คันเบ็ด · โปสเตอร์
+const cooler = grp(tileX(6), FLOOR, -1.05, interior);
+mesh(rbox(0.7, 0.42, 0.5, 0.05), std(0x3f78c4, { roughness: 0.4 }), 0, 0.21, 0, cooler);
+mesh(box(0.62, 0.02, 0.42), std(0xdff4ff, { emissive: 0xbfe8ff, emissiveIntensity: 0.25 }), 0, 0.41, 0, cooler);
+for (let k = 0; k < 3; k++) mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 12), std([0xf2c94c, 0xd8342c, 0x3fae7a][k], { metalness: 0.6, roughness: 0.3 }), -0.18 + k * 0.18, 0.42, 0, cooler);
+const coolLid = grp(0, 0.42, -0.25, cooler);
+mesh(rbox(0.72, 0.08, 0.52, 0.03), std(0xf6f6f2, { roughness: 0.4 }), 0, 0.04, 0.26, coolLid);
+mesh(box(0.3, 0.04, 0.05), std(0x3f78c4), 0, 0.1, 0.26, coolLid);
+const coolA = anim(coolLid, "rotation", "x");
+interactive(cooler, "กระติกน้ำแข็ง", () => { coolA.tgt = coolA.tgt ? 0 : -1.2; sfx("pop"); });
+
+const guitar = grp(-3.82, FLOOR, -0.35, interior); guitar.rotation.z = 0.22;
+{
+  const wood = std(0xd99a52, { roughness: 0.35 }), dark = std(0x5a3a22, { roughness: 0.5 });
+  mesh(new THREE.SphereGeometry(0.24, 24, 16), wood, 0, 0.32, 0, guitar).scale.set(0.35, 1, 1);
+  mesh(new THREE.SphereGeometry(0.18, 24, 16), wood, 0, 0.62, 0, guitar).scale.set(0.35, 1, 1);
+  mesh(new THREE.CircleGeometry(0.06, 20), trim, 0.09, 0.55, 0, guitar).rotation.y = Math.PI / 2;
+  mesh(box(0.05, 0.62, 0.07), dark, 0.02, 1.05, 0, guitar);
+  mesh(box(0.05, 0.16, 0.1), dark, 0.02, 1.42, 0, guitar);
+  for (let k = 0; k < 4; k++) mesh(box(0.004, 0.95, 0.004), chrome, 0.05, 0.9, -0.024 + k * 0.016, guitar);
+}
+const guitarA = anim(guitar, "rotation", "x");
+interactive(guitar, "กีตาร์", () => { guitar.rotation.x = 0.12; sfx("strum"); });
+
+const lug = grp(tileX(6), FLOOR, 1.05, interior);
+mesh(rbox(0.7, 0.42, 0.5, 0.06), std(0xd2694a, { roughness: 0.5 }), 0, 0.21, 0, lug);
+mesh(rbox(0.55, 0.34, 0.42, 0.06), std(0x6c8f4e, { roughness: 0.5 }), 0.02, 0.59, 0.02, lug).rotation.y = 0.15;
+mesh(box(0.2, 0.04, 0.04), trim, 0, 0.8, 0.02, lug);
+for (let k = 0; k < 2; k++) { const r = mesh(new THREE.CylinderGeometry(0.012, 0.018, 2.3, 8), std(0x2d3b4a), 0, 1.2, 0, grp(-3.9 + k * 0.08, FLOOR, 1.42, interior)); r.rotation.z = 0.12 + k * 0.05; }
+
+// ผ้าม่าน (กดเปิด/ปิด)
+const nearDecor = grp();
+const curtainTex = canvasTex(64, 64, (g) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? "#f6efe0" : "#e8a24a"; g.fillRect(i * 8, 0, 8, 64); } });
+curtainTex.wrapS = THREE.RepeatWrapping; curtainTex.repeat.set(3, 1);
+for (const side of [-1, 1]) for (const wi of [1, 2, 3]) {
+  const w = WINDOWS[wi], x0 = w[0][0], x1 = w[1][0], z = side * (HW - T - 0.03), parent = side < 0 ? interior : nearDecor;
+  const cg = grp(0, 0, 0, parent);
+  mesh(new THREE.CylinderGeometry(0.012, 0.012, x1 - x0 + 0.1, 8), chrome, (x0 + x1) / 2, 3.16, z, cg).rotation.z = Math.PI / 2;
+  const halves = [];
+  for (const [edge, dir] of [[x0, 1], [x1, -1]]) {
+    const piv = grp(edge, 0, z, cg);
+    const g = new THREE.BoxGeometry((x1 - x0) / 2, 1.12, 0.015); g.translate(dir * (x1 - x0) / 4, 2.58, 0);
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: curtainTex, roughness: 1, side: THREE.DoubleSide })); piv.add(shadowAll(m));
+    piv.scale.x = 0.18; const a = anim(piv, "scale", "x"); a.tgt = 0.18; halves.push(a);
+  }
+  interactive(cg, "ผ้าม่าน", () => { halves.forEach((a) => (a.tgt = a.tgt > 0.5 ? 0.18 : 1)); sfx("swish"); });
+}
+
+// ไฟประดับ (สวิตช์ไฟ)
+const bulbMats = [0xff6b6b, 0xffd27a, 0x7dffcf, 0x8fb8ff, 0xf2a1e8].map((c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.05, roughness: 0.3 }));
+{
+  const pts = []; for (let k = 0; k <= 30; k++) { const x = 2.3 - k * (6.2 / 30); pts.push(new THREE.Vector3(x, 3.22 - Math.abs(Math.sin(k / 30 * Math.PI * 5)) * 0.1, -HW + T + 0.06)); }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  mesh(new THREE.TubeGeometry(curve, 120, 0.006, 5), trim, 0, 0, 0, interior).castShadow = false;
+  for (let k = 0; k <= 18; k++) { const p = curve.getPoint(k / 18); const b = mesh(new THREE.SphereGeometry(0.03, 10, 8), bulbMats[k % 5], p.x, p.y - 0.035, p.z, interior); b.castShadow = false; }
+}
+const cabinLight = new THREE.PointLight(0xffd59a, 0, 8, 1.4); cabinLight.position.set(-0.5, 2.9, 0); body.add(cabinLight);
+const fridgeLight = new THREE.PointLight(0xdff4ff, 0, 2.2, 2); fridgeLight.position.set(-2.5, 1.3, 0.6); body.add(fridgeLight);
+function applyLights() {
+  bulbMats.forEach((m) => (m.emissiveIntensity = lightsOn ? 2.2 : 0.05));
+  cabinLight.intensity = lightsOn ? 7 : night ? 3 : 0;
+}
+
+// หมาก (ป้ายรูปตัวละครบนฐาน — แทนรูปตัวละครจริงในเกม)
+function portraitTex(col, k) {
+  return canvasTex(256, 256, (g) => {
+    g.fillStyle = "#22324f"; g.beginPath(); g.arc(128, 128, 122, 0, TAU); g.fill();
+    g.save(); g.beginPath(); g.arc(128, 128, 116, 0, TAU); g.clip();
+    const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, col); gr.addColorStop(1, "#22324f"); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    g.fillStyle = "#f6e2cc"; g.beginPath(); g.arc(128, 110, 48, 0, TAU); g.fill();
+    g.fillStyle = ["#3a2a22", "#e8e2ff", "#2d3b4a"][k]; g.beginPath(); g.arc(128, 96, 54, Math.PI, 0); g.fill();
+    g.fillStyle = col; g.beginPath(); g.ellipse(128, 250, 90, 70, 0, 0, TAU); g.fill();
+    g.fillStyle = "#1f2a33"; g.beginPath(); g.arc(110, 116, 6, 0, TAU); g.arc(146, 116, 6, 0, TAU); g.fill();
+    g.restore(); g.strokeStyle = col; g.lineWidth = 12; g.beginPath(); g.arc(128, 128, 116, 0, TAU); g.stroke();
+  });
+}
+const standees = [];
+function standee(x, y, z, col, k) {
+  const g = grp(x, y, z, interior);
+  mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.07, 28), std(col, { roughness: 0.4 }), 0, 0.035, 0, g);
+  mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 8), chrome, 0, 0.24, 0, g);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: portraitTex("#" + col.toString(16).padStart(6, "0"), k) }));
+  s.scale.setScalar(0.62); s.position.y = 0.72; g.add(s); standees.push(g); return g;
+}
+const driverPiece = standee(tileX(0), FLOOR + 0.52, 1, 0xff8a3d, 0);
+standee(-0.5, FLOOR, -1, 0xa26bff, 1);
+standee(tileX(4), FLOOR, 0, 0x3fae7a, 2);
+standee(tileX(6), FLOOR, 0, 0xd9534f, 0);
+
+// =====================================================================  always: กระจกหน้า ล้อ ไฟ กันชน
+const always = grp();
 {
   const a = Math.atan2(1.33, -0.63), nx = 1.33 / 1.47, ny = 0.63 / 1.47;
-  const ws = mesh(box(1.38, 0.035, W - 0.3), glass, (3.35 + 2.72) / 2 + nx * 0.07, (1.85 + 3.18) / 2 + ny * 0.07, 0, always);
+  const ws = mesh(box(1.38, 0.03, W - 0.3), glass, (3.35 + 2.72) / 2 + nx * 0.07, (1.85 + 3.18) / 2 + ny * 0.07, 0, always);
   ws.rotation.z = a; ws.castShadow = false;
-  // ใบปัดน้ำฝน
   for (const z of [-0.5, 0.6]) { const wp = mesh(box(0.03, 0.03, 0.8), trim, 3.32, 1.95, z, always); wp.rotation.y = 0.35; }
 }
 const wheels = [];
+const tireMat = std(0x1e1f22, { roughness: 0.92 });
 for (const x of [2.6, -2.6]) for (const z of [HW - 0.22, -HW + 0.22]) {
-  const g = new THREE.Group(); g.position.set(x, 0.56, z); always.add(g);
-  const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 32), std(0x1e1f22, { roughness: 0.95 }));
-  tire.rotation.x = Math.PI / 2; g.add(shadowAll(tire));
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.44, 24), cream); hub.rotation.x = Math.PI / 2; g.add(shadowAll(hub));
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.46, 12), chrome); cap.rotation.x = Math.PI / 2; g.add(cap);
-  for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(box(0.05, 0.05, 0.47), trim); const an = k / 5 * Math.PI * 2; b.position.set(Math.cos(an) * 0.19, Math.sin(an) * 0.19, 0); g.add(b); }
-  wheels.push(g);
+  const g = new THREE.Group(); g.position.set(x, 0.56, z); g.rotation.order = "YZX"; wheelRig.add(g);
+  const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 40), tireMat); tire.rotation.x = Math.PI / 2; g.add(tire);
+  for (const s of [-1, 1]) { const tr = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 10, 40), tireMat); tr.position.z = s * 0.2; g.add(tr); }
+  for (let k = 0; k < 20; k++) { const n = new THREE.Mesh(box(0.1, 0.05, 0.4), tireMat); const an = k / 20 * TAU; n.position.set(Math.cos(an) * 0.56, Math.sin(an) * 0.56, 0); n.rotation.z = an; g.add(n); }
+  for (const s of [-1, 1]) { const ww = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 10, 40), std(0xf4f1ea, { roughness: 0.6 })); ww.position.z = s * 0.205; ww.scale.z = 0.35; g.add(ww); }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.44, 32), cream); hub.rotation.x = Math.PI / 2; g.add(hub);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 12), chrome); cap.scale.z = 1.25; cap.rotation.x = Math.PI / 2; g.add(cap);
+  for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), chrome); const an = k / 5 * TAU; b.position.set(Math.cos(an) * 0.19, Math.sin(an) * 0.19, Math.sign(z) * 0.22); g.add(b); }
+  shadowAll(g); wheels.push(g);
 }
-// กันชน
-mesh(box(0.22, 0.28, W + 0.06), trim, 4.18, 0.68, 0, always);
-mesh(box(0.22, 0.28, W + 0.06), trim, -4.18, 0.68, 0, always);
-// กระจังหน้า + ป้าย
-mesh(box(0.05, 0.3, 1.4), cream, 4.15, 1.2, 0, always);
-for (let k = 0; k < 3; k++) mesh(box(0.06, 0.04, 1.3), trim, 4.17, 1.1 + k * 0.1, 0, always);
-function plateTex(txt) {
-  const c = document.createElement("canvas"); c.width = 256; c.height = 96; const g = c.getContext("2d");
-  g.fillStyle = "#fbf8ef"; g.fillRect(0, 0, 256, 96); g.strokeStyle = "#1f2a33"; g.lineWidth = 8; g.strokeRect(4, 4, 248, 88);
-  g.fillStyle = "#1f2a33"; g.font = "700 54px 'Noto Sans Thai', sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 128, 52);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+for (const s of [1, -1]) {
+  mesh(rbox(0.22, 0.28, W + 0.1, 0.1), chrome, s * 4.2, 0.68, 0, always);
+  mesh(rbox(0.04, 0.06, W + 0.12, 0.02), rubber, s * 4.31, 0.7, 0, always);
+  for (const z of [-1, 1]) mesh(rbox(0.12, 0.3, 0.12, 0.04), chrome, s * 4.25, 0.84, z * 1.2, always);
+}
+for (const z of [-1.1, 1.1]) { mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 20), headMat, 4.32, 0.62, z, always).rotation.z = Math.PI / 2; }
+mesh(rbox(0.05, 0.28, 1.2, 0.04), rubber, 4.13, 1.05, 0, always);
+for (let k = 0; k < 4; k++) mesh(rbox(0.06, 0.035, 1.16, 0.015), chrome, 4.15, 0.95 + k * 0.065, 0, always);
+const plateMats = [];
+function drawPlate(txt) {
+  const tex = canvasTex(320, 112, (g) => {
+    g.fillStyle = "#fbf8ef"; g.fillRect(0, 0, 320, 112); g.strokeStyle = "#1f2a33"; g.lineWidth = 8; g.strokeRect(5, 5, 310, 102);
+    g.fillStyle = "#1f2a33"; let size = 62; g.font = `800 ${size}px 'Noto Sans Thai', sans-serif`;
+    while (g.measureText(txt).width > 290 && size > 24) { size -= 2; g.font = `800 ${size}px 'Noto Sans Thai', sans-serif`; }
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(txt, 160, 60);
+  });
+  plateMats.forEach((m) => { if (m.map) m.map.dispose(); m.map = tex; m.needsUpdate = true; });
 }
 for (const [x, ry] of [[4.3, Math.PI / 2], [-4.3, -Math.PI / 2]]) {
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.26), new THREE.MeshStandardMaterial({ map: plateTex("กข 4567") }));
-  p.position.set(x, 0.68, 0); p.rotation.y = ry; always.add(p);
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.5 }); plateMats.push(m);
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.25), m); p.position.set(x, 0.68, 0); p.rotation.y = ry; always.add(p);
 }
-// ไฟหน้า / ไฟท้าย
-const headMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff2c0, emissiveIntensity: 0.15, roughness: 0.2 });
-const tailMat = new THREE.MeshStandardMaterial({ color: 0xd8342c, emissive: 0xff2a1a, emissiveIntensity: 0.1, roughness: 0.3 });
 const headLights = [];
 for (const z of [-1.15, 1.15]) {
-  const h = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 24), headMat, 4.13, 1.25, z, always); h.rotation.z = Math.PI / 2;
-  mesh(new THREE.TorusGeometry(0.2, 0.03, 8, 24), chrome, 4.16, 1.25, z, always).rotation.y = Math.PI / 2;
-  mesh(box(0.06, 0.45, 0.22), tailMat, -4.15, 1.45, z * 1.15, always);
-  const sp = new THREE.SpotLight(0xfff0c8, 0, 30, 0.5, 0.5, 1.2); sp.position.set(4.2, 1.25, z);
-  sp.target.position.set(14, 0, z); van.add(sp); van.add(sp.target); headLights.push(sp);
+  mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 28), headMat, 4.13, 1.25, z, always).rotation.z = Math.PI / 2;
+  mesh(new THREE.TorusGeometry(0.2, 0.03, 10, 28), chrome, 4.16, 1.25, z, always).rotation.y = Math.PI / 2;
+  mesh(rbox(0.06, 0.45, 0.22, 0.02), tailMat, -4.15, 1.45, z * 1.15, always);
+  const sp = new THREE.SpotLight(0xfff0c8, 0, 34, 0.48, 0.5, 1.2); sp.position.set(4.2, 1.25, z);
+  sp.target.position.set(16, 0, z); body.add(sp); body.add(sp.target); headLights.push(sp);
 }
-// กระจกข้าง
 for (const z of [-1, 1]) {
   mesh(box(0.06, 0.06, 0.3), trim, 3.25, 2.0, z * (HW + 0.15), always);
-  mesh(box(0.08, 0.32, 0.22), trim, 3.25, 2.12, z * (HW + 0.32), always);
+  mesh(rbox(0.08, 0.32, 0.22, 0.03), trim, 3.25, 2.12, z * (HW + 0.32), always);
+  mesh(box(0.01, 0.26, 0.17), chrome, 3.205, 2.12, z * (HW + 0.32), always);
 }
+const boostFx = grp();
+const flameMat = new THREE.MeshBasicMaterial({ color: 0x66d9ff, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
+for (const z of [-0.95, 0.95]) { const f = mesh(new THREE.ConeGeometry(0.16, 1, 16), flameMat, -4.9, 0.4, z, boostFx); f.rotation.z = Math.PI / 2; f.castShadow = false; }
+boostFx.visible = false;
 
-// ---------- labels ----------
-const labelGroup = new THREE.Group(); van.add(labelGroup);
+// =====================================================================  labels
+const labelGroup = grp();
 function label(text, x, y, z) {
-  const c = document.createElement("canvas"); const g = c.getContext("2d");
-  g.font = "700 44px 'Noto Sans Thai', sans-serif";
+  const c = document.createElement("canvas"), g = c.getContext("2d"); g.font = "700 44px 'Noto Sans Thai', sans-serif";
   const w = Math.ceil(g.measureText(text).width) + 36; c.width = w; c.height = 72;
-  g.font = "700 44px 'Noto Sans Thai', sans-serif";
-  g.fillStyle = "rgba(31,42,51,.85)"; g.beginPath(); g.roundRect(0, 0, w, 72, 20); g.fill();
+  g.font = "700 44px 'Noto Sans Thai', sans-serif"; g.fillStyle = "rgba(31,42,51,.85)"; g.beginPath(); g.roundRect(0, 0, w, 72, 20); g.fill();
   g.fillStyle = "#fff"; g.textBaseline = "middle"; g.fillText(text, 18, 38);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
-  s.scale.set(w / 72 * 0.38, 0.38, 1); s.position.set(x, y, z); s.renderOrder = 10; labelGroup.add(s);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set(w / 72 * 0.32, 0.32, 1); s.position.set(x, y, z); s.renderOrder = 10; labelGroup.add(s);
 }
 const LABELS = [
-  ["คนขับ", tileX(0), 2.35, 1], ["เบาะข้าง", tileX(0), 2.35, -1], ["วิทยุ", 2.85, 1.85, 0],
-  ["ประตูข้าง", tileX(1), 1.6, -1], ["หน้าต่าง", tileX(1), 1.6, 1], ["ซันรูฟ", tileX(2), 3.75, 0],
-  ["หน้าต่าง", tileX(3), 1.6, -1], ["หน้าต่าง", tileX(3), 1.6, 1], ["เบาะหลัง", -2, 1.95, -1],
-  ["กล่องเครื่องมือ", tileX(4), 1.6, 1], ["ตู้เย็น", tileX(5), 2.4, 1], ["ประตูท้าย", tileX(6), 1.6, 0],
+  ["คนขับ", 2.5, 2.75, 1], ["เบาะข้าง", 2.5, 2.4, -1], ["วิทยุ", 2.8, 1.95, 0], ["เกียร์", 2.6, 1.55, -0.1], ["ช่องเก็บของ", 2.7, 1.55, -1.1], ["พัดลม", 3.2, 2.45, -0.6],
+  ["ประตูข้าง", 1.5, 1.2, -1.2], ["สวิตช์ไฟ", 1.85, 1.85, -1.3], ["หน้าต่าง", 1.0, 2.6, 1.3], ["ซันรูฟ", 0.5, 3.6, 0], ["แผนที่", 0.55, 1.9, -1.3],
+  ["โต๊ะเกม", -0.5, 1.75, 0], ["เบาะหลัง", -2, 2.15, -1], ["กล่องเครื่องมือ", -1.5, 1.35, 1], ["ตู้เย็น", -2.5, 1.0, 0.55], ["ไมโครเวฟ", -2.5, 2.55, 1.1],
+  ["กระติกน้ำแข็ง", -3.5, 1.35, -1], ["กีตาร์", -3.7, 2.35, -0.35], ["กระเป๋า", -3.5, 1.75, 1.05], ["ประตูท้าย", -4.3, 3.4, 0],
 ];
 document.fonts.load("700 44px 'Noto Sans Thai'").finally(() => LABELS.forEach((l) => label(...l)));
 
-// ---------- upgrade parts ----------
-function part(name, build) { const g = new THREE.Group(); van.add(g); build(g); shadowAll(g); g.visible = false; parts[name] = g; }
-part("ป้อมปืน", (g) => {
-  const m = std(0x4b5563, { metalness: 0.5, roughness: 0.4 });
-  mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.25, 24), m, -2.3, 3.6, 0, g);
-  mesh(box(0.9, 0.42, 0.75), m, -2.25, 3.92, 0, g);
-  const b = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 12), trim, -1.35, 3.95, 0.15, g); b.rotation.z = Math.PI / 2;
-  const b2 = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 12), trim, -1.35, 3.95, -0.15, g); b2.rotation.z = Math.PI / 2;
+// =====================================================================  upgrade parts
+const parts = {};
+function part(name, roof, build) { const g = grp(); build(g); shadowAll(g); g.visible = false; parts[name] = { g, roof, on: false }; }
+part("ป้อมปืน", true, (g) => {
+  const m = std(0x4b5563, { metalness: 0.6, roughness: 0.35 });
+  mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.25, 28), m, -2.3, 3.6, 0, g);
+  mesh(rbox(0.9, 0.42, 0.75, 0.08), m, -2.25, 3.92, 0, g);
+  for (const z of [0.15, -0.15]) mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.3, 14), trim, -1.35, 3.95, z, g).rotation.z = Math.PI / 2;
 });
-part("กันชนหนาม", (g) => {
-  const m = std(0x8a8f96, { metalness: 0.7, roughness: 0.3 });
-  mesh(box(0.25, 0.5, W + 0.3), m, 4.4, 0.85, 0, g);
-  for (let k = 0; k < 7; k++) { const c = mesh(new THREE.ConeGeometry(0.12, 0.45, 12), chrome, 4.72, 0.85, -1.5 + k * 0.5, g); c.rotation.z = -Math.PI / 2; }
+part("กันชนหนาม", false, (g) => {
+  mesh(rbox(0.25, 0.5, W + 0.3, 0.06), std(0x8a8f96, { metalness: 0.7, roughness: 0.3 }), 4.4, 0.85, 0, g);
+  for (let k = 0; k < 7; k++) mesh(new THREE.ConeGeometry(0.12, 0.45, 14), chrome, 4.72, 0.85, -1.5 + k * 0.5, g).rotation.z = -Math.PI / 2;
 });
-const barLamps = [];
-part("ไฟหลังคา", (g) => {
-  mesh(box(0.3, 0.16, 2.8), trim, 2.05, 3.58, 0, g);
-  for (let k = 0; k < 4; k++) { const l = mesh(box(0.06, 0.14, 0.5), headMat, 2.22, 3.58, -1.05 + k * 0.7, g); barLamps.push(l); }
+part("ไฟหลังคา", true, (g) => {
+  mesh(rbox(0.3, 0.16, 2.8, 0.05), trim, 2.05, 3.58, 0, g);
+  for (let k = 0; k < 4; k++) mesh(rbox(0.06, 0.12, 0.5, 0.02), headMat, 2.22, 3.58, -1.05 + k * 0.7, g);
   for (const z of [-1.2, 1.2]) mesh(box(0.08, 0.2, 0.08), trim, 2.05, 3.47, z, g);
 });
-part("ไนตรัส", (g) => {
-  for (const z of [-0.9, 0.9]) {
-    const p = mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.7, 16), chrome, -4.35, 0.5, z, g); p.rotation.z = Math.PI / 2;
-    const f = mesh(new THREE.ConeGeometry(0.12, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x44bbff, emissiveIntensity: 2, transparent: true, opacity: 0.85 }), -4.95, 0.5, z, g);
-    f.rotation.z = Math.PI / 2; f.castShadow = false;
+part("ไนตรัส", false, (g) => {
+  for (const z of [-0.95, 0.95]) {
+    mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.7, 18), chrome, -4.35, 0.4, z, g).rotation.z = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 18), std(0x38e8ff, { emissive: 0x38e8ff, emissiveIntensity: 0.8 }), -4.68, 0.4, z, g).rotation.z = Math.PI / 2;
   }
 });
-part("แร็คหลังคา", (g) => {
+part("แร็คหลังคา", true, (g) => {
   for (const z of [-1.4, 1.4]) mesh(box(4.2, 0.08, 0.08), chrome, -1.8, 3.62, z, g);
   for (let k = 0; k < 4; k++) mesh(box(0.08, 0.08, 2.9), chrome, -3.7 + k * 1.25, 3.62, 0, g);
-  mesh(box(1.1, 0.55, 0.9), std(0xc9853e), -3.1, 3.93, -0.6, g);
-  mesh(box(0.8, 0.45, 0.8), std(0x6c8f4e), -3.0, 3.88, 0.55, g);
-  mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.9, 16), std(0x3f6fb5), -1.6, 3.95, 0, g).rotation.x = Math.PI / 2;
+  mesh(rbox(1.1, 0.55, 0.9, 0.08), std(0xc9853e), -3.1, 3.93, -0.6, g);
+  mesh(rbox(0.8, 0.45, 0.8, 0.08), std(0x6c8f4e), -3.0, 3.88, 0.55, g);
+  mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.9, 18), std(0x3f6fb5), -1.6, 3.95, 0, g).rotation.x = Math.PI / 2;
 });
-part("ธง", (g) => {
+let flag;
+part("ธง", true, (g) => {
   mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8), chrome, -3.9, 4.3, 1.45, g);
-  const fl = mesh(new THREE.PlaneGeometry(0.9, 0.55, 8, 1), new THREE.MeshStandardMaterial({ color: 0xff8a3d, side: THREE.DoubleSide }), -4.35, 4.9, 1.45, g);
-  g.userData.flag = fl;
+  flag = mesh(new THREE.PlaneGeometry(0.9, 0.55, 10, 1), new THREE.MeshStandardMaterial({ color: 0xff8a3d, side: THREE.DoubleSide }), -4.35, 4.9, 1.45, g);
 });
-part("ตุ๊กตาหน้ารถ", (g) => {
+part("ตุ๊กตาหน้ารถ", false, (g) => {
   const m = std(0xf2a1b5, { roughness: 0.6 });
-  mesh(new THREE.SphereGeometry(0.13, 16, 12), m, 2.95, 1.2, -0.7, g);
-  mesh(new THREE.SphereGeometry(0.1, 16, 12), m, 2.95, 1.39, -0.7, g);
-  for (const z of [-0.06, 0.06]) mesh(new THREE.SphereGeometry(0.04, 8, 8), m, 2.95, 1.48, -0.7 + z, g);
+  mesh(new THREE.SphereGeometry(0.13, 18, 12), m, 3.05, 1.98, 0.55, g);
+  mesh(new THREE.SphereGeometry(0.1, 18, 12), m, 3.05, 2.17, 0.55, g);
+  for (const z of [-0.06, 0.06]) mesh(new THREE.SphereGeometry(0.04, 8, 8), m, 3.05, 2.26, 0.55 + z, g);
 });
 
-// ---------- body styles (ทรงรถ — เปลี่ยนรูปร่างทั้งคัน) ----------
-const wheelRig = new THREE.Group(); van.add(wheelRig);
-wheels.forEach((w) => { always.remove(w); wheelRig.add(w); });
-const body = new THREE.Group();
-[...van.children].forEach((ch) => { if (ch !== wheelRig) body.add(ch); });
-van.add(body);
-
-// ติ๊งต๊อง: ตาโต ปากยิ้ม หลังคาโดม เสาอากาศสปริง
-const goofy = new THREE.Group(); body.add(goofy);
+// =====================================================================  body styles
+const goofy = grp(), goofyRoof = grp(0, 0, 0, goofy);
 const pupils = [];
 {
-  const eyeW = std(0xffffff, { roughness: 0.25 }), eyeB = std(0x111111, { roughness: 0.15 });
+  const eyeW = std(0xffffff, { roughness: 0.2 }), eyeB = std(0x111111, { roughness: 0.1 });
   for (const z of [-0.78, 0.78]) {
-    mesh(new THREE.SphereGeometry(0.4, 28, 20), eyeW, 3.62, 2.12, z, goofy);
-    const p = mesh(new THREE.SphereGeometry(0.17, 20, 14), eyeB, 3.98, 2.12, z, goofy);
-    p.userData = { y: 2.12, z }; pupils.push(p);
-    const lid = mesh(new THREE.SphereGeometry(0.42, 28, 12, 0, Math.PI * 2, 0, Math.PI * 0.32), paint, 3.62, 2.12, z, goofy);
-    lid.rotation.z = -0.5;
+    mesh(new THREE.SphereGeometry(0.4, 32, 24), eyeW, 3.62, 2.12, z, goofy);
+    const p = mesh(new THREE.SphereGeometry(0.17, 24, 16), eyeB, 3.98, 2.12, z, goofy); p.userData = { y: 2.12, z }; pupils.push(p);
+    mesh(new THREE.SphereGeometry(0.05, 10, 8), eyeW, 4.12, 2.2, z + 0.05, goofy);
+    mesh(new THREE.SphereGeometry(0.42, 32, 12, 0, TAU, 0, Math.PI * 0.32), paint, 3.62, 2.12, z, goofy).rotation.z = -0.5;
   }
-  const g = new THREE.TorusGeometry(0.34, 0.06, 10, 28, Math.PI); g.rotateZ(Math.PI);
-  const grin = mesh(g, trim, 4.22, 1.2, 0, goofy); grin.rotation.y = Math.PI / 2;
-  mesh(new THREE.SphereGeometry(0.13, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), std(0xf2708a), 4.2, 0.88, 0.12, goofy).rotation.z = Math.PI;
-  const dome = mesh(new THREE.SphereGeometry(1.25, 32, 14, 0, Math.PI * 2, 0, Math.PI / 2), cream, -1.4, 3.42, 0, goofy);
-  dome.scale.set(1.7, 0.55, 1.15);
-  for (const x of [-2.4, -1.4, -0.4]) { const w = mesh(new THREE.CircleGeometry(0.28, 20), glass, x, 3.85, 1.2, goofy); w.lookAt(x, 3.85, 9); }
+  const gg = new THREE.TorusGeometry(0.34, 0.06, 12, 32, Math.PI); gg.rotateZ(Math.PI);
+  mesh(gg, trim, 4.22, 1.2, 0, goofy).rotation.y = Math.PI / 2;
+  mesh(new THREE.SphereGeometry(0.13, 16, 10, 0, TAU, 0, Math.PI / 2), std(0xf2708a), 4.2, 0.88, 0.12, goofy).rotation.z = Math.PI;
+  mesh(new THREE.SphereGeometry(1.25, 40, 16, 0, TAU, 0, Math.PI / 2), cream, -1.4, 3.42, 0, goofyRoof).scale.set(1.7, 0.55, 1.15);
+  for (const x of [-2.4, -1.4, -0.4]) { const w = mesh(new THREE.CircleGeometry(0.28, 24), glass, x, 3.85, 1.2, goofyRoof); w.lookAt(x, 3.85, 9); }
 }
-const antenna = new THREE.Group(); antenna.position.set(1.6, 3.45, 1.2); goofy.add(antenna);
+const antenna = grp(1.6, 3.45, 1.2, goofyRoof);
 mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.3), trim, 0, 0.65, 0, antenna);
 mesh(new THREE.SphereGeometry(0.13, 16, 12), std(0xff8a3d), 0, 1.33, 0, antenna);
-
-// เท่: สปอยเลอร์ สเกิร์ต สปลิตเตอร์ สกู๊ป คาดลายแข่ง ไฟใต้ท้อง
-const cool = new THREE.Group(); body.add(cool);
-const stripe = std(0x15171a, { roughness: 0.5 });
+const cool = grp(), coolRoof = grp(0, 0, 0, cool);
+const stripe = std(0x15171a, { roughness: 0.45 });
 {
-  mesh(box(0.7, 0.07, W + 0.3), stripe, -3.85, 3.85, 0, cool);
-  for (const z of [-1.1, 1.1]) mesh(box(0.12, 0.38, 0.08), stripe, -3.75, 3.62, z, cool);
-  for (const z of [-1, 1]) {
-    mesh(box(0.08, 0.3, 0.7), stripe, -3.85, 3.95, z * (HW + 0.15), cool);
-    mesh(box(6.4, 0.2, 0.12), stripe, -0.25, 0.47, z * (HW + 0.04), cool);
-  }
-  mesh(box(0.45, 0.05, W + 0.3), stripe, 4.3, 0.5, 0, cool);
-  mesh(box(0.6, 0.16, 0.7), stripe, 3.78, 1.84, 0, cool);
-  for (const z of [-0.32, 0.32]) {
-    mesh(box(6.3, 0.012, 0.32), stripe, -0.72, 3.485, z, cool);
-    mesh(box(0.7, 0.012, 0.32), stripe, 3.75, 1.775, z, cool);
-    const ws = mesh(box(1.38, 0.012, 0.32), stripe, 3.08, 2.55, z, cool); ws.visible = false;
-  }
-  const glowMat = new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: 0.55 });
-  const under = new THREE.Mesh(new THREE.PlaneGeometry(7.4, W + 0.6), glowMat); under.rotation.x = -Math.PI / 2; under.position.y = 0.04 - 0.0; cool.add(under);
-  cool.userData.under = under;
+  mesh(rbox(0.7, 0.07, W + 0.3, 0.03), stripe, -3.85, 3.85, 0, coolRoof);
+  for (const z of [-1.1, 1.1]) mesh(box(0.12, 0.38, 0.08), stripe, -3.75, 3.62, z, coolRoof);
+  for (const z of [-1, 1]) { mesh(box(0.08, 0.3, 0.7), stripe, -3.85, 3.95, z * (HW + 0.15), coolRoof); mesh(rbox(6.4, 0.2, 0.12, 0.04), stripe, -0.25, 0.47, z * (HW + 0.04), cool); }
+  mesh(rbox(0.45, 0.05, W + 0.3, 0.02), stripe, 4.3, 0.5, 0, cool);
+  mesh(rbox(0.6, 0.16, 0.7, 0.05), stripe, 3.78, 1.84, 0, cool);
+  for (const z of [-0.32, 0.32]) { mesh(box(6.3, 0.012, 0.32), stripe, -0.72, 3.485, z, coolRoof); mesh(box(0.7, 0.012, 0.32), stripe, 3.75, 1.775, z, cool); }
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(7.4, W + 0.6), new THREE.MeshBasicMaterial({ color: 0x38e8ff, transparent: true, opacity: 0.55, depthWrite: false }));
+  under.rotation.x = -Math.PI / 2; cool.add(under); cool.userData.under = under;
 }
 const glowLight = new THREE.PointLight(0x38e8ff, 0, 9, 1.5); glowLight.position.set(0, 0.3, 0); van.add(glowLight);
-
 const STYLES = {
   "ปกติ": { s: [1, 1, 1], bottom: 0.5, wr: 1, ww: 1 },
   "ติ๊งต๊อง": { s: [0.86, 1.2, 1], bottom: 0.98, wr: 1.45, ww: 1.35 },
@@ -470,99 +1101,265 @@ function applyStyle(n) {
   body.scale.set(...S.s); body.position.y = S.bottom - 0.5 * S.s[1];
   wheels.forEach((w) => {
     const sx = Math.sign(w.position.x), sz = Math.sign(w.position.z);
-    w.scale.set(S.wr, S.wr, S.ww);
-    w.position.set(sx * 2.6 * S.s[0], 0.56 * S.wr, sz * ((HW - 0.22) * S.s[2] + (S.ww - 1) * 0.12));
+    w.scale.set(S.wr, S.wr, S.ww); w.position.set(sx * 2.6 * S.s[0], 0.56 * S.wr, sz * ((HW - 0.22) * S.s[2] + (S.ww - 1) * 0.12));
   });
   goofy.visible = n === "ติ๊งต๊อง"; cool.visible = n === "เท่";
   cool.userData.under.position.y = (0.05 - body.position.y) / S.s[1];
-  glass.color.setHex(n === "เท่" ? 0x0b0f14 : 0x23384a); glass.opacity = n === "เท่" ? 0.85 : 0.55;
+  glass.color.setHex(n === "เท่" ? 0x0b0f14 : 0x29445a); glass.opacity = n === "เท่" ? 0.8 : 0.38;
   glowLight.intensity = night && n === "เท่" ? 14 : 0;
   document.querySelectorAll("#styles button").forEach((b) => b.classList.toggle("on", b.textContent === n));
 }
 
-// ---------- UI ----------
+// =====================================================================  shell modes
+let shell = "out", labelsOn = true, gridOn = true;
+function setShell(m) {
+  shell = m;
+  const cut = m === "cut";
+  shellRightFull.visible = shellRoof.visible = exR.visible = exTop.visible = !cut;
+  shellRightLow.visible = cut;
+  roofTop.visible = goofyRoof.visible = coolRoof.visible = nearDecor.visible = !cut;
+  for (const k in parts) parts[k].g.visible = parts[k].on && !(parts[k].roof && m === "cut");
+  labelGroup.visible = labelsOn && m === "cut";
+  gridGroup.visible = gridOn && m === "cut";
+  driverPiece.visible = !(m === "drv" && camMode === "driver");
+  document.querySelector("#modes button").classList.toggle("on", m === "cut");
+}
+
+// =====================================================================  driving
+const drive = { on: false, v: 0, lane: 0, z: 0, zv: 0, km: 0, nitro: 1, boosting: false, steer: 0, roll: 0, pitch: 0, shake: 0, lastV: 0, hitCd: 0 };
+let camMode = "chase";
+const keys = {};
+function toggleDrive() {
+  drive.on = !drive.on;
+  gearA.tgt = drive.on ? 0.35 : 0;
+  document.getElementById("hud").style.display = drive.on ? "flex" : "none";
+  document.getElementById("drivecams").style.display = drive.on ? "flex" : "none";
+  document.getElementById("views").style.display = drive.on ? "none" : "flex";
+  driveBtn.classList.toggle("on", drive.on);
+  controls.enabled = !drive.on;
+  if (drive.on) {
+    engineStart(); if (station < 0) setStation(0);
+    traffic.forEach((t, i) => { respawnCar(t, true); t.x = 40 + i * 25; t.car.visible = true; });
+    setCam("chase");
+  } else {
+    traffic.forEach((t) => (t.car.visible = false));
+    drive.v = 0; van.position.z = 0; drive.z = 0; drive.lane = 0; van.rotation.set(0, 0, 0); body.rotation.set(0, 0, 0);
+    setShell("out"); camera.fov = 38; camera.updateProjectionMatrix();
+    controls.minDistance = 3; controls.target.set(0, 1.7, 0); flyTo([10, 6, 10], [0, 1.7, 0]);
+  }
+}
+function setCam(m) {
+  camMode = m;
+  setShell(m === "driver" ? "drv" : m === "inside" ? "cut" : "out");
+  document.querySelectorAll("#drivecams button").forEach((b) => b.classList.toggle("on", b.dataset.m === m));
+}
+function bump(s) { drive.shake = Math.max(drive.shake, s); }
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase();
+  if (!drive.on) { if (k === "enter") toggleDrive(); return; }
+  if (keys[k]) return; keys[k] = true;
+  if (k === "arrowleft" || k === "a") { if (drive.lane > -1) { drive.lane--; sfx("lane"); } }
+  if (k === "arrowright" || k === "d") { if (drive.lane < 1) { drive.lane++; sfx("lane"); } }
+  if (k === " ") { sfx(style === "ติ๊งต๊อง" ? "goofyHorn" : "horn"); e.preventDefault(); }
+  if (k === "shift" && drive.nitro > 0.15) sfx("whoosh");
+  if (k === "r") setStation(station + 1 >= STATIONS.length ? -1 : station + 1);
+  if (k === "c") setCam({ chase: "driver", driver: "inside", inside: "chase" }[camMode]);
+  if (k === "escape" || k === "enter") toggleDrive();
+});
+addEventListener("keyup", (e) => { keys[e.key.toLowerCase()] = false; });
+
+function updateDrive(dt, t) {
+  const up = keys.arrowup || keys.w, down = keys.arrowdown || keys.s;
+  drive.boosting = !!keys.shift && drive.nitro > 0.02;
+  drive.nitro = Math.max(0, Math.min(1, drive.nitro + (drive.boosting ? -0.35 : 0.08) * dt));
+  const tgt = drive.boosting ? 46 : up ? 31 : down ? 5 : 19;
+  drive.v += (tgt - drive.v) * Math.min(1, dt * (drive.boosting ? 1.5 : down ? 2.2 : 0.75));
+  const acc = (drive.v - drive.lastV) / Math.max(dt, 1e-3); drive.lastV = drive.v;
+  const tz = drive.lane * LANE, pz = drive.z;
+  drive.z += (tz - drive.z) * Math.min(1, dt * 4.2);
+  drive.zv = (drive.z - pz) / Math.max(dt, 1e-3);
+  drive.km += drive.v * 4 * dt / 360;
+  // ท่าทางรถ
+  drive.roll += (-drive.zv * 0.022 - drive.roll) * Math.min(1, dt * 6);
+  drive.pitch += (THREE.MathUtils.clamp(acc * 0.004, -0.05, 0.05) - drive.pitch) * Math.min(1, dt * 4);
+  van.position.z = drive.z; van.rotation.y = -drive.zv * 0.012;
+  body.rotation.x = drive.roll; body.rotation.z = drive.pitch;
+  body.position.y += Math.sin(t * 13) * 0.008 * drive.v / 20 + (Math.random() - 0.5) * 0.004 * drive.v / 20;
+  wheels.forEach((w) => { if (w.position.x > 0) w.rotation.y = -drive.zv * 0.05; });
+  steer.rotation.x = drive.zv * 0.35;
+  garlandV += (drive.zv * 0.04 - garland.rotation.x) * 0.0 + (-drive.roll * 4 - garland.rotation.x) * dt * 10; garland.rotation.x += garlandV * dt; garlandV *= 0.92;
+  // ของข้างทาง
+  const dx = drive.v * dt;
+  for (const o of scrollers) { o.position.x -= dx * o.userData.k; if (o.position.x < -SPAN / 2) o.position.x += SPAN; }
+  grassTex.offset.x += dx / 5; asphaltTex.offset.x += dx * 60 / 500;
+  clouds.forEach((c) => { c.position.x -= dx * 0.03 + dt * 0.5; if (c.position.x < -170) c.position.x += 340; });
+  // รถคันอื่น
+  drive.hitCd -= dt;
+  for (const tr of traffic) {
+    tr.x += (tr.v - drive.v) * dt;
+    if (tr.x < -75) respawnCar(tr, true); else if (tr.x > 130) respawnCar(tr, false);
+    tr.car.position.set(tr.x, 0, tr.lane * LANE);
+    tr.car.userData.tail.emissiveIntensity = night ? 2 : 0.6;
+    if (Math.abs(tr.x) < 6.3 && Math.abs(tr.lane * LANE - drive.z) < 2.6 && drive.hitCd <= 0) {
+      drive.hitCd = 0.6; sfx("crash"); bump(0.6);
+      if (tr.x > 0) { tr.x = 6.5; drive.v = Math.min(drive.v, tr.v) * 0.6; } else { tr.x = -6.5; tr.v *= 0.6; }
+    }
+  }
+  boostFx.visible = drive.boosting;
+  if (drive.boosting) boostFx.children.forEach((f) => { f.scale.set(1, 0.8 + Math.random() * 0.6, 1); });
+  if (engine) {
+    engine.o1.frequency.value = 36 + drive.v * 2.4 + (drive.boosting ? 20 : 0); engine.o2.frequency.value = engine.o1.frequency.value;
+    engine.g.gain.value = camMode === "chase" ? 0.06 : 0.035; engine.wg.gain.value = drive.v / 46 * (camMode === "chase" ? 0.07 : 0.025);
+  }
+  needle.rotation.z = -(Math.PI * 0.75 + Math.min(drive.v * 4, 180) / 180 * Math.PI * 1.5) + Math.PI;
+  document.getElementById("spd").textContent = Math.round(drive.v * 4);
+  document.getElementById("km").textContent = drive.km.toFixed(1) + " กม.";
+  document.getElementById("nb").style.width = (drive.nitro * 100).toFixed(0) + "%";
+  // กล้อง
+  drive.shake = Math.max(0, drive.shake - dt * 1.6);
+  const sh = drive.shake + (drive.boosting ? 0.06 : 0);
+  const fov = drive.boosting ? 54 : 40 + drive.v * 0.15;
+  camera.fov += (fov - camera.fov) * Math.min(1, dt * 3); camera.updateProjectionMatrix();
+  const jitter = new THREE.Vector3((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+  if (camMode === "chase") {
+    const p = new THREE.Vector3(-13 - drive.v * 0.08, 5.2, drive.z * 0.55);
+    camera.position.lerp(p, Math.min(1, dt * 3)); camera.position.add(jitter);
+    camera.lookAt(6, 1.6, drive.z * 0.8);
+  } else if (camMode === "driver") {
+    body.updateMatrixWorld();
+    camera.position.copy(body.localToWorld(new THREE.Vector3(2.3, 2.42, 1.0))).add(jitter.multiplyScalar(0.2));
+    camera.lookAt(body.localToWorld(new THREE.Vector3(14, 1.6, 1.0 - drive.zv * 0.4)));
+  } else {
+    camera.position.lerp(new THREE.Vector3(-3.5, 10, drive.z + 7.5), Math.min(1, dt * 3)); camera.lookAt(-0.3, 0.8, drive.z);
+  }
+}
+
+// =====================================================================  UI
 const $ = (id) => document.getElementById(id);
 function btn(parent, text, fn, cls = "") { const b = document.createElement("button"); b.textContent = text; b.className = cls; b.onclick = () => fn(b); $(parent).appendChild(b); return b; }
-
 let camAnim = null;
 function flyTo(pos, tgt) { camAnim = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...pos), t1: new THREE.Vector3(...tgt) }; }
-let insideMode = false;
-function setInside(on) {
-  insideMode = on; exterior.visible = !on; cutaway.visible = on;
-  insideBtn.classList.toggle("on", on);
-  labelGroup.visible = labelsOn && on;
-}
-let labelsOn = true;
-Object.keys(STYLES).forEach((n) => btn("styles", n, () => applyStyle(n)));
-const BODY_T = [0, 1.7, 0];
 const VIEWS = [
-  ["เฉียงหน้า", [10, 6, 10], BODY_T, false], ["หน้า", [15, 2.6, 0], BODY_T, false], ["ขวา", [0, 2.6, 15], BODY_T, false],
-  ["หลัง", [-15, 2.6, 0], BODY_T, false], ["ซ้าย", [0, 2.6, -15], BODY_T, false], ["เฉียงหลัง", [-10, 6, -10], BODY_T, false],
-  ["บน", [0.01, 19, 0.01], [0, 0, 0], false], ["ภายใน", [3.5, 10.5, 8.5], [-0.5, 0.6, 0], true], ["ที่นั่งคนขับ", [1.6, 2.6, 1], [6, 1.9, 1], false],
+  ["เฉียงหน้า", [10, 6, 10], [0, 1.7, 0], "out"], ["หน้า", [15, 2.6, 0], [0, 1.7, 0], "out"], ["ขวา", [0, 2.6, 15], [0, 1.7, 0], "out"],
+  ["หลัง", [-15, 2.6, 0], [0, 1.7, 0], "out"], ["ซ้าย", [0, 2.6, -15], [0, 1.7, 0], "out"], ["เฉียงหลัง", [-10, 6, -10], [0, 1.7, 0], "out"],
+  ["บน", [0.01, 19, 0.01], [0, 0, 0], "out"], ["ภายใน", [3.5, 9.5, 8], [-0.5, 0.6, 0], "cut"], ["ในห้องโดยสาร", [-3.6, 2.5, 0.6], [2.5, 1.6, 0], "drv"],
+  ["ที่นั่งคนขับ", [2.3, 2.42, 1], [8, 1.9, 1], "drv"],
 ];
-VIEWS.forEach(([n, p, t, inside]) => btn("views", n, () => {
-  if (inside) setInside(true); else if (n !== "ที่นั่งคนขับ") setInside(false);
-  controls.minDistance = n === "ที่นั่งคนขับ" ? 0.5 : 3;
-  flyTo(p, t);
-}));
-const insideBtn = btn("modes", "ผ่าภายใน", () => setInside(!insideMode));
-const gridBtn = btn("modes", "ตาราง 3×7", (b) => { gridGroup.visible = !gridGroup.visible; b.classList.toggle("on", gridGroup.visible); }, "on");
-const labelBtn = btn("modes", "ป้าย", (b) => { labelsOn = !labelsOn; labelGroup.visible = labelsOn && insideMode; b.classList.toggle("on", labelsOn); }, "on");
+VIEWS.forEach(([n, p, t, m]) => btn("views", n, () => { setShell(m); controls.minDistance = m === "drv" ? 0.05 : 3; flyTo(p, t); }));
+for (const [m, n] of [["chase", "ไล่หลัง"], ["driver", "คนขับ"], ["inside", "ในรถ"]]) { const b = btn("drivecams", n, () => setCam(m)); b.dataset.m = m; }
+Object.keys(STYLES).forEach((n) => btn("styles", n, () => applyStyle(n)));
+btn("modes", "ผ่าภายใน", () => setShell(shell === "cut" ? "out" : "cut"));
+btn("modes", "ตาราง 3×7", (b) => { gridOn = !gridOn; b.classList.toggle("on", gridOn); setShell(shell); }, "on");
+btn("modes", "ป้าย", (b) => { labelsOn = !labelsOn; b.classList.toggle("on", labelsOn); setShell(shell); }, "on");
 let night = false;
-const nightBtn = btn("modes", "กลางคืน", (b) => { night = !night; b.classList.toggle("on", night); applyTime(); });
-let driving = false;
-btn("modes", "วิ่ง", (b) => { driving = !driving; b.classList.toggle("on", driving); });
-let spin = false;
-btn("modes", "หมุนรอบ", (b) => { spin = !spin; controls.autoRotate = spin; b.classList.toggle("on", spin); });
-
+btn("modes", "กลางคืน", (b) => { night = !night; b.classList.toggle("on", night); applyTime(); });
+btn("modes", "หมุนรอบ", (b) => { controls.autoRotate = !controls.autoRotate; b.classList.toggle("on", controls.autoRotate); });
+const driveBtn = btn("modes", "ขับ", () => toggleDrive());
+const rearBtn = btn("modes", "เปิดท้าย", () => toggleRear());
+btn("radio", "ปิด", () => { station = -1; drawRadio(); document.querySelectorAll("#radio button").forEach((b, k) => b.classList.toggle("on", k === 0)); $("st").textContent = ""; }, "on");
+STATIONS.forEach((s, i) => btn("radio", s.name, () => setStation(i)));
 const PAINTS = [["ฟ้า", 0x7fb8d8], ["ส้ม", 0xf08a4b], ["เหลือง", 0xf2c94c], ["มิ้นต์", 0x8fd3b0], ["ชมพู", 0xf2a1b5], ["แดง", 0xd9534f], ["กรม", 0x34497a], ["ขาว", 0xeeeeea]];
 PAINTS.forEach(([n, c], i) => {
-  const b = btn("paint", "", (el) => { paint.color.setHex(c); document.querySelectorAll("#paint .sw").forEach((x) => x.classList.remove("on")); el.classList.add("on"); }, "sw" + (i === 0 ? " on" : ""));
-  b.style.background = "#" + c.toString(16).padStart(6, "0"); b.title = n;
+  const b = document.createElement("button"); b.className = "sw" + (i === 0 ? " on" : ""); b.title = n; b.style.background = "#" + c.toString(16).padStart(6, "0");
+  b.onclick = () => { paint.color.setHex(c); interactives.forEach((g) => g.traverse((m) => { if (m.isMesh && m.material.userData?.isPaint) m.material.color.setHex(c); })); document.querySelectorAll("#paint .sw").forEach((x) => x.classList.remove("on")); b.classList.add("on"); };
+  $("paint").insertBefore(b, $("plate"));
 });
-Object.keys(parts).forEach((n) => btn("parts", n, (b) => { parts[n].visible = !parts[n].visible; b.classList.toggle("on", parts[n].visible); }));
+Object.keys(parts).forEach((n) => btn("parts", n, (b) => { parts[n].on = !parts[n].on; b.classList.toggle("on", parts[n].on); setShell(shell); }));
+const plateIn = $("plate");
+plateIn.addEventListener("input", () => drawPlate(plateIn.value.trim() || " "));
+document.fonts.load("800 62px 'Noto Sans Thai'").finally(() => drawPlate(plateIn.value));
 
 function applyTime() {
-  scene.background = new THREE.Color(night ? 0x0d1530 : 0xcfe6f2);
-  scene.fog = new THREE.Fog(night ? 0x0d1530 : 0xcfe6f2, 30, night ? 80 : 140);
-  hemi.intensity = night ? 0.25 : 1.15; hemi.color.setHex(night ? 0x6f86c8 : 0xe3f3ff);
-  sun.intensity = night ? 0.35 : 2.5; sun.color.setHex(night ? 0x9fb6ff : 0xfff0d8);
-  headLights.forEach((l) => (l.intensity = night ? 60 : 0));
-  headMat.emissiveIntensity = night ? 2.5 : 0.15; tailMat.emissiveIntensity = night ? 1.6 : 0.1;
-  cabinLight.intensity = night ? 6 : 0;
-  ground.material.color.setHex(night ? 0x3d4a3a : 0xb7c98c);
+  skyU.top.value.setHex(night ? 0x050a1c : 0x5fa8e6); skyU.bot.value.setHex(night ? 0x1a2446 : 0xeaf3f6);
+  stars.visible = night;
+  scene.fog = new THREE.Fog(night ? 0x141d3a : 0xe2eef4, 40, night ? 120 : 230);
+  scene.environment = night ? null : envTex;
+  hemi.intensity = night ? 0.35 : 0.7; hemi.color.setHex(night ? 0x6f86c8 : 0xe3f3ff);
+  sun.intensity = night ? 0.45 : 2.6; sun.color.setHex(night ? 0x9fb6ff : 0xfff0d8);
+  headLights.forEach((l) => (l.intensity = night ? 70 : 0));
+  headMat.emissiveIntensity = night ? 2.6 : 0.15; tailMat.emissiveIntensity = night ? 1.8 : 0.1;
+  rearDoors.traverse((m) => { if (m.isMesh && m.userData.baseEm && m.userData.baseEm.getHex() === 0xff2a1a) m.material.emissiveIntensity = night ? 1.8 : 0.1; });
+  lampMats.forEach((m) => (m.emissiveIntensity = night ? 2.5 : 0));
+  cloudMat.color.setHex(night ? 0x4a5578 : 0xffffff); cloudMat.emissiveIntensity = night ? 0 : 0.15;
   glowLight.intensity = night && style === "เท่" ? 14 : 0;
-  document.body.style.background = night ? "#0d1530" : "#cfe6f2";
+  applyLights();
 }
-applyTime();
-setInside(false);
-applyStyle("ปกติ");
 
-// ---------- loop ----------
+// =====================================================================  picking
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), tip = $("tip");
+let hovered = null, downAt = null;
+const isShown = (o) => { while (o) { if (!o.visible) return false; o = o.parent; } return true; };
+function setHover(g) {
+  if (hovered === g) return;
+  const paintHL = (grp, on) => grp && grp.traverse((m) => { if (m.isMesh && m.userData.baseEm) m.material.emissive.copy(on ? new THREE.Color(0x6a4210) : m.userData.baseEm); });
+  paintHL(hovered, false); hovered = g; paintHL(hovered, true);
+  renderer.domElement.style.cursor = g ? "pointer" : "";
+  tip.style.display = g ? "block" : "none"; if (g) tip.textContent = g.userData.iname;
+}
+renderer.domElement.addEventListener("pointermove", (e) => {
+  mouse.set(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1);
+  tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px";
+  ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObject(van, true);
+  let found = null;
+  for (const h of hits) {
+    const o = h.object; if (o.isSprite || !isShown(o)) continue;
+    if (o.material.transparent && o.material.opacity < 0.6 && !o.userData.owner) continue;
+    let p = o; while (p && !p.userData.act) p = p.parent; found = p || null; break;
+  }
+  setHover(found);
+});
+renderer.domElement.addEventListener("pointerdown", (e) => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 6 && hovered) { initAudio(); hovered.userData.act(); }
+  downAt = null;
+});
+
+// =====================================================================  loop
+applyTime(); applyStyle("ปกติ"); setShell("out");
 const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
-  if (camAnim) {
+  const S = STYLES[style];
+  body.position.y = S.bottom - 0.5 * S.s[1];
+  if (style === "ติ๊งต๊อง") {
+    const k = Math.sin(t * (drive.on ? 11 : 3)) * (drive.on ? 0.045 : 0.015);
+    body.scale.set(S.s[0] * (1 - k * 0.5), S.s[1] * (1 + k), S.s[2] * (1 - k * 0.5));
+    pupils.forEach((p, i) => { p.position.y = p.userData.y + Math.sin(t * 6 + i * 2) * 0.07; p.position.z = p.userData.z + Math.cos(t * 4.3 + i) * 0.07; });
+    antenna.rotation.x = Math.sin(t * (drive.on ? 12 : 5)) * 0.32; antenna.rotation.z = Math.cos(t * 4) * 0.12;
+  }
+  if (drive.on) updateDrive(dt, t);
+  else if (camAnim) {
     camAnim.t = Math.min(1, camAnim.t + dt / 0.9); const k = 1 - Math.pow(1 - camAnim.t, 3);
     camera.position.lerpVectors(camAnim.p0, camAnim.p1, k); controls.target.lerpVectors(camAnim.t0, camAnim.t1, k);
     if (camAnim.t >= 1) camAnim = null;
   }
-  if (driving) {
-    wheels.forEach((w) => (w.rotation.z -= dt * 12));
-    roadDeco.position.x = (roadDeco.position.x - dt * 7) % 4;
-    van.position.y = Math.sin(t * 9) * 0.015;
-  } else van.position.y = 0;
-  const fl = parts["ธง"].userData.flag;
-  if (fl) { const p = fl.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, Math.sin(t * (driving ? 9 : 3) + x * 5) * 0.06 * (x + 0.45)); } p.needsUpdate = true; }
-  if (style === "ติ๊งต๊อง") {
-    const S = STYLES[style], k = Math.sin(t * (driving ? 11 : 3)) * (driving ? 0.05 : 0.015);
-    body.scale.set(S.s[0] * (1 - k * 0.5), S.s[1] * (1 + k), S.s[2] * (1 - k * 0.5));
-    pupils.forEach((p, i) => { p.position.y = p.userData.y + Math.sin(t * 6 + i * 2) * 0.07; p.position.z = p.userData.z + Math.cos(t * 4.3 + i) * 0.07; });
-    antenna.rotation.x = Math.sin(t * (driving ? 12 : 5)) * 0.32; antenna.rotation.z = Math.cos(t * 4) * 0.12;
+  wheels.forEach((w) => (w.rotation.z -= drive.v * dt / (0.56 * S.wr)));
+  // จังหวะเพลง → ของในรถเต้น
+  let beatPulse = 0;
+  if (ac) { while (beats.length && beats[0] <= ac.currentTime) { beats.shift(); lastBeat = ac.currentTime; } if (station >= 0 && lastBeat > 0) beatPulse = Math.max(0, 1 - (ac.currentTime - lastBeat) * 4); }
+  bobKick = Math.max(0, bobKick - dt * 0.8);
+  bobHead.rotation.z = Math.sin(t * 14) * 0.35 * bobKick + beatPulse * 0.25 + (drive.on ? Math.sin(t * 9) * 0.06 : 0);
+  bobHead.rotation.x = Math.sin(t * 11) * 0.3 * bobKick - drive.roll * 4;
+  if (!drive.on) { garland.rotation.x = Math.sin(t * 1.3) * 0.05; }
+  garland.rotation.z = Math.sin(t * 2.1) * 0.04 + drive.pitch * 3;
+  radio.children[1].material.emissiveIntensity = 0.7 + beatPulse * 0.6;
+  if (fanOn) fanBlades.rotation.x += dt * 30; fanHead.rotation.y = 0.3 + (fanOn ? Math.sin(t * 0.8) * 0.6 : 0);
+  dice.forEach((d) => { if (d.userData.spin > 0) { d.userData.spin -= dt * 1.2; d.rotation.x += dt * 25 * d.userData.spin; d.rotation.z += dt * 19 * d.userData.spin; d.position.y = 0.77 + Math.abs(Math.sin(t * 20)) * 0.06 * d.userData.spin; } else d.position.y = 0.77; });
+  if (microT > 0) { microT -= dt; microWin.material.emissiveIntensity = microT > 0 ? 1.2 : 0; }
+  fridgeLight.intensity = fridgeA.tgt ? 2.5 : 0;
+  guitar.rotation.x *= Math.pow(0.02, dt);
+  for (const a of animated) a.obj[a.prop][a.axis] += (a.tgt - a.obj[a.prop][a.axis]) * Math.min(1, dt * 8);
+  if (flag) { const p = flag.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, Math.sin(t * (drive.on ? 12 : 3) + x * 6) * 0.07 * (x + 0.45)); } p.needsUpdate = true; }
+  if (ac && carFilter) {
+    const inside = shell !== "out";
+    carFilter.frequency.value += ((inside ? 16000 : 900) - carFilter.frequency.value) * Math.min(1, dt * 6);
+    musicBus.gain.value = inside ? 0.6 : 0.5;
   }
-  radioGlow.emissiveIntensity = 0.9 + Math.sin(t * 4) * 0.3;
-  barLamps.forEach((l) => (l.material = headMat));
-  controls.update();
+  if (!drive.on && engine) { engine.g.gain.value = 0; engine.wg.gain.value = 0; }
+  sky.position.copy(camera.position); stars.position.copy(camera.position);
+  if (!drive.on) controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
