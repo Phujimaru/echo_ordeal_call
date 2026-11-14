@@ -327,12 +327,16 @@ for (const [side, g] of [[-1, exL], [1, exR]]) {
   const up = new THREE.Mesh(new THREE.ShapeGeometry(upperShape(), 24), creamSide); up.position.z = sz(0.003); g.add(shadowAll(up));
   WINDOWS.forEach((w) => { const f = new THREE.Mesh(new THREE.ShapeGeometry(frameShape(w)), rubber); f.position.z = sz(0.007); g.add(f); });
   mesh(rbox(7.85, 0.06, 0.04, 0.015), chrome, -0.18, 1.75, sz(0.014), g);                     // คิ้วเอว
-  mesh(rbox(7.4, 0.04, 0.03, 0.01), chrome, -0.4, 0.66, sz(0.012), g);                        // คิ้วล่าง
+  for (const [x0, x1] of [[-4.0, -3.45], [-1.75, 1.75], [3.45, 4.0]]) mesh(rbox(x1 - x0, 0.04, 0.03, 0.01), chrome, (x0 + x1) / 2, 0.66, sz(0.012), g); // คิ้วล่าง (เว้นซุ้มล้อ)
+  for (const x of [2.6, -2.6]) { // ซุ้มล้อด้านใน (บังพื้นห้อง)
+    const lg = new THREE.CylinderGeometry(0.76, 0.76, 0.5, 28, 1, true, Math.PI / 2, Math.PI); lg.rotateX(Math.PI / 2);
+    mesh(lg, std(0x15171a, { roughness: 1, side: THREE.DoubleSide }), x, 0.5, zo - side * 0.25, g);
+    mesh(new THREE.CircleGeometry(0.76, 28, 0, Math.PI), std(0x15171a, { roughness: 1, side: THREE.DoubleSide }), x, 0.5, zo - side * 0.5, g);
+  }
   for (const x of [2.6, -2.6]) { const f = mesh(new THREE.TorusGeometry(0.79, 0.07, 10, 32, Math.PI), rubber, x, 0.5, sz(0.02), g); f.scale.z = 0.6; }
   mesh(rbox(0.16, 0.08, 0.03, 0.01), std(0xffa22b, { emissive: 0xff8a00, emissiveIntensity: 0.3 }), 3.75, 1.0, sz(0.012), g);   // ไฟข้างหน้า
   mesh(rbox(0.12, 0.08, 0.03, 0.01), tailMat0(), -3.95, 1.0, sz(0.012), g);                          // ไฟข้างท้าย
   for (let k = 0; k < 5; k++) mesh(rbox(0.32, 0.035, 0.03, 0.01), rubber, -3.45, 1.12 + k * 0.09, sz(0.01), g); // ช่องลม
-  mesh(box(0.05, 0.42, 0.42), trim, 1.75, 0.42, sz(-0.25), g); mesh(box(0.05, 0.42, 0.42), trim, -3.45, 0.42, sz(-0.25), g); // บังโคลน
   mesh(box(0.025, 1.2, 0.02), rubber, 3.3, 1.2, sz(0.01), g);                                        // ร่องประตูหน้า
   mesh(box(0.025, 2.0, 0.02), rubber, 1.92, 1.55, sz(0.01), g);
   mesh(rbox(0.26, 0.06, 0.06, 0.02), chrome, 2.3, 1.88, sz(0.04), g);                               // มือจับประตูหน้า
@@ -376,7 +380,7 @@ for (const side of [-1, 1]) {
   mesh(rbox(0.06, 0.06, 0.22, 0.02), chrome, -T / 2 - 0.035, 1.88, zc(DW - 0.22), piv);
   mesh(box(0.01, 2.5, DW - 0.02), lining, T / 2 + 0.006, 1.25, zc(DW / 2), piv).scale.y = 0.62;
   if (side > 0) {
-    const sp = grp(-T / 2 - 0.16, 1.18, zc(DW / 2 + 0.05), piv);
+    const sp = grp(-T / 2 - 0.16, 1.3, zc(DW / 2 + 0.12), piv); sp.scale.setScalar(0.9);
     mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.26, 36), std(0x1e1f22, { roughness: 0.92 }), 0, 0, 0, sp).rotation.z = Math.PI / 2;
     mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.28, 36), cream, 0, 0, 0, sp).rotation.z = Math.PI / 2;
     mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 36), paint, -0.15, 0, 0, sp).rotation.y = Math.PI / 2;
@@ -949,7 +953,6 @@ for (const x of [2.6, -2.6]) for (const z of [HW - 0.22, -HW + 0.22]) {
   const g = new THREE.Group(); g.position.set(x, 0.56, z); g.rotation.order = "YZX"; wheelRig.add(g);
   const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.42, 40), tireMat); tire.rotation.x = Math.PI / 2; g.add(tire);
   for (const s of [-1, 1]) { const tr = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 10, 40), tireMat); tr.position.z = s * 0.2; g.add(tr); }
-  for (let k = 0; k < 20; k++) { const n = new THREE.Mesh(box(0.1, 0.05, 0.4), tireMat); const an = k / 20 * TAU; n.position.set(Math.cos(an) * 0.56, Math.sin(an) * 0.56, 0); n.rotation.z = an; g.add(n); }
   for (const s of [-1, 1]) { const ww = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 10, 40), std(0xf4f1ea, { roughness: 0.6 })); ww.position.z = s * 0.205; ww.scale.z = 0.35; g.add(ww); }
   const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.44, 32), cream); hub.rotation.x = Math.PI / 2; g.add(hub);
   const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 12), chrome); cap.scale.z = 1.25; cap.rotation.x = Math.PI / 2; g.add(cap);
@@ -982,7 +985,6 @@ const headLights = [];
 for (const z of [-1.15, 1.15]) {
   mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 28), headMat, 4.13, 1.25, z, always).rotation.z = Math.PI / 2;
   mesh(new THREE.TorusGeometry(0.2, 0.03, 10, 28), chrome, 4.16, 1.25, z, always).rotation.y = Math.PI / 2;
-  mesh(rbox(0.06, 0.45, 0.22, 0.02), tailMat, -4.15, 1.45, z * 1.15, always);
   const sp = new THREE.SpotLight(0xfff0c8, 0, 34, 0.48, 0.5, 1.2); sp.position.set(4.2, 1.25, z);
   sp.target.position.set(16, 0, z); body.add(sp); body.add(sp.target); headLights.push(sp);
 }
