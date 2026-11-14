@@ -1933,6 +1933,19 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       else setGarageOpen(true);
     }
   }, [rtOn, state.roadtrip?.fx, state.youId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ปุ่มอู่บนแถบจุดพัก: server อัปเกรดได้เฉพาะคนที่ยืนใกล้อู่ (stop.upgrade ≤ 2 ช่อง) → เดินไปอู่ก่อน (rt:walk — ถึงแล้ว server ส่ง fx garage กลับมาเปิดหน้าอู่)
+  //  เดิมเปิดหน้าอู่ทันทีจากที่ไหนก็ได้ → กดอัปเกรดแล้วเงียบ (QA 2026-11-14) · เดินไปไม่ได้ (ตาย/ไม่มีตำแหน่ง/ไม่มีอู่) = เปิดหน้าอู่ไว้แต่งรถได้อย่างเดียว
+  const rtGarageOf = () => (rtStop && state.board ? ((RT_DEFS[state.board.area] || {}).props || []).find((o) => o.kind === "garage" && o.spot) || null : null);
+  const rtGarageFar = () => {
+    const garage = rtGarageOf(), meU = (state.players || []).find((p) => p.id === state.youId);
+    return !garage || !meU || !meU.alive || !meU.pos || Math.max(garage.x0 - meU.pos.x, 0, meU.pos.x - garage.x1) + Math.max(garage.y0 - meU.pos.y, 0, meU.pos.y - garage.y1) > 2;
+  };
+  const rtGarageGo = () => {
+    const garage = rtGarageOf(), meU = (state.players || []).find((p) => p.id === state.youId);
+    const far = !!garage && !!meU && meU.alive && !!meU.pos && rtGarageFar();
+    if (far) rtEmit("rt:walk", { x: garage.spot[0], y: garage.spot[1] }); // ถึงอู่ = server ส่ง fx garage (ไม่ใช้ rt:act — นั่นคือซ่อมรถ เสียเงิน)
+    else setGarageOpen(true);
+  };
   const shopSeen = useRef(new Set());                // ร้านที่ประกาศ "ปรากฏ" ไปแล้ว (id ร้าน — กันเด้งซ้ำ)
   const vp = useViewport();
   const { flights: cardFlights, removeFlight: removeCardFlight, deckRef, selfHandRef, registerOther } = useCardFlights(state);
@@ -2782,9 +2795,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         zoom={hudZ}
       />}
       {/* Road Trip: แถบจุดพัก (เวลา · ความพร้อม · อู่) + อู่ */}
-      {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "motel" ? null : () => setGarageOpen(true)} />}
+      {rtStop && !fcOpen && <StopBar rt={state.roadtrip} players={state.players || []} youId={state.youId} zoom={hudZ} onGarage={rtStop.kind === "motel" ? null : rtGarageGo} />}
       {garageOpen && rtStop && (
-        <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
+        <Garage van={state.roadtrip.van || {}} gold={me?.gold || 0} far={rtGarageFar()} diff={state.roadtrip.diff} night={!!state.roadtrip.night} onClose={() => setGarageOpen(false)} />
       )}
 
       {/* ---------- แผงตัวเรา (ดีไซน์ HudMain — กระจกน้ำเงินตัดมุม) ----------

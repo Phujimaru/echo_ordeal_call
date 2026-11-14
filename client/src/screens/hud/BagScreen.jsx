@@ -85,6 +85,7 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
   // Road Trip จุดพัก (นอกการต่อสู้ ไม่มีตาเดิน): ใช้ได้ 4 ชนิด ผ่าน rt:use (server/roadtrip/stop.js useItem)
   const RT_FREE_TYPES = ["rtRevive", "rtFish", "armor", "cleanse"];
   const myTurn = turnProp || (rtFree && !!sel && RT_FREE_TYPES.includes(sel.type));
+  const tradeOk = turnProp || rtFree; // ให้/แลก/ทิ้ง ที่จุดพัก: ไม่มีตาเดิน — ทำได้ทุกเมื่อ (server shop.js tradeReady/dropItem)
   const emit = (ev, data) => { clickSound(); if (rtFree && ev === "useInventoryItem") socket.emit("rt:use", { uid: data.uid, targetId: data.targetId }); else socket.emit(ev, data); };
   const pick = (uid) => { clickSound(); setSelUid(uid); setSwapWith(null); setAmount(1); setCleanseKey(null); };
 
@@ -176,7 +177,7 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
             {Array.isArray(shops) && shops.length > 0 && (
               <span className="bag-shops">
                 {shops.map((sh) => (
-                  <button type="button" key={sh.id} className="bag-shop-btn" disabled={!myTurn} onClick={() => { clickSound(); onShop && onShop(sh); }}>
+                  <button type="button" key={sh.id} className="bag-shop-btn" disabled={!tradeOk} onClick={() => { clickSound(); onShop && onShop(sh); }}>
                     <span aria-hidden="true">{SHOP_CREST[sh.kind] || "🏪"}</span>{sh.name}
                   </button>
                 ))}
@@ -242,11 +243,11 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
                     {actions}
                     {!bound(sel) && mates.map((m) => (
                       <div key={m.id} className="bag-trade">
-                        <button type="button" className="bag-btn" disabled={!myTurn || (m.inventory || []).filter((it) => it.type !== "kebread").length >= bagSlots} onClick={() => { emit("giveItem", { uid: sel.uid, toId: m.id }); setSwapWith(null); }}>ให้ {m.name}</button>
-                        <button type="button" className="bag-btn" data-on={swapWith === m.id ? "true" : undefined} disabled={!myTurn || !(m.inventory || []).some((it) => !bound(it))} onClick={() => { clickSound(); setSwapWith(swapWith === m.id ? null : m.id); }}>แลก {m.name}</button>
+                        <button type="button" className="bag-btn" disabled={!tradeOk || (m.inventory || []).filter((it) => it.type !== "kebread").length >= bagSlots} onClick={() => { emit("giveItem", { uid: sel.uid, toId: m.id }); setSwapWith(null); }}>ให้ {m.name}</button>
+                        <button type="button" className="bag-btn" data-on={swapWith === m.id ? "true" : undefined} disabled={!tradeOk || !(m.inventory || []).some((it) => !bound(it))} onClick={() => { clickSound(); setSwapWith(swapWith === m.id ? null : m.id); }}>แลก {m.name}</button>
                       </div>
                     ))}
-                    {sel.type !== "kebread" && <button type="button" className="bag-btn ghost" disabled={!myTurn} onClick={() => emit("dropItem", { uid: sel.uid })}>ทิ้ง</button>}
+                    {sel.type !== "kebread" && <button type="button" className="bag-btn ghost" disabled={!tradeOk} onClick={() => emit("dropItem", { uid: sel.uid })}>ทิ้ง</button>}
                   </div>
                 </>
               ) : (

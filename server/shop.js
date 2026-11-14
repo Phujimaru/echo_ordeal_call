@@ -371,7 +371,9 @@ function remoteShop(p) {
 // ทิ้งของ: เฉพาะตาตัวเอง · ไม่นับเป็นการใช้ (ยังเดิน/ย้อนได้)
 function dropItem(id, uid) {
   const p = match.players[id];
-  if (!action.canAct(p)) return false;
+  // Road Trip ช่วงเดินทาง (ขับ/ทางแยก/เหตุการณ์/จุดพัก): ไม่มีตาเดิน — ทิ้งได้ตลอด (QA 2026-11-14)
+  const rtFree = !!p && p.alive && !p.summon && require("./roadtrip").traveling();
+  if (!rtFree && !action.canAct(p)) return false;
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return false;
   if (p.inventory[idx].type === "kebread" || p.inventory[idx].type === "giornoArrow") return false; // ขนมปังของเอมิลิโกะ/ธนู Requiem ทิ้งไม่ได้
@@ -398,7 +400,8 @@ function tradeMate(p, mateId) {
 const tradable = (it) => !!it && !BOUND_ITEMS.includes(it.type);
 function tradeReady(id) {
   const p = match.players[id];
-  if (!p || !p.alive || p.summon || !action.canAct(p) || asleep(p)) return null;
+  // Road Trip จุดพัก: ไม่มีตาเดิน — ให้/แลกกับเพื่อนที่ยืนติดกันได้ทุกเมื่อ (QA 2026-11-14 · แบบซื้อของ RT.freeShop)
+  if (!p || !p.alive || p.summon || (!require("./roadtrip").freeShop(p) && !action.canAct(p)) || asleep(p)) return null;
   return p;
 }
 function giveItem(id, uid, mateId) {

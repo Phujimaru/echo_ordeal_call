@@ -446,7 +446,8 @@ export default function App() {
   const rtDriving = !!rtPhase && ["intro", "drive", "fork", "event"].includes(rtPhase) && !(rtPhase === "intro" && rtFiles && rtFiles.has("intro"));
   const rtLeader = (() => {
     if (!rtNow || !state) return false;
-    const ids = (state.players || []).map((p) => p.id);
+    // เครื่องหัวหน้า = คนที่เปลี่ยนวิทยุล่าสุด ถ้ายังต่ออยู่ · ไม่งั้นผู้เล่นคนแรกที่ยังต่ออยู่ (เดิมนับคนที่หลุดด้วย → คิว YouTube ค้างไม่มีใครเลื่อน — QA 2026-11-14)
+    const ids = (state.players || []).filter((p) => !p.summon && !p.duoOf && p.connected !== false).map((p) => p.id);
     const by = rtRadioState && rtRadioState.by;
     return by && ids.includes(by) ? by === state.youId : ids[0] === state.youId;
   })();

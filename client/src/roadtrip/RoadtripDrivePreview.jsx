@@ -39,6 +39,7 @@ export default function RoadtripDrivePreview() {
     van: { ...VAN0 }, hazards: [], fork: null, event: null, stop: null,
     combat: combat ? { kind: combat === "road" ? "ambush" : "onvan", round: 1, rounds: 5, scroll: 2 } : null,
     radio: { src: "synth", station: 0, yt: null, by: null }, fx: [], summary: null,
+    vanPos: { me: { x: 10, y: 5, roof: false }, p2: { x: 8, y: 4, roof: false } }, vanProps: {},
   }));
   const rtRef = useRef(rt); rtRef.current = rt;
   const autoRef = useRef({ region: true, night: !q.has("night") });
@@ -59,6 +60,16 @@ export default function RoadtripDrivePreview() {
           case "rt:vote": return r.fork ? { ...r, fork: { ...r.fork, votes: { ...r.fork.votes, me: data.i } } } : r;
           case "rt:event": return r.event ? { ...r, event: { ...r.event, votes: { ...r.event.votes, me: data.key } } } : r;
           case "rt:rear": return { ...r, van: { ...v, rearOpen: !v.rearOpen } };
+          case "rt:vanWalk": { // เดินในรถจำลอง: ทางแบบแมนแฮตตัน (ขึ้น/ลงหลังคาทางซันรูฟ 11,5)
+            const cur = r.vanPos.me, roof = !!data.roof;
+            const x = Math.max(roof ? 7 : 7, Math.min(roof ? 12 : 13, data.x | 0)), y = Math.max(4, Math.min(6, data.y | 0));
+            const path = []; let cx = cur.x, cy = cur.y, cr = cur.roof;
+            const go = (tx, ty) => { while (cx !== tx || cy !== ty) { if (cy !== ty) cy += Math.sign(ty - cy); else cx += Math.sign(tx - cx); path.push({ x: cx, y: cy, roof: cr }); } };
+            if (cr !== roof) { go(11, 5); cr = roof; path.push({ x: 11, y: 5, roof: cr }); }
+            go(x, y);
+            return { ...r, vanPos: { ...r.vanPos, me: { x, y, roof } }, fx: [...r.fx.slice(-15), fx("vanWalk", { id: "me", path, roof })] };
+          }
+          case "rt:vanProp": { const st = !(r.vanProps || {})[data.prop]; return { ...r, vanProps: { ...r.vanProps, [data.prop]: st }, fx: [...r.fx.slice(-15), fx("vanProp", { id: "me", prop: data.prop, state: st })] }; }
           default: return r;
         }
       });

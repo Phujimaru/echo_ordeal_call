@@ -157,3 +157,56 @@ test('FIX จุดพัก: คูลดาวน์กิจกรรมแ�
   assert.equal(S.act(P(0), claw.id), false, 'คนแรกใช้ซ้ำไม่ได้');
   assert.ok(RT.publicInfo('p0').stop.acts[claw.id].used);
 });
+
+// QA รอบ 2 (2026-11-14 · scripts/rt-sim.js หลายเครื่อง): จุดพักไม่มีตาเดิน — ของที่ผูกกับ action.canAct ต้องใช้ได้ทุกคนพร้อมกัน
+test('FIX จุดพัก: ให้/แลก/ทิ้งของ ได้นอกตาเดิน (ทุกคนพร้อมกัน) · ช่วงขับทิ้งได้ · ไม่ติดกันให้ไม่ได้', () => {
+  const shop = require('../server/shop.js');
+  setup(2);
+  S.enter('gas');
+  assert.equal(match.gameState, 'ROADTRIP');
+  const a = P(0), b = P(1);
+  a.pos = { x: 10, y: 13 }; b.pos = { x: 11, y: 13 };
+  if (!S.reachOf(a).size) return;
+  a.inventory = [{ uid: 'a1', type: 'armor', value: 2 }, { uid: 'a2', type: 'rtFish' }];
+  b.inventory = [{ uid: 'b1', type: 'cleanse' }];
+  assert.equal(shop.giveItem('p0', 'a1', 'p1'), true, 'ให้ของเพื่อนที่ยืนติดกัน');
+  assert.ok(b.inventory.some((it) => it.uid === 'a1'));
+  assert.equal(shop.swapItem('p1', 'b1', 'p0', 'a2'), true, 'แลกของ');
+  assert.ok(a.inventory.some((it) => it.uid === 'b1') && b.inventory.some((it) => it.uid === 'a2'));
+  assert.equal(shop.dropItem('p0', 'b1'), true, 'ทิ้งของ');
+  assert.equal(a.inventory.length, 0);
+  b.pos = { x: 14, y: 13 };
+  assert.equal(shop.giveItem('p1', 'a1', 'p0'), false, 'ไม่ได้ยืนติดกัน');
+  S.leave();
+  assert.equal(rt().phase, 'drive');
+  assert.equal(shop.dropItem('p1', 'a1'), true, 'ช่วงขับทิ้งได้');
+  assert.equal(shop.giveItem('p1', 'a2', 'p0'), false, 'ช่วงขับ (ไม่มีตำแหน่ง/ไม่ใช่จุดพัก) ให้ไม่ได้');
+});
+
+test('FIX วิทยุ: คิว YouTube รับรูปแบบที่ client ส่ง ({ id, list, start }) — เดิมเพลงที่เข้าคิวหายเงียบ', () => {
+  setup(1);
+  const q = [{ id: 'dQw4w9WgXcQ', list: null, start: 12 }, { id: null, list: 'PL1234567890abc', start: 0 }, { id: 'bad', list: null }, 'aaaaaaaaaaa', { id: 'x"><script' }];
+  assert.equal(RT.command('p0', 'radio', { src: 'yt', yt: { id: 'bbbbbbbbbbb', queue: q } }), true);
+  const got = RT.publicInfo('p0').radio.yt.queue;
+  assert.deepEqual(got, [{ id: 'dQw4w9WgXcQ', list: null, start: 12 }, { id: null, list: 'PL1234567890abc', start: 0 }, { id: 'aaaaaaaaaaa', list: null, start: 0 }]);
+  // ข้ามเพลง (radio.js next): หัวคิวกลายเป็นเพลงที่เล่น
+  const [h, ...rest] = got;
+  assert.equal(RT.command('p0', 'radio', { src: 'yt', yt: { id: h.id, list: h.list, start: h.start, queue: rest } }), true);
+  assert.equal(rt().radio.yt.id, 'dQw4w9WgXcQ');
+  assert.equal(rt().radio.yt.queue.length, 2);
+});
+
+test('FIX มอน Road Trip (rtmob) ไม่ซ่อนในพุ่ม/ม่านควัน — แบบมอน Eos (visibility.hiddenFrom)', () => {
+  const Vis = require('../server/visibility.js');
+  setup(1);
+  F.begin('ambush');
+  fire();
+  clearMobs();
+  const m = M.spawn(rt(), 'stray', { x: 2, y: 2 }, { born: 0 });
+  P(0).pos = { x: 15, y: 9 };
+  match.board.smoke = { '2,2': 3 }; // ม่านควัน (คริซุงุ) = ซ่อนตัวแบบพุ่ม
+  try {
+    assert.equal(Vis.inBush(m), true, 'ยืนในม่านควัน');
+    assert.equal(Vis.hiddenFrom(P(0), m), false, 'ผู้เล่นยังเห็นมอน');
+  } finally { delete match.board.smoke; }
+});

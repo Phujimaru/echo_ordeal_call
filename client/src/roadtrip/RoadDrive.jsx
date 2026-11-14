@@ -22,6 +22,11 @@ const STATION_BPM = [118, 132, 144, 80, 60];
 const loadCam = () => { try { const c = localStorage.getItem(CAM_KEY); return DRIVE_CAMS.some((d) => d[0] === c) ? c : "chase"; } catch { return "chase"; } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const NO_LOOK = { yaw: 0, pitch: 0, zoom: 0 };
+// เดินในรถ (state.roadtrip.vanPos): คลิกพื้น/ดาดฟ้า + WASD/ลูกศร ทำงานเฉพาะมุมในรถ (ผ่า) และมุมคนขับ — ไม่ชนกับปุ่มกล้อง/ขับ
+const WALK_CAMS = new Set(["inside", "driver"]);
+// ของที่ทำงานในเครื่อง (ไม่ส่งเป็นของใช้ร่วม): แตร · นั่ง/ลุก · วิทยุ (แผงวิทยุ) · กล้องส่องทางไกล/ดูดาว (มุมกล้อง)
+const LOCAL_PROPS = new Set(["horn", "seat", "gear", "radio", "binoc", "scope"]);
+const myVanPos = (s) => { const r = s && s.roadtrip; return r && r.vanPos && s.youId != null ? r.vanPos[s.youId] || null : null; };
 
 const I_FUEL = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15" /><path d="M4 20h11" /><path d="M7 8h5" /><path d="M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8l-3-3" /></svg>;
 const I_HP = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15V9a2 2 0 0 1 2-2h9l4 4h1a2 2 0 0 1 2 2v2" /><circle cx="7" cy="16.5" r="2" /><circle cx="17" cy="16.5" r="2" /><path d="M9 16.5h6" /></svg>;
@@ -127,6 +132,12 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       const k = { KeyC: "c", KeyA: "a", KeyD: "d", Space: " ", ShiftLeft: "shift", ShiftRight: "shift", ArrowLeft: "arrowleft", ArrowRight: "arrowright" }[e.code] || "";
       if (k === "c" && !e.repeat) { const i = DRIVE_CAMS.findIndex((c) => c[0] === camRef.current); setCam(DRIVE_CAMS[(i + 1) % DRIVE_CAMS.length][0]); return; }
       if (k === " " || e.code === "Space") { e.preventDefault(); if (!e.repeat) rtEmit("rt:horn", {}); return; }
+      // เดินในรถทีละช่อง (ไม่ใช่คนขับ · มุมในรถ/คนขับ): W/↑ ไปหน้ารถ · S/↓ ไปท้าย · A/← ซ้าย · D/→ ขวา (ตามคนขับ)
+      const mp = myVanPos(s);
+      if (!driver && mp && WALK_CAMS.has(camRef.current)) {
+        const st0 = { KeyW: [1, 0], ArrowUp: [1, 0], KeyS: [-1, 0], ArrowDown: [-1, 0], KeyA: [0, -1], ArrowLeft: [0, -1], KeyD: [0, 1], ArrowRight: [0, 1] }[e.code];
+        if (st0) { e.preventDefault(); if (!e.repeat || performance.now() - (onKey.last || 0) > 180) { onKey.last = performance.now(); rtEmit("rt:vanWalk", { x: mp.x + st0[0], y: mp.y + st0[1], roof: !!mp.roof }); } return; }
+      }
       if (!driver) return;
       if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") {
         e.preventDefault();
@@ -173,9 +184,14 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const [nx, ny] = ndc(pend.e);
         const hit = sc.pick(nx, ny);
         sc.hover(hit); hoverHit = hit;
-        cv.style.cursor = hit ? "pointer" : "grab";
+        const s = stRef.current, mp = myVanPos(s), walkOk = !!mp && WALK_CAMS.has(camRef.current);
+        const crew = hit ? null : sc.crewAt(nx, ny);
+        const tile = !hit && walkOk ? sc.tileAt(nx, ny) : null;
+        sc.showWalk(tile, mp);
+        cv.style.cursor = hit || tile ? "pointer" : "grab";
         const r = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0 };
-        setTip(hit ? { name: hit.name, x: pend.e.clientX - r.left, y: pend.e.clientY - r.top } : null);
+        const label = hit ? hit.name : crew ? crew.name : null;
+        setTip(label ? { name: label, x: pend.e.clientX - r.left, y: pend.e.clientY - r.top } : null);
       });
     };
     const up = (e) => {
@@ -185,12 +201,22 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         const sc = sceneRef.current; if (!sc) return;
         const [nx, ny] = ndc(e);
         const hit = sc.pick(nx, ny) || hoverHit;
-        if (hit) hit.run();
+        const s = stRef.current, mp = myVanPos(s);
+        if (hit) {
+          // ของใช้ร่วม (มี vanPos = server รองรับ): เดินไปช่องของก่อน (ถ้ายังไม่ติด) แล้วสั่งของ — ท่า/เสียงเล่นจาก fx ให้ทุกคน
+          if (mp && hit.key && !LOCAL_PROPS.has(hit.key)) {
+            const pt = sc.propTile(hit.key);
+            if (pt && (Math.abs(pt.x - mp.x) + Math.abs(pt.y - mp.y) > 1 || !!pt.roof !== !!mp.roof)) rtEmit("rt:vanWalk", { x: pt.x, y: pt.y, roof: !!pt.roof });
+            rtEmit("rt:vanProp", { prop: hit.key });
+          } else hit.run();
+          return;
+        }
+        if (mp && WALK_CAMS.has(camRef.current)) { const tile = sc.tileAt(nx, ny); if (tile) { clickSound(); rtEmit("rt:vanWalk", tile); } }
       }
     };
     const wheel = (e) => { e.preventDefault(); look.current.zoom = clamp(look.current.zoom + e.deltaY * 0.02, -25, 25); };
     const dbl = () => { look.current = { yaw: 0, pitch: 0, zoom: 0 }; };
-    const leave = () => { const sc = sceneRef.current; if (sc) sc.hover(null); hoverHit = null; setTip(null); };
+    const leave = () => { const sc = sceneRef.current; if (sc) { sc.hover(null); sc.showWalk(null); } hoverHit = null; setTip(null); };
     cv.addEventListener("pointerdown", down);
     cv.addEventListener("pointermove", move);
     cv.addEventListener("pointerup", up);

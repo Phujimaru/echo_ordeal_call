@@ -418,7 +418,21 @@ test('Avalon: สนาม Eos ความจุเพิ่มไม่มี�
     trace('kb');
     assert.equal(P.S.emiya.capBonus, 42);
     assert.equal(engine.maxSkillOf(P.S), 50);
+    assert.equal(require('../../characters/emiya_shirou.js').capLimit(), Infinity, 'Eos ยังไม่จำกัด');
   } finally { match.gameMode = prev; }
+});
+
+test('Avalon: Road Trip ความจุเพิ่มได้ถึง +40 (ผู้ใช้สั่ง 2026-11-14)', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 5]]);
+  const prev = match.world;
+  match.world = 'roadtrip';
+  try {
+    engine.setActor('S');
+    P.S.emiya.capBonus = 38;
+    trace('kb');
+    assert.equal(P.S.emiya.capBonus, 40);
+    assert.equal(require('../../characters/emiya_shirou.js').capLimit(), 40, 'เพดาน 40');
+  } finally { match.world = prev; }
 });
 
 test('ลบสกิลติดตัว: Avalon ไม่ทำงาน (ไม่เยียวยา · ความจุไม่เพิ่ม · ตีไม่ได้แต้ม) แต่อาวุธยังใช้ได้', () => {

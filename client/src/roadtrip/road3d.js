@@ -600,6 +600,16 @@ function hazardArrival(map, h, nowMs, srvOffset) {
   return a;
 }
 
+// ---------------------------------------------------------------- กริดห้องในรถ ↔ ช่องกระดาน (area 71 vanTiles — ช่องเดียวกับกระดานต่อสู้บนรถตู้ ต่อเนื่อง 1:1)
+//  i = แถวจากหน้ารถ (0 = แถวคนขับ) · c = −1 ซ้ายคนขับ / 0 / 1 ขวา (ฝั่งคนขับ) · ดาดฟ้าใช้ช่องเดียวกัน (roof)
+const VAN_DEF = RT_DEFS[71] || {};
+const VG = (() => { const t = VAN_DEF.vanTiles || [[7, 4], [13, 6]]; return { x1: Math.max(...t.map((p) => p[0])), y0: Math.min(...t.map((p) => p[1])) }; })();
+// สถานะของในรถจาก server ("open"/"on" ↔ true · "closed"/"off" ↔ false · ตัวเลข/เต๋า = ส่งต่อ)
+const propVal = (v) => (v === "open" || v === "on" ? true : v === "closed" || v === "off" ? false : v);
+export const boardToGrid = (x, y) => ({ i: VG.x1 - x, c: y - (VG.y0 + 1) });
+export const gridToBoard = (i, c) => ({ x: VG.x1 - i, y: c + VG.y0 + 1 });
+export const VAN_DRIVER_TILE = VAN_DEF.driverTile || [13, 6];
+
 // ================================================================ (ก) หน้าขับเต็มจอ
 export const DRIVE_CAMS = [["chase", "ไล่หลัง"], ["far", "ไกล"], ["driver", "คนขับ"], ["hood", "ฝากระโปรง"], ["bumper", "กันชน"], ["roof", "ซันรูฟ"], ["wheel", "ข้างล้อ"], ["cine", "ภาพยนตร์"], ["inside", "ในรถ"]];
 const FP = { driver: [[2.3, 2.42, 1.0], [14, 1.6, 1.0]], hood: [[3.95, 2.1, 0], [16, 1.5, 0]], bumper: [[4.6, 0.72, 0], [16, 0.72, 0]], roof: [[0.5, 4.2, 0], [14, 2.9, 0]], wheel: [[1.6, 0.85, 1.7 + 1.2], [12, 0.6, 1.7 + 0.4]] };
@@ -678,11 +688,28 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
       van.setRadio(rt.radio || null);
       const drv = vs && vs.driverId != null ? (players || []).find((p) => p && p.id === vs.driverId) : null;
       van.setDriver(vs && vs.driverId != null ? { img: drv && drv.img, color: (drv && drv.color) || "#ff8a3d" } : null);
-      // เหตุการณ์ชั่วคราว (key กันเล่นซ้ำ)
+      // ลูกเรือเดินในรถ (state.roadtrip.vanPos) + ของในรถใช้ร่วมกัน (vanProps)
+      if (rt.vanPos && typeof rt.vanPos === "object" && (rt.vanPos !== D.vanPosRef || players !== D.crewPlayers)) {
+        D.vanPosRef = rt.vanPos; D.crewPlayers = players; // สร้างรายการใหม่เฉพาะตอนข้อมูลเปลี่ยน
+        const byId = D.byId || (D.byId = new Map());
+        if (D.playersRef !== players) { D.playersRef = players; byId.clear(); for (const pl of players || []) if (pl) byId.set(pl.id, pl); }
+        const list = D.crewList || (D.crewList = []); list.length = 0;
+        for (const id in rt.vanPos) {
+          const q = rt.vanPos[id]; if (!q || !Number.isFinite(q.x)) continue;
+          const pl = byId.get(id) || byId.get(+id) || null, g0 = boardToGrid(q.x, q.y);
+          list.push({ id: pl ? pl.id : id, i: g0.i, c: g0.c, roof: !!q.roof, img: pl && pl.img, color: (pl && pl.color) || "#ff8a3d", name: (pl && pl.name) || "", alive: !pl || pl.alive !== false });
+        }
+        van.setCrew(list);
+      }
+      if (rt.vanProps && rt.vanProps !== D.vanPropsRef) { D.vanPropsRef = rt.vanProps; const o = {}; for (const k in rt.vanProps) { const v = rt.vanProps[k]; o[k] = propVal(v && typeof v === "object" && "state" in v ? v.state : v); } van.setPropStates(o); }
+      // เหตุการณ์ชั่วคราว (key กันเล่นซ้ำ) — เห็นครั้งแรก = ของเก่าถือว่าเล่นแล้ว
+      if (!D.fxInit) { D.fxInit = true; for (const f of Array.isArray(rt.fx) ? rt.fx : []) if (f) D.fxSeen.add(f.key ?? f.id ?? `${f.k}|${f.at || ""}`); }
       for (const f of Array.isArray(rt.fx) ? rt.fx : []) {
         const k = f && (f.key ?? f.id ?? `${f.k}|${f.at || ""}`);
         if (!f || D.fxSeen.has(k)) continue;
         D.fxSeen.add(k);
+        if (f.k === "vanWalk" && Array.isArray(f.path)) { van.crewPath(f.id, f.path.map((q) => { const pt = Array.isArray(q) ? { x: q[0], y: q[1], roof: q[2] } : q; const g0 = boardToGrid(pt.x, pt.y); return { i: g0.i, c: g0.c, roof: pt.roof != null ? !!pt.roof : !!f.roof }; })); continue; }
+        if (f.k === "vanProp" && f.prop) { van.propFx(f.prop, propVal(f.state)); continue; }
         // เสียงของ fx เล่นที่ rtAudio.handleFx (App) — ที่นี่ภาพอย่างเดียว
         if (f.k === "nitro") D.boostT = 1.6;
         else if (f.k === "crash" || f.k === "hit" || f.k === "hazardHit") D.shake = Math.max(D.shake, 0.6);
@@ -804,8 +831,24 @@ export function createRoadDrive(canvas, { lowQ = false, onSfx = () => {}, onActi
     _ndc.set(nx, ny); ray.setFromCamera(_ndc, camera);
     return van.pick(ray);
   }
+  // เดินในรถ: ndc → ช่องกระดาน { x, y, roof } (พื้นห้อง ในมุมผ่า/คนขับ · ดาดฟ้าเมื่อเห็น) | null
+  function tileAt(nx, ny) {
+    _ndc.set(nx, ny); ray.setFromCamera(_ndc, camera);
+    const t0 = van.tileAt(ray);
+    return t0 ? { ...gridToBoard(t0.i, t0.c), roof: t0.roof } : null;
+  }
+  function crewAt(nx, ny) { _ndc.set(nx, ny); ray.setFromCamera(_ndc, camera); return van.pickCrew(ray); }
+  // ไฮไลต์ช่องที่ชี้ + ทางเดินจากตำแหน่งเรา (ช่องกระดาน)
+  function showWalk(tile, from) {
+    if (!tile) { van.showWalk(null, null); return; }
+    const a = from ? boardToGrid(from.x, from.y) : null, b = boardToGrid(tile.x, tile.y), path = [];
+    if (a && !!from.roof === !!tile.roof) { let i = a.i, c = a.c; while ((i !== b.i || c !== b.c) && path.length < 14) { if (c !== b.c) c += Math.sign(b.c - c); else i += Math.sign(b.i - i); path.push({ i, c, roof: !!tile.roof }); } }
+    van.showWalk({ i: b.i, c: b.c, roof: !!tile.roof }, path);
+  }
+  // ช่องของของในรถ (key) → ช่องกระดาน
+  function propTile(key) { const t0 = van.PROP_TILE[key]; return t0 ? { ...gridToBoard(t0[0], t0[1]), roof: !!t0[2] } : null; }
   return {
-    update, pick: pickAt, hover: (hit) => van.hover(hit), van, camera, renderer,
+    update, pick: pickAt, tileAt, crewAt, showWalk, propTile, hover: (hit) => van.hover(hit), van, camera, renderer,
     info: () => renderer.info,
     dispose() {
       van.dispose(); world.dispose(); renderer.dispose(); // ไม่ forceContextLoss — แคนวาสเดิมอาจถูกใช้สร้างฉากใหม่ (StrictMode / ต่อสู้รอบถัดไป)

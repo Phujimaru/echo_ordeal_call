@@ -74,7 +74,13 @@ const ALTER_KEYS = Object.keys(ALTER);
 const Board = () => require("../server/board");
 const ClockUp = () => require("../server/clockUp");
 const eng = () => require("../server/engine").engine;
-const isEos = () => { try { return !!require("../server/fodlan").isEos(); } catch { return false; } };
+// "Eos" = โหมด PVE ร่วมมือ — สนาม Eos + Road Trip (ผู้ใช้สั่ง 2026-11-14 · server/pveMode.js)
+const isEos = () => require("../server/pveMode").isPveCoop();
+const isRt = () => require("../server/pveMode").isRoadtrip();
+// Road Trip (ผู้ใช้สั่ง 2026-11-14 — โหมดไม่มีจุดจบ): กับดักสูงสุด 6 · คลังแสง 4 ครั้งต่อเทิร์น · หัวหน้ามอน (elite) ไม่โดนสังหาร
+const RT_MINE_MAX = 6;
+const RT_ARSENAL_PER_TURN = 4;
+const mineMax = () => (isRt() ? RT_MINE_MAX : isEos() ? Infinity : MINE_MAX);
 
 const isMe = (p) => !!p && p.characterId === ID && !p.summon;
 // คลิปที่เล่นครั้งเดียวต่อเกม (ผู้ใช้สั่ง 2026-11-11: reload_when_alter · skill3_hit) — ที่เหลือเล่นทุกครั้ง
@@ -122,9 +128,9 @@ function around(engine, p, form) {
 const tileIn = (list, t) => !!t && list.some((c) => c.x === t.x && c.y === t.y);
 // คลังแสงเหลือกี่ครั้งในเทิร์นนี้ (สนาม Eos = ไม่จำกัด → Infinity)
 function arsenalLeft(engine, p) {
-  if (isEos()) return Infinity;
+  if (isEos() && !isRt()) return Infinity;
   const s = st(p);
-  return ARSENAL_PER_TURN - (s.arsenalRound === engine.roundNumber ? s.arsenalUses : 0);
+  return (isRt() ? RT_ARSENAL_PER_TURN : ARSENAL_PER_TURN) - (s.arsenalRound === engine.roundNumber ? s.arsenalUses : 0);
 }
 
 // ---------- ม่านควัน (match.board.smoke — Ice.overlayOf วางเป็น special "smoke") ----------
@@ -158,7 +164,7 @@ function tickSmoke(engine) {
 function layMine(engine, p, at) {
   const s = st(p);
   s.mines.push({ x: at.x, y: at.y, seq: ++s.mineSeq });
-  if (!isEos()) while (s.mines.length > MINE_MAX) s.mines.shift();
+  while (s.mines.length > mineMax()) s.mines.shift();
   engine.boardFx("kiriFx", { kind: "throw", id: p.id, from: { ...p.pos }, to: { ...at }, item: "mine" });
   engine.sfx("kiri_place");
 }
@@ -247,7 +253,7 @@ function shoot(engine, p, targets) {
     if (engine.skillDodge(p, t, "Thompson Contender")) continue;
     // skill3_shoot จบที่กระสุนกำลังพุ่ง → skill3_hit ต่อทันที (ไม่มีการ์ดคั่น) เมื่อไม่หลบ · คลิปยิงใน Time Alter มีจังหวะกระทบในตัว
     if (!landed) { landed = true; if (!alter) clipOnce(engine, p, CUT.hit); }
-    const boss = !!(t.summon && t.summon.trait === "boss");
+    const boss = require("../server/pveMode").isPveBoss(t) || (isRt() && !!(t.summon && t.summon.elite)); // บอส Eos / Road Trip + หัวหน้ามอน Road Trip ไม่โดนสังหาร
     if (eos && !boss && Math.random() * 100 < EOS_KILL) {
       engine.log(`🎯 ${p.name} Thompson Contender — สังหาร ${t.name}`);
       engine.instantDeath(t);
@@ -309,7 +315,7 @@ function land(engine, p, hit) {
 
 module.exports = {
   id: ID, IMG, VIDEO, CUT, MUSIC,
-  ARSENAL_COST, SMOKE_TURNS, MINE_DMG, MINE_MAX, BANDAGE, ALTER, ALTER_COST, ALTER_CD, ALTER_MOV,
+  ARSENAL_COST, SMOKE_TURNS, MINE_DMG, MINE_MAX, RT_MINE_MAX, RT_ARSENAL_PER_TURN, BANDAGE, ALTER, ALTER_COST, ALTER_CD, ALTER_MOV,
   SHOTS, RELOAD_COST, SHOT_LEN, DEBUFF_TURNS, EOS_ATK, ADREN_DELAY,
 
   resetCombat(p) { if (isMe(p)) p.kiri = fresh(); },
@@ -324,7 +330,7 @@ module.exports = {
         choices: ARSENAL_KEYS.map((k) => ({
           key: k, name: ARSENAL[k].name, img: IMG.arsenal, desc: `${ARSENAL[k].name}: ${ARSENAL[k].desc}`, cost: ARSENAL_COST,
           area: module.exports.skillArea(p, "basic", null, { form: k }),
-          ...(k === "mine" && !isEos() ? { left: MINE_MAX - s.mines.length } : {}),
+          ...(k === "mine" && mineMax() !== Infinity ? { left: mineMax() - s.mines.length } : {}),
           locked: arsenalLeft(engine, p) <= 0 || (k === "bandage" && p.armor >= engine.maxArmorOf(p)),
           free: true,
         })),

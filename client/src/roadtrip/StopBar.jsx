@@ -32,7 +32,7 @@ export default function StopBar({ rt, players = [], youId, onGarage, zoom = 1 })
       <CountRing endsAt={rt.endsAt} low={10} size={48} />
       <span className="rt-stop-div" aria-hidden="true" />
       <span className="rt-ready" aria-label="พร้อม">
-        {players.map((p) => {
+        {players.filter((p) => !p.summon && !p.duoOf).map((p) => { /* ตัวที่สองของระบบคู่/ยูนิตที่ถูกเรียก ไม่ได้กดพร้อมเอง (server RT.awake) */
           const img = p.character?.img || p.img;
           return (
             <span key={p.id} className="rt-ready-av" style={{ "--pc": p.color || "#999" }} data-ready={ready[p.id] ? "true" : "false"} data-dead={p.alive === false ? "true" : "false"} title={p.name}>

@@ -427,3 +427,57 @@ test("Eos Thompson: ไม่สังหาร + ติดคริ = (พล�
   assert.equal(t.hp, 18, "(1 + 5) × 2 = 12");
   void p;
 });
+
+// ---------- Road Trip (GRID_PLAN §8.8 — ผู้ใช้สั่ง 2026-11-14: บัฟ Eos ใช้ในโหมดนี้ด้วย · server/pveMode.js) ----------
+// โลก roadtrip เฉยๆ (ไม่ตั้ง gameMode — ไม่ให้ระบบทีมตัดสินจบเกมกลางเทสต์)
+function roadtrip(fn) {
+  const match = require("../../server/match");
+  const prev = match.world;
+  match.world = "roadtrip";
+  try { fn(); } finally { match.world = prev; }
+}
+test("Road Trip: Time Alter พลังโจมตี +2 · คริยังติด", () => {
+  const { p } = setup({ points: 20 });
+  use("secondary", "double");
+  roadtrip(() => {
+    assert.equal(kiri.damageBonus(engine, p), 2);
+    assert.equal(kiri.critPct(p), 50);
+  });
+  assert.equal(kiri.damageBonus(engine, p), 0, "นอก PVE ไม่มี");
+});
+test("Road Trip: คลังแสง 4 ครั้งต่อเทิร์น (ผู้ใช้สั่ง 2026-11-14)", () => {
+  const { p } = setup({ points: 20 });
+  roadtrip(() => { for (let i = 0; i < 5; i++) { p.armor = 0; use("basic", "bandage"); } });
+  assert.equal(p.skillPoints, 12, "ใช้ได้ 4 ครั้ง · ครั้งที่ 5 ไม่ได้");
+});
+
+test("Road Trip: กับดักสูงสุด 6 อัน อันเก่าสุดหาย", () => {
+  const { p } = setup({ points: 40 });
+  const lay = (x, y) => { p.kiri.arsenalUses = 0; engine.setActor("a"); use("basic", "mine", { tile: { x, y } }); };
+  roadtrip(() => {
+    for (const [x, y] of [[4, 4], [4, 5], [4, 6], [5, 4], [5, 6], [6, 4], [6, 6]]) lay(x, y);
+    assert.equal(p.kiri.mines.length, 6);
+    assert.ok(!p.kiri.mines.some((m) => m.x === 4 && m.y === 4), "อันแรกหาย");
+  });
+});
+
+test("Road Trip Thompson: ทุกตัวในแนว · สังหารมอน · บอส (summon.boss) และหัวหน้ามอน (summon.elite) ไม่โดนสังหาร", () => {
+  const { t, u } = setup();
+  u.pos = { x: 8, y: 5 }; u.hp = 30;
+  u.summon = { side: "rtmob", boss: true };
+  Math.random = () => 0.3;
+  try { roadtrip(() => engine.useSkill("a", "ultimate", [], { dir: "right" })); } finally { delete u.summon; }
+  assert.equal(t.alive, false, "สังหาร");
+  assert.equal(u.alive, true, "บอสไม่โดนสังหาร");
+  assert.equal(u.hp, 18, "บอส: (1 + 5) × คริ 2");
+});
+
+test("Road Trip Thompson: หัวหน้ามอน (elite) ไม่โดนสังหาร · Eos ยังสังหาร elite ได้", () => {
+  const { t } = setup();
+  t.hp = 30; t.armor = 0;
+  t.summon = { side: "rtmob", elite: true };
+  Math.random = () => 0.3;
+  try { roadtrip(() => engine.useSkill("a", "ultimate", [], { dir: "right" })); } finally { delete t.summon; }
+  assert.equal(t.alive, true, "หัวหน้ามอนไม่โดนสังหาร");
+  assert.equal(t.hp, 18, "(1 + 5) × คริ 2");
+});

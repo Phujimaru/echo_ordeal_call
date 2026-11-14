@@ -213,7 +213,11 @@ function usesLeft(p) {
 
 // ---------- Avalon ----------
 // ใช้สกิลสำเร็จ = ความจุแต้มสกิล +2 (เต็ม +20 แล้วไม่เพิ่ม · สนาม Eos ไม่มีเพดาน)
-function capLimit() { return require("../server/match").gameMode === "eos" ? Infinity : CAP_MAX; }
+const RT_CAP_MAX = 40;     // Road Trip (ผู้ใช้สั่ง 2026-11-14): โหมดไม่มีจุดจบ — เพดาน +40 แทนไม่จำกัด
+function capLimit() {
+  const M = require("../server/pveMode");
+  return M.isRoadtrip() ? RT_CAP_MAX : M.isEos() ? Infinity : CAP_MAX;
+}
 function growCapacity(engine, p) {
   if (!PassiveSeal.on(p)) return; // ลบสกิลติดตัว (server/passiveSeal.js)
   const s = st(p), lim = capLimit();
@@ -392,7 +396,7 @@ function awayDir(engine, p, t) {
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, FX, WEAPONS, WEAPON_KEYS, BEAT,
-  HP, ARMOR, BASE_SKILL, CAP_STEP, CAP_MAX, AVALON_AMT, AVALON_TURNS, AVALON_CD, TRACE_CD, WEAPON_TURNS, WEAPON_USES,
+  HP, ARMOR, BASE_SKILL, CAP_STEP, CAP_MAX, RT_CAP_MAX, capLimit, AVALON_AMT, AVALON_TURNS, AVALON_CD, TRACE_CD, WEAPON_TURNS, WEAPON_USES,
   EXCAL_TURNS, WS_CD, ULT_TURNS, ULT_CD, UBW, KB_CRIT, RULE_SEAL, THROW_DMG, THROW_BLEED, SMASH_DMG, SMASH_PUSH,
   RHO_GUARD, RHO_TURNS, RHO_COST, EXCAL_DMG, EXCAL_LEN, CAL_SPLASH, CAL_RADIUS, KB_UBW_BLEED, HR_UBW_ATK, RULE_UBW_PASSIVE, NINE_UBW_PUSH,
   isEmiya, ubwOn, weaponOf, caladbolgCost, caladbolgDmg, caladbolgPlan,

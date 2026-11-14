@@ -80,7 +80,7 @@ function hiddenFromOne(viewer, target) {
   //  ข้ามแค่ล่องหนของตัวละคร · พุ่มหญ้า/ม่านแดงยังบังตามปกติ
   if (stealthed(target) && !seenBy(eye, target)) return true;
   if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
-  if (target.summon && target.summon.side === "eosmob") return false; // มอนเตอร์ของสนาม Eos: ไม่ซ่อนในป่า/พุ่ม (บังแค่หมอก/พายุทราย — fodlan hides ด้านบน)
+  if (require("./pveMode").isPveMob(target)) return false; // มอนของโหมด PVE (Eos eosmob + Road Trip rtmob): ไม่ซ่อนในป่า/พุ่ม (บังแค่หมอก/พายุทราย — fodlan hides ด้านบน)
   if (!inBush(target)) return false;
   if (!viewer.alive || !viewer.pos) return true;
   const map = engine.boardMap();

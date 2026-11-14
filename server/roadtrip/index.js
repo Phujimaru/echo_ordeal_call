@@ -28,7 +28,7 @@ const Route = require("./route");
 const H = {
   timers: () => require("../timers"), view: () => require("../view"), combat: () => require("../combat"), action: () => require("../phases/action"),
   draw: () => require("../phases/draw"), shop: () => require("../shop"), summon: () => require("../summon"),
-  drive: () => require("./drive"), events: () => require("./events"), stop: () => require("./stop"), fight: () => require("./fight"), mobs: () => require("./mobs"),
+  drive: () => require("./drive"), vanwalk: () => require("./vanwalk"), events: () => require("./events"), stop: () => require("./stop"), fight: () => require("./fight"), mobs: () => require("./mobs"),
 };
 
 const SECS = { intro: 8, fork: 15, event: 20, gas: 150, motel: 60, eventResult: 3, combatIntro: 2.8, bossIntro: 4.5 }; // intro/combatIntro/bossIntro = เวลาให้ฉากเปลี่ยนฝั่ง client เล่นจบ (RtTransitions)
@@ -75,6 +75,7 @@ function start(introHold = 0) {
   const diff = DIFFS.includes(envDiff) ? envDiff : DIFFS.includes(match.rtDiff) ? match.rtDiff : "normal";
   match.rtDiff = diff;
   match.roadtrip = fresh(diff);
+  H.vanwalk().ensure(match.roadtrip); // ที่นั่งในรถตั้งต้น (ช่องคนขับว่าง)
   const rt = match.roadtrip;
   match.board = null;
   H.action().placeOnBoard(Maps.RT_ROAD); // ตำแหน่งจริงตอนขับไม่มีผล — กระดานพร้อมให้ view
@@ -336,6 +337,8 @@ function command(id, name, payload) {
     case "decor": case "style": case "paint": case "plate": ok = cosmetic(p, name, o); break;
     case "radio": ok = radio(p, o); break;
     case "rear": ok = H.fight().toggleRear(p); break;
+    case "vanWalk": ok = H.vanwalk().walk(p, o); break;   // เดินเล่นในรถตอนขับ
+    case "vanProp": ok = H.vanwalk().useProp(p, typeof o.prop === "string" ? o.prop : ""); break;
     case "swerve": ok = H.fight().swerve(p, o.side); break;
     case "turret": ok = H.fight().fireTurret(p, Number(o.x), Number(o.y)); break;
     case "roof": ok = H.fight().toggleRoof(p); break;
@@ -361,6 +364,14 @@ function cosmetic(p, name, o) {
 const YT_ID = /^[\w-]{11}$/, YT_LIST = /^[\w-]{10,64}$/;
 const STATIONS = 5;
 const YT_QUEUE = 20;
+function ytQueueItem(q) {
+  if (typeof q === "string") return YT_ID.test(q) ? { id: q, list: null, start: 0 } : null;
+  if (!q || typeof q !== "object") return null;
+  const id = typeof q.id === "string" && YT_ID.test(q.id) ? q.id : null;
+  const list = typeof q.list === "string" && YT_LIST.test(q.list) ? q.list : null;
+  if (!id && !list) return null;
+  return { id, list, start: Number.isFinite(q.start) ? Math.max(0, Math.min(86400, Math.floor(q.start))) : 0 };
+}
 function radio(p, o) {
   const r = match.roadtrip.radio;
   if (o.src === "off") { Object.assign(r, { src: "off", yt: null, by: p.id }); return true; }
@@ -376,7 +387,8 @@ function radio(p, o) {
     const list = typeof y.list === "string" && YT_LIST.test(y.list) ? y.list : null;
     if (!id && !list) return false;
     const startSec = Number.isFinite(y.start) ? Math.max(0, Math.min(86400, Math.floor(y.start))) : 0;
-    const queue = Array.isArray(y.queue) ? y.queue.filter((q) => typeof q === "string" && YT_ID.test(q)).slice(0, YT_QUEUE) : [];
+    // คิว = [{ id, list, start }] แบบที่ client ส่ง (radio.js addYouTube/next) — เดิมรับแค่ string → ทุกเพลงที่เข้าคิวหายเงียบ (QA 2026-11-14) · string id เดี่ยวยังรับ
+    const queue = Array.isArray(y.queue) ? y.queue.map(ytQueueItem).filter(Boolean).slice(0, YT_QUEUE) : [];
     Object.assign(r, { src: "yt", yt: { id, list, start: startSec, queue, at: Date.now() }, by: p.id });
     return true;
   }
@@ -402,10 +414,11 @@ function publicInfo(viewerId = null) {
     stop: rt.stop ? { kind: rt.stop.kind, shopId: rt.stop.shopId || null, ready: { ...rt.stop.ready }, acts: H.stop().publicActs(rt, viewerId), dog: rt.dog.fed } : null,
     actions: rt.combat ? H.fight().actionsOf() : {}, // ปุ่ม HUD สู้บนรถตู้ต่อผู้เล่น { [pid]: ["swerve"|"turret"|"roof"|"rear"] }
     combat: rt.combat ? { kind: rt.combat.kind, boss: rt.combat.boss || null, roofId: rt.combat.roofId || null, bossPhase: rt.combat.boss ? rt.combat.bossPhase || 1 : null, swerveReady: rt.combat.swerveReady || 0, round: rt.combat.round, rounds: rt.combat.rounds, scroll: rt.combat.scroll, warn: rt.combat.warn ? { by: rt.combat.warn.by, move: rt.combat.warn.move || null, tiles: rt.combat.warn.tiles, at: rt.combat.warn.at || null } : null } : null,
-    radio: { src: rt.radio.src, station: rt.radio.station, yt: rt.radio.yt ? { ...rt.radio.yt, queue: [...(rt.radio.yt.queue || [])] } : null, by: rt.radio.by },
+    radio: { src: rt.radio.src, station: rt.radio.station, yt: rt.radio.yt ? { ...rt.radio.yt, queue: (rt.radio.yt.queue || []).map((q) => ({ ...q })) } : null, by: rt.radio.by },
     now: Date.now(), // นาฬิกา server ตอนส่ง (client เทียบนับถอยหลัง endsAt/hazards.at)
     fx: rt.fx.slice(-FX_KEEP),
     summary: rt.summary,
+    ...H.vanwalk().publicInfo(rt), // vanPos { [id]: { x, y, roof } } · vanProps { [key]: { x, y, roof, state } }
     best: (leaderboard()[rt.diff] || [])[0] ? leaderboard()[rt.diff][0].km : 0,
   };
 }

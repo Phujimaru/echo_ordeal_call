@@ -330,3 +330,31 @@ test("อุ่นเครื่องพอแล้วเสริมลา�
   assert.equal(t.statuses.hburn, 3);
   assert.equal(u.statuses.hburn, 3);
 });
+
+test("Road Trip (ผู้ใช้สั่ง 2026-11-14): ลาทัมเพดาน 10 (PVP 5 · Eos ไม่จำกัด)", () => {
+  const { p, t } = setup();
+  const prev = match.world;
+  match.world = "roadtrip";
+  try {
+    t.hp = 30;
+    p.inventory.push({ uid: "i1", type: "lifeCrystal", price: 15 });
+    use("ultimate", "latom:i1", { dir: "right" });
+    runBeats();
+    assert.equal(t.hp, 20);
+  } finally { match.world = prev; }
+});
+
+test("เพดานดาเมจ: PVP ตามค่าเดิม · Road Trip 10 · Eos ไม่จำกัด (ระเบิดลุกไหม้ + ลาทัม)", () => {
+  setup();
+  assert.equal(sh.capped(15, sh.DETONATE_PVP_CAP), 4);
+  const prev = match.world;
+  match.world = "roadtrip";
+  try {
+    assert.equal(sh.capped(15, sh.DETONATE_PVP_CAP), 10);
+    assert.equal(sh.capped(7, sh.DETONATE_PVP_CAP), 7);
+    assert.equal(sh.capOf(sh.LATOM.pvpCap), 10);
+  } finally { match.world = prev; }
+  engine.setGameMode("eos");
+  assert.equal(sh.capped(15, sh.DETONATE_PVP_CAP), 15);
+  assert.equal(sh.capOf(sh.LATOM.pvpCap), null);
+});

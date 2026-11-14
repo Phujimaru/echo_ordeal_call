@@ -45,6 +45,7 @@ function driverOk(rt, now = Date.now()) {
     H().fx("seat", { id: null, idle: true });
   }
   if (rt.van.seatReq && (!match.players[rt.van.seatReq] || !rt.van.driverId)) rt.van.seatReq = null;
+  require("./vanwalk").syncDriver(rt); // ตำแหน่งในรถตามคนขับ (ปล่อยที่นั่ง = ขยับออกจากช่องคนขับ)
 }
 
 // หนึ่งจังหวะ (dt = มิลลิวินาที) — เทสต์เรียกตรงได้
@@ -120,6 +121,14 @@ function command(p, name, o) {
   const RT = H(), rt = match.roadtrip, van = rt.van;
   const driving = ["intro", "drive", "fork", "event"].includes(rt.phase);
   if (name === "seat") {
+    const ok = seatCmd(p, o, RT, rt, van);
+    if (ok) require("./vanwalk").syncDriver(rt); // นั่ง = ไปยืนช่องคนขับ · ยกให้ = สลับที่ · ลุก = ขยับออก
+    return ok;
+  }
+  return driveCmd(p, name, o, RT, rt, van, driving);
+}
+function seatCmd(p, o, RT, rt, van) {
+  {
     if (!p.alive) return false;
     if (o.seat === "driver") {
       if (van.driverId === p.id) return false;
@@ -149,6 +158,8 @@ function command(p, name, o) {
     RT.fx("seat", { id: null });
     return true;
   }
+}
+function driveCmd(p, name, o, RT, rt, van, driving) {
   if (name === "horn") {
     const now = Date.now();
     if (rt.hornAt && now - rt.hornAt < 600) return false;

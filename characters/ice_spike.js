@@ -66,13 +66,18 @@ const EOS_BREAK_PER_TURN = 4;
 const EOS_BURST_DMG = 3;                   // ติดตัว 3: Shock Wave 3 หน่วย (ผลัก 2 + เชื่องช้า 1 — ค่าเดิมของ server/ice.js)
 const EOS_SURGE_DMG = 2;                   // Ice Surge: Shock Wave 2 หน่วยทั้งสนาม
 const EOS_SURGE_SPIKE_LV = 3;              // ระหว่าง Ice Surge หนามที่สร้างใหม่ = Lv3 ทันที
-const eosState = () => {
-  const Fodlan = require("../server/fodlan");
-  const m = require("../server/match");
-  return Fodlan.isEos() && m.fodlan && m.fodlan.s && m.fodlan.s.eos ? m.fodlan.s.eos : null;
-};
-const eosOn = () => !!eosState();
+// Road Trip (ผู้ใช้สั่ง 2026-11-14 — บัฟ Eos ใช้ในโหมดนี้ด้วย · server/pveMode.js): ไม่มีแต้มรวม/เป้า → LV ตามระยะทาง
+//  LV1 ตอนออกรถ · +1 ทุก RT_LV_KM กม. (LV5 ที่ 100 กม. = บอสตัวที่ 2 — Claude ตัดสิน · ระยะไม่ลดอยู่แล้ว)
+const RT_LV_KM = 25;
+// Road Trip: ความเสียหาย Shock Wave ต่อครั้งไม่เกิน 6 (ผู้ใช้สั่งให้มีเพดาน 2026-11-14 · ค่า 6 = Claude ตัดสิน — เท่าซ้อนทับ LV1)
+const RT_SHOCK_MAX = 6;
+const shockDmg = (n) => (require("../server/pveMode").isRoadtrip() ? Math.min(RT_SHOCK_MAX, n) : n);
+const PVE = () => require("../server/pveMode");
+const eosState = () => PVE().eosState();
+const eosOn = () => PVE().pveActive();
 function eosLv() {
+  const M = PVE();
+  if (M.isRoadtrip()) return M.pveActive() ? Math.min(EOS_LV_MAX, 1 + Math.floor(M.rtKm() / RT_LV_KM)) : 0;
   const s = eosState();
   if (!s) return 0;
   s.iceSpikePeak = Math.max(s.iceSpikePeak || 0, s.score || 0);
@@ -107,7 +112,7 @@ module.exports = {
   id: ID,
   IMG, STRIKE_MAX, REGEN_HP_EVERY, REGEN_SP_EVERY, OWN_SPIKE_SP, SPIKE_PER_TURN, SURGE_SPIKE_PER_TURN, ULT_COOLDOWN, SURGE_TURNS, SURGE_REGEN, SURGE_RANGE,
   CAST_RANGE, BREAK_PER_TURN, BREAK_KEY, isIceSpike, surging, EOS_SHOCK_PCT, EOS_PIERCE_LV, EOS_BREAK_PER_TURN, breakLimit,
-  EOS_STACK, EOS_SHOCK_R, EOS_BURST_DMG, EOS_SURGE_DMG, EOS_SURGE_SPIKE_LV, eosLv,
+  EOS_STACK, EOS_SHOCK_R, EOS_BURST_DMG, EOS_SURGE_DMG, EOS_SURGE_SPIKE_LV, eosLv, RT_LV_KM, RT_SHOCK_MAX, shockDmg,
   // ป้าย LV บน HUD (server/view.js iceLv → client Game.jsx) — นอก Eos = null
   eosInfo() {
     const lv = eosLv();
@@ -283,19 +288,19 @@ module.exports = {
     if (!lv) return;
     const dmg = Math.floor(Math.min(EOS_STACK[lv], n) * EOS_SHOCK_PCT[lv] / 100);
     if (dmg <= 0) return; // ปัดลงได้ 0 = คลื่นไม่มีผล (ไม่เล่นภาพ)
-    engine.ice.shockWave(p, boxAt(engine, u, at), { range: EOS_SHOCK_R[lv], square: true, dmg, exclude: [u.id], label: "Shock Wave" }, ctx);
+    engine.ice.shockWave(p, boxAt(engine, u, at), { range: EOS_SHOCK_R[lv], square: true, dmg: shockDmg(dmg), exclude: [u.id], label: "Shock Wave" }, ctx);
   },
   // Eos ติดตัว 3: ดาเมจสะสมครบ 3 → Shock Wave 3 หน่วยรอบตัว ระยะตาม LV (แทนวง 8 ช่อง) · ผลัก 2 + เชื่องช้า 1 (server/ice.js burstNow)
   burstSpec(engine, p) {
     const lv = isIceSpike(p) ? eosLv() : 0;
-    return lv ? { range: EOS_SHOCK_R[lv], square: true, dmg: EOS_BURST_DMG, label: "Shock Wave" } : null;
+    return lv ? { range: EOS_SHOCK_R[lv], square: true, dmg: shockDmg(EOS_BURST_DMG), label: "Shock Wave" } : null;
   },
   // Eos สกิลรอง: หนามของ Ice Spike ทำงาน (ไถล/ผลัก/พุ่งชน/เหยียบ) → Shock Wave รอบหนาม ดาเมจเท่า Lv ของหนาม (1/2/3) · ระยะตาม LV
   //  ผู้ชนไม่โดนคลื่นซ้ำ (โดนดาเมจหนามไปแล้ว — Claude ตัดสิน) · Ice Spike ชนหนามตัวเองก็เกิดคลื่น (แต้มสกิล +2 ไม่เสียหายตามเดิม)
   spikeShock(engine, owner, at, spikeLv, hitter, ctx) {
     const lv = isIceSpike(owner) ? eosLv() : 0;
     if (!lv || !(spikeLv > 0)) return;
-    engine.ice.shockWave(owner, at, { range: EOS_SHOCK_R[lv], square: true, dmg: spikeLv, exclude: hitter ? [hitter.id] : [], label: "Shock Wave" }, ctx);
+    engine.ice.shockWave(owner, at, { range: EOS_SHOCK_R[lv], square: true, dmg: shockDmg(spikeLv), exclude: hitter ? [hitter.id] : [], label: "Shock Wave" }, ctx);
   },
 
   // ---------- ติดตัว 3: ฟื้นจากการไถล · สะสมดาเมจ ----------
@@ -419,6 +424,6 @@ function castSurge(engine, p, ctx) {
   const raised = engine.ice.raiseAllSpikes();
   for (const r of raised) ctx.events.push({ kind: "spikeUp", ...r });
   // Eos: Shock Wave 2 หน่วยทั้งสนาม
-  if (eosLv()) engine.ice.shockWave(p, p.pos, { range: SURGE_RANGE, dmg: EOS_SURGE_DMG, label: "Ice Surge" }, ctx);
+  if (eosLv()) engine.ice.shockWave(p, p.pos, { range: SURGE_RANGE, dmg: shockDmg(EOS_SURGE_DMG), label: "Ice Surge" }, ctx);
   engine.log(`🧊 ${p.name} Ice Surge — หนามน้ำแข็ง +1 Lv ${raised.length} อัน · ระยะสกิลทั้งสนาม ${SURGE_TURNS} เทิร์น · ฟื้นพลัง ${SURGE_REGEN} ขั้น`);
 }

@@ -24,7 +24,7 @@
 //      ศัตรูทุกคนที่พุ่งผ่าน: ล้างต้านสถานะ → ความเสียหาย ราคาไอเทม (ขั้นต่ำ 1) + บัฟพลังโจมตี (PVP ≤ 5 · PVE ไม่จำกัด) → ลุกไหม้ 2
 //      มีปฏิกิริยาธาตุอย่างน้อย 1 คน = มอดไหม้จากภายใน 2 เทิร์น: ตีปกติระเบิดลุกไหม้บนเป้าเป็นดาเมจเพิ่ม แล้วลบลุกไหม้ที่ระเบิด
 //        (PVP นับสูงสุด 4 — ที่เกินค้างไว้) · ลำดับ: ระเบิดก่อน แล้วติดลุกไหม้ใหม่จากการตีครั้งนั้น
-//  PVE = สนาม Eos + Moon Cell (สู้ AI)
+//  PVE = สนาม Eos + Road Trip + Moon Cell (สู้ AI)
 // ============================================================
 const PassiveSeal = require("../server/passiveSeal");
 const Board = require("../server/board");
@@ -68,6 +68,7 @@ const WARM_LATOM = { ember: 2, len: 8, burn: 3 }; // ลาทัม (ผู้�
 const WARM = { sp: 6, turns: 5, selfBurn: 5 };
 const LATOM = { sp: 3, ember: 4, cd: 2, len: 6, burn: 2, accurate: 2, smolder: 2, pvpCap: 5 };
 const DETONATE_PVP_CAP = 4;
+const RT_CAP = 10; // Road Trip (ผู้ใช้สั่ง 2026-11-14): ลาทัม + ระเบิดลุกไหม้ เพดาน 10 · Eos/Moon ไม่จำกัด
 const HBURN_MAX = 6;
 // จังหวะฉาก (ms) — client SHINRA_T ต้องตรงกัน
 const T = { stormBeat: 0.75, latomCharge: 380, latomStep: 70, latomTail: 200 }; // ดาเมจลาทัมลงตอนระเบิดปิดท้ายเริ่ม (client LATOM_BOOM)
@@ -98,7 +99,10 @@ const latomEmber = (p) => (warmOn(p) ? WARM_LATOM.ember : LATOM.ember);
 const latomLen = (p) => (warmOn(p) ? WARM_LATOM.len : LATOM.len);
 const latomBurn = (p) => (warmOn(p) ? WARM_LATOM.burn : LATOM.burn);
 const stormDmg = (p) => (warmOn(p) ? WARM_STORM.dmg : STORM.dmg);
-const pve = () => { const m = matchOf().gameMode; return m === "eos" || m === "moon"; };
+const pve = () => { const M = require("../server/pveMode"); return M.isPveCoop() || M.isMoon(); }; // Eos + Road Trip (2026-11-14) + Moon Cell
+// เพดานดาเมจ: Road Trip = RT_CAP · PVE อื่น = ไม่มี (null) · PVP = ค่า pvp
+const capOf = (pvp) => (require("../server/pveMode").isRoadtrip() ? RT_CAP : pve() ? null : pvp);
+const capped = (n, pvp) => { const c = capOf(pvp); return c == null ? n : Math.min(c, n); };
 const passiveOn = (p) => PassiveSeal.on(p);
 // ค่าสถานะของร่างที่สวมอยู่ (Echo สวมชินระ = statId "kusakabe_shinra")
 function baseMov(p) {
@@ -187,7 +191,7 @@ function latomHit(engine, p, t, item) {
 
 module.exports = {
   id: ID,
-  IMG, SFX, FX, VIDEO, CUT, PASSIVE, NAMES, WARM_HERO, WARM_STORM, WARM_LATOM, EMBER_MAX, EMBER_MAX_WARM, HERO, STORM, WARM, LATOM, DETONATE_PVP_CAP, T,
+  IMG, SFX, FX, VIDEO, CUT, PASSIVE, NAMES, WARM_HERO, WARM_STORM, WARM_LATOM, EMBER_MAX, EMBER_MAX_WARM, HERO, STORM, WARM, LATOM, DETONATE_PVP_CAP, RT_CAP, capOf, capped, T,
   isMe, heroOn, warmOn, smolderOn, planLatom,
 
   resetCombat(p) {
@@ -217,16 +221,16 @@ module.exports = {
   damageBonus(engine, attacker, target) {
     if (!smolderOn(attacker) || !engine.inStrike() || !target || !target.statuses) return 0;
     const burn = target.statuses.hburn || 0;
-    return pve() ? burn : Math.min(DETONATE_PVP_CAP, burn);
+    return capped(burn, DETONATE_PVP_CAP);
   },
   // เพดานดาเมจลาทัมใน PVP
-  damageCap(engine, p) { return isMe(p) && st(p).latomHit && !pve() ? LATOM.pvpCap : null; },
+  damageCap(engine, p) { return isMe(p) && st(p).latomHit ? capOf(LATOM.pvpCap) : null; },
   onStrikeLanded(engine, attacker, target, { counter } = {}) {
     if (!isMe(attacker) || counter || !target || !target.alive) return [];
     const out = [];
     const s = st(attacker);
     if (smolderOn(attacker) && target.statuses && target.statuses.hburn > 0) {
-      const burn = target.statuses.hburn, n = pve() ? burn : Math.min(DETONATE_PVP_CAP, burn);
+      const burn = target.statuses.hburn, n = capped(burn, DETONATE_PVP_CAP);
       target.statuses.hburn = burn - n;
       if (target.statuses.hburn <= 0) delete target.statuses.hburn;
       engine.log(`💥 ${attacker.name} ${NAMES.smolder} — ระเบิดลุกไหม้ ${n} หน่วยบนตัว ${target.name}`);
@@ -277,7 +281,7 @@ module.exports = {
     }
     if (tier === "ultimate") {
       const latomCd = cdLeft(s.latomReady, r);
-      const cap = pve() ? null : LATOM.pvpCap;
+      const cap = capOf(LATOM.pvpCap);
       const items = sacrificeable(p);
       const latomArea = { kind: "line", len: latomLen(p), width: 1, hostile: true };
       const latomLocked = latomCd > 0 || s.ember < latomEmber(p);

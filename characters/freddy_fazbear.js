@@ -33,7 +33,7 @@ const CUT = { scare: "freddyScare", night: "freddyScareNight" };
 // คีย์ใน client/src/audio.js (ไฟล์ client/public/characters/freddy_fazbear/sfx/ — ไฟล์จากผู้ใช้)
 const SFX = { growl1: "freddy_growl_1", growl2: "freddy_growl_2", box: "freddy_box", steps: "freddy_steps" };
 const MOV = { day: 4, night: 9 };
-const ATK = { day: 4, night: 3, pve: 6 };
+const ATK = { day: 4, night: 3, pve: 6, rt: 5 }; // rt = Road Trip (ผู้ใช้สั่ง 2026-11-14)
 const PVE_CRIT = 50;
 const CANTO = 3;
 const KILL_HEAL = 2;
@@ -46,7 +46,7 @@ function eng() { return require("../server/engine").engine; }
 const isFreddy = (p) => !!p && p.characterId === ID && !p.summon;
 const st = (p) => p.freddy || (p.freddy = fresh());
 const fresh = () => ({ cantoRound: -1, penalty: false, door: null, scare: false, stepRound: -1, used: {} });
-const pveMode = (engine) => engine.world === "eos" || engine.world === "moon" || engine.gameMode === "moon";
+const pveMode = () => { const M = require("../server/pveMode"); return M.isPveCoop() || M.isMoon(); }; // Eos + Road Trip (2026-11-14) + Moon Cell
 const nightNow = (engine) => pveMode(engine) || !!engine.isNightRound(engine.roundNumber);
 const botSide = (u) => !u || !!u.summon || u.connected === false;
 const randDoor = () => DOORS[Math.floor(Math.random() * DOORS.length)];
@@ -121,7 +121,7 @@ module.exports = {
   mov(p) { return isFreddy(p) ? (nightNow(eng()) ? MOV.night : MOV.day) : null; },
   attackBaseOverride(engine, attacker) {
     if (!isFreddy(attacker)) return 1;
-    return pveMode(engine) && PassiveSeal.on(attacker) ? ATK.pve : nightNow(engine) ? ATK.night : ATK.day;
+    return pveMode(engine) && PassiveSeal.on(attacker) ? (require("../server/pveMode").isRoadtrip() ? ATK.rt : ATK.pve) : nightNow(engine) ? ATK.night : ATK.day;
   },
   critPct(p) { return isFreddy(p) && pveMode(eng()) && PassiveSeal.on(p) ? PVE_CRIT : 0; },
 

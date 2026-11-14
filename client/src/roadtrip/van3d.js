@@ -166,7 +166,8 @@ export function createVanSfx() {
 
 // ================================================================ createVan
 export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} } = {}) {
-  const sfx = (n) => onSfx(n);
+  const sfx = (n) => { if (!quiet) onSfx(n); };
+  const tog = (st, cur) => (st === undefined || st === null ? !cur : !!st);
   const W = 3.4, HW = W / 2, T = 0.12, FLOOR = VAN_FLOOR;
   const tileX = (i) => 2.5 - i;
   const ownedTex = []; // เท็กซ์เจอร์ที่ต้อง dispose
@@ -188,7 +189,15 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
 
   const paint = new THREE.MeshPhysicalMaterial({ color: 0x7fb8d8, roughness: 0.32, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.12 });
   const paintMats = [paint];
+  // ของในรถ: key คงที่ (ใช้ร่วมกับ server — rt:vanProp / state.roadtrip.vanProps / fx vanProp) · act(st) — st ไม่ระบุ = สลับ/เล่นในเครื่อง · ระบุ = ตั้งเป็นค่านั้น
+  const PROP_KEY = { "แตร": "horn", "วิทยุ": "radio", "ช่องเก็บของ": "glove", "พัดลม": "fan", "หมาหัวโยก": "bob", "เกียร์": "gear", "ประตูท้าย": "rear", "ที่นั่งคนขับ": "seat", "สวิตช์ไฟ": "light", "ซันรูฟ": "hatch", "โต๊ะเกม": "table", "หมอน": "pillow", "กล่องเครื่องมือ": "tool", "ตู้เย็น": "fridge", "ไมโครเวฟ": "micro", "กระติกน้ำแข็ง": "cooler", "กีตาร์": "guitar", "ผ้าม่าน": "curtain", "กล้องส่องทางไกล": "binoc", "กล้องดูดาว": "scope", "เตาปิ้งย่าง": "grill", "เก้าอี้อาบแดด": "lounge", "ร่ม": "umbrella", "ป้อมปืน": "turret" };
+  const PROPS = new Map(); // key → group
+  let quiet = false; // ตั้งสถานะจาก state (ไม่เล่นเสียง)
   function interactive(g, name, act) {
+    const base = PROP_KEY[name] || name;
+    let key = base;
+    if (PROPS.has(key) || base === "pillow" || base === "curtain") { let n = 0; while (PROPS.has(base + n)) n++; key = base + n; }
+    PROPS.set(key, g); g.userData.pkey = key;
     dyn(g); g.userData.act = act; g.userData.iname = name;
     const clones = new Map(); // วัสดุโคลนครั้งเดียวต่อชิ้น (ไฮไลต์แยกชิ้น แต่ยังรวม mesh ในชิ้นเดียวกันได้)
     g.traverse((m) => {
@@ -459,7 +468,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const gloveIn = grp(2.92, 1.18, -1.0, interior);
   mesh(box(0.15, 0.03, 0.4), std(0xf2d36b), 0, 0, 0, gloveIn).rotation.z = 0.3;
   mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 16), trim, 0, 0.05, -0.1, gloveIn).rotation.x = Math.PI / 2;
-  interactive(glove, "ช่องเก็บของ", () => { gloveA.tgt = gloveA.tgt ? 0 : 1.05; sfx("click"); });
+  interactive(glove, "ช่องเก็บของ", (st) => { gloveA.tgt = tog(st, gloveA.tgt) ? 1.05 : 0; sfx("click"); });
 
   // พัดลมหน้ารถ
   const fan = grp(3.2, 1.87, -0.6, interior);
@@ -471,7 +480,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const fanBlades = grp(-0.02, 0, 0, fanHead);
   for (let k = 0; k < 4; k++) { const b = mesh(box(0.01, 0.13, 0.06), std(0x8fd0ff, { transparent: true, opacity: 0.85 }), 0, 0, 0, fanBlades); b.rotation.x = k / 4 * TAU; b.translateY(0.07); }
   let fanOn = false;
-  interactive(fan, "พัดลม", () => { fanOn = !fanOn; sfx("click"); });
+  interactive(fan, "พัดลม", (st) => { fanOn = tog(st, fanOn); sfx("click"); });
 
   // ตุ๊กตาหมาหัวโยก
   const bob = grp(3.22, 1.87, -0.12, interior);
@@ -502,7 +511,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   mesh(new THREE.SphereGeometry(0.055, 16, 12), std(0x15171a, { roughness: 0.3 }), 0, 0.34, 0, gear);
   const gearA = anim(gear, "rotation", "z");
   interactive(gear, "เกียร์", () => { sfx("click"); onAction("seat"); });
-  interactive(rearDoors, "ประตูท้าย", () => { setRear(!rearOpen); sfx("creak"); });
+  interactive(rearDoors, "ประตูท้าย", (st) => { setRear(tog(st, rearOpen)); sfx("creak"); });
 
   // เบาะ
   const fabric = std(0x3f8f8a, { roughness: 0.95 });
@@ -532,7 +541,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const sw = grp(1.85, 1.55, -1.565, upper);
   mesh(rbox(0.12, 0.18, 0.025, 0.01), cream, 0, 0, 0, sw);
   const swKnob = dyn(mesh(box(0.04, 0.07, 0.03), trim, 0, 0.02, 0.015, sw));
-  interactive(sw, "สวิตช์ไฟ", () => { lightsOn = !lightsOn; swKnob.position.y = lightsOn ? -0.02 : 0.02; sfx("click"); applyLights(); });
+  interactive(sw, "สวิตช์ไฟ", (st) => { lightsOn = tog(st, lightsOn); swKnob.position.y = lightsOn ? -0.02 : 0.02; sfx("click"); applyLights(); });
 
   // แถว 2: บันได + ซันรูฟ + แผนที่ + พรม
   {
@@ -545,7 +554,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     const hit = grp(0.5, 3.25, 0, upper);
     mesh(box(0.85, 0.05, 0.85), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }), 0, 0, 0, hit).castShadow = false;
     mesh(box(0.06, 0.06, 0.2), chrome, 0.38, -0.02, 0, hit);
-    interactive(hit, "ซันรูฟ", () => { hatchA.tgt = hatchA.tgt ? 0 : 1.15; sfx("creak"); });
+    interactive(hit, "ซันรูฟ", (st) => { hatchA.tgt = tog(st, hatchA.tgt) ? 1.15 : 0; sfx("creak"); });
   }
   mesh(new THREE.PlaneGeometry(0.8, 0.56), new THREE.MeshStandardMaterial({ map: tex(256, 180, (g) => {
     g.fillStyle = "#f3e7c6"; g.fillRect(0, 0, 256, 180); g.strokeStyle = "#7a5a3a"; g.lineWidth = 6; g.strokeRect(3, 3, 250, 174);
@@ -606,7 +615,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   mesh(box(0.82, 0.06, 0.56), std(0xa8322a, { roughness: 0.4, metalness: 0.35 }), 0, 0.03, -0.28, toolLid);
   mesh(box(0.4, 0.04, 0.04), chrome, 0, 0.1, -0.28, toolLid);
   const toolA = anim(toolLid, "rotation", "x");
-  interactive(tool, "กล่องเครื่องมือ", () => { toolA.tgt = toolA.tgt ? 0 : 1.25; sfx("clank"); });
+  interactive(tool, "กล่องเครื่องมือ", (st) => { toolA.tgt = tog(st, toolA.tgt) ? 1.25 : 0; sfx("clank"); });
 
   // แถว 5 ขวา: ตู้เย็น + ไมโครเวฟ
   const fridge = grp(tileX(5), FLOOR, 1.1, interior);
@@ -637,7 +646,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     mesh(box(0.1, 0.1, 0.01), std(0x8fd3b0), -0.45, 1.25, -0.065, fridgeDoor).rotation.z = 0.2;
   }
   const fridgeA = anim(fridgeDoor, "rotation", "y");
-  interactive(fridge, "ตู้เย็น", () => { fridgeA.tgt = fridgeA.tgt ? 0 : -1.7; fridgeGlow.material.emissiveIntensity = fridgeA.tgt ? 1.4 : 0; sfx("pop"); });
+  interactive(fridge, "ตู้เย็น", (st) => { fridgeA.tgt = tog(st, fridgeA.tgt) ? -1.7 : 0; fridgeGlow.material.emissiveIntensity = fridgeA.tgt ? 1.4 : 0; sfx("pop"); });
   const micro = grp(tileX(5), FLOOR + 1.35, 1.15, interior);
   mesh(rbox(0.6, 0.34, 0.42, 0.03), std(0xe6e6e0, { roughness: 0.4 }), 0, 0.17, 0, micro);
   const microWin = mesh(new THREE.PlaneGeometry(0.36, 0.22), new THREE.MeshStandardMaterial({ color: 0x1b232b, emissive: 0xffc46b, emissiveIntensity: 0, roughness: 0.1 }), -0.06, 0.17, -0.212, micro);
@@ -645,6 +654,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   for (let k = 0; k < 3; k++) mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 10), trim, 0.21, 0.25 - k * 0.07, -0.215, micro).rotation.x = Math.PI / 2;
   let microT = 0;
   interactive(micro, "ไมโครเวฟ", () => { if (microT <= 0) { microT = 2.1; sfx("hum"); } });
+  const ONE_SHOT = new Set(["micro", "table", "bob", "guitar", "pillow0", "pillow1", "lounge", "turret", "horn", "radio", "gear", "seat", "binoc", "scope"]);
 
   // แถว 6: กระติก · กีตาร์ · กระเป๋า · คันเบ็ด
   const cooler = grp(tileX(6), FLOOR, -1.05, interior);
@@ -655,7 +665,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   mesh(rbox(0.72, 0.08, 0.52, 0.03), std(0xf6f6f2, { roughness: 0.4 }), 0, 0.04, 0.26, coolLid);
   mesh(box(0.3, 0.04, 0.05), std(0x3f78c4), 0, 0.1, 0.26, coolLid);
   const coolA = anim(coolLid, "rotation", "x");
-  interactive(cooler, "กระติกน้ำแข็ง", () => { coolA.tgt = coolA.tgt ? 0 : -1.2; sfx("pop"); });
+  interactive(cooler, "กระติกน้ำแข็ง", (st) => { coolA.tgt = tog(st, coolA.tgt) ? -1.2 : 0; sfx("pop"); });
   const guitar = grp(-3.82, FLOOR, -0.35, interior); guitar.rotation.z = 0.22;
   {
     const wood = std(0xd99a52, { roughness: 0.35 }), dark = std(0x5a3a22, { roughness: 0.5 });
@@ -689,7 +699,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       mesh(g, curtainMat, 0, 0, 0, piv);
       piv.scale.x = 0.18; const a = anim(piv, "scale", "x"); a.tgt = 0.18; halves.push(a);
     }
-    interactive(cg, "ผ้าม่าน", () => { halves.forEach((a) => (a.tgt = a.tgt > 0.5 ? 0.18 : 1)); sfx("swish"); });
+    interactive(cg, "ผ้าม่าน", (st) => { const on = tog(st, halves[0].tgt > 0.5); halves.forEach((a) => (a.tgt = on ? 1 : 0.18)); sfx("swish"); });
   }
 
   // ไฟประดับในรถ (สวิตช์ไฟ)
@@ -921,7 +931,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const smokeGeo = new THREE.SphereGeometry(0.1, 10, 8);
   for (let k = 0; k < 8; k++) { const sp = new THREE.Mesh(smokeGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd, transparent: true, opacity: 0, depthWrite: false })); sp.userData.k = k / 8; grill.add(dyn(sp)); smoke.push(sp); }
   let grillOn = false;
-  interactive(grill, "เตาปิ้งย่าง", () => { grillOn = !grillOn; if (grillOn) sfx("sizzle"); coals.material.emissiveIntensity = grillOn ? 1.6 : 0; });
+  interactive(grill, "เตาปิ้งย่าง", (st) => { grillOn = tog(st, grillOn); if (grillOn) sfx("sizzle"); coals.material.emissiveIntensity = grillOn ? 1.6 : 0; });
   const frameMetal = std(0xdfe4e8, { metalness: 0.5, roughness: 0.3 });
   const lounge = grp(-0.5, RY, 1, roofDeck);
   {
@@ -936,7 +946,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
   const canopy = grp(0, 1.4, 0, umb);
   mesh(new THREE.ConeGeometry(0.75, 0.3, 12, 1, true), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.8, map: tex(128, 16, (g) => { for (let k = 0; k < 12; k++) { g.fillStyle = k % 2 ? "#ff8a3d" : "#fff6e0"; g.fillRect(k * 128 / 12, 0, 128 / 12 + 1, 16); } }) }), 0, 0, 0, canopy);
   const canopyA = anim(canopy, "scale", "x"), canopyB = anim(canopy, "scale", "z");
-  interactive(umb, "ร่ม", () => { const v = canopyA.tgt > 0.5 ? 0.15 : 1; canopyA.tgt = canopyB.tgt = v; sfx("swish"); });
+  interactive(umb, "ร่ม", (st) => { const v = tog(st, canopyA.tgt > 0.5) ? 1 : 0.15; canopyA.tgt = canopyB.tgt = v; sfx("swish"); });
   mesh(new THREE.PlaneGeometry(0.9, 0.9), new THREE.MeshStandardMaterial({ map: tex(64, 64, (g) => { for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? "#d9534f" : "#fff6e0"; g.fillRect(i * 8, j * 8, 8, 8); } }), roughness: 1 }), -1.5, RY + 0.008, 0, roofDeck).rotation.x = -Math.PI / 2;
   let turretFire = 0, turretAim = 0;
   interactive(parts["ป้อมปืน"].g, "ป้อมปืน", () => { turretAim = (Math.random() - 0.5) * 1.6; turretFire = 0.5; sfx("gun"); });
@@ -1150,7 +1160,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     if (board) hatchA.tgt = roofStand ? 1.15 : 0;
     gridGroup.visible = m === "cut";
     upper.visible = !board; rearDoors.scale.y = board ? 0.4 : 1; // กระดาน: ผนังเตี้ย — ซ่อนของสูง · ประตูท้ายเตี้ยลง (ยังเห็นเปิด/ปิด)
-    driverPiece.visible = !!driverKey && m !== "drv";
+    driverPiece.visible = !!driverKey && m !== "drv" && !CREW.size;
     glass.opacity = m === "drv" ? 0.1 : glass.userData.base;
   }
   function setView(m) { if (m === viewMode) return; const was = viewMode; viewMode = m; if ((was === "board") !== (m === "board")) applyStyle(); applyView(); }
@@ -1227,7 +1237,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
       if (o.material.transparent && o.material.opacity < 0.6 && !o.userData.owner) continue;
       let p = o; while (p && !p.userData.act) p = p.parent;
       if (!p) return null;
-      return { name: p.userData.iname, group: p, run: () => p.userData.act() };
+      return { name: p.userData.iname, key: p.userData.pkey, group: p, run: () => p.userData.act() };
     }
     return null;
   }
@@ -1238,6 +1248,165 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     if (g === hovered) return;
     const set = (grp, on) => grp && grp.traverse((m) => { if (m.isMesh && m.userData.baseEm && m.material.emissive) m.material.emissive.copy(on ? HL : m.userData.baseEm); });
     set(hovered, false); hovered = g; set(hovered, true);
+  }
+
+  // ---------------------------------------------------------------- ของในรถใช้ร่วมกัน (state.roadtrip.vanProps / fx vanProp)
+  const propState = new Map();
+  // ตั้งสถานะค้าง (เปิด/ปิด) ตาม state — เงียบ · ของเล่นครั้งเดียวไม่เล่นซ้ำจาก state
+  function setPropStates(obj) {
+    if (!obj) return;
+    for (const k in obj) {
+      const v = obj[k], g = PROPS.get(k);
+      if (!g || ONE_SHOT.has(k) || propState.get(k) === v) continue;
+      propState.set(k, v); quiet = true;
+      try { g.userData.act(v); } finally { quiet = false; }
+    }
+  }
+  // เหตุการณ์ (มีเสียง/ท่า) — ของค้างตั้งเป็นค่าที่ส่งมา · ของเล่นครั้งเดียว = เล่น
+  function propFx(k, v) {
+    const g = PROPS.get(k); if (!g) return;
+    if (!ONE_SHOT.has(k) && v !== undefined && v !== null) propState.set(k, v);
+    if (k === "horn" || k === "seat" || k === "gear" || k === "radio" || k === "binoc" || k === "scope") { if (k === "horn") bump(0.15); return; }
+    g.userData.act(ONE_SHOT.has(k) ? undefined : v);
+  }
+  // ช่องที่ของแต่ละชิ้นอยู่ (กริดรถ: i = แถวจากหน้า 0..6 · c = −1 ซ้าย / 0 / 1 ขวา · roof = บนดาดฟ้า)
+  const PROP_TILE = {
+    horn: [0, 1], radio: [0, 0], glove: [0, -1], fan: [0, -1], bob: [0, 0], gear: [0, 0], seat: [0, 1], light: [1, -1], hatch: [2, 0], table: [3, 0],
+    pillow0: [5, -1], pillow1: [4, -1], tool: [4, 1], fridge: [5, 1], micro: [5, 1], cooler: [6, -1], guitar: [6, 0], rear: [6, 0],
+    curtain0: [1, -1], curtain1: [3, -1], curtain2: [5, -1], curtain3: [1, 1], curtain4: [3, 1], curtain5: [5, 1],
+    binoc: [1, -1, 1], scope: [1, 1, 1], grill: [3, -1, 1], lounge: [3, 1, 1], umbrella: [4, 1, 1], turret: [5, 0, 1],
+  };
+
+  // ---------------------------------------------------------------- ลูกเรือในรถ (ป้ายรูปตัวละครบนฐาน · เดินตามทาง · นั่งที่นั่ง · ตาย = นอนเทา · บนดาดฟ้า)
+  const crewG = dyn(grp(0, 0, 0, body));
+  const PORT = new Map(); // img|color → { tex, cv }
+  function portraitOf(img, col) {
+    const k = `${img || ""}|${col}`;
+    let e = PORT.get(k);
+    if (e) return e.tex;
+    const cv = document.createElement("canvas"); cv.width = cv.height = 128;
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; ownedTex.push(tex);
+    e = { tex, cv }; PORT.set(k, e);
+    const paint0 = (im) => {
+      const g = cv.getContext("2d"); g.clearRect(0, 0, 128, 128);
+      g.fillStyle = "#22324f"; g.beginPath(); g.arc(64, 64, 61, 0, TAU); g.fill();
+      g.save(); g.beginPath(); g.arc(64, 64, 58, 0, TAU); g.clip();
+      if (im && im.naturalWidth) { const s0 = Math.min(im.naturalWidth, im.naturalHeight); g.drawImage(im, (im.naturalWidth - s0) / 2, (im.naturalHeight - s0) * 0.12, s0, s0, 6, 6, 116, 116); }
+      else { const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, col); gr.addColorStop(1, "#22324f"); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); g.fillStyle = "#f6e2cc"; g.beginPath(); g.arc(64, 55, 24, 0, TAU); g.fill(); }
+      g.restore(); g.strokeStyle = col; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 58, 0, TAU); g.stroke();
+      tex.needsUpdate = true;
+    };
+    paint0(null);
+    if (img) { const im = new Image(); im.onload = () => paint0(im); im.src = img; }
+    return tex;
+  }
+  const crewBaseGeo = new THREE.CylinderGeometry(0.26, 0.3, 0.06, 24), crewStemGeo = new THREE.CylinderGeometry(0.018, 0.018, 0.3, 6);
+  const CREW = new Map(); // id → { g, base, sprite, cur: Vector3, path: [], target, alive, roof, info }
+  const SEAT_TILES = new Set(["0,1", "0,-1", "4,-1", "5,-1"]); // ที่นั่ง/เบาะ — นั่ง
+  const tileLocal = (i, c, roof, out) => out.set(2.5 - i, roof ? RY : FLOOR, c);
+  function makeCrew(id) {
+    const g = new THREE.Group(); crewG.add(g);
+    const base = new THREE.Mesh(crewBaseGeo, new THREE.MeshStandardMaterial({ color: 0xff8a3d, roughness: 0.4 })); base.position.y = 0.03; g.add(base);
+    const stem = new THREE.Mesh(crewStemGeo, chrome); stem.position.y = 0.2; g.add(stem);
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, transparent: true })); sprite.scale.setScalar(0.62); sprite.position.y = 0.66; g.add(sprite);
+    sprite.userData.crewId = id; base.userData.crewId = id;
+    const e = { id, g, base, stem, sprite, cur: new THREE.Vector3(), path: [], target: new THREE.Vector3(), seated: false, alive: true, roof: false, info: null, init: false, walkT: 0 };
+    CREW.set(id, e); return e;
+  }
+  // list = [{ id, i, c, roof, img, color, name, alive, me }] (กริดรถ) — ตัวที่ไม่อยู่ในรายการ = หายไป
+  let crewSig = "";
+  function setCrew(list) {
+    const seen = new Set();
+    for (const m of list || []) {
+      if (!m || m.id == null) continue;
+      seen.add(m.id);
+      const e = CREW.get(m.id) || makeCrew(m.id);
+      e.info = m;
+      const col = m.color || "#ff8a3d";
+      const tex = portraitOf(m.img, col);
+      if (e.sprite.material.map !== tex) { e.sprite.material.map = tex; e.sprite.material.needsUpdate = true; }
+      if (e.col !== col) { e.col = col; e.base.material.color.set(col); }
+      tileLocal(m.i, m.c, m.roof, e.target);
+      e.roof = !!m.roof; e.alive = m.alive !== false;
+      e.seated = !m.roof && SEAT_TILES.has(`${m.i},${m.c}`);
+      if (!e.init) { e.init = true; e.cur.copy(e.target); }
+    }
+    for (const [id, e] of CREW) if (!seen.has(id)) { crewG.remove(e.g); e.base.material.dispose(); e.sprite.material.dispose(); CREW.delete(id); }
+    void crewSig;
+  }
+  // ทางเดิน (fx vanWalk): pts = [{ i, c, roof }]
+  function crewPath(id, pts) {
+    const e = CREW.get(id); if (!e || !Array.isArray(pts)) return;
+    e.path = pts.map((q) => tileLocal(q.i, q.c, q.roof, new THREE.Vector3()));
+  }
+  const _cd = new THREE.Vector3();
+  function tickCrew(dt, t) {
+    for (const e of CREW.values()) {
+      const goal = e.path.length ? e.path[0] : e.target;
+      _cd.copy(goal).sub(e.cur);
+      // ขึ้น/ลงหลังคา = ปีนตรงแนวตั้งก่อน
+      const climb = Math.abs(_cd.y) > 0.05, d = climb ? Math.abs(_cd.y) : Math.hypot(_cd.x, _cd.z);
+      const sp = (climb ? 5 : 4.2) * dt;
+      let moving = false;
+      if (d > 1e-3) {
+        moving = true;
+        if (climb) e.cur.y += Math.sign(_cd.y) * Math.min(sp, Math.abs(_cd.y));
+        else { const k = Math.min(1, sp / d); e.cur.x += _cd.x * k; e.cur.z += _cd.z * k; }
+      } else if (e.path.length) { e.path.shift(); moving = true; }
+      e.walkT = moving ? e.walkT + dt : 0;
+      const sit = !moving && e.seated && e.alive;
+      e.g.position.set(e.cur.x, e.cur.y + (sit ? 0.42 : 0) + (moving ? Math.abs(Math.sin(e.walkT * 12)) * 0.08 : 0), e.cur.z);
+      e.stem.visible = !sit;
+      e.sprite.position.y = sit ? 0.5 : 0.66;
+      e.sprite.material.rotation = e.alive ? (moving ? Math.sin(e.walkT * 12) * 0.08 : 0) : Math.PI / 2;
+      e.sprite.material.color.setHex(e.alive ? 0xffffff : 0x777777);
+      if (!e.alive) { e.sprite.position.y = 0.22; e.stem.visible = false; }
+      // มุมคนขับ: ตัวที่นั่งที่คนขับไม่บังกล้อง
+      e.g.visible = !(viewMode === "drv" && sit && e.info && e.info.i === 0 && e.info.c === 1) && !(e.roof && (viewMode === "cut" || viewMode === "board"));
+    }
+    void t;
+  }
+  function pickCrew(raycaster) {
+    _hits.length = 0;
+    raycaster.intersectObject(crewG, true, _hits);
+    for (const h of _hits) { let o = h.object; while (o && o.userData.crewId == null) o = o.parent; if (o && isShown(o)) { const e = CREW.get(o.userData.crewId); return e ? { id: e.id, name: (e.info && e.info.name) || "" } : null; } }
+    return null;
+  }
+
+  // ---------------------------------------------------------------- เลือกช่องเดิน (พื้นห้อง / ดาดฟ้า) + ไฮไลต์ช่อง + ทาง
+  const _ro = new THREE.Vector3(), _rd = new THREE.Vector3(), _inv = new THREE.Matrix4();
+  function tileAt(raycaster) {
+    body.updateMatrixWorld();
+    _inv.copy(body.matrixWorld).invert();
+    _ro.copy(raycaster.ray.origin).applyMatrix4(_inv);
+    _rd.copy(raycaster.ray.origin).add(raycaster.ray.direction).applyMatrix4(_inv).sub(_ro);
+    if (Math.abs(_rd.y) < 1e-6) return null;
+    const tryPlane = (y, roof) => {
+      const tt = (y - _ro.y) / _rd.y; if (tt <= 0) return null;
+      const x = _ro.x + _rd.x * tt, z = _ro.z + _rd.z * tt;
+      const i = Math.round(2.5 - x), c = Math.round(z);
+      if (c < -1 || c > 1) return null;
+      if (roof ? i < 1 || i > 6 : i < 0 || i > 6) return null;
+      return { i, c, roof };
+    };
+    if (roofDeck.visible) { const r = tryPlane(RY, true); if (r) return r; }
+    if (viewMode === "cut" || viewMode === "drv") return tryPlane(FLOOR, false);
+    return null;
+  }
+  const hlMat = new THREE.MeshBasicMaterial({ color: 0xffb36b, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+  const hlGeo = new THREE.PlaneGeometry(0.9, 0.9); hlGeo.rotateX(-Math.PI / 2);
+  const hlTile = new THREE.Mesh(hlGeo, hlMat); hlTile.renderOrder = 4; hlTile.visible = false; body.add(dyn(hlTile));
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.8, depthWrite: false });
+  const dotGeo = new THREE.CircleGeometry(0.09, 12); dotGeo.rotateX(-Math.PI / 2);
+  const dots = []; for (let k = 0; k < 14; k++) { const d = new THREE.Mesh(dotGeo, dotMat); d.visible = false; d.renderOrder = 4; body.add(dyn(d)); dots.push(d); }
+  // tile = { i, c, roof } | null · path = [{ i, c, roof }]
+  function showWalk(tile, path) {
+    hlTile.visible = !!tile;
+    if (tile) { tileLocal(tile.i, tile.c, tile.roof, hlTile.position); hlTile.position.y += 0.02; }
+    for (let k = 0; k < dots.length; k++) {
+      const q = path && path[k]; dots[k].visible = !!q;
+      if (q) { tileLocal(q.i, q.c, q.roof, dots[k].position); dots[k].position.y += 0.025; }
+    }
   }
 
   // ---------------------------------------------------------------- tick (ทุกเฟรม — ไม่สร้างอ็อบเจกต์ใหม่)
@@ -1296,6 +1465,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
     }
     for (let i = 0; i < balloons.length; i++) { const b = balloons[i]; b.position.y = b.userData.y + Math.sin(t * 1.6 + i) * 0.06; b.position.x = b.userData.x - speed * 0.012 + Math.sin(t * 1.1 + i * 2) * 0.05; }
     guitar.rotation.x *= Math.pow(0.02, dt);
+    if (CREW.size) tickCrew(dt, t);
     for (let i = 0; i < animated.length; i++) { const a = animated[i]; a.obj[a.prop][a.axis] += (a.tgt - a.obj[a.prop][a.axis]) * Math.min(1, dt * 8); }
     if (flag && parts["ธง"].g.visible) { const p = flag.geometry.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setZ(i, Math.sin(t * (driving ? 12 : 3) + x * 6) * 0.07 * (x + 0.45)); } p.needsUpdate = true; }
     boostFx.visible = !!ctx.boost && upg.nitro > 0;
@@ -1314,7 +1484,7 @@ export function createVan({ lowQ = false, onSfx = () => {}, onAction = () => {} 
 
   let lastRadio = null;
   return {
-    group: van, body, setRoofStand, aimFire, hasTurret: () => !!parts["ป้อมปืน"].on, setState, setView, setRoof, setRear, setNight, setDriver, fireTurret, tick, pick, hover, dispose, bump,
+    group: van, body, setRoofStand, aimFire, setCrew, crewPath, pickCrew, tileAt, showWalk, setPropStates, propFx, PROP_TILE, propKeys: () => [...PROPS.keys()], crewCount: () => CREW.size, hasTurret: () => !!parts["ป้อมปืน"].on, setState, setView, setRoof, setRear, setNight, setDriver, fireTurret, tick, pick, hover, dispose, bump,
     setRadio(r) { lastRadio = r; drawRadio(r); },
     shake: () => shake,
     // ยังมีของขยับอยู่ (ประตู/ซันรูฟ/ป้อมปืน) — กระดานใช้ตัดสินว่าต้องวาดเต็ม 60 เฟรมไหม

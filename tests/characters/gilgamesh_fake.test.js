@@ -368,3 +368,24 @@ test('Eos: ×N ก็ตรงตัว + ความมั่งคั่ง�
   assert.equal(P.G.gil.wealth, 0, 'หลบ = ไม่ได้ความมั่งคั่ง');
   assert.equal(engine.action.noStrike, true, 'ตีปกติไม่ได้นอก Eos');
 });
+
+test('Road Trip = PVE (ผู้ใช้สั่ง 2026-11-14): ตรงตัว · ไม่มีเพดานต่อคน · ความมั่งคั่งไม่เกิน +5 ต่อชุด · ตีปกติต่อได้', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const match = require('../../server/match.js');
+  const P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+  const prev = match.world;
+  match.world = 'roadtrip';
+  try {
+    P.B.hp = 20; P.B.armor = 0;
+    P.G.inventory = items(8);
+    P.G.gil.gateShown = true;
+    assert.match(view('G', 'G').character.secondary.choices[0].desc, /หลบไม่ได้/, 'คำอธิบายแบบ PVE');
+    Math.random = () => 0.99;
+    engine.setActor('G');
+    engine.useSkill('G', 'secondary', [], { form: 'n8' });
+    flush(t, 20000);
+    assert.equal(P.B.hp, 12, '8 นัด ไม่ติดเพดาน 3');
+    assert.equal(P.G.gil.wealth, 5, 'ความมั่งคั่ง +5 ต่อชุด');
+    assert.ok(!engine.action.noStrike);
+  } finally { match.world = prev; }
+});

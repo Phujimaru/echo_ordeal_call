@@ -82,6 +82,7 @@ const isFern = (p) => !!p && p.characterId === ID;
 // ---------- บัฟเฉพาะสนาม Eos ----------
 const EOS_ARMOR = 3;
 const EOS_MOV = 4;
+const RT_MOV = 5; // Road Trip (ผู้ใช้สั่ง 2026-11-14): ระยะเดินฐาน 5 (ไม่มีโบนัสเดินของ Eos)
 const EOS_WALK_MAX = 6;          // ฐาน 4 + โบนัสเดินของ Eos 2 เต็ม (stage6 movMod ปกติตันที่ 5 — ผู้ใช้เลือก 6)
 const EOS_RANGE = [1, 4];        // Zoltraak: ความยาวลำแสงแนวตรง (4×1)
 const EOS_BOOST_RANGE = [1, 8];
@@ -91,11 +92,9 @@ const EOS_CAST_DMG = 1;          //   + ดาเมจตีปกติ +1 ใ
 const EOS_BOOST_COST = 2;
 const EOS_CONCEAL_GAIN = 6;
 const EOS_CONCEAL_HEAL_EVERY = 1;
-function eosOn() {
-  const Fodlan = require("../server/fodlan");
-  const m = require("../server/match");
-  return !!(Fodlan.isEos() && m.fodlan && m.fodlan.s && m.fodlan.s.eos);
-}
+// สนาม Eos + Road Trip (ผู้ใช้สั่ง 2026-11-14 — โหมด PVE ร่วมมือ · server/pveMode.js)
+//  Road Trip ไม่มีโบนัสเดิน +2 ของ Eos (stage6 movMod) → ระยะเดินฐาน RT_MOV
+function eosOn() { return require("../server/pveMode").pveActive(); }
 // ค่าสถานะของร่างเฟิร์นจริง (Echo สวมสกิลเฟิร์น = statId "echo" — ค่าสถานะของ Echo ไม่เปลี่ยน)
 const fernStats = (p) => !!p && require("./echo").statId(p) === ID;
 function fresh() {
@@ -213,7 +212,7 @@ module.exports = {
   maxHp() { return HP; },
   maxArmor() { return eosOn() ? EOS_ARMOR : ARMOR; },
   // Eos: ระยะเดินฐาน 4 · โบนัสเดินของ Eos +2 เต็ม (เพดาน 6 แทน 5 — server/fodlan/stage6.js movMod)
-  mov(p) { return fernStats(p) && eosOn() ? EOS_MOV : null; },
+  mov(p) { return fernStats(p) && eosOn() ? (require("../server/pveMode").isRoadtrip() ? RT_MOV : EOS_MOV) : null; },
   eosWalkMax(p) { return fernStats(p) ? EOS_WALK_MAX : null; },
   maxSkill(p) { return isFern(p) ? ENERGY_MAX : undefined; },
   skillRegen(p) { return isFern(p) ? 0 : 1; },

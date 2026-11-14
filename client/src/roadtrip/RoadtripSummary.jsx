@@ -73,7 +73,7 @@ export default function RoadtripSummary({ summary, players = [] }) {
         </div>
         {players.length > 0 && (
           <div className="rt-sum-team">
-            {players.map((p, i) => {
+            {players.filter((p) => !p.summon && !p.duoOf).map((p, i) => {
               const img = p.character?.img || p.img;
               return <span key={p.id} style={{ "--pc": p.color || "#fff", "--i": i }} title={p.name}><b>{(p.name || "?").slice(0, 1)}</b>{img && <img src={img} alt="" draggable="false" onError={(e) => { e.currentTarget.style.display = "none"; }} />}</span>;
             })}

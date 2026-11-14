@@ -162,6 +162,20 @@ test('PVE (Eos/Moon Cell): ร่างกลางคืน · พลังโ�
   assert.equal(fz.critPct(P.F), 50);
 });
 
+test('PVE: Road Trip ก็ร่างกลางคืน · พลังโจมตี 5 · คริ 50% (ผู้ใช้สั่ง 2026-11-14)', () => {
+  const P = setup([['F', 'freddy_fazbear', 4, 7], ['D', 'dummy', 5, 7]]);
+  const match = require('../../server/match.js');
+  const prev = match.world;
+  match.world = 'roadtrip';
+  try {
+    assert.equal(fz.stealthed(P.F), false);
+    assert.equal(engine.movOf(P.F), 9);
+    assert.equal(fz.attackBaseOverride(engine, P.F, P.D), 5);
+    assert.equal(fz.critPct(P.F), 50);
+  } finally { match.world = prev; }
+  assert.equal(fz.critPct(P.F), 0, 'นอก PVE ไม่มีคริ');
+});
+
 test('เพลง: ศัตรูห่าง ≤ 3 ช่องได้ยิน (กลางวัน)', () => {
   const P = setup([['F', 'freddy_fazbear', 4, 7], ['D', 'dummy', 7, 7], ['E', 'dummy', 9, 7]]);
   assert.equal(fz.nearView(engine, ['D']), true);

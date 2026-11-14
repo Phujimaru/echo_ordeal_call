@@ -47,7 +47,7 @@ function begin(kind = "ambush", opts = {}) {
   L.shop().clearShops();
   match.board = null;
   L.action().placeOnBoard(area); // ลบยูนิตที่ถูกเรียกเก่าทั้งหมด → เกิดมอน/หมาหลังจากนี้
-  if (onvan) keepInVan();
+  if (onvan) { keepInVan(); require("./vanwalk").placeForFight(rt); } // ตำแหน่งตามที่เดินเล่นในรถ (ดาดฟ้า = บนหลังคา)
   spawnWave(rt, kind, opts.mobType || null);
   if (rt.dog.on) spawnDog(rt);
   applyBuffs(rt);
@@ -423,6 +423,7 @@ function outcome() {
 }
 function win() {
   const RT = H(), rt = match.roadtrip, c = rt.combat;
+  if (c.kind === "onvan") require("./vanwalk").captureFromFight(rt); // ก่อนล้างท่าบนหลังคา
   RT.cancelCombatFlow();
   const bonus = REWARD.base + Math.floor(rt.km / REWARD.perKm) + (c.kind === "elite" ? REWARD.elite : 0) + (c.kind === "boss" ? REWARD.boss : 0);
   const got = RT.giveGoldAll(bonus);

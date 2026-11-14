@@ -2761,6 +2761,26 @@ export default function BoardStage({ state, me, lowQ, vp, pick, onInspect, regis
   //  W A S D อ่านจากตำแหน่งปุ่ม (e.code) — แป้นภาษาไทยก็ใช้ได้ · กดแล้วตัวละครก้าวทันที 1 ช่องตามทิศบนจอ (ไม่มีเส้นนำทาง)
   //  ไปได้ทุกช่องที่อยู่ในระยะเดินจากจุดเริ่มตา (server ตรวจซ้ำ — move { step: true }) · ใช้สกิล/ไอเทม/ซื้อ/ตีแล้ว = ล็อก
   const stepSent = useRef(null); // ก้าวที่ส่งไปแล้วแต่ state ยังไม่กลับมา (กันส่งซ้ำจากตำแหน่งเก่า)
+  // Road Trip จุดพัก (ไม่มีตาเดิน — ผู้ใช้แจ้ง 2026-11-14 "เดินด้วย WASD ไม่ได้"): ก้าวทีละช่องผ่าน rt:walk (server เช็คช่องว่าง/ทางผ่าน)
+  const rtStopWalk = rtWorld && state.roadtrip.phase === "stop" && !!me && me.alive && !!me.pos;
+  useEffect(() => {
+    if (!rtStopWalk || pick) return undefined;
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))) return;
+      const dir = screenDir(rotation, e.code, me.pos);
+      if (!dir) return;
+      e.preventDefault();
+      const sent = stepSent.current;
+      if (sent && (samePos(me.pos, sent.to) || performance.now() - sent.t > 400)) stepSent.current = null;
+      if (stepSent.current) return;
+      const to = { x: me.pos.x + dir.x, y: me.pos.y + dir.y };
+      stepSent.current = { to, t: performance.now() };
+      look(to);
+      socket.emit("rt:walk", { x: to.x, y: to.y });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rtStopWalk, pick, me, rotation, look]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!myTurn || pick || fcId) return undefined;
     const onKey = (e) => {

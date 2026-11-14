@@ -38,6 +38,7 @@ const GOLD_CAP = 999;
 const BAG = 50;
 const RESTOCK_TURNS = 2;
 const WEALTH_MAX = 30;
+const RT_WEALTH_PER_VOLLEY = 5; // Road Trip: เมตตาจากราชาได้ความมั่งคั่งสูงสุด +5 ต่อชุด (ผู้ใช้สั่ง 2026-11-14)
 const ULT_WEALTH = 20; // ผู้ใช้ 2026-11-09 (เดิม 30) · เก็บสะสมได้ถึง WEALTH_MAX
 const BLOCK_PCT = 30;
 const ROOT_TURNS = 1;
@@ -50,7 +51,7 @@ const CENTER_PCT = 45; // เมตตาจากราชา: % ที่ต�
 const ZONE_MAX = 14;
 // สนาม Eos (PVE ร่วมมือ): เมตตาจากราชากลับไปแบบก่อนปรับสมดุล 2026-11-09 + ยิงแม่น (ผู้ใช้ 2026-11-11) —
 //  มีทั้งคลัง · ไม่มีเพดานต่อคน · ตกตรงตัวทุกนัด หลบไม่ได้ · ความมั่งคั่ง +1 ทุกนัดที่ยิง · ยิงแล้วยังตีปกติได้ · โหมดอื่นคงเดิม
-const eosMode = (engine) => !!engine && engine.gameMode === "eos";
+const eosMode = (engine) => !!engine && require("../server/pveMode").isPveCoop(); // PVE ร่วมมือ = Eos + Road Trip (ผู้ใช้สั่ง 2026-11-14)
 const ULT_AREA = { kind: "line", len: 14, width: 5, hostile: true };
 // ของที่ไม่ใช่สมบัติสำหรับยิง/กัน (ของถาวร/ชาร์จ/ประจำตัวละคร)
 const NON_AMMO = ["battery", "lifeCrystal", "armorCrystal", "kebread", "lawHeart", "giornoArrow"];
@@ -262,7 +263,8 @@ function fireShot(engine, p, i) {
   const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา", eos) : { dodge: true, miss: true };
   // ความมั่งคั่ง +1 เฉพาะนัดที่โดน (ผู้ใช้ 2026-11-09 — เดิมได้ทุกนัดที่ยิง) · Eos: ทุกนัดที่ยิง
   if (t && !r.dodge) v.hits[t.id] = (v.hits[t.id] || 0) + 1;
-  if (eos || (t && !r.dodge)) addWealth(p, 1);
+  // Road Trip (ผู้ใช้สั่ง 2026-11-14): ความมั่งคั่งไม่เกิน +RT_WEALTH_PER_VOLLEY ต่อชุด
+  if ((eos || (t && !r.dodge)) && !(require("../server/pveMode").isRoadtrip() && (v.wealthGot || 0) >= RT_WEALTH_PER_VOLLEY)) { addWealth(p, 1); v.wealthGot = (v.wealthGot || 0) + 1; }
   if (t) v.hitIds.add(t.id);
   // อาวุธปักลงพื้น: โดน = ช่องของเป้า · หลบ = ช่องข้างๆ (สุ่ม — ในกระดาน) · ตกพื้นเปล่า = ช่องนั้น
   let land = spot;

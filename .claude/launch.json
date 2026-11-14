@@ -1143,6 +1143,68 @@
       "env": {
         "ECHO_SERVER_PORT": "3091"
       }
+    },
+    {
+      "name": "server-rtqa",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3063,
+      "env": {
+        "PORT": "3063",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "ECHO_DEV_RT_PHASE": "stop"
+      }
+    },
+    {
+      "name": "server-rtqa-onvan",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3063,
+      "env": {
+        "PORT": "3063",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "ECHO_DEV_RT_PHASE": "onvan"
+      }
+    },
+    {
+      "name": "server-rtqa-ambush",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3063,
+      "env": {
+        "PORT": "3063",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "ECHO_DEV_RT_PHASE": "ambush"
+      }
+    },
+    {
+      "name": "client-rtqa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5263",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5263,
+      "env": {
+        "ECHO_SERVER_PORT": "3063"
+      }
     }
   ]
 }

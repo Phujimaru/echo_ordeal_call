@@ -596,7 +596,7 @@ test('กรองข้อมูล: ทะเบียน/สี/ของแ�
   const q = ['dQw4w9WgXcQ', 'bad id', ...Array(30).fill('aaaaaaaaaaa')];
   assert.equal(RT.command('p0', 'radio', { src: 'yt', yt: { id: 'dQw4w9WgXcQ', queue: q } }), true);
   assert.equal(rt().radio.yt.queue.length, 20);
-  assert.ok(!rt().radio.yt.queue.includes('bad id'));
+  assert.ok(rt().radio.yt.queue.every((it) => it.id !== 'bad id'));
   assert.ok(Math.abs(rt().radio.yt.at - Date.now()) < 1000);
   assert.equal(RT.command('p0', 'radio', { src: 'synth', station: '3' }), true);
   assert.equal(rt().radio.station, 3);
@@ -1005,7 +1005,7 @@ test('สู้บนรถตู้ (ตัวประชิดได้สู
   const turn = (u) => { match.gameState = 'ACTION'; match.actorId = u.id; match.action = { locked: false, moved: false, from: { ...u.pos } }; };
   Math.random = () => 0.99;
   // 1) มอนตัวล่ากระโดดขึ้นรถไปหาผู้เล่น
-  p.pos = { x: 10, y: 5 }; q.pos = { x: 13, y: 6 };
+  p.pos = { x: 11, y: 5 }; q.pos = { x: 13, y: 6 };
   const m1 = M.spawn(rt(), 'stray', { x: 9, y: 2 }, { born: 0 }); m1.summon.role = 'hunter';
   let o = OUTF(); M.actOne(rt(), m1, o);
   assert.ok(van.has(Board.key(m1.pos.x, m1.pos.y)), 'มอนขึ้นรถ');
@@ -1015,7 +1015,7 @@ test('สู้บนรถตู้ (ตัวประชิดได้สู
   p.pos = { x: 9, y: 4 };
   assert.ok(action.rangeOf(p)[1] >= 2);
   assert.ok(action.areaRange(p, { range: 1 }) >= 2);
-  p.pos = { x: 10, y: 5 };
+  p.pos = { x: 11, y: 5 };
   // 3) ปาดรถ (คนขับ · ฝั่งซ้าย = แถวเหนือรถ)
   const side = M.spawn(rt(), 'giant', { x: 10, y: 3 }, { born: 99 });
   const hp0 = side.hp + side.armor, v0 = rt().van.hp;
@@ -1032,7 +1032,7 @@ test('สู้บนรถตู้ (ตัวประชิดได้สู
   // 4) ป้อมปืนมือ (ช่องซันรูฟ)
   rt().van.upg.turret = 1;
   turn(p);
-  const tg = M.spawn(rt(), 'giant', { x: 10, y: 1 }, { born: 99 });
+  const tg = M.spawn(rt(), 'giant', { x: 11, y: 1 }, { born: 99 });
   const far = M.spawn(rt(), 'giant', { x: 1, y: 1 }, { born: 99 });
   assert.equal(RT.publicInfo().van.turretReady, true);
   assert.equal(RT.command('p0', 'turret', { x: far.pos.x, y: far.pos.y }), false, 'ไกลเกิน 4');
@@ -1140,6 +1140,78 @@ test('บอสอลังการ: แม็กซ์ พิทสต็อ�
   assert.ok(w && ['tidal', 'prison'].includes(w.move));
   M.actOne(rt(), j, OUTF());
   if (w.move === 'prison') assert.ok((P(0).statuses.rooted || 0) > 0 || !P(0).alive, 'ตรึง');
+});
+
+test('เดินเล่นในรถตอนขับ: ที่นั่งตั้งต้น (ช่องคนขับว่าง) · เดิน/ชนกัน/ดาดฟ้าผ่านซันรูฟ · คนขับตามช่อง · ยกให้ = สลับที่ · ของในรถ · เข้า/ออกสู้บนรถตู้', () => {
+  const VW = require('../server/roadtrip/vanwalk.js');
+  setup(3);
+  const d = Maps.defs[Maps.RT_ONVAN];
+  const vp = () => rt().vanPos;
+  const at = (id) => vp()[id];
+  // ที่นั่งตั้งต้น: ทุกคนมีที่ ไม่ซ้ำ ไม่มีใครบนช่องคนขับ
+  const keys = Object.values(vp()).map((q) => `${q.roof}:${q.x},${q.y}`);
+  assert.equal(keys.length, 3); assert.equal(new Set(keys).size, 3);
+  assert.ok(!Object.values(vp()).some((q) => q.x === d.driverTile[0] && q.y === d.driverTile[1] && !q.roof));
+  assert.ok(RT.publicInfo().vanPos.p0 && RT.publicInfo().vanProps.fridge);
+  // เดิน + ชน: ปลายทางมีคน = ไม่ได้ · ทีละครั้ง (ยังเดินอยู่ = ปฏิเสธ)
+  const p1at = { ...at('p1') };
+  assert.equal(RT.command('p0', 'vanWalk', { x: p1at.x, y: p1at.y }), false, 'ปลายทางมีคน');
+  assert.equal(RT.command('p0', 'vanWalk', { x: 8, y: 5 }), true);
+  assert.deepEqual(at('p0'), { x: 8, y: 5, roof: false });
+  assert.ok(rt().fx.some((f) => f.k === 'vanWalk' && f.id === 'p0' && Array.isArray(f.path[0])));
+  assert.equal(RT.command('p0', 'vanWalk', { x: 9, y: 5 }), false, 'ยังเดินอยู่');
+  rt().vanBusy = {};
+  assert.equal(RT.command('p0', 'vanWalk', { x: 3, y: 3 }), false, 'นอกรถ');
+  // ดาดฟ้า: เดินไปช่องซันรูฟแล้วขึ้น
+  assert.equal(RT.command('p0', 'vanWalk', { x: 10, y: 5, roof: true }), true);
+  assert.deepEqual(at('p0'), { x: 10, y: 5, roof: true });
+  const path = rt().fx.filter((f) => f.k === 'vanWalk' && f.id === 'p0').pop().path;
+  assert.ok(path.some(([x, y, r]) => x === d.hatchTile[0] && y === d.hatchTile[1] && !r) && path.some(([x, y, r]) => x === d.hatchTile[0] && y === d.hatchTile[1] && r), 'ผ่านช่องซันรูฟ');
+  rt().vanBusy = {};
+  // ของในรถ: ต้องติด · สถานะร่วม · ทอยเต๋า
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'fridge' }), false, 'อยู่บนดาดฟ้า');
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'grill' }), true);
+  assert.equal(rt().vanProps.grill.state, 'on');
+  assert.ok(rt().fx.some((f) => f.k === 'vanProp' && f.prop === 'grill' && f.state === 'on'));
+  RT.command('p0', 'vanWalk', { x: 10, y: 4 }); rt().vanBusy = {};
+  assert.equal(at('p0').roof, false, 'ลงทางซันรูฟ');
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'table' }), true);
+  const dice = rt().vanProps.table.state;
+  assert.ok(dice.a >= 1 && dice.a <= 6 && dice.b >= 1 && dice.n === 1);
+  assert.equal(RT.command('p0', 'vanProp', { prop: 'horn' }), false, 'แตร = คนขับเท่านั้น');
+  // คนขับตามช่อง: เดินเข้าช่องคนขับว่าง = ได้ที่นั่ง · คนอื่นเดินเข้าไม่ได้ · ยกให้ = สลับที่ · เดินออก = ปล่อย
+  assert.equal(RT.command('p1', 'vanWalk', { x: d.driverTile[0], y: d.driverTile[1] }), true);
+  assert.equal(rt().van.driverId, 'p1');
+  rt().vanBusy = {};
+  assert.equal(RT.command('p2', 'vanWalk', { x: d.driverTile[0], y: d.driverTile[1] }), false, 'มีคนนั่ง');
+  const p2at = { ...at('p2') };
+  RT.command('p2', 'seat', { seat: 'request' });
+  assert.equal(RT.command('p1', 'seat', { seat: 'give' }), true);
+  assert.equal(rt().van.driverId, 'p2');
+  assert.deepEqual([at('p2').x, at('p2').y], d.driverTile, 'คนใหม่ยืนช่องคนขับ');
+  assert.deepEqual(at('p1'), p2at, 'สลับที่');
+  RT.command('p2', 'vanWalk', { x: 12, y: 5 }); rt().vanBusy = {};
+  assert.equal(rt().van.driverId, null, 'เดินออก = ปล่อย');
+  RT.command('p0', 'seat', { seat: 'driver' });
+  assert.deepEqual([at('p0').x, at('p0').y], d.driverTile, 'rt:seat = ไปยืนช่องคนขับ');
+  // ตาย = นอนอยู่ เดินไม่ได้
+  P(1).alive = false;
+  assert.equal(RT.command('p1', 'vanWalk', { x: 8, y: 6 }), false);
+  P(1).alive = true;
+  // เข้าสู้บนรถตู้: วางตามตำแหน่งในรถ · คนบนดาดฟ้า = บนหลังคา · จบสู้ = เก็บตำแหน่งคืน
+  vp().p1 = { x: 11, y: 5, roof: true };
+  F.begin('onvan');
+  assert.deepEqual(P(0).pos, { x: d.driverTile[0], y: d.driverTile[1] });
+  assert.deepEqual(P(1).pos, { x: d.hatchTile[0], y: d.hatchTile[1] });
+  assert.equal(P(1).rtRoof, true);
+  assert.equal(rt().combat.roofId, 'p1');
+  fire();
+  P(2).pos = { x: 8, y: 6 };
+  for (const m of mobs()) require('../server/summon.js').remove(m);
+  assert.equal(endTurn.gameOver(), true);
+  assert.equal(rt().phase, 'drive');
+  assert.deepEqual(at('p2'), { x: 8, y: 6, roof: false });
+  assert.equal(at('p1').roof, true, 'คนบนหลังคากลับดาดฟ้า');
 });
 
 // ---------------------------------------------------------------- กฎผู้ใช้ 2026-11-14
