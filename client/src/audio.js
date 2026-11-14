@@ -732,8 +732,8 @@ const LOUDNESS_GAIN = {
   "/theme_song/battle_phase.mp3": 0.65,
   "/theme_song/day_4.0.mp3": 0.78,
   "/theme_song/main_home_4.0.mp3": 0.69,
-  "/theme_song/main5.0.mp3": 0.85, // -11.7 LUFS
-  "/theme_song/lobby5.0.mp3": 1, // -15.7 LUFS (เบากว่าเป้าเล็กน้อย ดันได้สุด 1)
+  "/theme_song/main5.0.mp3": 0.85, // Epic of Remnant (ผู้ใช้เปลี่ยน 2026-11-14) -12.6 LUFS
+  "/theme_song/lobby5.0.mp3": 1, // Board Games (ผู้ใช้เปลี่ยน 2026-11-14) ต้นฉบับ -17.2 → ดันที่ไฟล์ loudnorm -14 LUFS
   // ห่วงเวลาซีโร่ (วัด ffmpeg ebur128 · ไฟล์ดังมาก -8.7 ถึง -9.5 LUFS) — ลดลงให้อยู่ระดับเพลงพื้นหลัง ไม่กลบเสียงกด/เอฟเฟกต์ (ผู้ใช้สั่ง)
   //  thunder.mp3 = -15.7 dBFS เบากว่าเป้าอยู่แล้ว (ไม่อยู่ในตาราง)
   "/zero_time/phase1.mp3": 0.55,

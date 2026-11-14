@@ -10,6 +10,7 @@ import { createCharRings } from "../oc/charselect/charRings";
 import { preloadPortraits, getPortrait, portraitDone } from "../oc/charselect/portraits";
 import "../oc/charselect/charselect.css";
 import CharStats from "../oc/charselect/CharStats";
+import { ELEMENTS, SKILL_ELEMENTS } from "../data/elements";
 
 // หน้าเลือกตัวละคร (ORDEAL CALL): การ์ดตัวละครโคจรรอบลูกโลก หนึ่งวงต่อหนึ่งหมวด
 //  เปิดมา: วงทุกหมวดค่อยๆ ลากเส้นรอบโลก (แบบอะตอม) ระหว่างภาพตัวละครโหลดเบื้องหลัง การ์ดโผล่ทีละใบเมื่อภาพพร้อม
@@ -114,15 +115,16 @@ const nowMs = () => performance.now();
 function skillRows(sel) {
   const skills = [];
   if (!sel) return skills;
-  const push = (label, s) => s && skills.push({ label, skill: s });
-  push("ติดตัว", sel.passive);
-  push("ติดตัว 2", sel.passive2);
-  push("ติดตัว 3", sel.passive3);
-  push("ติดตัว 4", sel.passive4);
-  push("ติดตัว 5", sel.passive5);
-  push("สกิลพื้นฐาน", sel.basic);
-  push("สกิลรอง", sel.secondary);
-  push("ท่าไม้ตาย", sel.ultimate);
+  const els = SKILL_ELEMENTS[sel.id] || {};
+  const push = (label, slot) => sel[slot] && skills.push({ label, skill: sel[slot], els: els[slot] || null });
+  push("ติดตัว", "passive");
+  push("ติดตัว 2", "passive2");
+  push("ติดตัว 3", "passive3");
+  push("ติดตัว 4", "passive4");
+  push("ติดตัว 5", "passive5");
+  push("สกิลพื้นฐาน", "basic");
+  push("สกิลรอง", "secondary");
+  push("ท่าไม้ตาย", "ultimate");
   return skills;
 }
 
@@ -535,9 +537,14 @@ export default function CharacterSelect({ roster, position, color: myColor, name
                 <span className={`cs-node${s.skill.cost != null ? "" : " empty"}`} aria-hidden="true">
                   {s.skill.cost != null ? s.skill.cost : <i />}
                 </span>
-                <span className="cs-sk-plate">
+                <span className={`cs-sk-plate${s.els ? " has-el" : ""}`}>
                   <span className="cs-sk-k">{s.label}</span>
                   <span className="cs-sk-n">{s.skill.name}</span>
+                  {s.els && (
+                    <span className="cs-sk-el" aria-hidden="true">
+                      {s.els.map((e) => <i key={e} style={{ "--el": ELEMENTS[e].color }}>{ELEMENTS[e].icon}</i>)}
+                    </span>
+                  )}
                 </span>
               </div>
             );

@@ -211,6 +211,11 @@
 .cs-sk:hover .cs-node, .cs-sk:focus-visible .cs-node, .cs-sk.on .cs-node { transform: scale(1.1); }
 .cs-skills[data-dense] .cs-sk-plate { flex-direction: row; align-items: baseline; gap: 10px; padding-block: 7px 8px; }
 .cs-skills[data-dense] .cs-sk-n { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ไอคอนธาตุของสกิล (data/elements.js SKILL_ELEMENTS) — มุมขวาบนของแผ่น · ไม่มีธาตุ = ไม่แสดง */
+.cs-sk-plate.has-el { padding-right: 18px; }
+.cs-sk-el { display: flex; gap: 3px; align-self: flex-start; margin-top: 2px; }
+.cs-sk-el i { font-style: normal; font-size: 14px; line-height: 1; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--el) 70%, transparent)); }
+.cs-skills[data-dense] .cs-sk-el { margin: 0 0 0 auto; align-self: center; }
 .cs-skills[data-dense] .cs-node { width: 26px; height: 30px; justify-self: center; font-size: 13px; }
 
 /* ลำดับตอนเปิด (หลังภาพหลักลอยออก): เส้นโคจรลากตัวเอง → แผ่นชื่อ → แผ่นสกิลทีละแผ่น */
