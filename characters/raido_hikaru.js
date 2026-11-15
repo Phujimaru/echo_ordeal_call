@@ -15,7 +15,7 @@
 //    ตีปกติ +1 ช่องติดตัวทั้งด้าน 1×3 (ศัตรูทุกคนที่ติดด้านนั้น) · หมดแล้วคูลดาวน์ 3 เทิร์น
 //  ท่าไม้ตาย (ร่างกิงกะเท่านั้น · ลำแสงหลบไม่ได้): Ginga Cross Shoot (4 แต้ม) แนว 5×1 ดาเมจ 2 + ลุกไหม้ 2
 //    กิงกะสโตเรี่ยม → Strium Ray (6 แต้ม) แนว 5×3 ดาเมจ 2 + ลุกไหม้ 3 + ผลักไปสุดปลายลำแสง
-//  ติดตัว Strium Brace: สะสมครบ 5 (รวมทั้งเกม · ห่วงเวลาซีโร่ไม่นับ — ผู้ใช้สั่งลดจาก 10 เมื่อ 2026-10-13)
+//  ติดตัว Strium Brace: สะสมครบ 5 (รวมทั้งเกม — ผู้ใช้สั่งลดจาก 10 เมื่อ 2026-10-13)
 //    +1 ทุกครั้งที่จบเทิร์นในร่างกิงกะช่วงกลางวัน · +1 ทันทีตอนกดแปลงร่างกิงกะช่วงกลางวัน
 //    = กลายเป็นกิงกะสโตเรี่ยมทันที และกดกิงกะครั้งต่อไปเป็นสโตเรี่ยมเสมอ · สโตเรี่ยม: ตีปกติ +1 อีก + ติดลุกไหม้ 1
 //  คลิปทุกตัวเล่นครั้งเดียวต่อเกม (engine.triggerCutscene — ครั้งต่อไปเป็นการ์ดแจ้งเตือน)
@@ -236,10 +236,10 @@ function setForm(engine, p, key) {
 }
 
 // ---------- Ultraman Ginga ----------
-// Strium Brace +1 (กลางวัน · ห่วงเวลาซีโร่ไม่นับ) — ครบแล้วเป็นสโตเรี่ยม · คืน true ถ้าเพิ่งครบ
+// Strium Brace +1 (กลางวัน) — ครบแล้วเป็นสโตเรี่ยม · คืน true ถ้าเพิ่งครบ
 function braceTick(engine, p) {
   const s = st(p);
-  if (s.strium || engine.zeroActive() || engine.isNightRound(engine.worldRound)) return false;
+  if (s.strium || engine.isNightRound(engine.worldRound)) return false;
   if (!PassiveSeal.on(p)) return false; // ลบสกิลติดตัว (server/passiveSeal.js): ไม่นับเพิ่ม · ค่าที่สะสมไว้คงเดิม
   s.brace = Math.min(BRACE_MAX, s.brace + 1);
   if (s.brace < BRACE_MAX) return false;
@@ -519,7 +519,7 @@ module.exports = {
     for (const p of Object.values(engine.players)) {
       if (!isHikaru(p) || !p.alive) continue;
       const s = st(p);
-      // Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวัน (ห่วงเวลาซีโร่ไม่นับ)
+      // Strium Brace: จบเทิร์นในร่างกิงกะช่วงกลางวัน
       if (s.ginga && braceTick(engine, p) && (p.statuses.hikaruGinga || 0) > 0) engine.triggerCutscene(p, CUT.strium);
       if (s.form && !((p.statuses.hikaruForm || 0) > 0)) {
         const name = FORMS[s.form].name;

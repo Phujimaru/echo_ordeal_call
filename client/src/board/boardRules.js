@@ -39,8 +39,8 @@ function wallBlocks(map, x, y, ny) {
   const lo = Math.min(y, ny);
   return map.walls.includes(lo) && !(map.doors || []).includes(wx(x));
 }
-// สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้) — ผนึกมิโกะของห่วงเวลาซีโร่ (GRID_PLAN §8.2)
-const UNBREAKABLE = new Set(["seal", "chasm", "breach"]); // breach = รอยรั่วของ Colony (server/colony.js) // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
+// สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้)
+const UNBREAKABLE = new Set(["chasm", "breach"]); // breach = รอยรั่วของ Colony (server/colony.js) // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
 
 // ---------- ช่องพิเศษ (GRID_PLAN §3.1 — แนว Fire Emblem) ----------
 //  ยืน/เดินผ่านได้ทุกชนิด (ต่างจากสิ่งกีดขวาง) · ไม่มีผลกับระยะตี/สกิล
@@ -231,25 +231,6 @@ const MAPS = {
     shopSpots: [[6, 3], [11, 6], [2, 7], [7, 10]],
   }),
 };
-
-// ---------- ห่วงเวลาซีโร่ (GRID_PLAN §8.2) ----------
-//  สนามเฉพาะ 14×14 ไม่มีสิ่งกีดขวางอื่นนอกจากผนึกมิโกะ 4 มุม (พังไม่ได้ด้วยการเดิน/ขยายร่าง — ตีได้อย่างเดียว ที่ server/zeroTime.js)
-//  area 8–11 = ระดับ 1–4 (ผนึกแตก 0–3 อัน) ผังเดียวกัน — ต่างกันแค่หน้าตาที่ client วาด (ยิ่งใกล้ปลดผนึกยิ่งมืด)
-//  ผนึก: 0 = มุมไกลซ้าย (เหนือ) · 1 = มุมไกลขวา (ตะวันออก) · 2 = มุมใกล้ขวา (ใต้) · 3 = มุมใกล้ซ้าย (ตะวันตก)
-const ZERO_AREA = 8;
-const ZERO_STAGES = 4;
-const ZERO_SEALS = [[0, 0], [13, 0], [13, 13], [0, 13]];
-const isZeroArea = (area) => Number(area) >= ZERO_AREA && Number(area) < ZERO_AREA + ZERO_STAGES;
-for (let i = 0; i < ZERO_STAGES; i++) {
-  MAPS[ZERO_AREA + i] = buildMap({
-    area: ZERO_AREA + i,
-    name: "ห่วงเวลาซีโร่",
-    terrain: { seal: ZERO_SEALS },
-    heal: [],
-    spawns: [[4, 1], [9, 1], [1, 6], [12, 7], [3, 12], [7, 12], [10, 12]],
-    shopSpots: [],
-  });
-}
 
 // ---------- Colony (GRID_PLAN §8.3) ----------
 //  ผิวด้านในของกระบอก คลี่เป็น 16 คอลัมน์ (ต่อวงรอบ) × 40 แถว · ปล้องละ 10 แถว (0–9 · 10–19 · 20–29 · ปล้องสุดท้าย 30–39)
@@ -1617,7 +1598,7 @@ function aoeTiles(map, x, y, radius, size = 1, square = false) {
   return out;
 }
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
-//  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4 คุวากาตะ โอเจอร์: −2…+1)
+//  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4: −2…+1)
 //  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
 //  arc > 0 = ครึ่งวง 180° รัศมี arc ไปทางที่หัน รวมแถวข้างตัว (ข้าวหลามตัดครึ่งหน้า · ไม่สน len/width — ท่าไม้ตายออพติมัส ไพร์ม: arc 2 = 8 ช่อง)
 // แถบกว้าง width ยาวสุดแผนที่รอบช่อง (x, y): orient "h" = แนวนอน · "v" = แนวตั้ง · ชิดขอบแล้วเลื่อนเข้าให้กว้างครบเสมอ (Mahapralaya)
@@ -1876,7 +1857,7 @@ function normalizeMap(pub) {
 }
 
 export {
-  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
+  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE,
   COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, RT_AREAS, isRoadtripArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,

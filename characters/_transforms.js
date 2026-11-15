@@ -15,14 +15,12 @@ const yuna = require("./yuna"); // ยูนะ: คลิปร้อนแร�
 const dio = require("./dio_brando"); // ดิโอ: BloodStack 6 / Last Stand เริ่ม + แพ้ / Road Roller
 const diego = require("./diego_alt"); // ดิเอโก้: เป็นไปดั่งกลอุบาย intro (ทุกครั้งที่พุ่ง) / final (ทุกครั้งที่ชน)
 const celine = require("./celine"); // เซลิน: คลิปคริก่อนฉากตี (สายดาบ/สายเวท) · การ์ดท่าไม้ตาย
-const takuto = require("./takuto"); // ทาคุโตะ: แปลงร่างทาวเบิร์น / เฟส 2·4 / ห่วงเวลาถูกทำลาย / ดาบรวมร่าง / ปาดาบ / สกิล
 const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: Caladbolg II (ก่อน/หลังเลือกทิศ) · Unlimited Blade Works — ทุกครั้งที่กด
 const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ: แปลงร่าง (ครั้งแรกต่อเกม) · มือเปล่าติดคริ (ก่อนฉากตี) · ท่า Lightning 3 แบบ (ตอนโดน)
 const roland = require("./roland"); // โรลันด์: Furioso — คลิปผู้ใช้
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
 const freddy = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์: จัมป์สแกร์ (ชนะมินิเกมประตู)
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
-const ohger = ["gira_ohger", "yanma_ohger", "himeno_ohger", "rita_ohger", "kaguragi_ohger"].map((id) => require(`./${id}`)); // คิงโอเจอร์: คลิปแปลงร่างสำเร็จ (ครั้งแรกต่อเกม)
 const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
@@ -33,7 +31,6 @@ const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`.
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
 const gray = require("./gray"); // เกรย์: รองโกมิเนียต intro (ตอนกด) / final (ตอนยิง) // ไรโด ฮิคารุ: ร่าง UltraLive 6 ร่าง / กิงกะ / สโตเรี่ยม / ท่าไม้ตาย 2 แบบ
 
-const OHGER_SECONDS = { kuwagata: 21, tonbo: 19, kamakiri: 17, papiyon: 21, hachi: 22 };
 module.exports = function buildTransforms() {
   return {
     // มุยมิ: ครั้งแรกเล่นคลิปเต็ม 23.803 วิ ครั้งถัดไปเล่นคลิปสั้น 11.078 วิ
@@ -93,17 +90,6 @@ module.exports = function buildTransforms() {
     celineCritSword: { img: celine.IMG.base, video: celine.VIDEO.critSword, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 2.6, music: null, afterReveal: false, noIntro: true },
     celineCritMage: { img: celine.IMG.base, video: celine.VIDEO.critMage, title: "คริติคอล", label: "องค์หญิงดอกไม้ เซลิน", seconds: 3.5, music: null, afterReveal: false, noIntro: true },
     celineUlt: { img: celine.IMG.skill3, video: null, title: "สวนดอกไม้ของฉัน", label: "ราชาดอกไม้", seconds: 0, music: null, afterReveal: false },
-    // ซึนาชิ ทาคุโตะ — ความยาวจริง (ffprobe) 29.4 / 13.1 / 4.9 / 10.5 / 1.13 / 12.9 / 17.3 / 14.9 / 18.4 วิ ปัดขึ้น
-    //  แปลงร่าง/เฟส/ห่วงเวลาถูกทำลาย = คิวจากโค้ด (ครั้งเดียวต่อเกมตามจังหวะห่วงเวลา) · ปาดาบ = ทุกครั้ง (preAttackClip) · สกิล = เต็มครั้งแรกต่อเกม (triggerCutscene)
-    takutoTauburn:  { img: takuto.IMG.tauburn, video: takuto.VIDEO.tauburn,     title: "ทาวเบิร์น",              label: "apprivoise", seconds: 30, music: null, afterReveal: false },
-    takutoPassive:  { img: takuto.IMG.tauburn, video: takuto.VIDEO.passive,     title: "apprivoise",             label: "ทาวเบิร์น", seconds: 14, music: null, afterReveal: false },
-    takutoPassive2: { img: takuto.IMG.tauburn, video: takuto.VIDEO.passive2,    title: "apprivoise",             label: "ทาวเบิร์น", seconds: 5.5, music: null, afterReveal: false, noIntro: true },
-    takutoPassive3: { img: takuto.IMG.zero,    video: takuto.VIDEO.passive3,    title: "ห่วงเวลาถูกทำลาย",       label: "ทาวเบิร์น", seconds: 11, music: null, afterReveal: false },
-    takutoDuo:      { img: takuto.IMG.zero,    video: takuto.VIDEO.duo,         title: "ดาบแห่งการพิพากษา",      label: "ทาวเบิร์น", seconds: 1.6, music: null, afterReveal: false, noIntro: true },
-    takutoDuoHit:   { img: takuto.IMG.zero,    video: takuto.VIDEO.duoHit,      title: "ดาบแห่งการพิพากษา",      label: "ทาวเบิร์น", seconds: 13.5, music: null, afterReveal: false, noIntro: true },
-    takutoFlash:    { img: takuto.IMG.skill2,  video: takuto.VIDEO.skill2,      title: "ดาบประกายแสง",           label: "ทาวเบิร์น", seconds: 18, music: null, afterReveal: false },
-    takutoMissile:  { img: takuto.IMG.skill3,  video: takuto.VIDEO.skill3,      title: "ทาวววว มิสไซล์",          label: "ปล่อยท่าไม้ตาย", seconds: 15.5, music: null, afterReveal: false },
-    takutoBlast:    { img: takuto.IMG.zero,    video: takuto.VIDEO.skill3Extra, title: "ฉันยังมองเห็นอยู่",       label: "ปล่อยท่าไม้ตาย", seconds: 19, music: null, afterReveal: false },
     // เอมิยะ ชิโร่ — Caladbolg II เล่นต่อกัน 2 คลิปทุกครั้ง (ง้างธนู → ลูกธนูระเบิด) · UBW ทุกครั้งที่กด · ความยาวจริง 9.26 / 3.25 / 22.73 วิ ปัดขึ้น
     emiyaCaladbolgBefore: { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calBefore, title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 9.6, music: null, afterReveal: false },
     emiyaCaladbolgAfter:  { img: emiya.IMG.s("caladbolg"), video: emiya.VIDEO.calAfter,  title: "Caladbolg II", label: "เอมิยะ ชิโร่", seconds: 3.6, music: null, afterReveal: false, noIntro: true },
@@ -128,8 +114,6 @@ module.exports = function buildTransforms() {
     kazumaFour: { img: kazuma.IMG.ult("four"), video: kazuma.VIDEO.four, title: "Four Card", label: "ปล่อยท่าไม้ตาย", seconds: 21.1, music: null, afterReveal: false },
     kazumaRoyal: { img: kazuma.IMG.ult("royal"), video: kazuma.VIDEO.royal, title: "Royal Straight Flush", label: "ปล่อยท่าไม้ตาย", seconds: 13, music: null, afterReveal: false },
     yunaIdol: { img: yuna.IMG.ult, video: yuna.VIDEO.ult, title: "ร้อนแรงดังไฟ", label: "ยูนะ ไอดอล", seconds: 10, music: null, afterReveal: false },
-    // ขบวนการจอมราชันคิงโอเจอร์ — คลิปแปลงร่างสำเร็จครั้งแรกต่อเกม (_ohger.js คิวเอง) · ความยาวจริง 20.47 / 18.43 / 16.27 / 20.47 / 21.67 วิ ปัดขึ้น
-    ...Object.fromEntries(ohger.map((m) => [m.CUT.transform, { img: m.IMG.armor, video: m.VIDEO.transform, title: m.def.armorName, label: "สวมเกราะราชัน", seconds: OHGER_SECONDS[m.FORM], music: null, afterReveal: false }])),
     // ---------- นกหวีดอัญเชิญมนต์อสูรเทพ (server/whistle.js — ช่องพิเศษที่ 6 ของกระเป๋า) ----------
     //  เต็มจอทุกครั้งที่เป่าติด · ผลลงหลังคลิป · ความยาวจริง 24.23 / 25.03 / 26.13 / 21.30 วิ ปัดขึ้น
     divineCrossWinds:   { img: "/item/divine_whistle/cross_winds.webp",   video: "/item/divine_whistle/cross_winds.mp4",   title: "CROSS WINDS",   label: "นกหวีดอัญเชิญมนต์อสูรเทพ", seconds: 25, music: null, afterReveal: false },

@@ -22,7 +22,6 @@ const shop = require("../shop");
 const summary = require("./summary");
 const timers = require("../timers");
 const view = require("../view");
-const Zero = require("../zeroTime");
 const Duo = require("../duo");
 const Soot = require("../soot");
 const Colony = require("../colony");
@@ -43,7 +42,6 @@ function dealRound() {
   if (Fodlan.preRound(dealRound)) return;
   match.roundNumber++;
   require("../soloDummy").ensure(); // เล่นคนเดียว (ทดสอบ): หุ่นยืนเฉย 1 ตัว (server/soloDummy.js)
-  if (Zero.active()) match.zeroFrozen = (match.zeroFrozen || 0) + 1; // ห่วงเวลาซีโร่: เวลาโลกไม่เดิน
   match.centralDeck = cardDeck.buildCentralDeck(); // กองกลาง 43 ใบ สับใหม่ทุกรอบ
   match.lastLog = Moon.takeLog(); // บันทึกต้นเทิร์นของ Moon Cell (ไม่มี = ว่าง)
   match.turnOrder = [];
@@ -62,8 +60,8 @@ function dealRound() {
   match.tsSnap = null;
   CHAR_HOOKS.sliver_bullet.refresh(engine); // นักบินปริศนา: หมดเวลาปรากฏตัว (2 เทิร์น) = ล่องหนอีกครั้ง
   // ร้านค้าบนแผนที่: ตั้ง/ย้ายจุดทุก 6 เทิร์น (สุ่มของใหม่) · ไม่ย้าย = คิดผลของภูมิภาคต่อร้านตามช่วงเวลาของเทิร์นนี้
-  if (!Zero.active()) shop.maybeMoveShop(); // ห่วงเวลาซีโร่: ร้านปิด (กลับมาที่เดิมตอนปลดผนึก)
-  const world = Zero.worldRound();
+  shop.maybeMoveShop();
+  const world = match.roundNumber;
   const prevNight = dayNight.isNightRound(world - 1);
 
   for (const p of Object.values(match.players)) {
@@ -80,7 +78,7 @@ function dealRound() {
 
     // กลางคืน (patch 2.1.7): สุ่มใหม่ทุกเทิร์นว่าสกิลพื้นฐานหรือสกิลรอง (อย่างใดอย่างหนึ่ง) จะใช้แต้มมากขึ้น — ไม่มีผลกับท่าไม้ตาย
     //  การเดินทาง: ภาษีนี้เหลือเฉพาะ "อาณาจักรแห่งจุดเริ่มต้น" กลางคืน (ภูมิภาคอื่นใช้ผลของภูมิภาคแทน)
-    if (!Zero.active() && Journey.nightTaxOn(engine, dayNight.isNightRound(world))) {
+    if (Journey.nightTaxOn(engine, dayNight.isNightRound(world))) {
       const ch0 = CHAR_BY_ID[p.characterId];
       const taxCandidates = [];
       if (ch0 && ch0.basic) taxCandidates.push("basic");
@@ -130,11 +128,10 @@ function dealRound() {
 
     // เกราะฟื้น 1 หน่วยทุก 2 เทิร์น (รอบเลขคู่) — เหมือนกันทั้งกลางวัน/กลางคืน (ยกเลิกโบนัสฟื้นทุกเทิร์นตอนกลางคืน patch 2.1.7)
     //  ผุพัง (สถานะ Universal): เกราะไม่ฟื้นระหว่างมีผล · การเดินทาง: ภูมิภาค 5-7 เกราะฟื้นทุกเทิร์น (Journey.armorRegenDue)
-    //  ห่วงเวลาซีโร่: เกราะไม่ฟื้น
     //  ฮุค blocksArmorRegen(p) → true = เกราะไม่ฟื้น (ไรเดอร์ ZECT: CAST OFF)
     const armorHook = CHAR_HOOKS[p.characterId];
     const armorLocked = !!(armorHook && armorHook.blocksArmorRegen && armorHook.blocksArmorRegen(p));
-    if (!Zero.active() && !armorLocked && !((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, world)) combat.healArmor(p, 1);
+    if (!armorLocked && !((p.statuses.decay || 0) > 0) && Journey.armorRegenDue(engine, world)) combat.healArmor(p, 1);
     // ตื่นขึ้น (awaken, สถานะ Universal): ฟื้นพลังชีวิตเทิร์นละ 1 หน่วย
     if ((p.statuses.awaken || 0) > 0 && combat.healHp(p, 1) > 0) {
       match.lastLog.push(`⏰ ${p.name} การตื่นขึ้น — ฟื้นพลังชีวิต +1`);
@@ -178,14 +175,12 @@ function dealRound() {
 
   // สลับช่วงเวลากลางวัน/กลางคืน — แบนเนอร์บอกทั้งสนามเมื่อช่วงเวลาเปลี่ยน
   const night = dayNight.isNightRound(world);
-  if (!Zero.active() && world > 1 && night !== prevNight) {
+  if (world > 1 && night !== prevNight) {
     // Fodlan: กลางวัน/กลางคืนสลับให้เห็นเฉยๆ ไม่มีผล (GRID_PLAN §8.5)
     if (match.world === "fodlan" || match.world === "eos") match.lastLog.push(night ? "🌙 ราตรีมาเยือน" : "☀️ ฟ้าสางแล้ว");
     else match.lastLog.push(night ? "🌙 ราตรีมาเยือน — สุ่มสกิลพื้นฐาน/สกิลรองแพงขึ้น +1 ทุกเทิร์น" : "☀️ ฟ้าสางแล้ว — จบเทิร์นได้แต้มสกิลเพิ่ม +1");
   }
 
-  // ห่วงเวลาซีโร่: ของฟื้นพลังชีวิต 1 ชิ้น · เฟส 4 ฟ้าผ่า 3 จุด
-  Zero.onRoundStart();
   // ระบำเขม่า (เคท): ม่านแดงที่ยังอยู่ ศัตรูข้างในเสียหาย 1 ทุกต้นเทิร์น
   if (Soot.active()) {
     const hits = Soot.tickRound();
@@ -211,7 +206,7 @@ function skipFallen(p, cardHolder) {
   else if (cardHolder) { p.cards = []; p.locked = true; p.busted = false; }
 }
 
-// ระบบคู่: ฟ้าผ่าซีโร่ / ม่านแดง (หลังแจกไพ่แล้ว แต่ยังไม่ PLAYING) ฆ่าเจ้าของที่อีกตัวยังรอด —
+// ระบบคู่: ม่านแดง (หลังแจกไพ่แล้ว แต่ยังไม่ PLAYING) ฆ่าเจ้าของที่อีกตัวยังรอด —
 //  instantDeath ล็อกไว้เพราะไม่ใช่ช่วงจั่ว → เปิดให้จั่ว/เปิดไพ่ต่อ (เหมือนล้มในลูปต้นเทิร์น — skipFallen)
 function reopenFallenOwners() {
   for (const p of Duo.cardHolders()) if (!p.alive && p.locked) p.locked = false;

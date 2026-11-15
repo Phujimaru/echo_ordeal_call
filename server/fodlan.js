@@ -29,7 +29,6 @@ const combat = require("./combat");
 const action = require("./phases/action");
 const timers = require("./timers");
 const view = require("./view");
-const Zero = require("./zeroTime");
 
 const STAGES = 5;
 const WEATHER_TURNS = 3;
@@ -220,13 +219,13 @@ function onEndTurn(random = Math.random) {
     w.left -= 1;
     if (w.left <= 0) {
       match.lastLog.push(`🌤️ ${WEATHER_NAMES[w.kind]} สงบลงแล้ว`);
-      if (match.fodlan.s) match.fodlan.s.wxEnded = Zero.worldRound();
+      if (match.fodlan.s) match.fodlan.s.wxEnded = match.roundNumber;
       call("weatherEnd", undefined);
       return; // เทิร์นที่เพิ่งสงบไม่สุ่มใหม่
     }
   }
   const st = stageState();
-  const round = Zero.worldRound();
+  const round = match.roundNumber;
   if (isEos()) {
     // Eos: ไม่มีอากาศอยู่ + ผ่านเทิร์นแรก + พักครบหลังครั้งก่อนสงบ → สุ่ม
     if (!st || weatherNow() || round < WEATHER_FROM - 1 || (st.wxEnded && round - st.wxEnded < EOS_WX_GAP)) return;
@@ -251,7 +250,7 @@ function startWeather(kind = null) {
 // จบด่าน (ครบ 6 เทิร์น) → สุ่มด่านถัดไป → พักเกม CUTSCENE ให้ client เล่นฉากเปลี่ยนแผนที่ (fodlan/FodlanTravel.jsx)
 //  คืน true = จัดการแล้ว (ผู้เรียกหยุด) · startTimer = พักเฟสแล้วแจกไพ่ (phases/endTurn.js)
 function maybeAdvance(startTimer, random = Math.random) {
-  if (isEos() || Zero.active() || !active() || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
+  if (isEos() || !active() || !Journey.legEnds(match.roundNumber, match.legStart)) return false;
   const st = match.fodlan;
   const from = st.stage;
   call("leave", undefined); // ฮุคของด่านที่กำลังออก (หลุมศพ: ศิลาตราหาย)
@@ -375,7 +374,7 @@ function publicInfo() {
   const st = match.fodlan;
   const scene = match.journeyScene;
   const w = weatherNow();
-  const round = Zero.worldRound();
+  const round = match.roundNumber;
   const s = st.s;
   return {
     stage: st.stage,

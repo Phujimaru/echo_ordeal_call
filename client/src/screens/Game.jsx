@@ -44,7 +44,6 @@ import SkillChoices from "./hud/SkillChoices";
 import DiaryBook, { DiaryCenter } from "./hud/DiaryBook";
 import RecallBadge from "./hud/RecallBadge";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
-import OhgerSword from "./hud/OhgerSword";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { requestAttention } from "../attention";
@@ -862,9 +861,6 @@ const STATUS_INFO = {
   hikaruGinga:   { icon: "✨", label: "Ultraman Ginga", cls: "bg-sky-500 text-gray-900", desc: "ตัวใหญ่ขนาด 3×3 เดินได้ 3 ช่องและพังสิ่งกีดขวาง ตีปกติแรงขึ้น 1 โดนศัตรูทุกคนที่ติดด้านนั้น และใช้ท่าไม้ตายลำแสงได้" },
   // องค์หญิงดอกไม้ เซลิน
   celineKing:    { icon: "👑", label: "ราชาดอกไม้", cls: "bg-amber-300 text-gray-900", desc: "เดินบนช่องดอกไม้ไม่เสียก้าว อัตราคริติคอลเพิ่ม 50% คริติคอลแรงสามเท่า และต้นเทิร์นได้แต้มสกิล 1" },
-  // ซึนาชิ ทาคุโตะ (ดาบอันเจิดจรัด — เทิร์นที่เหลือ)
-  takutoEmerald:  { icon: "🗡️", label: "ดาบเอเมอรูด", cls: "bg-emerald-400 text-gray-900", desc: "ตีปกติฟื้นพลังชีวิตเท่าความเสียหายจริงที่ทำได้รวมเกราะ ไม่เกิน 2 ต่อการตีหนึ่งครั้ง" },
-  takutoSapphire: { icon: "🗡️", label: "ดาบแซฟไฟร์", cls: "bg-sky-400 text-gray-900", desc: "ตีปกติโดนศัตรูทุกคนที่อยู่ติดด้านนั้นของตัวทั้ง 3 ช่อง" },
   // ผู้นำแห่งตระกูลเรียวกิ (เทิร์นที่เหลือ)
   emiyaUbw:       { icon: "⚔️", label: "Unlimited Blade Works", cls: "bg-orange-300 text-gray-900", desc: "ต้นเทิร์นได้แต้มสกิล 1 คูลดาวน์สกิลรองลดเพิ่มทุกเทิร์น Trace On ไม่มีคูลดาวน์ และระยะเดินเพิ่ม 1" },
   ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "การโจมตีครั้งถัดไป ศัตรูที่โดนถูกลบบัฟล่าสุด 1 อย่างและถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง ใช้ได้ครั้งเดียว" },
@@ -1026,13 +1022,6 @@ function statusEntries(p, full) {
     if (s.warm > 0) out.push({ key: "shinraWarm", v: s.warm, turns: true, icon: "🔥", label: "อุ่นเครื่องพอแล้ว", cls: "bg-red-600 text-white", desc: "เปลวเพลงสูงสุด 8 · ฟื้นเปลวเพลง +2/เทิร์น · ตีปกติติดลุกไหม้ 2" });
     if (s.smolder > 0) out.push({ key: "shinraSmolder", v: s.smolder, turns: true, icon: "💥", label: "มอดไหม้จากภายใน", cls: "bg-amber-300 text-gray-900", desc: "ตีปกติระเบิดลุกไหม้บนตัวเป้าเป็นความเสียหาย" });
     if (s.latomCd > 0) out.push({ key: "shinraLatomCd", v: s.latomCd, turns: true, icon: "⏳", label: "ลาทัม", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ลาทัมได้" });
-  }
-  // ซึนาชิ ทาคุโตะ: ดาบแห่งการพิพากษา (รวมร่างแล้ว) · คูลดาวน์สกิล (ตัวเลข/ไอคอนเท่านั้น) — ดาบ 2 เล่มเป็นสถานะ takutoEmerald / takutoSapphire
-  if (p.takuto) {
-    const t = p.takuto;
-    if (t.judgment) out.push({ key: "takutoJudgment", v: 1, icon: "⚔️", label: "ดาบแห่งการพิพากษา", cls: "bg-amber-200 text-gray-900", desc: "ตีปกติเป็นการปาดาบใส่เป้าเดียวไกล 1 ถึง 4 ช่อง เสียหาย 4 ตายตัว แล้วดาบทั้งสองเล่มหายไป" });
-    if (t.secCd > 0) out.push({ key: "takutoSecCd", v: t.secCd, turns: true, icon: "⏳", label: "ดาบประกายแสง", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ดาบประกายแสงได้อีก" });
-    if (t.ultCd > 0) out.push({ key: "takutoUltCd", v: t.ultCd, turns: true, icon: "⏳", label: t.collapse ? "ฉันยังมองเห็นอยู่" : "ทาวววว มิสไซล์", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
   }
   // ผู้นำแห่งตระกูลเรียวกิ: คูลดาวน์หยินหยาง (เนตรมณะ/เยียวยา) · ดับสิ้นซะ — เนตรมณะ/รากฐานจิต/ดับสิ้นซะ เป็นสถานะ netramana / ryougiMind / ryougiBloom
   if (p.ryougi) {
@@ -2301,12 +2290,6 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     socket.emit("useSkill", { tier, form: c.key });
   };
   //  ถ้าผู้เล่นปิด "ยืนยันสกิล" จากหน้าโต๊ะรวมผู้เล่น -> ข้ามป๊อปอัป ใช้สกิลทันทีที่กดช่อง
-  // คิงโอเจอร์ (players[].ohger — characters/_ohger.js): ลูปเสียงระหว่างกดแกนดาบของคนที่กำลังเดิน (ทุกคนได้ยิน)
-  //  loop = ลูปแปลงร่างตามสี เปลี่ยนตามขั้นที่กด · charge = รอดึงคันโยก เปลี่ยนตามจำนวนที่ดึง · standby = เลือกทิศ · เสียงกด/ดึงดังเมื่อไร ลูปหลบ (audio.js LOOP_YIELD)
-  const ohgerActor = phase === "ACTION" ? (state.players || []).find((p) => p.id === state.actorId && p.ohger) : null;
-  const ohgerLoop = ohgerActor && ohgerActor.ohger.phase
-    ? ({ loop: `ohger_tf_wait_${ohgerActor.ohger.own}_${ohgerActor.ohger.step || 0}`, charge: `ohger_charge_loop_${ohgerActor.ohger.pulls || 0}`, standby: "ohger_standby_loop" })[ohgerActor.ohger.phase] || null
-    : null;
   // อินุอิ Start Up: เสียง axel_startUp_soundeffect เริ่มพร้อมเพลงตอนนับ 10 วิ (ทุกคนได้ยิน) · พักพร้อมนาฬิกา (ฉากตี/คลิป)
   const inuiUp = (state.players || []).some((p) => p.inui?.startUp?.running);
   const clockWorld = !!state.clockUp && !state.clockUp.paused; // ช่วง Clock Up (server/clockUp.js) — ตัวหยุดเวลาแทรก = ปิด
@@ -2329,7 +2312,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   useEffect(() => () => { if (alterBeatRef.current) stopLoopSfx(); }, []);
   // เฟรดดี้ (กลางวัน): ผู้ชมอยู่ใกล้ = เพลงวนจนออกห่าง (state.freddyNear — per-viewer) · ไม่ทับลูปของคนอื่น
   //  มินิเกมประตู / คลิป = ไม่มีเพลงนี้
-  const freddyLoop = inuiUp || alterBeat || ohgerLoop || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
+  const freddyLoop = inuiUp || alterBeat || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
   const freddyLoopRef = useRef(null);
   useEffect(() => {
     if (freddyLoopRef.current === freddyLoop) return;
@@ -2338,21 +2321,6 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     if (freddyLoop) startLoopSfx(freddyLoop);
   }, [freddyLoop]);
   useEffect(() => () => { if (freddyLoopRef.current) stopLoopSfx(); }, []);
-  const ohgerLoopRef = useRef(null);
-  useEffect(() => {
-    if (ohgerLoopRef.current === ohgerLoop) return;
-    if (ohgerLoopRef.current) stopLoopSfx();
-    ohgerLoopRef.current = ohgerLoop;
-    if (ohgerLoop) startLoopSfx(ohgerLoop);
-  }, [ohgerLoop]);
-  useEffect(() => () => { if (ohgerLoopRef.current) stopLoopSfx(); }, []);
-  // stand by (ดึงครบ 3 ครั้ง) = เข้าโหมดเลือกทิศทันที · ออกจากโหมด (Esc / คลิกขวา) = ยกเลิก Finish (กดไกซ้ำ)
-  const ohgerStandby = myTurn && !canto && me?.ohger?.phase === "standby";
-  const ohgerExit = useRef(false);
-  useEffect(() => {
-    if (!ohgerStandby) { ohgerExit.current = false; return; }
-    if (!pickReq && !ohgerExit.current) setPickReq({ kind: "ohger" });
-  }, [ohgerStandby, pickReq]);
   const requestSkillUse = (tier, skillData, label, useCost) => {
     // ไรโด ฮิคารุ UltraLive: เลือกร่างจากตัวเลือก 7 ปุ่ม (การเลือกร่าง = การยืนยัน)
     if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
@@ -2415,14 +2383,6 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
       //  place "list" + count (ลอว์: Shambles / Shamble เลือก 2 อย่าง) = เลือกครบแล้วส่ง tiles ทีเดียว
       else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, band: a.band || 0, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
-    } else if (pickReq.kind === "ohger") {
-      // คิงโอเจอร์ stand by: เลือกทิศ Ohger Finish (พื้นที่ตามร่าง) → useSkill secondary · ยกเลิก = กดไกซ้ำ (ไม่เสียแต้ม เดินได้อีก)
-      const a = ch?.secondary?.area || {};
-      boardPick = {
-        kind: "line", len: a.len || 1, width: a.width || 1, label: `${ch?.secondary?.name || ""} · ${areaText(a)}`,
-        onPick: (dir) => { ohgerExit.current = true; socket.emit("useSkill", { tier: "secondary", dir }); done(); },
-        onCancel: () => { ohgerExit.current = true; socket.emit("charAction", { key: "ohger:trigger" }); done(); },
-      };
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
       boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
@@ -2440,7 +2400,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         clickSound(); rtEmit("rt:turret", { x: tile.x, y: tile.y }); done();
       }, onCancel: done };
     } else if (pickReq.kind === "action") {
-      // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
+      // ปุ่มพิเศษที่มี tiles (actions[].tiles): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
       const tiles = act && Array.isArray(act.tiles) ? act.tiles : [];
       boardPick = { kind: "tile", place: "list", tiles, foot: Math.max(1, me.size | 0), label: act ? act.name : pickReq.key, onPick: (tile) => { socket.emit("charAction", { key: pickReq.key, tile }); done(); }, onCancel: done };
@@ -2817,7 +2777,6 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
             ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather }
             : null}
         onJourney={state.world === "eos" ? () => { clickSound(); setEosSitOpen(true); } : state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
-        zero={state.zero && state.zero.active && (phase === "PLAYING" || inBoardTurn) ? state.zero : null}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}
         roadtrip={rtOn ? { rt: state.roadtrip, myTurn: myTurn && !canto && rtCanRear(state.roadtrip, state.youId) } : null}
@@ -2879,8 +2838,6 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           center={rtTravel ? <span /> : hudMode !== "draw" && ch?.basic?.book ? (
             // เจ้าหญิง Echo: สมุดไดอารี่กลาง HUD แทนช่องสกิลพื้นฐาน
             <DiaryCenter skill={ch.basic} disabled={hudMode !== "turn" || slotOff("basic")} cooldown={giftCd("basic")} onOpen={() => requestSkillUse("basic", ch.basic, "พื้นฐาน", ch.basic.cost)} />
-          ) : hudMode !== "draw" && me?.ohger ? (
-            <OhgerSword ohger={me.ohger} interactive={myTurn && !canto} onPress={(k) => socket.emit("charAction", { key: `ohger:${k}` })} />
           ) : hudMode === "draw" ? (
             <DrawDock
               cards={hand.cards}
@@ -2908,10 +2865,10 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  {ch?.basic && !ch.basic.book && !me.ohger && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
+                  {ch?.basic && !ch.basic.book && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
-                    : ch?.secondary && !me.ohger && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
+                    : ch?.secondary && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }

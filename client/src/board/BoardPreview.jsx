@@ -24,9 +24,7 @@
 //   ?otoya=1 = คุเรไน โอโตยะ · ปุ่มเล่นทุกเหตุการณ์ของ socket "otoyaFx" + สลับกลางคืนจันทร์แดง/สายดนตรี/Dark Kiva/หลุมพราง/Wake Up 2 (OtoyaFxDev.jsx)
 //   ?giorno=1 = โจรุโน่ โจวาน่า · ปุ่มเล่นทุกเหตุการณ์ของ socket "giornoFx" + ตีปกติ + สลับ Requiem/รอผลธนู/วนตาย/ต้นไม้/สะท้อน/Muda ที่ตัวหมาก (GiornoFxDev.jsx)
 //   ?divine=1 = นกหวีดอัญเชิญมนต์อสูรเทพ · ปุ่มเล่น 4 มนต์ (socket "divineFx" — DivineFxDev.jsx)
-//   ?ohger=1 = คิงโอเจอร์ · ปุ่มเล่น Ohger Finish 5 ร่าง + คลื่นดาบคุวากาตะ (socket "ohgerFx" — OhgerFxDev.jsx)
 //   ?law=1 = ทราฟาก้า ลอว์ · ปุ่มเล่นตีปกติ (ฟัน/Gamma Knife/Mess) + ทุกเหตุการณ์ของ socket "lawFx" + Room 5×5/9×9 · วัตถุลอย · มาร์ก · หัวใจ · หนามหิน (LawFxDev.jsx)
-//   ?takuto=1 = ซึนาชิ ทาคุโตะ (ทาวเบิร์น 3×3) · ปุ่มเล่นตีปกติ 5 แบบ + ทุกเหตุการณ์ของ socket "takutoFx" + ดาบลอย/ช่วงมิติพังทลาย (?area=11) (TakutoFxDev.jsx)
 //   ?fern=1 = เฟิร์น · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "fernFx" + Zoltraak 3/6 ช่อง + ครั้งที่ 6 + แสงปลายคทา (FernFxDev.jsx)
 //   ?ice=1 = หนามน้ำแข็ง Lv1–3 + ธารน้ำแข็ง (Ice Spike) · window.__boardIce({ lv }) = prop ice ของ BoardCanvas
 //   ?area=45 (&rts=1 กล้อง RTS) = สนาม Eos · window.__eosMe(x, y) ย้ายตัวเรา · window.__eosFd({ rail, pillars, tombs, … }) = แก้ state.fodlan.board จำลอง · window.__eosFx([{ kind, … }]) = เล่นฉากเหตุการณ์ (board/fodlan/stage6.js)
@@ -46,7 +44,6 @@ import CelineFxDev from "./CelineFxDev"; // ?celine=1 = ปุ่มเล่น
 import EmiyaFxDev from "./EmiyaFxDev"; // ?emiya=1 = ปุ่มเล่นเอฟเฟกต์เอมิยะ ชิโร่
 import KazumaFxDev from "./KazumaFxDev"; // ?kazuma=1 = ปุ่มเล่นเอฟเฟกต์เคนซากิ คาซุมะ
 import LawFxDev from "./LawFxDev"; // ?law=1 = ปุ่มเล่นเอฟเฟกต์ทราฟาก้า ลอว์
-import OhgerFxDev from "./OhgerFxDev"; // ?ohger=1 = ปุ่มเล่นเอฟเฟกต์คิงโอเจอร์
 import DioFxDev from "./DioFxDev"; // ?dio=1 = ปุ่มเล่นเอฟเฟกต์ดิโอ บรันโด
 import GiornoFxDev from "./GiornoFxDev"; // ?giorno=1 = ปุ่มเล่นเอฟเฟกต์โจรุโน่
 import OtoyaFxDev from "./OtoyaFxDev"; // ?otoya=1 = ปุ่มเล่นเอฟเฟกต์คุเรไน โอโตยะ
@@ -54,10 +51,9 @@ import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่�
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
-import TakutoFxDev from "./TakutoFxDev"; // ?takuto=1 = ปุ่มเล่นเอฟเฟกต์ซึนาชิ ทาคุโตะ
 
-const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก", 8: "ห่วงเวลาซีโร่ 1", 9: "ห่วงเวลาซีโร่ 2", 10: "ห่วงเวลาซีโร่ 3", 11: "ห่วงเวลาซีโร่ 4" };
-const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "Z1", "Z2", "Z3", "Z4"];
+const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก" };
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
 const SPECIAL_NAMES = {
   flowers: "พุ่มดอกไม้สูง", forest: "ป่าทึบ", thorns: "หนามพิษ", shallow: "น้ำตื้น", whirl: "น้ำวน", quicksand: "ทรายดูด",
   ice: "น้ำแข็งลื่น", lava: "ลาวา", power: "แท่นพลัง",
@@ -142,11 +138,9 @@ const DIEGO_DEV = Q.get("diego") === "1";
 const VAL_DEV = Q.get("valentine") === "1";
 const FERN_DEV = Q.get("fern") === "1";
 const CELINE_DEV = Q.get("celine") === "1";
-const TAKUTO_DEV = Q.get("takuto") === "1";
 const EMIYA_DEV = Q.get("emiya") === "1";
 const KAZUMA_DEV = Q.get("kazuma") === "1";
 const LAW_DEV = Q.get("law") === "1";
-const OHGER_DEV = Q.get("ohger") === "1";
 const DIVINE_DEV = Q.get("divine") === "1";
 const GIORNO_DEV = Q.get("giorno") === "1";
 const OTOYA_DEV = Q.get("otoya") === "1";
@@ -156,7 +150,7 @@ const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
-  : TAKUTO_DEV ? TakutoFxDev.units(baseUnits()) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : OHGER_DEV ? OhgerFxDev.units(baseUnits()) : baseUnits());
+  : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -315,11 +309,8 @@ export default function BoardPreview() {
   const [fernGlow, setFernGlow] = useState(null);
   // เซลิน (?celine=1): พุ่มดอกไม้ [{ x, y, left, made }] → special "bloom" · กำแพง [{ x, y }] → terrain "icewall" · ราชาดอกไม้ (me)
   const [celDev, setCelDev] = useState({ flora: [], walls: [], king: false });
-  // ทาคุโตะ (?takuto=1): ดาบลอย/ออร่า { emerald, sapphire, judgment, collapse } → prop takutos · ช่วงมิติพังทลาย (เทิร์นที่เหลือ) → zero.collapse
   const [emDev, setEmDev] = useState({ weapon: null, ubw: false }); // ชิโร่ (?emiya=1): อาวุธที่ถือ / โลก UBW → prop emiya
   const [lawDev, setLawDev] = useState(() => LawFxDev.empty); // ลอว์ (?law=1): prop law + หนามหิน → terrain "icewall"
-  const [tkSwords, setTkSwords] = useState({ emerald: true, sapphire: true, judgment: false, collapse: false });
-  const [tkCollapse, setTkCollapse] = useState(null);
   useEffect(() => { window.__boardSongs = (v) => setSongsMock(v && v.length ? v : null); return () => { delete window.__boardSongs; }; }, []);
   const iceMap0 = useMemo(() => (!iceOn ? map : {
     ...map,
@@ -393,8 +384,6 @@ export default function BoardPreview() {
   const fernMe = units.find((u) => u.id === "me");
   const celineMock = CELINE_DEV && fernMe && (celDev.flora.length || celDev.king)
     ? { flora: celDev.flora, kings: celDev.king ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1 }] : [] } : null;
-  const takutoMock = TAKUTO_DEV && fernMe && (tkSwords.emerald || tkSwords.sapphire || tkSwords.judgment || tkSwords.collapse)
-    ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: fernMe.size || 1, ...tkSwords }] : null;
   const fernMock = fernGlow && fernMe && (fernGlow.empowered || fernGlow.boost) ? [{ id: "me", x: fernMe.x, y: fernMe.y, size: 1, empowered: !!fernGlow.empowered, boost: !!fernGlow.boost }] : null;
   const viewUnits = units.map((u) => ({ ...u, isMe: u.id === "me", isActor: u.id === actor.id, teamId: null }));
 
@@ -504,16 +493,6 @@ export default function BoardPreview() {
     map.heal.includes(key(hover.x, hover.y)) && (area === 5 ? "โอเอซิส (ฟื้นฟู)" : "จุดฟื้นฟู"),
   ].filter(Boolean).join(" · ") : "";
 
-  // ห่วงเวลาซีโร่ (area 8–11): ผนึก 4 มุม (ระดับ N = แตกไป N−1 อัน) + ของฟื้นพลังชีวิต 1 ชิ้น
-  //  คอนโซล: window.__zeroScene("enter" | "break" | "release", ผนึก 0–3) · window.__zeroBolt() = ฟ้าผ่า 3 จุด
-  const zeroStage = area >= 8 ? area - 7 : 0;
-  const zeroMock = useMemo(() => (zeroStage ? {
-    active: true, stage: zeroStage,
-    seals: [[0, 0], [13, 0], [13, 13], [0, 13]].map(([x, y], i) => ({ i, x, y, hp: i === 3 ? 2 : 3, armor: i === 3 ? 0 : 2, maxHp: 3, maxArmor: 2, broken: i < zeroStage - 1 || tkCollapse != null })),
-    pickups: tkCollapse != null ? [] : [{ x: 7, y: 11 }],
-    ...(tkCollapse != null ? { collapse: { left: tkCollapse, total: 5, seq: 1 } } : {}),
-  } : null), [zeroStage, tkCollapse]);
-  const [zeroScene, setZeroScene] = useState(null);
   // ม่านแดง (เคท): ฉากร่าย + ม่านบนกระดาน · กล้องซูมตามฉาก (prop cinema)
   const [storms, setStorms] = useState(null);
   const [stormOut, setStormOut] = useState(() => Q.get("stormout") === "1");
@@ -532,11 +511,6 @@ export default function BoardPreview() {
     if (Q.get("storm") === "1") { const t = setTimeout(() => castRef.current(), 600); return () => { clearTimeout(t); delete window.__kateStorm; delete window.__kateStormClear; }; }
     return () => { delete window.__kateStorm; delete window.__kateStormClear; };
   }, []);
-  useEffect(() => {
-    window.__zeroScene = (mode = "enter", seal = 0) => setZeroScene((z) => ({ seq: (z ? z.seq : 0) + 1, mode, stage: zeroStage || 1, seal }));
-    window.__zeroBolt = () => setFx((f) => [...f, { key: "bolt" + Date.now(), kind: "zeroBolt", tiles: [{ x: 3, y: 4 }, { x: 8, y: 9 }, { x: 11, y: 2 }] }]);
-    return () => { delete window.__zeroScene; delete window.__zeroBolt; };
-  }, [zeroStage]);
 
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
@@ -555,8 +529,6 @@ export default function BoardPreview() {
         lowQ={lowQ}
         anim={anim}
         fx={fx}
-        zero={zeroMock}
-        zeroScene={zeroScene}
         storms={storms}
         songs={songsMock}
         gyroBalls={gyroBalls}
@@ -566,7 +538,6 @@ export default function BoardPreview() {
         dimView={dimView}
         ferns={fernMock}
         celine={celineMock}
-        takutos={takutoMock}
         law={LAW_DEV ? lawDev : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
@@ -579,7 +550,7 @@ export default function BoardPreview() {
         onHoverTile={(x, y) => setHover(x == null ? null : { x, y })}
       />
       <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 760 }}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((a) => (
+        {[1, 2, 3, 4, 5, 6, 7].map((a) => (
           <button key={a} style={btn(area === a)} title={AREA_NAMES[a]} onClick={() => setArea(a)}>{ROMAN[a]}</button>
         ))}
         <span style={{ width: 8 }} />
@@ -611,10 +582,8 @@ export default function BoardPreview() {
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
-      {OHGER_DEV && <OhgerFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} setCinema={setCinema} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
-      {TAKUTO_DEV && <TakutoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} swords={tkSwords} setSwords={setTkSwords} collapse={tkCollapse} setCollapse={setTkCollapse} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>

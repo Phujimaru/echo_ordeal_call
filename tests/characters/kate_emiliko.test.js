@@ -673,7 +673,6 @@ test('ขนมปัง: กินเอง/ป้อนเคทแล้ว �
 
 // ---------- ความเสถียร (บั๊กที่เจอจาก probe — กติกาเดิมต้องเป็นจริง) ----------
 const Visibility = require('../../server/visibility.js');
-const Zero = require('../../server/zeroTime.js');
 const Board = require('../../server/board.js');
 const draw = require('../../server/phases/draw.js');
 // ม่านแดงของ B (ศัตรู) ครอบ 1..8 × 1..8 — ขังเคท/เอมิลิโกะที่อยู่ข้างใน
@@ -732,64 +731,6 @@ test('ต้นเทิร์น: ม่านแดงฆ่าเคทหล
   assert.equal(P.K.cards.length, 1);
   engine.hit('K');
   assert.equal(P.K.cards.length, 2);
-});
-
-// ห่วงเวลาซีโร่: เข้าที่เทิร์น 9 (ข้ามฉาก) · ปลดผนึกทันที (ไม่มีคนทุบ)
-function zeroEnter(deal = true) {
-  engine.setRoundNumber(9);
-  Zero.enter(); engine.clearPhaseTimer(); M.zeroScene.active = false;
-  if (deal) { draw.dealRound(); engine.clearPhaseTimer(); }
-}
-function zeroRelease() {
-  for (const s of M.zero.seals) s.broken = true;
-  M.zero.pending.push({ i: 3, by: null });
-  Zero.runPendingBreak(() => {});
-  engine.clearPhaseTimer();
-  M.zeroScene.active = false;
-}
-
-test('ต้นเทิร์น: ฟ้าผ่าห่วงเวลาซีโร่ (เฟส 4) ฆ่าเคท (เอมิลิโกะยังอยู่) = ผู้เล่นยังจั่วได้', (t) => {
-  t.after(() => Zero.reset());
-  const P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
-  zeroEnter(false);
-  for (const i of [0, 1, 2]) M.zero.seals[i].broken = true;
-  // สุ่ม = 0 → ฟ้าผ่าช่อง (1,0) (2,0) (3,0) (เหมือน tests/zeroTime.test.js)
-  P.K.pos = { x: 1, y: 0 }; P.K.hp = 1; P.K.armor = 0;
-  P[E].pos = { x: 8, y: 8 }; P.B.pos = { x: 9, y: 9 };
-  const realRandom = Math.random;
-  Math.random = () => 0;
-  try { draw.dealRound(); } finally { Math.random = realRandom; }
-  engine.clearPhaseTimer();
-  assert.equal(P.K.alive, false, 'ฟ้าผ่าเคท');
-  assert.equal(P.K.locked, false, 'ยังจั่วได้');
-  assert.equal(P.K.cards.length, 1);
-});
-
-test('ห่วงเวลาซีโร่: ปลดผนึกแล้วร่างกลับช่องเดิม · ร่างที่ล้มในสนามเฉพาะ = ลงข้างอีกตัวบนแผนที่เดิม', (t) => {
-  t.after(() => Zero.reset());
-  // ล้มก่อนเข้า: ร่างถูกยกไปสนามเฉพาะ แล้วต้องกลับที่เดิม
-  let P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
-  P.K.hp = 0; P.K.alive = false; P.K.corpse = { x: 3, y: 5 }; P.K.pos = null;
-  zeroEnter();
-  assert.ok(Zero.active());
-  zeroRelease();
-  assert.equal(Zero.active(), false);
-  assert.deepEqual(P[E].pos, { x: 4, y: 5 });
-  assert.deepEqual(P.K.corpse, { x: 3, y: 5 }, 'ร่างกลับช่องเดิม');
-  assert.equal(engine.tileFree(3, 5), false, 'ร่างยังขวางช่อง');
-  // ล้มในสนามเฉพาะ: ร่างลงข้างเอมิลิโกะบนแผนที่เดิม
-  Zero.reset();
-  P = setup([['K', 'kate', 3, 5], [E, null, 4, 5], ['B', 'dummy', 12, 5]]);
-  zeroEnter();
-  P.K.hp = 1; P.K.armor = 0;
-  engine.dealDirect(P.K, 1);
-  engine.resolveDamageAftermath(P.K);
-  P.K.pos = null;
-  assert.equal(P.K.alive, false);
-  zeroRelease();
-  assert.deepEqual(P[E].pos, { x: 4, y: 5 });
-  assert.ok(P.K.corpse, 'มีร่าง');
-  assert.equal(Board.dist(P.K.corpse, P[E].pos), 1, 'ร่างติดเอมิลิโกะ');
 });
 
 // ---------- ม่านแดงในโหมดทีม (ผู้ใช้ตัดสิน 2026-10-14): เพื่อนร่วมทีมของเคท = ฝ่ายผู้ร่าย ----------

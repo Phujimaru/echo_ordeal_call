@@ -28,7 +28,7 @@
 
 /* ---------- HUD: กล่องกระจก · ป้ายบน · แผงตัวละคร ---------- */
 :root[data-ui="dark"] .hud-dock .hud-glass,
-:root[data-ui="dark"] .hud-top:not([data-zero="true"]):not([data-colony="boom"]) { box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+:root[data-ui="dark"] .hud-top:not([data-colony="boom"]) { box-shadow: 0 6px 18px rgba(0,0,0,.45); }
 :root[data-ui="dark"] .hud-top-region:hover .hud-top-name,
 :root[data-ui="dark"] .hud-name:hover,
 :root[data-ui="dark"] .hud-drawer-tab:hover,

@@ -489,7 +489,7 @@ module.exports = {
       };
     }
     if (tier === "ultimate") {
-      return { // ห่วงเวลาซีโร่: client เทาทั้งปุ่มจาก skillLocks.ultimate อยู่แล้ว
+      return {
         choices: ULT_KEYS.map((k) => {
           const left = cdLeft(s.ultReady[k], engineRef.roundNumber);
           return { key: k, name: ULTS[k].name, img: IMG.skill3, cost: ULTS[k].cost, area: ULTS[k].area, desc: ULTS[k].desc, locked: ultBlocked(engineRef, p, k), left, cd: left };

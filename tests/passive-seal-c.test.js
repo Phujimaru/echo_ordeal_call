@@ -1,5 +1,5 @@
 // ลบสกิลติดตัว (noPassive · server/passiveSeal.js) — กลุ่ม c:
-//  เคนซากิ คาซุมะ · ทราฟาก้า ลอว์ · ยูกิ มาโคโตะ · คิงโอเจอร์ 5 ตัว · รถบรรทุกเก่า · โจรุโน่ · อรชุน
+//  เคนซากิ คาซุมะ · ทราฟาก้า ลอว์ · ยูกิ มาโคโตะ · รถบรรทุกเก่า · โจรุโน่ · อรชุน
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -111,64 +111,6 @@ test('รถบรรทุก: ไพร์ม — ฟื้นเลือด 
   assert.equal(P.T.oldTruck.crit, false);
   // ร่าง/พลังโจมตีของออพติมัส (ร่างที่กดแปลง) ไม่กระทบ
   assert.equal(h.damageBonus(engine, P.T, P.B, {}), 1);
-});
-
-// ---------- คิงโอเจอร์ ----------
-test('คิงโอเจอร์: จอมราชัน — ร่างมนุษย์ฟื้น 2 / สวมเกราะ +1 ปิดเมื่อติด noPassive', () => {
-  const P = setup([['G', 'gira_ohger', 2, 2], ['B', 'dummy', 3, 2]]);
-  const h = H('gira_ohger');
-  P.G.hp = 3;
-  h.onEndTurn(engine);
-  assert.equal(P.G.hp, 5);
-  seal(P.G);
-  h.onEndTurn(engine);
-  assert.equal(P.G.hp, 5);
-  P.G.ohger.armored = true;
-  assert.equal(h.damageBonus(engine, P.G, P.B, {}), 0);
-  delete P.G.statuses.noPassive;
-  assert.equal(h.damageBonus(engine, P.G, P.B, {}), 1);
-});
-
-test('คิงโอเจอร์: ความสามารถเฉพาะร่าง ปิดเมื่อติด noPassive', () => {
-  const P = setup([
-    ['G', 'gira_ohger', 2, 2], ['Y', 'yanma_ohger', 2, 4], ['H', 'himeno_ohger', 2, 6],
-    ['R', 'rita_ohger', 6, 2], ['K', 'kaguragi_ohger', 6, 6], ['B', 'dummy', 3, 2],
-  ]);
-  for (const id of ['G', 'Y', 'H', 'R', 'K']) P[id].ohger.armored = true;
-  Math.random = () => 0;
-  // ทอมโบ: ตีซ้ำ
-  seal(P.Y);
-  assert.equal(H('yanma_ohger').extraStrike(engine, P.Y), false);
-  delete P.Y.statuses.noPassive;
-  assert.equal(H('yanma_ohger').extraStrike(engine, P.Y), true);
-  // พาพิยอง: ตรึง
-  seal(P.R);
-  assert.deepEqual(H('rita_ohger').onStrikeLanded(engine, P.R, P.B), []);
-  assert.ok(!(P.B.statuses.rooted > 0));
-  delete P.R.statuses.noPassive;
-  assert.deepEqual(H('rita_ohger').onStrikeLanded(engine, P.R, P.B), ['ถูกตรึง']);
-  // คามาคิริ: ดูดเลือด
-  seal(P.H);
-  H('himeno_ohger').beforeStrikeHit(engine, P.H, P.B);
-  assert.equal(P.H.ohger.preHp.B, undefined);
-  delete P.H.statuses.noPassive;
-  H('himeno_ohger').beforeStrikeHit(engine, P.H, P.B);
-  assert.equal(P.H.ohger.preHp.B, P.B.hp);
-  // ฮาจิ: ถอย
-  seal(P.K);
-  H('kaguragi_ohger').onAttacked(engine, P.K, P.B, 'strike');
-  assert.equal(P.K.ohger.flee, null);
-  delete P.K.statuses.noPassive;
-  P.K.ohger.fleeSeq = -1;
-  H('kaguragi_ohger').onAttacked(engine, P.K, P.B, 'strike');
-  assert.ok(P.K.ohger.flee);
-  // คุวากาตะ: คลื่นดาบไปข้างหลัง
-  P.G.ohger.lastDir = 'right';
-  seal(P.G);
-  assert.equal(H('gira_ohger').afterBoardAttack(engine, P.G), null);
-  delete P.G.statuses.noPassive;
-  P.G.ohger.lastDir = 'right';
-  assert.equal(typeof H('gira_ohger').afterBoardAttack(engine, P.G), 'function');
 });
 
 // ---------- โจรุโน่ ----------

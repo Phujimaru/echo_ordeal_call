@@ -1,5 +1,5 @@
 // ลบสกิลติดตัว (noPassive · server/passiveSeal.js) — กลุ่ม b:
-//  เกรย์ · ไจโร · ดิเอโก้ · เฟิร์น · ฟันนี่ วาเลนไทน์ · เซลิน · ทาคุโตะ · เรียวกิ
+//  เกรย์ · ไจโร · ดิเอโก้ · เฟิร์น · ฟันนี่ วาเลนไทน์ · เซลิน · เรียวกิ
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -213,31 +213,6 @@ test('เซลิน: เวลาน้ำชา/คริในพุ่ม/�
   assert.equal(P.A.hp, 4, 'ไม่ติด: ฟื้น 1');
   assert.ok(h.afterWalk(engine, P.A, [{ x: 5, y: 7 }, { x: 6, y: 7 }]).length > 0);
   assert.equal(!!engine.board.flora['6,7'], true);
-});
-
-// ---------- ทาคุโตะ ----------
-test('ทาคุโตะ: ห่วงเวลา +45%/ภูมิคุ้มกัน/ช่วงพังทลาย/พลังโจมตี/ดาบแห่งการพิพากษา ปิดเมื่อติด noPassive', () => {
-  const P = setup([['A', 'takuto', 4, 7], ['B', 'dummy', 8, 7]]);
-  const h = H('takuto');
-  assert.equal(h.zeroChanceBonus(engine), 45);
-  assert.equal(h.zeroImmune(P.A), true);
-  assert.ok(h.zeroCollapseTurns(engine) > 0);
-  P.A.takuto.form = 'tauburn';
-  P.A.takuto.awakened = true;
-  P.A.takuto.judgment = true;
-  P.A.statuses.takutoEmerald = 3; P.A.statuses.takutoSapphire = 3;
-  assert.equal(h.damageBonus(engine, P.A), 1);
-  assert.equal(h.judgmentOn(P.A), true);
-
-  seal(P.A);
-  assert.equal(h.zeroChanceBonus(engine), 0);
-  assert.equal(h.zeroImmune(P.A), false);
-  assert.equal(h.zeroCollapseTurns(engine), 0);
-  assert.equal(h.damageBonus(engine, P.A), 0);
-  assert.equal(h.judgmentOn(P.A), false);
-  assert.equal(P.A.takuto.awakened, true, 'ค่าที่ได้ไว้ไม่หาย');
-  unseal(P.A);
-  assert.equal(h.judgmentOn(P.A), true);
 });
 
 // ---------- เรียวกิ ----------

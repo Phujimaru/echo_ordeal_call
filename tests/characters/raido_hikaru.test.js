@@ -495,7 +495,7 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
 });
 
-test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืน/ห่วงเวลาไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
+test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืนไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
   const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
   const s = P.H.hikaru;
   s.ginga = true; P.H.statuses.hikaruGinga = 99; P.H.boardSize = 3;

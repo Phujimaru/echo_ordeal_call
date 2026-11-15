@@ -41,9 +41,6 @@
 //   onTileClick(x, y) · onUnitClick(id) (ไม่ส่งมา = เรียก onTileClick ที่ช่องของตัวนั้นแทน) · onHoverTile(x|null, y|null)
 //   ice         Ice Spike: { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } | null (ดู iceFx.js)
 //               fx ของ Ice Spike: ice* (iceFx.js) · iceShake { amp } = จอสั่นแบบเลื่อนกล้อง (แรงตาม amp · lowQ/ลดการเคลื่อนไหว = ไม่สั่น)
-//   zero        state.zero (ห่วงเวลาซีโร่: { stage, seals, pickups }) — ผนึก/โซ่/ของฟื้นพลังชีวิตบนสนาม area 8–11
-//   zeroScene   { seq, mode: "enter"|"break"|"release", stage, seal } | null — seq ใหม่ = เล่นฉากเปลี่ยนผ่าน:
-//               จับภาพเฟรมล่าสุดไว้ (สนามเดิม) แล้วเผยเฟรมใหม่ใต้คลื่น (เข้า/เปลี่ยนเฟส) หรือแตกเป็นเศษกระจก (ปลดผนึก) — zeroTheme.js
 //   songs       [{ kind: "delete"|"smile"|"idol", x, y, r }] — วงเพลงของยูนะบนพื้น (yunaFx.js drawYunaZones)
 //               units[].rider = { img, color, name } → ตัวที่ขี่อยู่บนหลัง (ขี่ผู้เล่นอื่น — server/ride.js)
 //   grays       [{ id, x, y, size, dir, left, tiles }] — เกรย์กำลังชาร์จรองโกมิเนียต: สนามมืด + แนวลำแสงทอง + หอกลอยเหนือหัว (grayFx.js)
@@ -61,8 +58,6 @@
 //   timeFreeze  { by } | null — หยุดเวลาอยู่ (state.timeFreeze): กระดานซีเปีย ยกเว้นหมากของ by + นาฬิกาเดินติ๊ก (diegoTimeLayer)
 //   celine      { flora: [{ x, y, left, made }], kings: [{ id, x, y, size }], hold: [{ x, y }], preview: { tiles, orient, ok } } | null
 //               — พุ่มดอกไม้ / ราชาดอกไม้ / กำแพงที่ค้างไว้ถึงจังหวะปะทะ / พรีวิวกำแพงตอนเลือกช่อง (celineFx.js) · fx celine* · celinePose ย้ายหมากตอนสลับตำแหน่ง
-//   takutos     [{ id, x, y, size, emerald, sapphire, judgment, collapse }] — ทาวเบิร์นของทาคุโตะ: ดาบลอยข้างตัว / ดาบแห่งการพิพากษาพาดหลัง / ออร่าแดงช่วงพังทลาย
-//               (takutoFx.js) · fx takuto* · takutoPose ย้ายหมากตอนพุ่ง/สลับตำแหน่ง
 //   emiya       { ubw, units: [{ id, weapon }] } | null — เอมิยะ ชิโร่: โลก Unlimited Blade Works · อาวุธที่ถือ (emiyaFx.js) · fx emiya*
 //   otoya       { night: bool, links: [{ from, to }] } | null — คุเรไน โอโตยะ: ฟ้าจันทร์แดง (Wake Up 1) · สายโน้ตดนตรีในหัวใจ (otoyaFx.js) · units[].otoya = ผลค้างบนตัว
 //   ryougi      { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } | null — ผู้นำแห่งตระกูลเรียวกิ: เนตรมณะ (มืดจาง + รอยร้าวแดง) /
@@ -102,12 +97,8 @@ import { OT_RIDE_Z, otRides } from "./optimusFx";
 import { GIO_TREE_Z, gioLifted, gioPose } from "./giornoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
 import { celinePose } from "./celineFx";
-import { takutoPose } from "./takutoFx";
 import { ryougiPose } from "./ryougiFx";
 import { stormShakeOffset, syncStorms } from "./sootStorm";
-import {
-  easeInOut, enterAnim, makeShards, drawShards, segT, SEAL_Z, ZERO_SCENE_MS, zeroAccent, zeroBeam, zeroCracks, zeroWavePath, zeroWaveRing,
-} from "./zeroTheme";
 // มุมมองของมิติ (วาเลนไทน์): dimView เปลี่ยน = ค่อยๆ เปลี่ยน · ฉากพาข้ามโลก/กลับโลกหลักกำลังเล่น = รอจังหวะในฉาก
 const DIM_FADE = 600;
 function dimLayersOf(st, kind, now) {
@@ -137,9 +128,6 @@ import { setRtMobRun } from "./roadtrip/mobArt";
 import { rtBusy } from "./roadtrip/rtTimeline";
 import { setEosFast } from "./fodlan/stage6";
 import { groundGLReady } from "./groundGL";
-
-// ผนึก 4 มุม (ตรงกับ server/board.js ZERO_SEALS) — จุดเริ่มคลื่น/รอยร้าวของฉากห่วงเวลาซีโร่
-const ZERO_CORNERS = [[0, 0], [13, 0], [13, 13], [0, 13]];
 
 const BUSY_HOLD = 600; // หลังมีอะไรขยับ วาด 60 เฟรมต่ออีกเท่านี้ (ms) ก่อนลดเหลือ 30 ตอนกระดานนิ่ง
 const PAUSE_BAKE_AFTER = 1200; // พักกระดานแล้วนานเท่านี้ ค่อยเริ่มอบชั้นนิ่งล่วงหน้า (ms)
@@ -176,62 +164,6 @@ const EDGE_PX = 22;    // RTS (สนาม Eos): เมาส์ห่างข
 const TAP_STEP = 48;   // ปุ่มลูกศรกดครั้งเดียว: ตรรกะ ที่ z = 1
 const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 const ease = (p) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
-
-// ฉากห่วงเวลาซีโร่ (zs = { mode, stage, seal, t0, snap }) — zb = เฟรมใหม่ · snap = ภาพนิ่งสนามเดิม
-//  enter   0–0.8s เวลาหยุด (สีจาง) · 0.8s ลำแสงกลางสนาม · 1.8–3.4s คลื่นกลืนสนาม → เผยห่วงเวลา (โซ่/ผนึกค่อยๆ โผล่ — enterAnim)
-//  break   คลื่นจากผนึกที่แตก 0.8–2.1s → สนามระดับใหม่
-//  release รอยร้าวทั้งจอจากผนึกสุดท้าย → แสงวาบ 1.45s → ห่วงเวลาแตกเป็นเศษกระจกร่วง เผยสนามเดิม
-function drawZeroScene(g, zs, zb, view, dpr, info, lowQ, now) {
-  const t = (now - zs.t0) / 1000;
-  const L = () => g.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy);
-  const I = () => g.setTransform(1, 0, 0, 1, 0, 0);
-  const cx = info.cols / 2, cy = info.rows / 2;
-  const [sxC, syC] = ZERO_CORNERS[zs.seal] || ZERO_CORNERS[0];
-  const reveal = (ox, oy, r) => {
-    if (r <= 0) return;
-    g.save(); L(); zeroWavePath(g, ox, oy, r, info.rows); g.clip(); I(); g.drawImage(zb, 0, 0); g.restore();
-  };
-  g.save();
-  if (zs.mode === "enter") {
-    I();
-    const gray = segT(t, 0, 0.8);
-    if (!lowQ && "filter" in g) g.filter = `grayscale(${gray}) brightness(${1 - 0.12 * gray})`;
-    g.drawImage(zs.snap, 0, 0);
-    g.filter = "none";
-    const r = 15 * easeInOut(segT(t, 1.8, 3.4));
-    reveal(cx, cy, r);
-    L();
-    zeroWaveRing(g, cx, cy, r, r > 0 ? 1 - segT(t, 3.0, 3.5) : 0, "255,140,210");
-    zeroBeam(g, cx, cy, 1 - Math.pow(1 - segT(t, 0.8, 1.5), 3), segT(t, 1.5, 1.9) * (1 - segT(t, 3.0, 3.6)), segT(t, 0.8, 0.9) * (1 - segT(t, 3.2, 3.8)));
-  } else if (zs.mode === "break") {
-    I(); g.drawImage(zs.snap, 0, 0);
-    const r = 24 * easeInOut(segT(t, 0.8, 2.1));
-    reveal(sxC + 0.5, syC + 0.5, r);
-    L(); zeroWaveRing(g, sxC + 0.5, syC + 0.5, r, r > 0 ? 1 - segT(t, 1.8, 2.2) : 0, zeroAccent(zs.stage));
-  } else {
-    // release: ภาพนิ่ง (ห่วงเวลา) ใช้กล้องของผนึกสุดท้ายเดิม — แผนที่ 14×14 เท่ากันทุกภูมิภาค
-    const [ox, oy] = projectZ(sxC + 0.5, syC + 0.5, SEAL_Z);
-    if (t < 1.45) {
-      I(); g.drawImage(zs.snap, 0, 0);
-      L(); zeroCracks(g, ox, oy, 1 - Math.pow(1 - segT(t, 0.9, 1.42), 3));
-    } else {
-      I(); g.drawImage(zb, 0, 0);
-      L();
-      if (!zs.shards) {
-        // ภาพนิ่ง + รอยร้าวเต็ม ณ ตอนแตก
-        const c2 = document.createElement("canvas"); c2.width = zs.snap.width; c2.height = zs.snap.height;
-        const x2 = c2.getContext("2d"); x2.drawImage(zs.snap, 0, 0);
-        x2.setTransform(dpr * view.k, 0, 0, dpr * view.k, dpr * view.ox, dpr * view.oy); zeroCracks(x2, ox, oy, 1);
-        zs.img = c2; zs.shards = makeShards(view, ox, oy);
-      }
-      if (!lowQ) drawShards(g, zs.shards, zs.img, view, t - 1.45);
-    }
-    const f = Math.max(0, 1 - Math.abs(t - 1.45) / 0.45);
-    if (f > 0) { I(); g.fillStyle = `rgba(255,240,250,${f})`; g.fillRect(0, 0, zb.width, zb.height); }
-  }
-  g.restore();
-  g.setTransform(1, 0, 0, 1, 0, 0);
-}
 
 // ตำแหน่งระหว่างเล่นแอนิเมชัน → { x, y, ox, oy, done, hitAt? }
 function animPose(a, t) {
@@ -309,7 +241,7 @@ export default function BoardCanvas(props) {
   if (S.current === null) {
     S.current = {
       size: { w: 0, h: 0 }, mapRef: undefined, sig: "", info: null,
-      scenes: new Map(),     // key → { scene, fore, marks } (เก็บไม่เกิน 6 — ห่วงเวลาซีโร่ 4 ระดับ + สนามเดิมที่ต้องกลับไป)
+      scenes: new Map(),     // key → { scene, fore, marks } (เก็บไม่เกิน 6)
       rotTarget: null, turn: 0, turnFrom: 0, turnTo: 0, turnT0: 0, // มุมมอง (หน่วย 90° ต่อเนื่อง)
       hlRef: undefined, hl: prepareHighlights(null),
       anim: null,            // { obj, t0, startX, startY, done, hit }
@@ -318,7 +250,7 @@ export default function BoardCanvas(props) {
       hitT: new Map(),       // id → เวลาโดนตี (สั่น/แฟลช)
       grow: new Map(),       // id → { t0, from, to } กำลังเปลี่ยนขนาด (Echo ขยายร่าง)
       hover: null, hoverUnit: null, boxes: [], view: null, base: null, lastDraw: 0, lastT: 0,
-      boards: new Map(),     // key → ชั้นกระดานอบแล้ว (เก็บไม่เกิน 6 — ปกติ/มุมใกล้ · ห่วงเวลาซีโร่ 4 ระดับ + สนามเดิม)
+      boards: new Map(),     // key → ชั้นกระดานอบแล้ว (เก็บไม่เกิน 6 — ปกติ/มุมใกล้)
       // กล้อง: cam = { z, cx, cy } ตอนนี้ · zoomLv = prop zoom ล่าสุด · camAnim = เลื่อน/ซูมนุ่มๆ · pivot = จุดบนกระดานที่หมุนรอบ
       cam: { z: 1, cx: LW / 2, cy: LH / 2 }, zoomLv: null, camAnim: null, pivot: null,
       zoomAnchor: null, focusRef: undefined, keys: new Set(), drag: null, suppressClick: false,
@@ -875,14 +807,11 @@ export default function BoardCanvas(props) {
         // ฉากของเซลิน: คนที่ถูกสลับตำแหน่งลอยขึ้น บินโค้ง แล้วลงที่ใหม่ (celinePose)
         const cpo = sp || gp || dp || vp || u.corpse ? null : celinePose(st.fxActive, u, now);
         if (cpo) { rx = cpo.x; ry = cpo.y; ox = 0; oy = 0; hz = cpo.hz || 0; sq = 0; }
-        // ฉากของทาคุโตะ: พุ่งต้นตาเดิน (เลื่อนเร็ว) · ดาบประกายแสง (ทาคุโตะ/เป้าวาบหายแล้วโผล่ที่ใหม่ — alpha)
-        const tpo = sp || gp || dp || vp || cpo || u.corpse ? null : takutoPose(st.fxActive, u, now);
-        if (tpo) { rx = tpo.x; ry = tpo.y; ox = 0; oy = 0; hz = tpo.hz || 0; sq = 0; }
         // ฉากของเรียวกิ: พุ่งเข้าตี/กระโดดข้ามหัว · พุ่งดับสิ้นซะ · คน/ศพในแนวถูกเหวี่ยงออกข้าง (ศพด้วย)
-        const rpo = sp || gp || dp || vp || cpo || tpo ? null : ryougiPose(st.fxActive, u, now);
+        const rpo = sp || gp || dp || vp || cpo ? null : ryougiPose(st.fxActive, u, now);
         if (rpo) { rx = rpo.x; ry = rpo.y; ox = 0; oy = 0; hz = rpo.hz || 0; sq = 0; }
         // Return to Zero ของโจรุโน่: ผู้โจมตีถูกดึงถอยหลังจากจุดที่ยืนกลับช่องต้นตา
-        const gio = sp || gp || dp || vp || cpo || tpo || rpo || u.corpse ? null : gioPose(st.fxActive, u, now);
+        const gio = sp || gp || dp || vp || cpo || rpo || u.corpse ? null : gioPose(st.fxActive, u, now);
         if (gio) { rx = gio.x; ry = gio.y; ox = 0; oy = 0; hz = gio.hz; sq = 0; }
         // สนาม Colony: ถูกดูด/โคโลนีหมุน (ขยับตามฉาก) · กำลังลอยผ่านแกน/ลิฟต์ (ฉาก 3D วาดแทน)
         if (st.cv3) {
@@ -920,21 +849,7 @@ export default function BoardCanvas(props) {
         const lu = list[list.length - 1];
         if (u.wings) lu.wings = true;
         if (sp) { if (sp.fly) lu.fly = true; if (sp.alpha != null) lu.alpha *= sp.alpha; }
-        if (tpo && tpo.alpha != null) lu.alpha *= tpo.alpha;
       }
-
-      // --- ฉากห่วงเวลาซีโร่: seq ใหม่ = จับภาพเฟรมล่าสุด (สนามก่อนเปลี่ยน) ไว้ก่อนวาดเฟรมใหม่
-      const zsP = p.zeroScene && p.zeroScene.seq != null ? p.zeroScene : null;
-      if (zsP && zsP.seq !== st.zsSeq) {
-        st.zsSeq = zsP.seq;
-        const snap = document.createElement("canvas");
-        snap.width = cv.width; snap.height = cv.height;
-        if (cv.width > 1 && cv.height > 1) snap.getContext("2d").drawImage(cv, 0, 0);
-        st.zs = { mode: zsP.mode, stage: zsP.stage || 1, seal: zsP.seal | 0, t0: now, snap, shards: null };
-      }
-      const zs = st.zs && now - st.zs.t0 < (ZERO_SCENE_MS[st.zs.mode] || 0) ? st.zs : null;
-      if (!zs && st.zs) st.zs = null;
-      const zeroAnim = zs && zs.mode === "enter" ? enterAnim(now - zs.t0) : null;
 
       if (paused) return;
       // จอสั่นของ Ice Spike: เลื่อนภาพทั้งเฟรม (ไม่กระทบการเลือกช่อง — st.view ยังเป็นมุมจริง)
@@ -965,51 +880,41 @@ export default function BoardCanvas(props) {
         uiK: rts ? 1 : 0, // Eos: ป้าย/แถบเลือดบนหมากวัดจากขนาดหมาก (boardDraw UI_PIECE)
         info, view: dView, dpr, bake, ice: p.ice || null, turn: st.turn, night, lowQ, units: list, hl, warpGround: st.warpGround,
         shops: p.shops || null, hover: hov, fx: st.fxActive,
-        zero: p.zero || null, zeroAnim, hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
+        hitT: st.hitT, storms, songs: p.songs || null, grays: p.grays || null, gils: p.gils || null, ferns: p.ferns || null, gyroBalls: p.gyroBalls || null,
         diego: p.diego || null, timeFreeze: p.timeFreeze || null, kiri: p.kiri || null,
-        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, takutos: p.takutos || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
+        valentine: p.valentine || null, celine: p.celine || null, moon: p.moon || null, ryougi: p.ryougi || null, otoya: p.otoya || null, emiya: p.emiya || null, law: p.law || null, fodlan: p.fodlan || null, dimLayers: dimLayersOf(st, p.dimView, now),
         colony: !!st.cv3 && !st.cv3.isRoad, roadtrip3d: !!(st.cv3 && st.cv3.isRoad), colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
-      if (!zs) {
-        st.boxes = frame(g);
-        // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
-        // Colony: ลูกศรขอบจอชี้หมากที่อยู่นอกจอ (สีประจำตัว · ตัวเราขอบทอง) — เห็นทุกคนเสมอแม้หมุนกล้องไปทางอื่น
-        if (st.cv3 && !(st.cv3.flash() > 0.5)) {
-          const inset = { l: 70, r: 70, t: 96, b: 170 };
-          g.setTransform(dpr, 0, 0, dpr, 0, 0);
-          for (const u of list) {
-            if (u.corpse || st.cv3.hidden(u.id, now)) continue;
-            const hs = Math.max(1, u.size | 0) / 2, m = st.cv3.edgeMark(u.rx + hs, u.ry + hs, inset);
-            if (!m) continue;
-            const r = u.isMe ? 17 : 14;
-            g.save(); g.translate(m.x, m.y); g.globalAlpha = u.isMe ? 1 : 0.9;
-            g.rotate(m.ang);
-            g.fillStyle = u.color || "#7fb8e6"; g.strokeStyle = u.isMe ? "#f0c868" : "#ffffff"; g.lineWidth = u.isMe ? 3 : 2;
-            g.beginPath(); g.moveTo(r + 13, 0); g.lineTo(r - 2, -10); g.lineTo(r - 2, 10); g.closePath(); g.fill(); g.stroke();
-            g.rotate(-m.ang);
-            g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.stroke();
-            // เลือดที่เหลือ = วงขาวรอบใน (เต็มวง = เลือดเต็ม)
-            const hpK = u.maxHp > 0 ? Math.max(0, Math.min(1, (u.hp || 0) / u.maxHp)) : 1;
-            g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 3;
-            g.beginPath(); g.arc(0, 0, r - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpK); g.stroke();
-            if (u.ally) { g.fillStyle = "#ffffff"; g.beginPath(); g.arc(0, 0, 3.5, 0, Math.PI * 2); g.fill(); }
-            g.restore();
-          }
-          // กล้องออกห่างตัวเรา → BoardStage โชว์ปุ่มกลับที่หมาก
-          const away = st.cv3.away();
-          if (away !== st.colonyAway) { st.colonyAway = away; if (typeof p.onColonyAway === "function") p.onColonyAway(away); }
+      st.boxes = frame(g);
+      // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
+      // Colony: ลูกศรขอบจอชี้หมากที่อยู่นอกจอ (สีประจำตัว · ตัวเราขอบทอง) — เห็นทุกคนเสมอแม้หมุนกล้องไปทางอื่น
+      if (st.cv3 && !(st.cv3.flash() > 0.5)) {
+        const inset = { l: 70, r: 70, t: 96, b: 170 };
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        for (const u of list) {
+          if (u.corpse || st.cv3.hidden(u.id, now)) continue;
+          const hs = Math.max(1, u.size | 0) / 2, m = st.cv3.edgeMark(u.rx + hs, u.ry + hs, inset);
+          if (!m) continue;
+          const r = u.isMe ? 17 : 14;
+          g.save(); g.translate(m.x, m.y); g.globalAlpha = u.isMe ? 1 : 0.9;
+          g.rotate(m.ang);
+          g.fillStyle = u.color || "#7fb8e6"; g.strokeStyle = u.isMe ? "#f0c868" : "#ffffff"; g.lineWidth = u.isMe ? 3 : 2;
+          g.beginPath(); g.moveTo(r + 13, 0); g.lineTo(r - 2, -10); g.lineTo(r - 2, 10); g.closePath(); g.fill(); g.stroke();
+          g.rotate(-m.ang);
+          g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.stroke();
+          // เลือดที่เหลือ = วงขาวรอบใน (เต็มวง = เลือดเต็ม)
+          const hpK = u.maxHp > 0 ? Math.max(0, Math.min(1, (u.hp || 0) / u.maxHp)) : 1;
+          g.strokeStyle = "rgba(255,255,255,.95)"; g.lineWidth = 3;
+          g.beginPath(); g.arc(0, 0, r - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * hpK); g.stroke();
+          if (u.ally) { g.fillStyle = "#ffffff"; g.beginPath(); g.arc(0, 0, 3.5, 0, Math.PI * 2); g.fill(); }
+          g.restore();
         }
-        const fl = st.cv3 ? st.cv3.flash() : 0;
-        if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(${st.cv3.flashColor()},${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
+        // กล้องออกห่างตัวเรา → BoardStage โชว์ปุ่มกลับที่หมาก
+        const away = st.cv3.away();
+        if (away !== st.colonyAway) { st.colonyAway = away; if (typeof p.onColonyAway === "function") p.onColonyAway(away); }
       }
-      else {
-        // เฟรมใหม่วาดลงชั้นแยก แล้วประกอบกับภาพนิ่งของสนามเดิมตามจังหวะฉาก
-        if (!st.zbuf) st.zbuf = document.createElement("canvas");
-        const zb = st.zbuf;
-        if (zb.width !== cv.width || zb.height !== cv.height) { zb.width = cv.width; zb.height = cv.height; }
-        st.boxes = frame(zb.getContext("2d"));
-        drawZeroScene(g, zs, zb, view, dpr, info, lowQ, now);
-      }
+      const fl = st.cv3 ? st.cv3.flash() : 0;
+      if (fl > 0.01) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = `rgba(${st.cv3.flashColor()},${Math.min(1, fl)})`; g.fillRect(0, 0, cv.width, cv.height); }
       // กล้องขยับ (ซูม/เลื่อน/หมุน) ใต้เมาส์ที่อยู่นิ่ง → ช่องที่ชี้เปลี่ยน
       const vs = `${view.k}|${view.ox}|${view.oy}|${st.turn}`;
       if (vs !== st.viewSig) { st.viewSig = vs; if (st.refreshHover) st.refreshHover(); }
@@ -1092,15 +997,6 @@ export default function BoardCanvas(props) {
     let unit = null;
     for (const b of st.boxes) { if (lx >= b.x0 && lx <= b.x1 && ly >= b.y0 && ly <= b.y1) { unit = units.find((u) => u.id === b.id) || null; if (unit) break; } }
     let tile = pickTile(st.info, lx, ly);
-    // ห่วงเวลาซีโร่: กดที่ตัวผนึก (ลอยเหนือแท่น) = ช่องของผนึกนั้น
-    const zp = propsRef.current.zero;
-    if (!unit && zp && Array.isArray(zp.seals)) {
-      for (const sl of zp.seals) {
-        if (sl.broken) continue;
-        const [sx, sy, s] = projectZ(sl.x + 0.5, sl.y + 0.5, SEAL_Z);
-        if (Math.hypot(lx - sx, ly - sy) < s * 1.1) { tile = { x: sl.x, y: sl.y }; break; }
-      }
-    }
     // ของสูงบนแผนที่ (props.tallTiles [{ x, y, h }] — สนาม Eos): ชี้ตัวของที่ยื่นขึ้นไปบังช่องหลัง = ช่องของชิ้นนั้น (ชิ้นหน้าสุดชนะ)
     const tall = propsRef.current.tallTiles;
     const tk0 = tile ? key(tile.x, tile.y) : null, hl0 = st.hl;

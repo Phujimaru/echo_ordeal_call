@@ -173,7 +173,7 @@
 .db-tip.is-on { opacity: 1; }
 .db-tip b { color: #f2cf7e; font-size: 16px; }
 
-/* ---------- สมุดกลาง HUD (DiaryCenter) — ตั้งลอยเหนือแผงล่าง ล้นขึ้นไปได้ (แบบแกนดาบคิงโอเจอร์) ---------- */
+/* ---------- สมุดกลาง HUD (DiaryCenter) — ตั้งลอยเหนือแผงล่าง ล้นขึ้นไปได้ ---------- */
 .db-center { position: relative; width: 220px; height: 150px; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; pointer-events: none; }
 .db-center-book {
   position: absolute; left: 50%; bottom: 34px; width: 170px; height: 214px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;

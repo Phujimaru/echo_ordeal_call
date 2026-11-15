@@ -31,7 +31,6 @@ const EOS_HEAL_AREA = 45; // สนาม Eos (boardRules EOS_AREA = FODLAN_AREA
 import { TALL_KINDS, animHeal, animSpecial, bakeHeal, bakeSpecial, drawObstacle, healClusters } from "./boardProps";
 import { themeOf, worldRange } from "./regionThemes";
 import { drawFodlanAir, drawFodlanGround, fodlanItems, isFodlanTall } from "./fodlan/index";
-import { drawZeroSeal, sealBreakFx, ZERO_FX_DUR, zeroBoltFx } from "./zeroTheme";
 import { HK_FX_DUR, HK_HIT_P, HK_MS, hikaruFx, isHikaruFx } from "./hikaruFx";
 import { KIRA_FX_DUR, KIRA_HIT_P, KIRA_MS, isKiraFx, kiraAuraBack, kiraAuraFront, kiraFx } from "./kiraFx";
 import { OT_FX_DUR, OT_HIT_P, OT_MS, OT_RIDE_Z, isOtFx, optimusFx, otRides, otTruck, otUnitBack } from "./optimusFx";
@@ -55,7 +54,6 @@ import { FERN_FX_DUR, FERN_HIT_P, FERN_MS, drawFernAir, fernFx, isFernFx } from 
 import {
   CELINE_FX_DUR, CELINE_HIT_P, CELINE_MS, celineFx, celineItems, celineWallRise, drawCelineAir, drawCelineGround, drawCelineWall, isCelineFx,
 } from "./celineFx";
-import { TAKUTO_FX_DUR, TAKUTO_HIT_P, TAKUTO_MS, isTakutoFx, takutoFx, takutoGhosts, takutoItems } from "./takutoFx";
 import { RYOUGI_FX_DUR, RYOUGI_HIT_P, RYOUGI_MS, drawBloodCorpse, drawRyougiAir, drawRyougiGround, isRyougiFx, ryougiFx, ryougiItems } from "./ryougiFx";
 import { EMIYA_FX_DUR, EMIYA_HIT_P, EMIYA_MS, drawEmiyaSky, drawEmiyaWorld, emiyaFx, emiyaItems, emiyaWorldOn, isEmiyaFx } from "./emiyaFx";
 import { FAIZ_FX_DUR, FAIZ_HIT_P, FAIZ_MS, faizFx, faizGhosts, faizTrailClear, isFaizFx } from "./faizFx";
@@ -69,7 +67,6 @@ import { ELEM_FX_DUR, isElemFx, elemFx, elemUnitBack, elemUnitFront } from "./el
 import { HAKUNO_HIT_P, HAKUNO_MS, MOON_FX_DUR, drawMoonCell, drawMoonGround, isMoonFx, moonFx } from "./moonFx";
 import { DIVINE_FX_DUR, divineFx, isDivineFx } from "./divineFx";
 import { LAW_FX_DUR, LAW_HIT_P, LAW_MS, drawLawAir, drawLawGround, drawLawRock, isLawFx, isLawRock, lawFx, lawItems, lawRockRise, lawSliced } from "./lawFx";
-import { OHGER_FX_DUR, OHGER_HIT_P, OHGER_MS, isOhgerFx, ohgerFx } from "./ohgerFx";
 import { behindDome, clipOutDomes, drawStormAir, drawStormGround, stormWallItems } from "./sootStorm";
 // โหมด Road Trip (area 70–75 · board/roadtrip/): พื้นถนน/วัตถุบนแผนที่/มอน
 import { drawRtObstacle, isRtObstacle, rtAir, rtGround, rtItems, rtSkipTerrain } from "./roadtrip/props";
@@ -393,7 +390,7 @@ function drawBoardLayer(g, info, view, night, noLight = false, flat = false) {
   }
   g.strokeStyle = C.border; g.lineWidth = 2;
   g.beginPath(); g.moveTo(c0[0], c0[1]); g.lineTo(c1[0], c1[1]); g.lineTo(c2[0], c2[1]); g.lineTo(c3[0], c3[1]); g.closePath(); g.stroke();
-  // ลายบนพื้นกระดานของธีม (ห่วงเวลาซีโร่: วงเวท + อักษรมิโกะ + ขอบทอง)
+  // ลายบนพื้นกระดานของธีม (ถ้ามี)
   if (T.deco) T.deco({ g, C, night, info, R: rngSeq(41), VX0, VY0, VX1, VY1, VW, flat });
   if (!noLight) boardLight(g, info, view, night);
 }
@@ -1320,9 +1317,8 @@ function smashFx(g, e, now) {
 //  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
-//  ซึนาชิ ทาคุโตะ: takuto* (หมัดทาวเบิร์น / ดาบเอเมอรูด / แซฟไฟร์ / ดาบคู่ / ดาบแห่งการพิพากษา) อยู่ใน takutoFx.js
-const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...TAKUTO_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OHGER_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS, ...SHINRA_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...TAKUTO_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OHGER_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P, ...SHINRA_HIT_P };
+const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS, ...SHINRA_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P, ...SHINRA_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;
@@ -2447,8 +2443,8 @@ function darkWaveFx(g, e, now, lowQ) {
 export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...ZERO_FX_DUR, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...TAKUTO_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...OHGER_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...ELEM_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...ELEM_FX_DUR,
 };
 
 
@@ -2460,7 +2456,6 @@ export const FX_DUR = {
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
 //   celine? = { flora, kings, hold, preview } ของค้างของเซลิน (celineFx.js) · terrain "icewall" = กำแพงน้ำแข็ง (drawCelineWall)
-//   takutos? = ทาวเบิร์นที่ถือดาบ/ช่วงพังทลาย [{ id, x, y, size, emerald, sapphire, judgment, collapse }] (takutoFx.js — ดาบลอยข้างตัว)
 //   ryougi? = { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } เรียวกิ (ryougiFx.js) · terrain "chasm" = ช่องพัง (drawRyougiGround — ไม่ใช่สิ่งกีดขวาง)
 //   emiya? = { ubw, units: [{ id, weapon }] } ชิโร่ (emiyaFx.js) — โลกแห่งดาบ (พื้นซีเปีย/ดาบปัก/เฟือง) · อาวุธที่ถือลอยข้างตัว
 //   law? = { rooms, objects, marks, hearts, armed, rocks } ของค้างของลอว์ (lawFx.js) — Room · วัตถุลอย · มาร์ก · หัวใจ · terrain "icewall" ที่อยู่ใน rocks = หนามหิน
@@ -2523,8 +2518,7 @@ export function drawFrame(g, st, now) {
   L();
   // จันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — otoyaFx.js): บนฟ้าของฉาก หลังชั้นกระดาน
   if (st.otoya && st.otoya.night && !colony && !rt3d) otoyaMoon(g, now, lowQ);
-  // zero = state.zero (ห่วงเวลาซีโร่ — ผนึก/ของฟื้นพลังชีวิต) · zeroAnim = ความคืบหน้าฉากเข้า (null = เต็ม)
-  const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {}, zero: st.zero || null, zeroAnim: st.zeroAnim || null };
+  const f = { info, C, night, lowQ, view, marks: (bake && bake.marks) || {} };
   if (T.animBack && !colony && !rt3d) T.animBack(g, f, lowQ ? 0 : now);
   if (colony) {
     // พื้นวาดใน 3D — ช่องพิเศษที่เกิดระหว่างเกม (ธารน้ำแข็ง พื้นเปียก พื้นไฟ ...) วาดทับที่นี่ (เดิมไม่วาดเลย = มองไม่เห็นพื้นน้ำแข็ง · บั๊ก 2026-11-09)
@@ -2612,7 +2606,7 @@ export function drawFrame(g, st, now) {
   drawLawGround(g, law, fx, now, lowQ);
   // Colony: ช่องไฮไลต์ (เดิน/ตี/สกิล/พื้นที่/อันตราย/เป้า) วาดลงพื้นในฉาก 3D (colony3d.paintHighlights) — กำแพง/ตึกบังได้ ไม่เห็นทะลุ
   drawHighlights(g, info, colony ? { ...hl, danger: new Set(), move: new Set(), attack: new Set(), skill: new Set(), aoe: new Set(), ghost: new Set(), target: null } : hl, hover, now);
-  // ของบนพื้นใต้ตัวละครของธีม (ห่วงเวลาซีโร่: โซ่ทองขอบเวที · ของฟื้นพลังชีวิต)
+  // ของบนพื้นใต้ตัวละครของธีม (ถ้ามี)
   if (T.overBoard && !colony && !rt3d) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร
   const items = [];
@@ -2674,7 +2668,7 @@ export function drawFrame(g, st, now) {
     };
   };
   const boxes = [];
-  const octx = { area: info.area, C, night, cols: info.cols, zero: f.zero, zeroAnim: f.zeroAnim, hitT: st.hitT || null };
+  const octx = { area: info.area, C, night, cols: info.cols, hitT: st.hitT || null };
   const statics = []; // ของนิ่งของสนาม Eos — ดู STATIC_CACHE
   // หนามน้ำแข็ง: Lv ที่แสดง = ค่าที่ BoardStage ค้างไว้ระหว่างเล่นเหตุการณ์ (ice.lv) หรือ terrain · พุ่งขึ้นจากพื้นตาม fx iceSpikeUp
   const ice = st.ice || null; // { lv: { "x,y": Lv ที่แสดงแทน terrain (0 = ซ่อน) } } — BoardStage ค้างไว้ระหว่างเล่น iceFx
@@ -2711,7 +2705,7 @@ export function drawFrame(g, st, now) {
     const fade = (TALL_KINDS.has(t.kind) || isFodlanTall(t.kind, info.area)) && behind(t.x, t.y);
     // สนาม Eos (กล้อง RTS): ตึก/กำแพง/ต้นไม้/หิน/อู่ ไม่ขยับ → เก็บไปวาดรวมเป็นภาพเดียว (STATIC_CACHE) ไม่วาดใหม่ทุกเฟรม
     if (st.uiK && !colony && !fade && STATIC_OB.has(t.kind)) { statics.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, t }); continue; }
-    const f0 = t.kind === "seal" ? () => drawZeroSeal(g, t, octx, now) : () => drawObstacle(g, t, octx, now);
+    const f0 = () => drawObstacle(g, t, octx, now);
     items.push({ d: depthOf(t.x + 0.5, t.y + 0.5) + 0.05, f: onWall(t.x + 0.5, t.y + 0.5, fade ? () => { g.save(); g.globalAlpha = 0.38; f0(); g.restore(); } : f0) });
   }
   // หนามที่ server เอาออกแล้วแต่ยังค้างไว้ (แตกตอนเหตุการณ์ถึง) / ยังไม่อยู่ใน terrain
@@ -2777,9 +2771,6 @@ export function drawFrame(g, st, now) {
   if (fd) fodlanItems(items, g, fd, info, units, now, lowQ);
   // Road Trip: มินิมาร์ท อู่ ตู้น้ำมัน ชิงช้าสวรรค์ … + รถตู้จอด/ห้องในรถตู้ (เรียงความลึกกับตัวละคร)
   if (rtOn && !rt3d) rtItems(items, g, info, units, now, lowQ, night); // Road Trip 3D: รถตู้/ของในรถเป็นโมเดล 3D แล้ว
-  // ทาคุโตะ: ดาบลอยข้างตัว (หน้าหมาก) · ดาบแห่งการพิพากษา/ออร่าช่วงพังทลาย (หลังหมาก) · เงาซ้อนตอนพุ่งต้นตาเดิน
-  if (st.takutos && st.takutos.length) takutoItems(items, g, st.takutos, units, fx, now, lowQ);
-  if (fx.some((e) => e.kind === "takutoDash")) for (const gh of takutoGhosts(fx, units, now)) items.push({ d: depthOf(gh.rx + gh.size / 2, gh.ry + gh.size / 2) - 0.0008, f: () => drawAnyUnit(g, gh, now, null) });
   // เรียวกิ: เงาติดตาตอนพุ่ง/ตี · ใบมีดที่มือ · กลีบวนรอบตัว · ตาเรือง
   if (ry || rFx) ryougiItems(items, g, ry, units, fx, now, lowQ, (u) => drawAnyUnit(g, u, now, null));
   // ชิโร่: ดาบปักพื้นในโลก UBW · อาวุธที่ถือลอยข้างตัว
@@ -2900,8 +2891,6 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "echo") echoFx(g, e, now);
     else if (e.kind === "hair") hairFx(g, e, now);
     else if (e.kind === "rock") rockFx(g, e, now);
-    else if (e.kind === "zeroBolt") zeroBoltFx(g, e, now);
-    else if (e.kind === "sealBreak") sealBreakFx(g, e, now);
     else if (isHikaruFx(e.kind)) hikaruFx(g, e, now, lowQ);
     else if (isKiraFx(e.kind)) kiraFx(g, e, now, lowQ);
     else if (isOtFx(e.kind)) optimusFx(g, e, now, lowQ);
@@ -2920,7 +2909,6 @@ export function drawFrame(g, st, now) {
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);
     else if (isCelineFx(e.kind)) celineFx(g, e, now, lowQ, view);
-    else if (isTakutoFx(e.kind)) takutoFx(g, e, now, lowQ);
     else if (isRyougiFx(e.kind)) ryougiFx(g, e, now, lowQ, rctx || (rctx = { view, info, units, octx, redraw: (u) => drawAnyUnit(g, u, now, null), drawShop: (x, y) => drawShop(g, x, y, C, now, night) }));
     else if (isEmiyaFx(e.kind)) emiyaFx(g, e, now, lowQ, { info });
     else if (isKazumaFx(e.kind)) kazumaFx(g, e, now, lowQ);
@@ -2930,7 +2918,6 @@ export function drawFrame(g, st, now) {
     else if (lFx && isLawFx(e.kind)) lawFx(g, e, now, lowQ, law);
     else if (isMoonFx(e.kind)) moonFx(g, e, now, lowQ, { info });
     else if (isDivineFx(e.kind)) divineFx(g, e, now, lowQ); // นกหวีดอัญเชิญมนต์อสูรเทพ (divineFx.js)
-    else if (isOhgerFx(e.kind)) ohgerFx(g, e, now, lowQ);
     else if (isIceFx(e.kind)) iceFx(g, e, now, lowQ);
     else if (isShadowFx(e.kind)) shadowFx(g, e, now, lowQ);
     else if (e.kind === "deathBoom") deathBoomFx(g, e, now, lowQ);

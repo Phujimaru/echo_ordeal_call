@@ -406,7 +406,7 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'rideAnswer', (id, { ok } = {}) => Ride.answer(id, ok === true), 6);
   onUnitEvent(socket, 'rideDrop', (id) => Ride.drop(id), 6); // ตัวที่ถูกขี่สั่งให้ลง (ตาของตัวเอง)
   // ปุ่มพิเศษบน HUD ของตัวละคร (ไม่ใช่ช่องสกิล — state.players[].actions จากฮุค hudActions) → ฮุค charAction(engine, p, key, { tile })
-  //  ไจโร: ขึ้น/ลงม้า · ทาคุโตะ: พุ่ง (ปุ่มที่มี tiles — client ให้เลือกช่องแล้วส่ง tile) · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
+  //  ไจโร: ขึ้น/ลงม้า · ปุ่มที่มี tiles = client ให้เลือกช่องแล้วส่ง tile · ฮุคเช็คตาเดินเอง (engine.canAct) และบรอดแคสต์เอง
   onUnitEvent(socket, 'charAction', combatOnly((id, { key, tile } = {}) => {
     const p = match.players[id];
     if (key === 'colonyJump') { Colony.jump(id); return; } // สนาม Colony: ปุ่มกระโดด (ทุกตัวละคร)

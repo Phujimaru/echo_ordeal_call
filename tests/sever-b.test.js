@@ -1,5 +1,5 @@
 // ตัดผลสกิลที่ทำงานอยู่ (server/sever.js — รากฐานจิตของเรียวกิ · GRID_PLAN §7.17) — ฮุค severables ชุด B:
-//  ยูนะ · เกรย์ · ไจโร · ดิเอโก้ · เฟิร์น · วาเลนไทน์ · เซลิน · ทาคุโตะ
+//  ยูนะ · เกรย์ · ไจโร · ดิเอโก้ · เฟิร์น · วาเลนไทน์ · เซลิน
 //  เปิดผล → latest คืนอันนั้น → cut ปิดผลแบบหมดเวลาเอง (คูลดาวน์ตามปกติ) · ไม่มีอะไรทำงาน = null
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
@@ -75,7 +75,7 @@ test.afterEach(() => {
 });
 
 test('ไม่มีผลสกิลทำงาน = null ทุกตัว (ฮุคถามได้กับทุกคน · คนอื่น = [])', () => {
-  const ids = ['yuna', 'gray', 'gyro_zeppeli', 'diego_alt', 'fern', 'funny_valentine', 'celine', 'takuto'];
+  const ids = ['yuna', 'gray', 'gyro_zeppeli', 'diego_alt', 'fern', 'funny_valentine', 'celine'];
   const P = setup(ids.map((ch, i) => [`p${i}`, ch, (i % 4) * 3 + 1, 7 + Math.floor(i / 4)]));
   for (const p of Object.values(P)) {
     assert.equal(engine.sever.latest(engine, p), null, p.characterId);
@@ -272,24 +272,4 @@ test('เซลิน: ราชาดอกไม้ → ตัด = หมด�
   assert.equal(C.celine.ultReady, r + 4);
   assert.equal(CH.celine.celineState(engine, C).ultCd, 4);
   assert.equal(engine.sever.latest(engine, C), null);
-});
-
-test('ทาคุโตะ (ปิดใช้งาน): ดาบแต่ละเล่ม · ดาบแห่งการพิพากษาแยกกลับ 2 เล่ม', () => {
-  const P = setup([['T', 'takuto', 2, 7], ['B', 'dummy', 9, 7]]);
-  const T = P.T, s = T.takuto;
-  s.form = 'tauburn';
-  apply(T, 'basic', [], { form: 'emerald' });
-  apply(T, 'basic', [], { form: 'sapphire' });
-  assert.equal(latestKey(T), 'sapphire');
-  // รวมร่าง (ช่วงมิติพังทลาย) — จำลองสถานะ
-  s.judgment = true; s.sever.judgment = engine.severStamp();
-  assert.deepEqual(engine.sever.cut(engine, T), { key: 'judgment', label: 'ดาบแห่งการพิพากษา' });
-  assert.equal(s.judgment, false);
-  assert.ok(T.statuses[CH.takuto.EMERALD] && T.statuses[CH.takuto.SAPPHIRE], 'ดาบยังอยู่ทั้ง 2 เล่ม');
-  assert.deepEqual(engine.sever.cut(engine, T), { key: 'sapphire', label: 'ดาบแซฟไฟร์' });
-  assert.ok(!T.statuses[CH.takuto.SAPPHIRE]);
-  assert.ok(T.statuses[CH.takuto.EMERALD]);
-  assert.equal(latestKey(T), 'emerald');
-  engine.sever.cut(engine, T);
-  assert.equal(engine.sever.latest(engine, T), null);
 });

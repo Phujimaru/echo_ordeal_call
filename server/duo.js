@@ -16,7 +16,7 @@
 Object.assign(module.exports, {
   isPartner, isOwner, ownerOf, partnerOf, unitsOf, sideKey, sideAlive, inGame, cardUnit, cardHolders,
   sideCount, setup, teardown, controlledId, startTurn, switchTo, canSwitchTo, nextUnit, unitDone, otherUnit,
-  moved, revived, corpseKeys, corpseOf, corpseKept, keeperAlive, placeCorpses, saveCorpses, restoreCorpses, onDeath, clearSide,
+  moved, revived, corpseKeys, corpseOf, corpseKept, keeperAlive, placeCorpses, onDeath, clearSide,
   turnUnits,
 });
 
@@ -258,20 +258,6 @@ function placeCorpses(free, keep = false) {
     if (keep && p.corpse) continue;
     const mate = otherUnit(p);
     p.corpse = mate && mate.pos ? nearFree(mate.pos, free) : null;
-  }
-}
-// ห่วงเวลาซีโร่ (server/zeroTime.js): จำช่องร่างก่อนเข้าสนามเฉพาะ → { id: { x, y } }
-function saveCorpses() {
-  const out = {};
-  for (const p of Object.values(match.players)) if (!p.alive && p.corpse) out[p.id] = { ...p.corpse };
-  return out;
-}
-// ปลดผนึก (กลับแผนที่เดิม): ร่างกลับช่องที่จำไว้ · ร่างที่ล้มในสนามเฉพาะ (ไม่มีช่องเดิม) = ไม่มีช่องไว้ก่อน
-//  ผู้เรียกวางคนที่ยังอยู่เสร็จแล้วค่อย placeCorpses(free, true) ให้ร่างที่เหลือลงข้างอีกตัว
-function restoreCorpses(saved) {
-  for (const p of Object.values(match.players)) {
-    if (p.alive || (!isPair(p) && !keptFor(p))) continue;
-    p.corpse = saved && saved[p.id] && (sideAlive(p) || keptFor(p)) ? { ...saved[p.id] } : null;
   }
 }
 // ช่องว่างใกล้ pos ที่สุด (ไล่วงรอบตัวออกไป)

@@ -2,7 +2,7 @@
 //  มุยมิ (me) กลายเป็นชิโร่ — ปุ่มสร้าง payload แบบเดียวกับ server (contract §3) แล้วผ่าน emiyaEventFx เหมือน BoardStage
 //  ตีปกติ 5 อาวุธ = attackStyle emiya* ไปหาศัตรูใกล้สุด (Nine Lives = กรอบ 2×3 · Excalibur = แนว 3×1) · เสียง emiya_atk_* ตรงจังหวะปะทะ
 //  ของค้าง (prop emiya): อาวุธที่ถือ (ปุ่มอาวุธ) · โลก UBW (ปุ่ม UBW)
-//  ภาพนิ่ง: ?shot=ชื่อปุ่ม@ms[&pre=ปุ่ม,ปุ่ม] (แบบ TakutoFxDev)
+//  ภาพนิ่ง: ?shot=ชื่อปุ่ม@ms[&pre=ปุ่ม,ปุ่ม]
 //  คอนโซล: window.__emiyaFx({ kind: "smash", id: "me", at: { x, y }, dir: "right", tiles }) = ส่ง payload ของ socket "emiyaFx" ตรงๆ
 import { useEffect } from "react";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";

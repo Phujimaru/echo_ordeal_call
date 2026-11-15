@@ -25,8 +25,7 @@ import * as Rules from "./boardRules";
 import { socket } from "../socket";
 import { clickSound, playSfx } from "../audio";
 import { requestAttention } from "../attention";
-import { ForecastScreen, OrderCall, TurnCall, ZeroCall } from "./BoardScenes";
-import { isZeroArea } from "./zeroTheme";
+import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
 import { BEAM_T, DARK_T, dashDur, QUAKE_T, SORA_T, STYLE_HIT } from "./boardDraw";
 import { HK_BEAM, HK_PUSH_MS, HK_SFX_LEAD, HK_TONE, isHikaruFx } from "./hikaruFx";
@@ -47,14 +46,12 @@ import { KIRI_FX_DUR } from "./kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "./shinraFx";
 import { valentineEventFx } from "./valentineFx";
 import { celineEventFx } from "./celineFx";
-import { takutoEventFx } from "./takutoFx";
 import { ryougiEventFx } from "./ryougiFx";
 import { otoyaEventFx } from "./otoyaFx";
 import { EMIYA_REPEAT_MS, emiyaEventFx } from "./emiyaFx";
 import { KAZUMA_FX, kazumaEventFx, kazumaFourDur, kazumaSonicDur } from "./kazumaFx";
 import { ROLAND_FX, rolandEventFx } from "./rolandFx";
 import { LAW_ON_HIT, lawEventFx } from "./lawFx";
-import { OHGER_FX, ohgerEventFx } from "./ohgerFx";
 import { ELEMENTS, auraOf } from "../data/elements";
 import ReactionPanel from "./ReactionPanel";
 import { moonEventFx } from "./moonFx";
@@ -153,9 +150,6 @@ function screenDir(rotation, code, at) {
   return null;
 }
 const HEX_PTS = "50,0 100,28.5 100,85.5 50,114 0,85.5 0,28.5";
-// ห่วงเวลาซีโร่: เป้า "seal:N" → N (อื่น = -1)
-const sealIdx = (id) => (typeof id === "string" && id.startsWith("seal:") && Number.isInteger(Number(id.slice(5))) ? Number(id.slice(5)) : -1);
-const sealOf = (z, i) => (z && Array.isArray(z.seals) ? z.seals.find((s) => s.i === i) || null : null);
 // หนามน้ำแข็ง (Ice Spike): เป้า "spike:x,y" → { x, y } (อื่น = null) · Lv ของช่องจาก terrain ของกระดาน
 const spikeOfId = (id) => {
   const m = typeof id === "string" ? /^spike:(-?\d+),(-?\d+)$/.exec(id) : null;
@@ -390,13 +384,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     return () => window.removeEventListener("keydown", onKey);
   }, [rotate, state.world]);
   const hoverUnit = hover ? state.players.find((p) => p.alive && onBody(p, hover) && sameDim(p)) : null; // คนคนละชั้น = ชี้ไม่ติด
-  // ห่วงเวลาซีโร่: ผนึกที่ยังไม่แตก = เป้าตีได้ (หน่วยเทียม — ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย ไม่มีหน้าคาดการณ์)
-  const zero = state.zero || null;
-  const sealFoes = useMemo(() => (zero && zero.active && Array.isArray(zero.seals)
-    ? zero.seals.filter((s) => !s.broken).map((s) => ({ id: `seal:${s.i}`, pos: { x: s.x, y: s.y }, alive: true, size: 1, isSeal: true, name: "ผนึก" }))
-    : []), [zero]);
-  const hoverSeal = hover && !hoverUnit ? sealFoes.find((s) => samePos(s.pos, hover)) || null : null;
-  // หนามน้ำแข็ง (Ice Spike): ทุกคนตีได้ — หน่วยเทียมแบบเดียวกับผนึก (ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย)
+  // หนามน้ำแข็ง (Ice Spike): ทุกคนตีได้ — หน่วยเทียม (ชี้ = แผนเดินเข้าไปตี · คลิก = ตีเลย ไม่มีหน้าคาดการณ์)
   const board = state.board || null;
   const spikeList = useMemo(() => (board && Array.isArray(board.spikes)
     ? board.spikes.filter((s) => s && Number.isFinite(s.x) && Number.isFinite(s.y)) : []), [board]);
@@ -414,11 +402,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     }
     return list;
   }, [board]);
-  const hoverSpike = hover && !hoverUnit && !hoverSeal ? spikeFoes.find((s) => samePos(s.pos, hover)) || null : null;
-  // เกรย์ (สัปเหร่อ): ศพบนกระดาน = เป้าตีปกติ (เก็บศพ) — หน่วยเทียมแบบผนึก · ตีได้เฉพาะประชิด 1 ช่องเสมอ (planFor) · ไม่อยู่ในปุ่มโจมตี
+  const hoverSpike = hover && !hoverUnit ? spikeFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  // เกรย์ (สัปเหร่อ): ศพบนกระดาน = เป้าตีปกติ (เก็บศพ) — หน่วยเทียมแบบหนามน้ำแข็ง · ตีได้เฉพาะประชิด 1 ช่องเสมอ (planFor) · ไม่อยู่ในปุ่มโจมตี
   const reaper = !!(me && me.gray && me.gray.reaper);
   const corpseFoes = useMemo(() => (reaper ? corpses.map((c) => ({ id: `corpse:${c.id}`, pos: { x: c.x, y: c.y }, alive: true, size: 1, isCorpse: true, name: "ศพ" })) : []), [reaper, corpses]);
-  const hoverCorpse = hover && !hoverUnit && !hoverSeal && !hoverSpike ? corpseFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  const hoverCorpse = hover && !hoverUnit && !hoverSpike ? corpseFoes.find((s) => samePos(s.pos, hover)) || null : null;
   // Fodlan (board/fodlan/): ข้อมูลวาดของด่าน + ของที่ตีได้ (เสาเวทมืด ต้นไม้แห้ง กองหิมะ … — id "fd:…") = หน่วยเทียมแบบหนามน้ำแข็ง
   const fdBoard = state.fodlan && state.fodlan.board ? state.fodlan.board : null;
   const fodlanProp = useMemo(() => (fdBoard ? { ...fdBoard, stage: state.fodlan.stage, weather: state.fodlan.weather, vision: state.fodlanVision || null } : null),
@@ -431,7 +419,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       : []),
     ...(colTurrets || []).map((t) => ({ id: `col:turret:${t.i}`, pos: { x: t.x, y: t.y }, alive: true, size: 1, isFodlan: true, name: "ป้อมปืนรักษาการณ์" })),
   ], [fdBoard, colTurrets]);
-  const hoverFd = hover && !hoverUnit && !hoverSeal && !hoverSpike && !hoverCorpse ? fdFoes.find((s) => samePos(s.pos, hover)) || null : null;
+  const hoverFd = hover && !hoverUnit && !hoverSpike && !hoverCorpse ? fdFoes.find((s) => samePos(s.pos, hover)) || null : null;
   const hasIceSpike = state.players.some((p) => p.character && p.character.id === "ice_spike");
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   const hasGyro = state.players.some((p) => !!p.gyro);
@@ -530,7 +518,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     }
     return { foe, ally: allyHit, stand, path: best.here ? null : Rules.pathTo(myReach, stand.x, stand.y), counter, push, lane: lane ? lane.tiles.map((t) => key(t.x, t.y)) : null };
   }, [myTurn, strikeOff, pick, myReach, me, ruleUnits, map, blocked, fdBoard]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSeal ? planFor(hoverSeal) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : hoverFd ? planFor(hoverFd) : null), [planFor, hoverUnit, hoverSeal, hoverSpike, hoverCorpse, hoverFd]);
+  const plan = useMemo(() => (hoverUnit ? planFor(hoverUnit) : hoverSpike ? planFor(hoverSpike) : hoverCorpse ? planFor(hoverCorpse) : hoverFd ? planFor(hoverFd) : null), [planFor, hoverUnit, hoverSpike, hoverCorpse, hoverFd]);
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
@@ -598,7 +586,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0).map((t) => key(t.x, t.y)) };
     }
     if (pick.kind === "tile" && pick.place === "list") {
-      // ปุ่มพิเศษที่มี tiles (actions[].tiles — ทาคุโตะพุ่งต้นตาเดิน): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
+      // ปุ่มพิเศษที่มี tiles (actions[].tiles): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
       //  ชี้ช่องไหน = กรอบที่ให้กลางตัวอยู่ช่องนั้น · ไม่มี = กรอบในรายการที่ครอบช่องนั้นและกลางตัวใกล้สุด
       const n = Math.max(1, pick.foot | 0), c = Math.floor((n - 1) / 2);
       const anchors = (Array.isArray(pick.tiles) ? pick.tiles : []).filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y) && Rules.inBounds(map, t.x, t.y));
@@ -785,8 +773,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const [ghost, setGhost] = useState(null);   // เป้าที่ตกรอบในฉากตี (วาดค้างไว้จนถึงจังหวะปะทะ)
   const [shake, setShake] = useState(0);      // จอสั่น/แฟลช (เลขเปลี่ยน = เล่นใหม่)
   const prevPlayers = useRef({});
-  const prevZero = useRef(state.zero || null);
-  const [sealHold, setSealHold] = useState(null); // ผนึกที่แตกจากการตี — วาดค้างไว้จนถึงจังหวะปะทะ
   const [faces, setFaces] = useState({}); // id → { x, y } ทิศที่หันหน้า (ก้าวสุดท้ายที่เดิน · เริ่มต้น = หันเข้าหากล้อง)
   const prevPos = useRef({});
   const prevVit = useRef({});
@@ -838,8 +824,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     for (const p of state.players) { nextPos[p.id] = p.pos ? { ...p.pos } : null; nextVit[p.id] = (p.hp || 0) + (p.armor || 0); }
     const lastPlayers = prevPlayers.current;
     prevPlayers.current = Object.fromEntries(state.players.map((p) => [p.id, p]));
-    const zNow = state.zero || null, zPrev = prevZero.current;
-    prevZero.current = zNow;
     const dash = state.dash && state.dash.seq != null ? state.dash : null;
     if (!seeded.current) { seeded.current = true; prevPos.current = nextPos; prevVit.current = nextVit; seenDash.current = dash ? dash.seq : null; return; }
     const freshDash = dash && dash.seq !== seenDash.current && Array.isArray(dash.path) && dash.path.length && dash.id != null ? dash : null;
@@ -909,12 +893,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(end);
         if (!lowQ && pts.length > 1) later(SHINRA_T.latomCharge, () => setShake((n) => n + 1));
-      } else if (s0 && d.style === "ohger") {
-        // คิงโอเจอร์ (ทอมโบไปกลับ / พาพิยอง / ฮาจิถอย): เลื่อนตัวตามเส้นทางเท่านั้น — แถบแสง/ปะทะมาจาก socket "ohgerFx" (ไม่มีระเบิดฟ้าของโซระ ไม่หันตัว)
-        if (pts.length > 1) {
-          if (!samePos(end, s0)) dashSkip.current[id] = end; // ไปกลับ (ทอมโบ) = ตำแหน่งจริงไม่เปลี่ยน ไม่ต้องข้ามการเลื่อน
-          anims.push({ kind: "move", id, path: pts, stepMs: OHGER_FX.dashStep, seq: ++fxSeq.current });
-        }
       } else if (s0 && d.wheel) {
         // เฟสวิ่ง: กรงจักรหนูที่ช่องเริ่ม (WHEEL_MS) → พุ่งตามเส้นทาง (DASH_STEP_MS ต่อช่อง) → ค้างที่ปลายทางจน server ย้ายตัวจริง
         // ทิศจาก server (ทิศที่เลือก) — เป้ายืนติดตัว = เส้นทางยาว 0 ช่อง ใช้เส้นทางเดาทิศไม่ได้
@@ -1012,12 +990,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // ตีแนวตรง (ไรโด ฮิคารุ): ศัตรูคนอื่นในแนวโดนด้วย — เลขดาเมจ/สั่นขึ้นพร้อมเป้าหลักที่จังหวะปะทะ
       const extras = (Array.isArray(a.extra) ? a.extra : []).map((e) => ({ ...e, at: nextPos[e.targetId] || prevPos.current[e.targetId] || null })).filter((e) => e.at);
       for (const e of extras) involved.add(e.targetId);
-      // ตีผนึก (ห่วงเวลาซีโร่): ตำแหน่งเป้า = ช่องผนึก · แตก = วาดค้างไว้ถึงจังหวะปะทะแล้วค่อยแตก
-      const sI = Number.isInteger(a.seal) ? a.seal : sealIdx(a.targetId);
-      const sealT = sI >= 0 ? sealOf(zNow, sI) || sealOf(zPrev, sI) : null;
-      const sealBroke = !!(sealT && a.kill);
-      const sealStage = (zPrev && zPrev.stage) || (zNow && zNow.stage) || 1;
-      if (sealBroke) setSealHold(sI);
       // ตีหนามน้ำแข็ง: ตำแหน่งเป้า = ช่องหนาม · Lv ลด/แตก = วาดหนามเดิมค้างไว้ถึงจังหวะปะทะ
       const spikeT = a.spike && Number.isFinite(a.spike.x) && Number.isFinite(a.spike.y) ? { x: a.spike.x, y: a.spike.y } : spikeOfId(a.targetId);
       const spikeK = spikeT ? key(spikeT.x, spikeT.y) : null;
@@ -1033,7 +1005,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         if (!rockHit) setWallHold((h) => [...h.filter((t) => !samePos(t, spikeT)), { x: spikeT.x, y: spikeT.y }]);
       }
       if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) setIceLv((m) => ({ ...(m || {}), [spikeK]: spikeWas }));
-      const tPos = sealT ? { x: sealT.x, y: sealT.y } : spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
+      const tPos = spikeT || nextPos[a.targetId] || prevPos.current[a.targetId];
       const fromPos = a.push ? a.push.from : (nextPos[a.byId] || prevPos.current[a.byId]);
       if (a.push) setHold((h) => ({ ...h, [a.byId]: a.push.from }));
       // คนตีหันหน้าเข้าหาเป้า (ตัวใหญ่ใช้รูปหน้า/ข้าง/หลังตามทิศ) · มีสวนกลับ = เป้าหันกลับมาด้วย
@@ -1059,10 +1031,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       const melee = !beam && !style && fromPos && tPos && !(byId[a.byId] && byId[a.byId].gyro) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       // คาซุมะ ฟันดาบ/หมัด: ท่าเฉพาะตัวที่พุ่งเข้าด้วย anim "lunge" (ห่าง ≤ 2) — STYLE_HIT ของสองท่านี้ = จังหวะชนของ lunge (~385 ms) · ฉากปะทะของ kazumaFx แทนแสงแตกเดิม
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
-      //  คิงโอเจอร์ (ohAtk1–5 — ohgerFx.js): ฉากปะทะอยู่ในท่าตีแล้ว + พุ่งเข้าด้วย lunge เมื่อห่าง ≤ 2
-      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("ohAtk") || style.startsWith("faiz") || style.startsWith("kiri") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
+      const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("faiz") || style.startsWith("kiri") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
-      const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || (!!style && style.startsWith("ohAtk"))) && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
@@ -1102,7 +1073,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         later(tKillAt + 40, () => setGhost(null));
       }
       // ตกรอบในฉากตี (เป้าหลัก + คนอื่นในแนว) = ระเบิดตอนปะทะ
-      const mainDead = tKill && tPos && !sealT && lastPlayers[a.targetId] ? { t: lastPlayers[a.targetId], at: tPos } : null;
+      const mainDead = tKill && tPos && lastPlayers[a.targetId] ? { t: lastPlayers[a.targetId], at: tPos } : null;
       const deadInAtk = extras.filter((e) => e.kill && lastPlayers[e.targetId]).map((e) => ({ t: lastPlayers[e.targetId], at: e.at }));
       if (mainDead) boomed.add(mainDead.t.id);
       for (const d of deadInAtk) boomed.add(d.t.id);
@@ -1139,17 +1110,12 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
             ...(first == null ? [] : [{ kind: "float", x: tPos.x, y: tPos.y, text: first, color: a.crit && !a.dodge ? "#ffd84a" : undefined, size: a.crit && !a.dodge ? 38 : 30, z: lowQ ? 2.4 : 1.5 }]),
             // คริติคอลติด = ป้ายเหนือเลขดาเมจ (เดิมฉากบนกระดานไม่บอก — ดาเมจ ×2 แล้วผู้เล่นไม่รู้ตัว)
             ...(a.crit && !a.dodge ? [{ kind: "float", x: tPos.x, y: tPos.y - (a.kill ? 1.2 : 0.6), text: "คริติคอล", color: "#ffd84a", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
-            ...(a.kill && !sealT && !spikeT && !sideStays(a.targetId) ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
+            ...(a.kill && !spikeT && !sideStays(a.targetId) ? [{ kind: "float", x: tPos.x, y: tPos.y - 0.6, text: "ตกรอบ", color: "#ff8f8f", size: 24, z: lowQ ? 2.4 : 1.5 }] : []),
           ]);
           if (spikeK && spikeWas > 0 && spikeNow !== spikeWas) {
             setIceLv((m) => { if (!m || !(spikeK in m)) return m; const n = { ...m }; delete n[spikeK]; return Object.keys(n).length ? n : null; });
             pushFx([{ kind: "iceSpikeBreak", x: tPos.x, y: tPos.y, lv: spikeNow }]);
             playSfx("is_skill_2_broke");
-          }
-          if (sealBroke) {
-            setSealHold((h) => (h === sI ? null : h));
-            pushFx([{ kind: "sealBreak", x: tPos.x, y: tPos.y, i: sI, stage: sealStage }]);
-            if (a.byAttackSound && a.byAttackSound !== "attack") playSfx("attack");
           }
         });
       }
@@ -1189,17 +1155,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       }
       const slashTail = myth || (a.counter && (a.counter.byHitFx === "mythSlash" || a.counter.byHitFx === "saberRed")) ? SORA_T.slash2 : 0;
       if (!lowQ) later(t + slashTail + (a.push ? 900 : 1000), () => setCinema(null));
-    }
-    // ผนึกแตกนอกฉากตี (สกิลพื้นที่) = แตกทันที
-    if (zNow && zPrev && Array.isArray(zNow.seals) && Array.isArray(zPrev.seals)) {
-      const atkSeal = freshAtk ? (Number.isInteger(freshAtk.seal) ? freshAtk.seal : sealIdx(freshAtk.targetId)) : -1;
-      for (const s of zNow.seals) {
-        const was = sealOf(zPrev, s.i);
-        if (!s.broken || !was || was.broken || s.i === atkSeal) continue;
-        pushFx([{ kind: "sealBreak", x: s.x, y: s.y, i: s.i, stage: zPrev.stage || 1 }]);
-        look(s);
-        if (!lowQ) setShake((n) => n + 1);
-      }
     }
     // หนามน้ำแข็งลด Lv/หายนอกฉากตีและนอกเหตุการณ์ iceFx (สกิลพื้นที่ตีโดน / หมดเวลา) = แตกทันที
     const pb = prevBoard.current, nb = state.board;
@@ -1605,20 +1560,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     socket.on("growFx", onGrow);
     socket.on("smashFx", onSmash);
     return () => { socket.off("growFx", onGrow); socket.off("smashFx", onSmash); };
-  }, [pushFx, look, lowQ]);
-
-  // ฟ้าผ่า (ห่วงเวลาซีโร่ เฟส 4 · ต้นเทิร์น): { tiles: [{x,y}×3], hits } · กล้องตามสายแรก · จอสั่น
-  useEffect(() => {
-    const onBolt = (b) => {
-      const tiles = b && Array.isArray(b.tiles) ? b.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)) : [];
-      if (!tiles.length) return;
-      pushFx([{ kind: "zeroBolt", tiles }]);
-      playSfx("zero_thunder");
-      look(tiles[0]);
-      if (!lowQ) setShake((n) => n + 1);
-    };
-    socket.on("zeroBolt", onBolt);
-    return () => socket.off("zeroBolt", onBolt);
   }, [pushFx, look, lowQ]);
 
   // ---------- Ice Spike: เหตุการณ์บนกระดาน (socket "iceFx" { seq, events } — .claude/plans/ice-spike-contract.md §4) ----------
@@ -2161,35 +2102,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     return () => socket.off("celineFx", onCeline);
   }, [pushFx, look, lowQ]);
 
-  // ซึนาชิ ทาคุโตะ: socket "takutoFx" { kind, id, color, at, size, ... } → takutoFx.js (GRID_PLAN §7.16 · contract §5) · เสียงมาจาก server
-  //  dash / flash = ตัวที่ฉากย้ายเอง (takutoPose) จดไว้ใน shadowBusy (ไม่เลื่อนซ้ำตอน state มาถึง)
-  //  flash / missile / blast: server พัก 1.6 / 1.8 / 2.0 วิก่อนดาเมจลง — คนที่โดนสั่น (hitIds) + จอสั่นตรงจังหวะปะทะในฉาก
-  useEffect(() => {
-    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
-    const posOf = (id) => { const p = recOf(id); return p && p.pos ? p.pos : null; };
-    const sizeOf = (id) => sizeOfP(recOf(id));
-    const idsOn = (tiles, owner) => {
-      const ks = new Set(tiles.map((t) => key(t.x, t.y))), me0 = recOf(owner);
-      return Object.values(byIdRef.current).filter((p) => p && p.alive && p.pos && p.id !== owner
-        && !(me0 && (sameSide(p, me0) || (!!me0.teamId && p.teamId === me0.teamId)))
-        && (!me0 || dimOf(p) === dimOf(me0))
-        && Rules.footprint(p.pos.x, p.pos.y, sizeOfP(p)).some((t) => ks.has(key(t.x, t.y)))).map((p) => p.id);
-    };
-    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
-    const onTakuto = (ev) => {
-      const out = takutoEventFx(ev, { posOf, sizeOf, idsOn });
-      if (!out.fx.length) return;
-      const t0 = performance.now();
-      for (const b of out.busy) shadowBusy.current[b.id] = Math.max(shadowBusy.current[b.id] || 0, t0 + b.ms);
-      pushFx(out.fx);
-      for (const [pos, ms] of out.look) at(ms, () => look(pos));
-      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
-      for (const [ms, list] of out.later) at(ms, () => pushFx(list.map((f) => (f.kind === "float" ? { ...f, z: lowQ ? 2.4 : 1.5 } : f))));
-    };
-    socket.on("takutoFx", onTakuto);
-    return () => socket.off("takutoFx", onTakuto);
-  }, [pushFx, look, lowQ]);
-
   // ผู้นำแห่งตระกูลเรียวกิ: socket "ryougiFx" { kind, id, color, at, size, ... } → ryougiFx.js (GRID_PLAN §7.17 · contract §3) · เสียงมาจาก server
   //  dash / crumble = ตัวที่ฉากย้ายเอง (ryougiPose) จดไว้ใน shadowBusy · kill / sever จากการตีปกติ = เริ่มตอนจังหวะปะทะของฉากตี (gate ← ryougiHitAt)
   //  kill = จับหน้าตาเป้าตอนเหตุการณ์มาถึง (state ตามมาเอาตัวออก) + กันระเบิดตกรอบ (ryougiSlain)
@@ -2310,24 +2222,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     };
     socket.on("lawFx", onLaw);
     return () => socket.off("lawFx", onLaw);
-  }, [pushFx, look, lowQ]);
-  // คิงโอเจอร์ (characters/_ohger.js): socket "ohgerFx" { kind: slash | dash | needle | wave, id, color, from, tiles, dir, target? } → ohgerFx.js
-  //  คนในช่องที่โดน (ไม่นับฝ่ายเดียวกัน) สั่นตอนปะทะ · กล้องมองกลางพื้นที่ · เสียงมาจาก server
-  useEffect(() => {
-    const onOhger = (ev) => {
-      const idsOn = (tiles, selfId) => {
-        const list = playersRef.current || [], caster = list.find((p) => p.id === selfId) || null;
-        const ally = (p) => !!caster && (p.id === caster.id || sameSide(p, caster) || (!!caster.teamId && p.teamId === caster.teamId));
-        return list.filter((p) => p.alive && p.pos && !ally(p) && tiles.some((t) => onBody(p, t))).map((p) => p.id);
-      };
-      const out = ohgerEventFx(ev, { idsOn });
-      if (!out.fx.length) return;
-      pushFx(out.fx);
-      if (out.look) look(out.look);
-      if (!lowQ) for (const ms of out.shake) timers.current.push(setTimeout(() => setShake((n) => n + 1), ms));
-    };
-    socket.on("ohgerFx", onOhger);
-    return () => socket.off("ohgerFx", onOhger);
   }, [pushFx, look, lowQ]);
   // Moon Cell (GRID_PLAN §8.4): socket "moonScene" (ฉากต้นเทิร์นระหว่างพักเกม) → moonFx.js — เสาข้อมูลพุ่ง · ฟื้นคืนชีพ · คำสาปลง/เตือน/สลาย
   useEffect(() => {
@@ -2674,12 +2568,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     if (!hover || !pickInfo.validSet.has(key(hover.x, hover.y))) return null;
     return { tiles: wallPlan(hover, wallOrient).placed, orient: wallOrient, ok: true };
   }, [pickInfo, dirPick, hover, wallPlan, wallOrient]);
-  // ซึนาชิ ทาคุโตะ (takutoFx.js): ทาวเบิร์นถือดาบ (p.takuto.emerald / sapphire = เทิร์นที่เหลือ · judgment) · ช่วงมิติพังทลาย (collapse)
-  //  ร่างคนถือดาบไม่ได้ = ไม่วาด
-  const takutoSig = JSON.stringify(state.players.filter((p) => p.alive && p.pos && p.takuto && p.takuto.form === "tauburn" && sameDim(p))
-    .map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: sizeOfP(p), emerald: p.takuto.emerald > 0, sapphire: p.takuto.sapphire > 0, judgment: !!p.takuto.judgment, collapse: !!p.takuto.collapse }))
-    .filter((c) => c.emerald || c.sapphire || c.judgment || c.collapse));
-  const takutos = useMemo(() => { const list = JSON.parse(takutoSig); return list.length ? list : null; }, [takutoSig]);
   // ผู้นำแห่งตระกูลเรียวกิ (ryougiFx.js): เนตรมณะ / รากฐานจิต / ซากุระหลังดับสิ้นซะ (p.ryougi — เทิร์นที่เหลือ) · กองเลือด (board.ryougi.blood)
   const rBlood = state.board && state.board.ryougi && Array.isArray(state.board.ryougi.blood) ? state.board.ryougi.blood : [];
   const ryougiSig = JSON.stringify({
@@ -2760,17 +2648,16 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       else if (pick.kind === "line" && pickInfo) { clickSound(); pick.onPick(dirToward(me.pos, { x, y }, sizeOfP(me)) || pickInfo.dir); }
       return;
     }
-    // ผนึก (ห่วงเวลาซีโร่): ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
-    // หนามน้ำแข็ง (Ice Spike) · ศพ (เกรย์เก็บศพ) ใช้ทางเดียวกัน
+    // หนามน้ำแข็ง (Ice Spike) · ศพ (เกรย์เก็บศพ) · ของบนกระดานของด่าน: ตีเลย — ยืนในระยะแล้ว = ตี · ยังไม่ถึง = เดินไปช่องยืนก่อน แล้วตีเมื่อเดินจบ
     const at = (s) => s.pos.x === x && s.pos.y === y;
-    const seal = sealFoes.find(at) || spikeFoes.find(at) || corpseFoes.find(at) || fdFoes.find(at);
-    if (seal) {
+    const obj = spikeFoes.find(at) || corpseFoes.find(at) || fdFoes.find(at);
+    if (obj) {
       if (!myTurn || busy || pendingAttack.current) return;
-      const pl = planFor(seal);
+      const pl = planFor(obj);
       if (!pl) return;
       clickSound();
-      if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: seal.id });
-      else armPendingAttack(seal.id, pl.stand);
+      if (samePos(pl.stand, me.pos)) socket.emit("attack", { targetId: obj.id });
+      else armPendingAttack(obj.id, pl.stand);
       return;
     }
     if (!myTurn || busy || !canMove || !myReach) return;
@@ -2948,9 +2835,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const boardArea = state.board ? state.board.area : 0;
   const [shown, setShown] = useState(() => ({ board: state.board, fly: state.board && shouldLandOnMount(state.board.area) ? "in" : null, seq: 0 }));
   if (state.board && shown.board && boardArea !== shown.board.area && shown.fly !== "out" && shown.fly !== "wait") {
-    // เข้า/ออก/เปลี่ยนระดับห่วงเวลาซีโร่ = ไม่บินไปลูกโลก (BoardCanvas เล่นฉากเปลี่ยนผ่านเอง)
-    if (isZeroArea(boardArea) || isZeroArea(shown.board.area)) setShown((v) => ({ board: state.board, fly: null, seq: v.seq + 1 }));
-    else setShown((v) => ({ ...v, fly: "out", seq: v.seq + 1 }));
+    setShown((v) => ({ ...v, fly: "out", seq: v.seq + 1 }));
   }
   useEffect(() => {
     if (shown.fly === "in") announceArenaLand();
@@ -3001,29 +2886,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     playSfx(mine ? "notificate_mine" : "notificate");
     if (mine) requestAttention(); // ถึงตาเรา: หน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ
   }, [call]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---------- ฉากห่วงเวลาซีโร่ (ป้ายชื่อ/เฟส · เสียง) — ภาพบนกระดาน BoardCanvas เล่นเองจาก zeroScene ----------
-  const zScene = zero && zero.scene ? zero.scene : null;
-  const [zCall, setZCall] = useState(null); // { seq, mode, stage }
-  const [zSeenSeq, setZSeenSeq] = useState(0);
-  if (zScene && zScene.seq !== zSeenSeq) {
-    setZSeenSeq(zScene.seq);
-    setZCall({ seq: zScene.seq, mode: zScene.mode, stage: zScene.stage });
-  }
-  const endZCall = useCallback(() => setZCall(null), []);
-  const zCallSeq = zCall ? zCall.seq : 0;
-  useEffect(() => {
-    if (!zCall) return undefined;
-    if (zCall.mode === "enter") playSfx("change_cutscene");
-    if (zCall.mode !== "release") return undefined;
-    const t = setTimeout(() => playSfx("attack"), 1450);
-    return () => clearTimeout(t);
-  }, [zCallSeq]); // eslint-disable-line react-hooks/exhaustive-deps -- เล่นครั้งเดียวต่อฉาก
-  // ผนึกที่แตกจากการตีวาดค้างไว้จนถึงจังหวะปะทะ
-  const zeroProp = useMemo(() => {
-    if (!zero || sealHold == null || !Array.isArray(zero.seals)) return zero;
-    return { ...zero, seals: zero.seals.map((s) => (s.i === sealHold ? { ...s, broken: false } : s)) };
-  }, [zero, sealHold]);
 
   // ---------- แถบลำดับเดิน ----------
   // มืดบอด (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
@@ -3098,8 +2960,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         anim={anim}
         glides={glides}
         fx={fx}
-        zero={zeroProp}
-        zeroScene={zScene}
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
         colony={colonyView}
@@ -3118,7 +2978,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         grays={grays}
         gils={gils}
         ferns={ferns}
-        takutos={takutos}
         ryougi={ryougiProp}
         otoya={otoyaProp}
         emiya={emiyaProp}
@@ -3169,12 +3028,6 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         document.body,
       )}
 
-
-      {/* ฉากห่วงเวลาซีโร่: ชื่อ + เฟส + บัฟ */}
-      {zCall && (zCall.mode === "enter" || zCall.mode === "break") && createPortal(
-        <ZeroCall key={`zero-${zCall.seq}`} k={sk} mode={zCall.mode} stage={zCall.stage} onDone={endZCall} />,
-        document.body,
-      )}
 
       {/* โหมดเลือกเป้า: เหลือแค่ปุ่มยกเลิก (ผู้ใช้สั่ง — เลือก/ใช้ทำบนกระดาน) */}
       {pick && pick.onCancel && (

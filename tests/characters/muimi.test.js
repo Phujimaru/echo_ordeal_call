@@ -5,10 +5,7 @@ const { engine, computeAttackBase, attackSoundOf } = require('../../server.js');
 const { CHAR_BY_ID } = require('../../characters.js');
 const muimi = require('../../characters/muimi.js');
 const Ice = require('../../server/ice.js');
-const Zero = require('../../server/zeroTime.js');
 const match = require('../../server/match.js');
-const Board = require('../../server/board.js');
-const draw = require('../../server/phases/draw.js');
 
 const originalFns = {
   queueCutscene: engine.queueCutscene,
@@ -323,25 +320,6 @@ test('คลื่นดาบของดาบสนิม (ระหว่า
   const toPlayer = 5 - P.A.hp;
   assert.equal(toPlayer, 1 + muimi.SEC_WAVE_ATK_BONUS);
   assert.equal(LV3_TOTAL - left(), Math.min(LV3_TOTAL, toPlayer));
-});
-
-// ห่วงเวลาซีโร่ล็อกท่าไม้ตายทุกตัว — คลื่นที่ถึงผนึกได้จริงมีแค่ดาบสนิมระหว่างดาบสะบั้น
-test('คลื่นดาบของดาบสนิม ทุบผนึกมิโกะ (ห่วงเวลาซีโร่) แรงเท่าตีคน', () => {
-  const P = boardSetup([['M', 'muimi', 7, 9], ['D', 'dummy', 7, 8]]);
-  engine.setRoundNumber(9);
-  Zero.enter(); engine.clearPhaseTimer(); match.zeroScene.active = false;
-  draw.dealRound(); engine.clearPhaseTimer();
-  const [sx, sy] = Board.ZERO_SEALS[0];
-  const seal = match.zero.seals[0];
-  seal.hp = 10; seal.armor = 0;
-  P.M.pos = { x: sx, y: sy + 1 }; P.D.pos = { x: sx + 1, y: sy };
-  P.D.hp = 5; P.D.armor = 0; P.D.statuses = {};
-  P.M.skillPoints = 8; P.M.skillUsedRound = false; P.M.statuses = { muimiTower: 2 };
-  engine.setActor('M');
-  engine.useSkill('M', 'secondary', [], { dir: 'up' });
-  const toPlayer = 5 - P.D.hp;
-  assert.equal(toPlayer, 1 + muimi.SEC_WAVE_ATK_BONUS);
-  assert.equal(10 - seal.hp, toPlayer);
 });
 
 // เนิฟ (ผู้ใช้สั่ง 2026-10-19): ท่าไม้ตายใช้แล้วจบตาเดินทันที — กันคอมโบประชิด คลื่นดาบ + ยา + ตีปกติในตาเดียว

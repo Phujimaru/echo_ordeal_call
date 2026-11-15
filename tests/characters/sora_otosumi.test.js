@@ -7,7 +7,6 @@ const sora = require('../../characters/sora_otosumi.js');
 const attack = require('../../server/phases/attack.js');
 const match = require('../../server/match.js');
 const Ice = require('../../server/ice.js');
-const Zero = require('../../server/zeroTime.js');
 const { CHAR_BY_ID } = require('../../characters.js');
 
 const realRandom = Math.random;
@@ -441,7 +440,7 @@ test('Mouse Separade: พังสิ่งกีดขวางที่พุ�
   const map = engine.boardMap();
   const free = (x, y) => x >= 0 && !map.terrain[`${x},${y}`];
   const rock = Object.keys(map.terrain).map((k) => k.split(',').map(Number))
-    .find(([x, y]) => map.terrain[`${x},${y}`] !== 'seal' && free(x - 1, y) && free(x - 2, y) && !(x - 2 === 12 && y === 12));
+    .find(([x, y]) => free(x - 1, y) && free(x - 2, y) && !(x - 2 === 12 && y === 12));
   assert.ok(rock, 'มีสิ่งกีดขวางให้ทดสอบ');
   const [rx, ry] = rock;
   P = setup([['S', 'sora_otosumi', rx - 2, ry], ['B', 'dummy', 12, 12]]);
@@ -513,34 +512,25 @@ for (const gun of [false, true]) {
   });
 }
 
-test(`Mouse Separade: ผนึกมิโกะที่หยุดหน้าผนึกโดน ${sora.ULT_DMG} (มีดไม่บวก) · ผนึกหลังจุดชนไม่โดน`, (t) => {
+test('Mouse Separade: สิ่งกีดขวางที่พังไม่ได้ (ช่องพัง) = หยุดหน้าช่องนั้น · ชนเป้าก่อนถึง = ชนเป้า', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const ultLocked = Zero.ultLocked;
-  Zero.ultLocked = () => false; // ห่วงเวลาซีโร่ล็อกท่าไม้ตาย — ปลดเพื่อทดสอบช่องที่ลงผนึก
-  try {
-    Math.random = () => 0.99;
-    const run = (enemyAt) => {
-      const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
-      Zero.enter(); engine.clearPhaseTimer(); match.zeroScene.active = false;
-      P.S.pos = { x: 3, y: 0 }; P.C.pos = { x: 12, y: 12 };
-      P.B.pos = enemyAt || { x: 10, y: 10 };
-      myth(P.S);
-      engine.setActor('S');
-      engine.useSkill('S', 'ultimate', [], { dir: 'left' });
-      flush(t, 6000);
-      const s = match.zero.seals[0];
-      return { P, vit: s.hp + s.armor };
-    };
-    const full = Zero.SEAL_HP + Zero.SEAL_ARMOR;
-    let r = run(null);
-    assert.equal(r.vit, full - sora.ULT_DMG, 'ชนผนึก (ช่องที่หยุด)');
-    assert.deepEqual(r.P.S.pos, { x: 1, y: 0 }, 'หยุดหน้าผนึก');
-    r = run({ x: 1, y: 0 });
-    assert.equal(r.vit, full, 'ชนเป้าก่อนถึงผนึก = ผนึกไม่โดน');
-    assert.equal(vit(r.P.B), FULL - sora.ULT_DMG);
-  } finally {
-    Zero.ultLocked = ultLocked;
-  }
+  Math.random = () => 0.99;
+  const run = (enemyAt) => {
+    const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
+    engine.addChasm(['0,0']);
+    P.S.pos = { x: 3, y: 0 }; P.C.pos = { x: 12, y: 12 };
+    P.B.pos = enemyAt || { x: 10, y: 10 };
+    myth(P.S);
+    engine.setActor('S');
+    engine.useSkill('S', 'ultimate', [], { dir: 'left' });
+    flush(t, 6000);
+    return P;
+  };
+  let P = run(null);
+  assert.deepEqual(P.S.pos, { x: 1, y: 0 }, 'หยุดหน้าช่องพัง');
+  assert.ok((match.board.chasm || []).includes('0,0'), 'ช่องพังยังอยู่');
+  P = run({ x: 1, y: 0 });
+  assert.equal(vit(P.B), FULL - sora.ULT_DMG, 'ชนเป้าก่อนถึงช่องพัง');
 });
 
 test('Mouse Separade: คนล่องหนหลังจุดชนไม่ปรากฏตัว · คนล่องหนที่ถูกชนปรากฏตัว', (t) => {

@@ -26,7 +26,6 @@ const { engine } = require("./engine");
 const action = require("./phases/action");
 const combat = require("./combat");
 const view = require("./view");
-const Zero = require("./zeroTime");
 const Dim = require("./dimension");
 const Colony = require("./colony");
 
@@ -169,7 +168,7 @@ function openShopAt(kind, x, y, extra = {}, legacyExtra) {
   if (typeof extra === "number") extra = legacyExtra || {};
   match.shops = shopsList().filter((s) => s.kind !== kind);
   const [w, h] = SHOP_DIMS[kind] || [1, 1];
-  const s = { id: kind, kind, x, y, w, h, items: [], openedRound: Zero.worldRound(), razed: false, ...extra };
+  const s = { id: kind, kind, x, y, w, h, items: [], openedRound: match.roundNumber, razed: false, ...extra };
   stockShop(s);
   match.shops.push(s);
   refreshShopForJourney();
@@ -290,17 +289,17 @@ function relocateShop() {
   const prev = shopsList().filter((s) => s.kind === "apoth" || s.kind === "forge").map((s) => ({ x: s.x, y: s.y }));
   const keep = shopsList().filter((s) => s.kind === "cara");
   match.shops = keep;
-  match.shopCycleRound = Zero.worldRound(); // เวลาโลก (ห่วงเวลาซีโร่ไม่นับ)
+  match.shopCycleRound = match.roundNumber;
   const spots = pickSpots(2, keep, prev, SHOP_DIMS.apoth);
   if (spots[0]) openShopAt("apoth", spots[0].x, spots[0].y);
   if (spots[1]) openShopAt("forge", spots[1].x, spots[1].y);
 }
 function shopDue() {
-  return match.shopCycleRound == null || Zero.worldRound() - match.shopCycleRound >= SHOP_INTERVAL_TURNS;
+  return match.shopCycleRound == null || match.roundNumber - match.shopCycleRound >= SHOP_INTERVAL_TURNS;
 }
 // พ่อค้าเร่: หมดเวลา = จากไป · ไม่มีอยู่ = สุ่มโผล่
 function tickMerchant() {
-  const now = Zero.worldRound();
+  const now = match.roundNumber;
   const cur = shopById("cara");
   if (cur && now >= cur.leaves) { match.shops = shopsList().filter((s) => s !== cur); match.lastLog.push("🐎 พ่อค้าเร่จากไปแล้ว"); }
   // ครั้งเดียวต่อรอบภูมิภาค (6 เทิร์น — ผู้ใช้สั่ง 2026-11-09 เดิมโผล่ได้ซ้ำทุกครั้งที่จากไป): จำรอบร้านที่เคยมาแล้วไว้
@@ -324,7 +323,7 @@ function maybeMoveShop() {
 function shopTurnsLeftOf(s) {
   if (!s) return 0;
   if (s.rt) return 0; // Road Trip จุดพัก: ร้านอยู่จนออกจากจุดพัก (นับเวลาที่แถบจุดพัก) — ไม่มีเทิร์นให้นับ
-  const now = Zero.worldRound();
+  const now = match.roundNumber;
   if (s.capsule || s.kind === "capsule") return Math.max(1, (s.openedRound || now) + (s.kind === "cara" ? 2 : SHOP_INTERVAL_TURNS) - now);
   if (s.kind === "cara") return Math.max(1, (s.leaves || now) - now);
   return Math.max(1, (match.shopCycleRound || now) + SHOP_INTERVAL_TURNS - now);

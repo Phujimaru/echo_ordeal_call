@@ -46,7 +46,6 @@ const ClockUp = require("./clockUp");
 const Dim = require("./dimension");
 const Summon = require("./summon");
 const Visibility = require("./visibility");
-const Zero = require("./zeroTime");
 
 // ============================================================
 //  engine — context object ที่ให้ characters/*.js เรียกกลับเข้ามาใช้ state/ฟังก์ชันร่วมของ server/
@@ -101,11 +100,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   //  ในจังหวะที่ไม่มีพารามิเตอร์ผู้กระทำส่งมาให้ (เช่น adjustIncomingDamage) อ่านตรงนี้
   get effectSourceId() { return match.effectSourceId; },
   get roundNumber() { return match.roundNumber; },
-  // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้ — server/zeroTime.js) · ผลภูมิภาค/กลางวันกลางคืนอ่านค่านี้
-  get worldRound() { return match.roundNumber - (match.zeroFrozen || 0); },
-  zeroActive() { return !!match.zero; },
-  zeroStage() { return Zero.stage(); },           // เฟสห่วงเวลาซีโร่ 1–4 (0 = ไม่ได้อยู่)
-  zeroCollapsing() { return Zero.collapsing(); }, // ช่วงมิติพังทลาย (ทาคุโตะ — server/zeroTime.js)
+  // เวลาโลก · ผลภูมิภาค/กลางวันกลางคืนอ่านค่านี้
+  get worldRound() { return match.roundNumber; },
   setRoundNumber(v) { match.roundNumber = v; },
   get cycleShift() { return match.cycleShift; },
   get legStart() { return match.legStart; }, // เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ (Journey.legEnds/turnInArea)
@@ -152,7 +148,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   summon: { spawn: Summon.spawn, remove: Summon.remove, ofOwner: Summon.ofOwner, controlledOf: Summon.controlledOf, CONTROL_SECONDS: Summon.CONTROL_SECONDS },
   get dotTick() { return !!match.dotTick; }, // ดาเมจต่อเทิร์น (DoT) ของสถานะต้นเทิร์นกำลังลง
   get cmdSeq() { return match.cmdSeq || 0; }, // เลขคำสั่งของผู้เล่น (TimeStop.guard) — แยก "การโจมตี 1 ครั้ง"
-  breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ผนึกมิโกะข้าม)
+  breakObstacles: action.breakObstacles, // พังสิ่งกีดขวางชุดนี้ ["x,y"…] → คืนที่พังจริง [{ x, y, kind }] (ที่พังไม่ได้ข้าม)
   addChasm: action.addChasm, // ทำให้ช่องพัง ["x,y"…] (เรียวกิ — terrain "chasm" จนเปลี่ยนภูมิภาค) → คีย์ที่เพิ่งพัง
   stuck: action.stuck,                   // ติดสตั้น/หลับไหล (ขยับไม่ได้)
   attackBlocked: combat.attackBlocked,   // เป้ากันการโจมตีทั้งก้อน (ฮุค blocksAttack) → { name, img } | null

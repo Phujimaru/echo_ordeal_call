@@ -15,7 +15,6 @@ const lobby = require("./lobby");
 const summary = require("./phases/summary");
 const timers = require("./timers");
 const view = require("./view");
-const Zero = require("./zeroTime");
 
 // ============================================================
 //  cutscene
@@ -78,11 +77,7 @@ function pausePlayingForCutscene(after, opts = {}) {
   runCutsceneQueue(() => {
     if (after) after();
     // ผลหลังคลิปขอฉากต่อ (engine.skillBeat / คลิปถัดไป — โซระ: วงล้อ → พุ่ง → คลิปชน → ระเบิด) = เล่นให้จบก่อน
-    runSkillFlow(() => {
-      // ห่วงเวลาซีโร่: ผลหลังคลิปทุบผนึกแตก = เล่นฉากผนึกก่อนกลับเฟสเดิม
-      if (Zero.hasPendingBreak()) { Zero.runPendingBreak(resume); return; }
-      resume();
-    });
+    runSkillFlow(resume);
   });
   function resume() {
     if (inAction) {

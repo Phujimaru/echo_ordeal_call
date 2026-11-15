@@ -22,7 +22,6 @@ const lobby = require("./lobby");
 const view = require("./view");
 const Visibility = require("./visibility");
 const timers = require("./timers");
-const Zero = require("./zeroTime");
 const Ice = require("./ice");
 const Voice = require("./voice");
 const TimeStop = require("./timeStop");
@@ -66,7 +65,6 @@ function runSkill(id, tier, targets, opts = {}) {
   // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้ · ฮุค ignoresNoSkill(p, tier) = ช่องนี้ยังกดได้ (โรลันด์: BS Page)
   if ((p.statuses.noskill || 0) > 0 && !(hook && hook.ignoresNoSkill && hook.ignoresNoSkill(p, tier))) return;
   if (require("./fodlan").noSkill(p)) return; // สนาม Eos: อยู่ในรถ = ใช้สกิลไม่ได้
-  if (tier === "ultimate" && Zero.ultLocked(p)) return; // ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก (ยกเว้นฮุค zeroImmune · ช่วงมิติพังทลาย)
 
   // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)
   let cost = skillCostOf(p, tier, skill.cost, opts);
@@ -84,8 +82,6 @@ function runSkill(id, tier, targets, opts = {}) {
   if (!targets) return;
   // ฮุค ownsAreaHit = ช่องที่โดนจริงรู้ทีหลัง ตัวละครเรียก hitArea เอง (โซระ: Mouse Separade เฉพาะช่องที่พุ่งผ่านจนถึงจุดชน)
   const ownsAreaHit = !!(hook && hook.ownsAreaHit && hook.ownsAreaHit(p, tier, opts));
-  // ห่วงเวลาซีโร่: สกิลโจมตีพื้นที่ที่คลุมผนึกมิโกะ = ลงผนึกด้วย (หลังผลของสกิล)
-  const sealTiles = !ownsAreaHit && area && area.hostile && Zero.active() ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
   // หนามน้ำแข็ง (Ice Spike): สกิลโจมตีพื้นที่ที่คลุมหนาม = ลงหนามด้วย (ยกเว้นสกิลชนิด tile ซึ่งจัดการหนามเอง)
   const spikeTiles = !ownsAreaHit && area && area.hostile && area.kind !== "tile" ? action.areaTiles(p, area, opts.dir, opts.tile) : [];
 
@@ -170,7 +166,6 @@ function runSkill(id, tier, targets, opts = {}) {
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
   if (!ownsAreaHit && (targets || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
   if (!ownsAreaHit && area && area.hostile) deferred.push(() => Visibility.onAreaHit(p, targets));
-  if (sealTiles.length) deferred.push(() => Zero.hitSealsInArea(p, sealTiles));
   if (spikeTiles.length) deferred.push(() => Ice.hitSpikesInArea(p, spikeTiles));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
@@ -193,28 +188,14 @@ function runSkill(id, tier, targets, opts = {}) {
   // สกิลพักเกมเล่นฉากเองแล้ว (Echo ก่อกำเนิดใหม่ — engine.journeyRebirth ตั้ง CUTSCENE + ตัวจับเวลาไว้) = แค่บรอดแคสต์
   if (match.gameState === "CUTSCENE") { view.broadcastState(); return; }
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
-  // ห่วงเวลาซีโร่: สกิลทุบผนึกแตก = ฉากผนึกแตก/ปลดผนึก แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ
-  if (Zero.hasPendingBreak()) {
-    const remain = Math.max(3, match.timeLeft);
-    Zero.runPendingBreak(() => {
-      if (endTurnPhase.gameOver()) return;
-      const actor = match.players[match.actorId];
-      if (!actor || !actor.alive || endsTurn) { action.finishActor(); return; }
-      match.gameState = "ACTION";
-      timers.startPhaseTimer(remain, action.actionTimeUp);
-      view.broadcastState();
-    });
-    return;
-  }
   if (endsTurn) { action.finishActor(); return; }
   view.broadcastState();
 }
 
 // ผลของสกิลโจมตีพื้นที่ (area.hostile) บนช่อง/คนที่โดนจริง — สำหรับตัวละครที่มีฮุค ownsAreaHit (useSkill ข้ามผลชุดเดียวกันให้)
-//  ids = คนบนช่องที่โดน (รวมคนที่มองไม่เห็น) · ใส่คนอื่นจากในพุ่ม = โผล่ · คนล่องหนปรากฏ · ลงผนึกมิโกะ · ลงหนามน้ำแข็ง
+//  ids = คนบนช่องที่โดน (รวมคนที่มองไม่เห็น) · ใส่คนอื่นจากในพุ่ม = โผล่ · คนล่องหนปรากฏ · ลงหนามน้ำแข็ง
 function hitArea(p, tiles, ids) {
   if ((ids || []).some((tid) => tid !== p.id)) Visibility.exposeBush(p);
   Visibility.onAreaHit(p, ids);
-  if (Zero.active()) Zero.hitSealsInArea(p, tiles);
   Ice.hitSpikesInArea(p, tiles);
 }
