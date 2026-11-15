@@ -162,6 +162,18 @@ test('Orca Separade: พื้นแห้ง = พุ่ง 6×1 ทิ้ง�
   assert.ok(engine.ice.wetAt(1, 5) && engine.ice.wetAt(2, 5) && engine.ice.wetAt(3, 5), 'ทิ้งพื้นเปียกตามทาง');
 });
 
+test('Orca Separade: พื้นเปียกสั้นกว่า 6 = ไถลต่อจนครบ 6 ช่อง (ทิ้งพื้นเปียกช่วงที่แห้ง)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 12, 12]]);
+  frame(P.S, 'orca');
+  engine.ice.layWet([{ x: 2, y: 5 }, { x: 3, y: 5 }]);
+  engine.setActor('S');
+  engine.useSkill('S', 'ultimate', [], { dir: 'right' });
+  flush(t, 12000);
+  assert.deepEqual(P.S.pos, { x: 7, y: 5 }, 'ครบ 6 ช่อง');
+  assert.ok(engine.ice.wetAt(5, 5) && engine.ice.wetAt(7, 5), 'ช่วงที่แห้งกลายเป็นพื้นเปียก');
+});
+
 test('Orca Separade: ช่องแรกเปียก = ไถลตามพื้นเปียกเกิน 6 ช่องจนชน', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 10, 5]]);
@@ -189,35 +201,45 @@ test('Orca: เดินบนพื้นเปียกไม่ไถล + �
   assert.equal(engine.ice.wetAt(3, 5), true, 'พื้นเปียกเดิมยังอยู่');
 });
 
-test('Orca Echo: แทน My-Th Edge · ไม่กินโควตา · คลิปทุกครั้ง · มองทะลุ 2 เทิร์นเฉพาะโซระ · คูลดาวน์ 2 เทิร์น', () => {
+test('Orca Echo: ปุ่มพิเศษบน HUD (สกิลรองยังเป็น My-Th Edge) · ไม่กินโควตา/ไม่ล็อกเดิน · คลิปทุกครั้ง · มองทะลุ 2 เทิร์นเฉพาะโซระ · คูลดาวน์ 2 เทิร์น', () => {
   const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 9, 5]]);
   frame(P.S, 'orca');
   engine.setActor('S');
   const v = engine.buildStateFor('S').players.find((x) => x.id === 'S');
-  assert.equal(v.character.secondary.name, 'Orca Echo');
+  assert.match(v.character.secondary.name, /My-Th Edge/, 'สกิลรองไม่เปลี่ยน');
+  const btn = sora.hudActions(engine, P.S).find((a) => a.key === 'orcaEcho');
+  assert.ok(btn && !btn.disabled, 'มีปุ่ม Orca Echo');
   const r = engine.roundNumber;
-  engine.useSkill('S', 'secondary', []);
+  sora.charAction(engine, P.S, 'orcaEcho');
   assert.deepEqual(calls.queue, ['soraOrcaEcho']);
-  assert.equal(P.S.sora.gun, false, 'ไม่สลับอาวุธ');
   assert.equal(sora.trueSight(engine, P.S), true);
+  assert.equal(engine.action.locked, false, 'ไม่ล็อกการเดิน');
   assert.equal(P.S.skillUsedRound ? 1 : 0, 0, 'ไม่กินโควตา');
-  // มองทะลุล่องหน: เป้าที่ซ่อน (ฮุค stealthed ชั่วคราว) — โซระเห็น คนอื่นไม่เห็น
+  engine.clearPhaseTimer();
+  engine.setActor('S');
+  engine.useSkill('S', 'secondary', []);
+  assert.equal(P.S.sora.gun, true, 'สกิลรอง = สลับอาวุธตามเดิม');
+  // มองทะลุล่องหน: เป้าที่ซ่อน (ฮุค stealthed ชั่วคราว) — โซระเห็น · หมดเวลาแล้วไม่เห็น
   const hooks = engine.CHAR_HOOKS;
   hooks.dummy = { stealthed: () => true };
   try {
     assert.equal(Visibility.hiddenFrom(P.S, P.B), false);
-    P.S.sora.sightUntil = r; // หมดเวลา
+    P.S.sora.sightUntil = r;
     assert.equal(Visibility.hiddenFrom(P.S, P.B), true);
   } finally { delete hooks.dummy; }
   engine.setRoundNumber(r + 2);
   engine.setActor('S');
   calls.queue = [];
-  engine.useSkill('S', 'secondary', []);
-  assert.deepEqual(calls.queue, [], 'ติดคูลดาวน์');
+  assert.equal(sora.hudActions(engine, P.S).find((a) => a.key === 'orcaEcho').disabled, true, 'ติดคูลดาวน์');
+  sora.charAction(engine, P.S, 'orcaEcho');
+  assert.deepEqual(calls.queue, []);
   engine.setRoundNumber(r + 3);
   engine.setActor('S');
-  engine.useSkill('S', 'secondary', []);
+  sora.charAction(engine, P.S, 'orcaEcho');
   assert.deepEqual(calls.queue, ['soraOrcaEcho'], 'คลิปเล่นทุกครั้ง');
+  engine.clearPhaseTimer();
+  frame(P.S, 'eagle');
+  assert.equal(sora.hudActions(engine, P.S), undefined, 'ร่างอื่นไม่มีปุ่ม');
 });
 
 test('Tutle Separade: ไถลตามแนวชนคนแรก → ครอบ + ดันไปถึงช่องที่เลือก · ตรึง 2 เทิร์น · คนอื่นตีไม่เข้า · โซระตี = 6 + ผุพัง 2 · กระดองแตก', (t) => {
