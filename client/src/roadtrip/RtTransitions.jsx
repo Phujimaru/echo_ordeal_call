@@ -109,16 +109,24 @@ function describe(from, to, state, boardSnap) {
 
 /**
  * ภาพที่โชว์ + ฉากเปลี่ยนที่กำลังเล่น · ใช้ใน GameBoard (Game.jsx) ก่อนตัดสินว่าจะ mount จอขับ/กระดาน/สรุป
- * @returns {{ view, act, endAct, boardState }}
+ * @returns {{ view, act, endAct, boardState, boardKey }} — boardKey = กระดานชุดที่โชว์ (ใช้เป็น key ของ GameBoardCore)
  */
 export function useRtView(state) {
   const target = rtTargetView(state);
+  // กระดานชุดไหน (server publicInfo.board: "s3" จุดพักครั้งที่ 3 · "c5" สู้ครั้งที่ 5) — เปลี่ยนชุดโดยไม่ผ่านจอขับ (จุดพัก → สู้ทันที)
+  //  = ฉากเข้าสู้บนกระดานเดิม แล้ว mount กระดานใหม่ใต้ม่าน (ไม่ใช้กระดาน/ฉาก 3D ตัวเดิมข้ามชุด — ผู้ใช้แจ้ง 2026-11-15 จอขาว)
+  const rtb = state && state.roadtrip ? state.roadtrip : null;
+  const targetKey = target === "board" ? (rtb && rtb.board) || (rtb && rtb.phase) || "board" : null;
   const [view, setView] = useState(target);
+  const [shownKey, setShownKey] = useState(targetKey);
   const [act, setAct] = useState(null);
   const viewRef = useRef(view);
   viewRef.current = view;
+  const shownRef = useRef(shownKey);
+  shownRef.current = shownKey;
   const snap = useRef(null);
-  if (view === "board" && (target === "board" || !snap.current)) snap.current = state; // กระดานสด · ค้างภาพ = ชุดสุดท้าย
+  const sameBoard = view === "board" && target === "board" && shownKey === targetKey;
+  if (view === "board" && (sameBoard || !snap.current)) snap.current = state; // กระดานสด · ค้างภาพ = ชุดสุดท้าย
   const timer = useRef(0);
   const seq = useRef(0);
   const stRef = useRef(state);
@@ -127,21 +135,23 @@ export function useRtView(state) {
     if (!target) return;
     clearTimeout(timer.current);
     const cur = viewRef.current;
-    if (target === cur || !cur) {
-      if (!cur) setView(target);
+    if (!cur) { setView(target); setShownKey(targetKey); return; }
+    if (target === cur && (target !== "board" || targetKey === shownRef.current)) {
       setAct((a) => (a && !a.swapped ? null : a)); // กลับมาภาพเดิมก่อนสลับ = ยกเลิกฉาก
       return;
     }
-    const info = describe(cur, target, stRef.current, snap.current);
+    // กระดาน → กระดานคนละชุด (จุดพัก → สู้ โดยไม่ทันเห็นจอขับ): เล่นฉากเข้าสู้ทับกระดานเดิม แล้วสลับชุดใต้ม่าน
+    const info = target === cur ? describe("drive", "board", stRef.current, snap.current) : describe(cur, target, stRef.current, snap.current);
     const hold = info.kind ? HOLD[info.kind] || 0 : 0;
-    if (!hold) { setView(target); setAct(null); return; }
+    if (!hold) { setView(target); setShownKey(targetKey); setAct(null); return; }
     const id = ++seq.current;
     setAct({ id, ...info, from: cur, to: target, swapped: false });
     timer.current = setTimeout(() => {
       setView(target);
+      setShownKey(targetKey);
       setAct((a) => (a && a.id === id ? { ...a, swapped: true } : a));
     }, hold);
-  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [target, targetKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => clearTimeout(timer.current), []);
   // dev: window.__rtTx("boss", { boss: "darkKnight" }) = เล่นฉากบนภาพปัจจุบัน (ไม่สลับภาพจริง) ไว้ตรวจหน้าตา
   useEffect(() => {
@@ -155,8 +165,7 @@ export function useRtView(state) {
     return () => { delete window.__rtTx; };
   }, []);
   const endAct = useCallback((id) => setAct((a) => (a && a.id === id ? null : a)), []);
-  const live = view === "board" && target === "board";
-  return { view: view || target, act, endAct, boardState: live ? state : snap.current || state };
+  return { view: view || target, act, endAct, boardState: sameBoard ? state : snap.current || state, boardKey: shownKey || targetKey || "board" };
 }
 
 // ---------------------------------------------------------------- ชิ้นส่วนร่วม

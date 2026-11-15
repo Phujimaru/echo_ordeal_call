@@ -216,7 +216,7 @@ function resolve() {
   const voters = Object.entries(ev.votes).filter(([, k]) => k === key).map(([id]) => id);
   const res = def.run(rt, key, voters) || { text: "" };
   ev.result = { key, text: res.text };
-  RT.fx("eventResult", { id: ev.id, key, text: res.text });
+  RT.fx("eventResult", { id: ev.id, choice: key, text: res.text }); // choice (ไม่ใช่ key — key = เลข fx)
   match.lastLog.push(`🛣️ ${res.text}`);
   if (rt.van.hp <= 0) { RT.lose("van"); return; }
   const next = res.fight ? () => require("./fight").begin(res.fight, { mobType: res.mobType }) : () => RT.toDrive();

@@ -71,6 +71,8 @@ import "../roadtrip/roadtrip.css";
 
 const P_DISPLAY = "var(--font-p-display)";
 const TEAM_COLORS = { A: "#22d3ee", B: "#f97316", C: "#a3e635" };
+// โหมดร่วมมือที่ผู้เล่นทุกคนอยู่ทีมเดียว — ป้าย "ทีม A" ไม่มีความหมาย
+const COOP_ONE_TEAM = new Set(["eos", "roadtrip", "moon"]);
 function teamAccent(teamId) {
   return TEAM_COLORS[teamId] || "var(--color-p-accent-bright)";
 }
@@ -1870,7 +1872,7 @@ export default function GameBoard(props) {
   return (
     <>
       {view !== "over" && <RoadtripScreen key="rt-drive" state={state} lowQ={props.lowQ} active={view === "drive"} />}
-      {view === "board" && <GameBoardCore key="rt-board" {...props} state={rtv.boardState} />}
+      {view === "board" && <GameBoardCore key={`rt-board-${rtv.boardKey}`} {...props} state={rtv.boardState} />}
       {view === "over" && (
         <div className="rtx-sumfade">
           <RoadtripSummary summary={rt.summary || { km: rt.km, region: rt.region, diff: rt.diff }} players={state.players || []} />
@@ -2850,7 +2852,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               duo={duoPick}
               name={me.character?.name || me.name}
               onName={() => { clickSound(); setShowChar(true); }}
-              teamId={state.gameMode === "eos" ? null : me.teamId} // Eos: ทุกคนทีมเดียว ไม่ต้องมีป้าย (ผู้ใช้ 2026-11-10)
+              teamId={COOP_ONE_TEAM.has(state.gameMode) ? null : me.teamId} // ร่วมมือทีมเดียว (Eos · Road Trip · Moon Cell) ไม่ต้องมีป้ายทีม (ผู้ใช้ 2026-11-10 · 2026-11-15)
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}

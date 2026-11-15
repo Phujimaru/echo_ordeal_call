@@ -46,6 +46,8 @@ test('คู่มือ: เส้นทาง/ขับ/รางวัล/ต
   assert.equal(G.RT_DRIVE.emptyKmh, Drive.EMPTY_KMH);
   assert.equal(G.RT_DRIVE.nitroMs, Drive.NITRO_MS);
   assert.equal(G.RT_DRIVE.hzWarnMs, Drive.HZ_WARN_MS);
+  assert.equal(G.RT_DRIVE.throttle.up, Drive.THROTTLE.up); // คันเร่ง/เบรกของคนขับ
+  assert.equal(G.RT_DRIVE.throttle.down, Drive.THROTTLE.down);
   assert.deepEqual(G.RT_REWARD, Fight.REWARD);
   assert.deepEqual(G.RT_FIGHT.swerve, Fight.SWERVE);
   assert.equal(G.RT_FIGHT.roofFall, Fight.ROOF_FALL);

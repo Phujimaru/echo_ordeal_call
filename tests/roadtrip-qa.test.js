@@ -830,3 +830,41 @@ test('กล่องเก็บของกลางของรถ: เก็
   F.begin('ambush');
   assert.equal(RT.command('p1', 'stash', { op: 'put', uid: P(1).inventory[0].uid }), false, 'ตอนสู้ใช้ไม่ได้');
 });
+
+test('FIX fx: ข้อมูลชื่อ key ไม่ทับเลข fx (เดิม upgrade/eventResult/วิทยุบอส ส่ง key เป็นข้อความ → client กันซ้ำผิด) · ฟิลด์ใหม่ upg/choice/line', () => {
+  const E = require('../server/roadtrip/events.js');
+  setup(2);
+  const a = RT.fx('probe', { key: 'kill', text: 'x' }), b = RT.fx('probe', { key: 'kill', text: 'y' });
+  const pr = rt().fx.filter((f) => f.k === 'probe');
+  assert.equal(pr.length, 2);
+  assert.ok(pr.every((f) => typeof f.key === 'number'));
+  assert.deepEqual(pr.map((f) => f.key), [a, b]);
+  assert.notEqual(a, b);
+  // เหตุการณ์: ผลลัพธ์ = choice
+  E.open('police');
+  E.vote(P(0), 'fight'); E.vote(P(1), 'fight');
+  const er = rt().fx.find((f) => f.k === 'eventResult');
+  assert.ok(er && typeof er.key === 'number');
+  assert.equal(er.choice, 'fight');
+  // ทุก fx ที่ค้างในแมตช์ = เลขไม่ซ้ำ
+  const keys = new Set(rt().fx.map((f) => f.key));
+  assert.equal(keys.size, rt().fx.length, 'เลข fx ไม่ซ้ำกัน');
+  assert.ok(rt().fx.every((f) => typeof f.key === 'number'));
+});
+
+test('FIX publicInfo.board: ชุดกระดาน (s=จุดพัก · c=สู้) เปลี่ยนทุกครั้งที่เข้าใหม่ · ช่วงขับ = null · ข้อมูลหลัก (กม./ความยาก) ยังครบ', () => {
+  setup(1);
+  let pi = RT.publicInfo();
+  assert.equal(pi.board, null);
+  assert.equal(typeof pi.km, 'number');
+  assert.equal(pi.diff, 'normal');
+  S.enter('gas');
+  const s1 = RT.publicInfo().board;
+  assert.match(s1, /^s\d+$/);
+  RT.command('p0', 'ready', {});
+  assert.equal(RT.publicInfo().board, null);
+  F.begin('boss');
+  const c1 = RT.publicInfo().board;
+  assert.match(c1, /^c\d+$/);
+  assert.notEqual(c1, s1);
+});

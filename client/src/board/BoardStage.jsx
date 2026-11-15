@@ -3062,10 +3062,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   }, [orderSig, map, state.actorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // สนาม Eos: แผงแต้ม/เสามุมขวาบน (EosScoreboard — พับ/กางได้) อยู่ที่เดียวกับคิวคนถัดไป → คิวลงไปอยู่ใต้แผง (ผู้ใช้แจ้ง 2026-11-12 ซ้อนบังกัน)
+  //  Road Trip: ปุ่ม "?" คู่มือ (roadtrip/RtGuideButton .rtg-btn) อยู่ใต้แถวปุ่มระบบมุมขวาบนตลอดทริป → คิวลงไปใต้ปุ่ม (ผู้ใช้แจ้ง 2026-11-15 ปุ่มทับลำดับ)
   const [queueTop, setQueueTop] = useState(0);
   useEffect(() => {
     const upd = () => {
-      const el = document.querySelector(".eos-score"), root = rootRef.current;
+      const el = document.querySelector(".eos-score") || document.querySelector(".rtg-btn"), root = rootRef.current;
       const r = el ? el.getBoundingClientRect() : null;
       const rt = root ? root.getBoundingClientRect() : null;
       const v = r && r.height > 0 && rt ? Math.round(Math.min(r.bottom - rt.top + 10, rt.height - 250)) : 0; // แผงกางยาว = ไม่ดันคิวตกจอ

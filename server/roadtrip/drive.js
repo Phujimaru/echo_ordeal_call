@@ -17,8 +17,26 @@ const FUEL_PER_KM = 0.6;
 const EMPTY_KMH = 30;
 const NITRO_MS = 5000, NITRO_MUL = 1.5;
 const STEER_MS = 500;             // คูลดาวน์เปลี่ยนเลน ÷ ช่วงล่าง
+// คันเร่ง/เบรกของคนขับ (ผู้ใช้อนุมัติ 2026-11-15 · ตัวเลข Claude ตั้ง): W/↑ = เร่ง · S/↓ = เบรก · ปล่อย = ความเร็วปกติ
+//  ความเร็ว = ความเร็วเครื่องยนต์ (อัปเกรด) × ตัวคูณคันเร่ง (ค่อยๆ ไล่ — up/s ต่อวินาที) × ไนตรัส (ซ้อนได้)
+//  เร็วขึ้น = กม./วิ มากขึ้น → น้ำมันต่อวินาทีมากขึ้น (น้ำมันคิดต่อ กม.) + สิ่งกีดขวางชิ้นถัดไปมาเร็วขึ้น (ช่องว่างหาร ×) · เตือนล่วงหน้ายัง 5 วิเท่าเดิม (client วาดไกลขึ้นตามความเร็ว)
+//  cmdMs = กดเปลี่ยนได้ถี่สุด (ปล่อยคันเร่ง = รับเสมอ ไม่ค้าง)
+const THROTTLE = { up: 1.3, down: 0.5, accel: 0.6, brake: 1.2, cmdMs: 100 };
+const thrGoal = (t) => (t > 0 ? THROTTLE.up : t < 0 ? THROTTLE.down : 1);
+function resetThrottle(rt) { if (rt) { rt.throttle = 0; rt.thrK = 1; } }
+// ไล่ตัวคูณเข้าหาเป้า (dt = ms) — เบรกไวกว่าเร่ง
+function rampThrottle(rt, dt) {
+  const goal = thrGoal(rt.throttle | 0), cur = Number.isFinite(rt.thrK) ? rt.thrK : 1;
+  if (cur === goal) return;
+  const rate = (goal < cur ? THROTTLE.brake : THROTTLE.accel) * dt / 1000;
+  rt.thrK = goal > cur ? Math.min(goal, cur + rate) : Math.max(goal, cur - rate);
+}
 const ONVAN_PCT = 15;             // จบช่วงแรกของทางแยก: มอนไล่ล่ารถ (สู้บนรถตู้) · ไม่เกิดก่อน ONVAN_MIN_KM และไม่ติดกับการสู้ครั้งก่อน (ผู้ใช้ 2026-11-14 "ไม่ได้ใช้เวลาร่วมกันบนรถเลย")
 const ONVAN_MIN_KM = 25;
+// กลับมาขับแล้วต้องขับอย่างน้อยเท่านี้ก่อนบอสขึ้น (ผู้ใช้แจ้ง 2026-11-15 "ออกจากปั๊มแล้วเข้าบอสทันที จอขาว"):
+//  ทางแยก/จุดพักพาข้ามหลัก 50 กม. → เดิมบอสขึ้นจังหวะแรกของช่วงขับ (250 ms) = client ยังไม่ทันสลับกลับจอขับ (ฉากออกจากจุดพัก ~2 วิ)
+//  → กระดานจุดพักกลายเป็นกระดานบอสในตัวเดียวกันโดยไม่มีฉากเปลี่ยน · ให้ฉากออกจากจุดพักเล่นจบก่อน แล้วค่อยเข้าฉากบอสตามปกติ
+const BOSS_MIN_DRIVE_MS = 4000;
 const HZ_KINDS = { plains: ["cone", "rock", "car"], desert: ["rock", "tumble", "car"], forest: ["log", "rock", "car"], snow: ["ice", "rock", "car"], ghost: ["wreck", "grave", "car"] };
 let tickId = null, lastAt = 0, lastSend = 0, urgent = false;
 
@@ -36,15 +54,16 @@ const ticking = () => !!tickId;
 function speedOf(rt) {
   if (!rt) return 0;
   if (rt.phase !== "drive" && rt.phase !== "intro") return rt.phase === "fork" || rt.phase === "event" ? 40 : 0;
-  if (rt.van.fuel <= 0) return EMPTY_KMH;
-  return Math.round(rt.van.kmh * (rt.nitroUntil > Date.now() ? NITRO_MUL : 1));
+  const thr = rt.phase === "drive" && Number.isFinite(rt.thrK) ? rt.thrK : 1;
+  if (rt.van.fuel <= 0) return Math.round(EMPTY_KMH * Math.min(1, thr)); // น้ำมันหมด: เร่งไม่ขึ้น (เบรกได้)
+  return Math.round(rt.van.kmh * thr * (rt.nitroUntil > Date.now() ? NITRO_MUL : 1));
 }
 const DRIVER_IDLE_MS = 20000; // คนขับไม่อยู่หน้าจอ (ไม่ขยับเมาส์/ไม่กดอะไรเลย — rt:alive) เกิน 20 วิ = ที่นั่งว่าง (ผู้ใช้สั่ง 2026-11-14)
 function driverOk(rt, now = Date.now()) {
   const d = rt.van.driverId && match.players[rt.van.driverId];
-  if (rt.van.driverId && (!d || !d.alive || d.connected === false)) { rt.van.driverId = null; rt.van.seatReq = null; urgent = true; return; }
+  if (rt.van.driverId && (!d || !d.alive || d.connected === false)) { rt.van.driverId = null; rt.van.seatReq = null; rt.throttle = 0; urgent = true; return; }
   if (rt.van.driverId && rt.phase === "drive" && now - (rt.driverActAt || now) > DRIVER_IDLE_MS) {
-    rt.van.driverId = null; rt.van.seatReq = null; urgent = true;
+    rt.van.driverId = null; rt.van.seatReq = null; rt.throttle = 0; urgent = true;
     H().fx("seat", { id: null, idle: true });
   }
   if (rt.van.seatReq && (!match.players[rt.van.seatReq] || !rt.van.driverId)) rt.van.seatReq = null;
@@ -59,8 +78,11 @@ function step(dt = null, now = Date.now()) {
   lastAt = now;
   if (!RT.awake().length) { rt.hzNextAt = Math.max(rt.hzNextAt, now + 2500); return; } // ไม่มีใครต่ออยู่ = รถจอดรอ (ไม่วิ่ง/ไม่ชนเองจนจบเกม)
   // บอสบังคับทุก 50 กม. (เช็คทุกจังหวะ — ข้ามหลักระหว่างทางแยก/จุดพักก็ขึ้นทันทีที่กลับมาขับ)
-  if (rt.km >= rt.nextBossKm) { bossNow(rt); return; }
+  const bossOk = now - (rt.driveAt || 0) >= BOSS_MIN_DRIVE_MS;
+  if (rt.km >= rt.nextBossKm && bossOk) { bossNow(rt); return; }
   driverOk(rt, now);
+  if (!rt.van.driverId) rt.throttle = 0; // ไม่มีคนขับ = ปล่อยคันเร่ง
+  rampThrottle(rt, dt);
   // ระยะ + น้ำมัน
   const kmh = speedOf(rt);
   const dist = kmh * Route.KM_PER_SEC * dt / 1000;
@@ -81,7 +103,7 @@ function step(dt = null, now = Date.now()) {
   if (rt.km - rt.legKm >= Route.LEG_KM) {
     rt.legs++;
     rt.legKm = rt.km;
-    if (rt.km >= rt.nextBossKm) { bossNow(rt); return; }
+    if (rt.km >= rt.nextBossKm) { if (bossOk) { bossNow(rt); return; } send(now); return; } // ยังไม่ครบเวลาขับขั้นต่ำ = จังหวะถัดๆ ไปขึ้นบอส (เช็คที่ต้นจังหวะ) · ไม่เปิดทางแยกแทน
     if (rt.legs >= Route.LEGS_PER_FORK) { openFork(); return; }
     if (rt.km >= ONVAN_MIN_KM && !rt.lastNodeFight && Math.random() * 100 < ONVAN_PCT) { rt.lastNodeFight = true; require("./fight").begin("onvan"); return; } // เพิ่งโดนไล่ = ช่วงถัดไปไม่โดนซ้ำ
   }
@@ -103,7 +125,7 @@ function spawnHazard(rt, now) {
   const kinds = HZ_KINDS[rt.region.id] || HZ_KINDS.plains;
   const h = { id: ++rt.hzSeq, lane: Math.floor(Math.random() * 3) - 1, at: now + HZ_WARN_MS, kind: kinds[Math.floor(Math.random() * kinds.length)] };
   rt.hazards.push(h);
-  rt.hzNextAt = now + HZ_GAP[0] + Math.random() * (HZ_GAP[1] - HZ_GAP[0]);
+  rt.hzNextAt = now + (HZ_GAP[0] + Math.random() * (HZ_GAP[1] - HZ_GAP[0])) / Math.max(0.5, Number.isFinite(rt.thrK) ? rt.thrK : 1); // เร่ง = ชิ้นถัดไปมาเร็วขึ้น · เบรก = ช้าลง
   urgent = true;
   return h;
 }
@@ -138,7 +160,7 @@ function seatCmd(p, o, RT, rt, van) {
       if (van.driverId === p.id) return false;
       const cur = van.driverId && match.players[van.driverId];
       if (cur && cur.alive && cur.connected !== false) return false; // ใครนั่งก่อนได้ก่อน
-      van.driverId = p.id; van.seatReq = null; rt.driverActAt = Date.now();
+      van.driverId = p.id; van.seatReq = null; rt.driverActAt = Date.now(); rt.throttle = 0;
       RT.fx("seat", { id: p.id });
       return true;
     }
@@ -153,12 +175,12 @@ function seatCmd(p, o, RT, rt, van) {
       if (van.driverId !== p.id || !van.seatReq) return false;
       const to = match.players[van.seatReq];
       if (!to || !to.alive || to.connected === false) { van.seatReq = null; return true; }
-      van.driverId = to.id; van.seatReq = null; rt.driverActAt = Date.now();
+      van.driverId = to.id; van.seatReq = null; rt.driverActAt = Date.now(); rt.throttle = 0;
       RT.fx("seat", { id: to.id, from: p.id });
       return true;
     }
     if (van.driverId !== p.id) return false;
-    van.driverId = null; van.seatReq = null;
+    van.driverId = null; van.seatReq = null; rt.throttle = 0;
     RT.fx("seat", { id: null });
     return true;
   }
@@ -180,6 +202,16 @@ function driveCmd(p, name, o, RT, rt, van, driving) {
     if (now - rt.steerAt < cd || Math.abs(lane - van.lane) > 1) return false; // ทีละเลน
     rt.steerAt = now; rt.driverActAt = now;
     van.lane = lane;
+    return true;
+  }
+  if (name === "throttle") { // { t: -1 | 0 | 1 } — กดค้าง/ปล่อย (client ส่งตอนเปลี่ยนเท่านั้น)
+    const t = Number(o.t);
+    if (![-1, 0, 1].includes(t) || rt.phase !== "drive") return false;
+    const now = Date.now();
+    rt.driverActAt = now;
+    if (t === (rt.throttle | 0)) return true;
+    if (t !== 0 && now - (rt.thrAt || 0) < THROTTLE.cmdMs) return false;
+    rt.thrAt = now; rt.throttle = t; urgent = true;
     return true;
   }
   if (name === "nitro") {
@@ -248,4 +280,4 @@ function goNode(kind) {
   return require("./fight").begin(Math.random() < 0.5 ? "ambush" : "onvan");
 }
 
-module.exports = { TICK_MS, HZ_WARN_MS, HZ_GAP, HZ_FIRST_MS, FUEL_PER_KM, EMPTY_KMH, NITRO_MS, STEER_MS, startTick, stopTick, ticking, step, speedOf, spawnHazard, resolveHazard, hazardDmg, command, openFork, vote, tally, resolveFork, goNode };
+module.exports = { NITRO_MUL, THROTTLE, resetThrottle, rampThrottle, BOSS_MIN_DRIVE_MS, TICK_MS, HZ_WARN_MS, HZ_GAP, HZ_FIRST_MS, FUEL_PER_KM, EMPTY_KMH, NITRO_MS, STEER_MS, startTick, stopTick, ticking, step, speedOf, spawnHazard, resolveHazard, hazardDmg, command, openFork, vote, tally, resolveFork, goNode };

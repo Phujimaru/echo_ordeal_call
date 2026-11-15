@@ -409,7 +409,7 @@ function upgrade(p, key, unitId) {
   const cost = Van.upgCost(rt, key);
   if (cost == null || !pay(p, cost)) return false;
   const lv = Van.applyUpgrade(rt.van, key);
-  RT.fx("upgrade", { id: p.id, key, lv });
+  RT.fx("upgrade", { id: p.id, upg: key, lv }); // upg (ไม่ใช่ key — key = เลข fx)
   match.lastLog.push(`🔧 ${p.name} อัปเกรด${UPG_NAMES[key]} ขั้น ${lv} (-${cost} เหรียญ)`);
   return true;
 }

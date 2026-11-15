@@ -235,7 +235,7 @@
 
 /* ตัวเล่น YouTube (radio.js สร้างเองที่ <body>) — ขวา เหนือแถบ HUD ล่าง 320×200 (เงื่อนไข YouTube: มองเห็น ≥ 200×200)
    เดิมชิดขอบล่าง = แถบควบคุม/แถบเสียงของตัวเล่นใช้ไม่ได้ (ผู้ใช้ 2026-11-14) · ไม่วางขวาบน = ทับการ์ดทางแยก/เหตุการณ์ */
-.rt-yt { position: fixed; right: 18px; bottom: 150px; z-index: 36; width: 320px; height: 200px; border-radius: 12px; overflow: hidden; background: #000;
+.rt-yt { position: fixed; right: 84px; /* ซ้ายของแถบกิจกรรมในรถ (.rtf-dock ขวา 16 กว้าง 58 — QA 2026-11-15 ตัวเล่นบังปุ่มตู้เย็น/เครื่องมือ) */ bottom: 150px; z-index: 36; width: 320px; height: 200px; border-radius: 12px; overflow: hidden; background: #000;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(255, 255, 255, 0.85); opacity: 0; visibility: hidden; transform: translateY(16px) scale(0.96);
   transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1), visibility 0s linear 0.35s; }
 .rt-yt[data-on="true"] { opacity: 1; visibility: visible; transform: none; transition: opacity 0.35s, transform 0.35s cubic-bezier(0.2, 1.2, 0.4, 1), visibility 0s; }

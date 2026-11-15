@@ -64,16 +64,18 @@ export default function App() {
     if (!ch) return undefined;
     saveSessionToken(null); // session เก่าจาก server รอบก่อน = join แล้วโดน sessionExpired เด้งกลับ
     const mode = new URLSearchParams(location.search).get("mode") || undefined; // ?mode=savior = นักบินปริศนาโหมดผู้กอบกู้
-    const go = () => socket.emit("join", { name: "ทดสอบ", position: 1, color: "#3B82C4", characterId: ch, mode });
+    const pos = Math.max(1, Math.min(6, Number(new URLSearchParams(location.search).get("pos")) || 1)); // &pos=2 = แท็บที่สอง (ทดสอบหลายคน)
+    const go = () => socket.emit("join", { name: pos > 1 ? `ทดสอบ ${pos}` : "ทดสอบ", position: pos, color: pos > 1 ? "#2E9E4B" : "#3B82C4", characterId: ch, mode });
     if (socket.connected) go(); else socket.once("connect", go);
     return () => socket.off("connect", go);
   }, []);
   useEffect(() => {
-    if (import.meta.env.DEV) window.__echoState = state; // dev: เปิดดู state ล่าสุดจาก console
+    if (import.meta.env.DEV) { window.__echoState = state; window.__echoSocket = socket; } // dev: เปิดดู state ล่าสุดจาก console
     if (!import.meta.env.DEV || !state || !new URLSearchParams(location.search).get("autoplay")) return;
     const me = state.players?.find((p) => p.id === state.youId);
     if (!me) return;
-    if (state.gameState === "LOBBY" && !me.ready) socket.emit("toggleReady");
+    const need = Number(new URLSearchParams(location.search).get("wait")) || 1; // &wait=2 = รอให้ครบ 2 คนก่อนกดพร้อม
+    if (state.gameState === "LOBBY" && !me.ready && (state.players || []).length >= need) socket.emit("toggleReady");
     // &world=colony = โหวตสนาม Colony · &world=moon = Moon Cell · &world=none = ไม่โหวตเอง (หยุดดูหน้าเลือกโหมด)
     const world = new URLSearchParams(location.search).get("world") || "earth";
     if (state.gameState === "TEAM_MODE" && !me.modeVote && world !== "none") socket.emit("selectGameMode", { mode: world === "moon" ? "moon" : world === "eos" ? "eos" : world === "roadtrip" ? "roadtrip" : "ffa", world });

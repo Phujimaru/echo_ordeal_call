@@ -38,12 +38,15 @@ export default function RoadtripSummary({ summary, players = [] }) {
   // สถิติเดิมก่อนรอบนี้ (อ่านครั้งเดียว) → ทำลายสถิติ = เขียนใหม่ + ป้าย
   const prevBest = useRef(null);
   if (prevBest.current === null) prevBest.current = readBest(diff);
-  const record = km > prevBest.current;
+  // server มีตารางสถิติกลาง (summary.best / newBest — server/roadtrip/index.js leaderboard) = ใช้ค่านั้น · ไม่มี = สถิติในเครื่อง
+  //  เดิมใช้แต่ค่าในเครื่อง → เครื่องที่ไม่เคยเล่นขึ้น "สถิติใหม่" ทั้งที่สถิติจริง (ช่อง 🏆) สูงกว่า (QA 2026-11-15)
+  const srvBest = Number.isFinite(+s.best) ? +s.best : null;
+  const record = typeof s.newBest === "boolean" ? s.newBest : km > prevBest.current;
   useEffect(() => { if (record) writeBest(diff, km); }, [record, diff, km]);
   const shown = useCountUp(km);
   const reg = regionOf(s.region && typeof s.region === "object" ? s.region.id : s.region);
   const loop = (s.region && typeof s.region === "object" ? s.region.loop : s.loop) || 0;
-  const best = Math.max(km, prevBest.current || 0);
+  const best = srvBest != null ? Math.max(km, Math.floor(srvBest)) : Math.max(km, prevBest.current || 0);
   const tiles = [
     { k: "region", node: <span className="rt-vs-gem" style={{ "--c": reg.color }}><span>{roman(loop + 1)}</span></span>, v: reg.name, t: true, sub: `รอบ ${loop + 1}` },
     { k: "kills", node: "⚔️", v: s.kills || 0, sub: "สังหาร" },

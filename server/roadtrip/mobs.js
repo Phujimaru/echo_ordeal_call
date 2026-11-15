@@ -89,6 +89,8 @@ function spawn(rt, type, at, { elite = false, born = null, heroes = null, tier =
   const base = ROSTER[type];
   if (!base || !at) return null;
   const st = scale(rt, base, { elite, heroes, tier });
+  const devHp = Number(process.env.ECHO_DEV_RT_MOBHP); // dev: มอนเลือดเท่านี้ (QA — ทดสอบชนะ/จบการต่อสู้เร็ว)
+  if (devHp > 0) { st.hp = devHp; st.armor = 0; }
   const rec = lazy.summon().spawn(RT_OWNER, {
     kind: KIND, pos: { x: at.x, y: at.y }, hp: st.hp, armor: st.armor, mov: st.mov, range: [1, 1],
     name: elite ? `หัวหน้า${base.name}` : base.name, img: `/roadtrip/mobs/${type}.webp`, color: base.color,
@@ -409,7 +411,7 @@ const RADIO = {
   pitstop: ["บ๊อกซ์ บ๊อกซ์!", "Box, box!"], drs: ["DRS เปิด!", "DRS enabled!"], spinout: ["ยางหมดแล้ว!", "No grip, no grip!"],
   kill: ["Simply lovely!", "แซงแล้ว!"], celebrate: ["ดู ดู ดู ดู~", "แชมป์โลก!"], phase2: ["Push now!", "ไปกันเต็มสูบ!"], enrage: ["Full push!", "ห้ามยกคันเร่ง!"],
 };
-function radio(m, key) { const list = RADIO[key]; if (list && m.summon.mobType === "devilTruck") H().fx("radio", { id: m.id, boss: "devilTruck", key, text: list[Math.floor(Math.random() * list.length)] }); }
+function radio(m, key) { const list = RADIO[key]; if (list && m.summon.mobType === "devilTruck") H().fx("radio", { id: m.id, boss: "devilTruck", line: key, text: list[Math.floor(Math.random() * list.length)] }); }
 function movesFor(m) {
   const sm = m.summon, ph = sm.phase || 1;
   if (sm.mobType === "darkKnight") return ph >= 2 ? ["wave", "spikes", "slash", "charge"] : ["charge", "slash"];
