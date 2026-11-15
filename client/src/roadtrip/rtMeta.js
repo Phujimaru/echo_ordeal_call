@@ -116,4 +116,5 @@ export const PAINTS = [
   { name: "ชมพู", hex: "#f2a1b5" }, { name: "แดง", hex: "#d9534f" }, { name: "กรมท่า", hex: "#34497a" }, { name: "ขาว", hex: "#eeeeea" },
 ];
 // ทะเบียน: ≤ 9 ตัว ตัดอักขระควบคุม (server ตัดซ้ำ)
+// eslint-disable-next-line no-control-regex -- ตัดอักขระควบคุมออกโดยตั้งใจ
 export const cleanPlate = (t) => String(t || "").replace(/[\u0000-\u001f\u007f]/g, "").slice(0, 9);

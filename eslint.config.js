@@ -67,6 +67,10 @@ module.exports = [
       "react-refresh/only-export-components": "warn",
       // ยังไม่ใช้ React Compiler — rule ชุดนี้ (v7 "recommended") เข้มเกินไปสำหรับ baseline lint รอบนี้
       "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/purity": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
     },
   },
 ];

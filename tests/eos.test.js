@@ -2075,7 +2075,8 @@ test('อาวุธจักรพรรดิ: สุสาน 13 แห่�
   for (let i = 0; i < 13; i++) {
     assert.ok(tombSide(i), `สุสาน ${i} มีช่องยืนติด`);
     assert.equal(action.boardMap().terrain[K(...MAP6.TOMBS[i])], 'fd_eos_tomb');
-    assert.ok(fs.existsSync(path.join(__dirname, '..', 'client', 'public', AR.imgOf(AR.ARMS[i].id))), `ภาพ ${AR.ARMS[i].id}`);
+    // client/public/eos/ อยู่ใน .gitignore — worktree ใหม่ไม่มีโฟลเดอร์นี้ ข้ามการเช็กภาพเมื่อไม่มีสื่อทั้งโฟลเดอร์
+    if (fs.existsSync(path.join(__dirname, '..', 'client', 'public', 'eos'))) assert.ok(fs.existsSync(path.join(__dirname, '..', 'client', 'public', AR.imgOf(AR.ARMS[i].id))), `ภาพ ${AR.ARMS[i].id}`);
   }
   const pub = Fodlan.publicInfo().board.tombs;
   assert.equal(pub.length, 13);

@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const { engine } = require('../server.js');
 
@@ -44,6 +44,7 @@ test.beforeEach(() => {
 });
 
 test.afterEach(() => {
+  engine.clearPhaseTimer(); // การโหวตโหมดเริ่มเกมจริง → ตั้งตัวจับเวลาเฟส ถ้าไม่ล้าง process ไม่จบ
   clearPlayers();
   engine.setGameMode('ffa');
 });
