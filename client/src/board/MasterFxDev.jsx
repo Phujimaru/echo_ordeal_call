@@ -24,7 +24,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
   const shake = (...ms) => { for (const d of ms) setTimeout(() => setShake && setShake((n) => n + 1), d); };
   const base = () => { const a = me(); return { x: a.x, y: a.y, size: 2, phase: a.phase, by: "me" }; };
   const slam = (big) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 9, 1, 2, 0, false, -1, 0, big ? [4, 3] : [3, 2]) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 2, 0, false, -1, 0, big ? [99, 99, 5] : [99, 99, 3]) : [];
     window.__masterLast = { me: a, tiles: tiles.length, map: !!map };
     const hit = MASTER_T.slam * 0.8;
     masterPose("me", "slam", "right", hit / 0.78);

@@ -1617,8 +1617,9 @@ function bandTiles(map, x, y, orient, width) {
 // cone = กรวย (มิโดริยะ: Smash) — แถว i (1..len) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงกลางตัว · ไม่สน width
 //  fan ≥ 0 (Master — Twin Sword Slam / Knockdown Slash · GRID_PLAN §7.34): แนวตรงกว้างเท่าตัว ยาว len + แฉกเฉียงจากมุมหน้าตัวสองข้าง แฉกละ fan ช่อง
 //   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · pad = แนวตรงกว้างเกินตัวข้างละ pad ช่อง (Knockdown 4 / 6 บนตัว 2×2) · ไม่ใช้ width/cone/arc
-//  boxes = [ตรง, เฉียง] (Master — Twin Sword Slam ตามภาพของเพื่อนผู้ใช้ 2026-11-15): จุดระเบิดกรอบ 3×3 ช่อง
-//   ตรง: กรอบต่อกันไปข้างหน้า (แถวขวางเริ่มที่ขอบตัวด้านลบ) · เฉียงขึ้น/ลง: กรอบที่ k อยู่ข้างหน้า 3k−2…3k และเยื้องข้าง 3k ช่อง
+//  boxes = [ตรง, เฉียง, ขนาด=3] (Master — Twin Sword Slam ตามภาพของเพื่อนผู้ใช้ 2026-11-15): จุดระเบิดกรอบ s×s ช่อง
+//   ตรง: กรอบต่อกันไปข้างหน้า (กลางกรอบ = แถวขวาง lo+1) · เฉียงขึ้น/ลง: กรอบที่ k อยู่ข้างหน้า s(k−1)+1…sk และเยื้องข้าง sk ช่อง
+//   จำนวนกรอบเกินกระดาน (เช่น 99) = ยาวสุดแผนที่ — หยุดเมื่อกรอบหลุดกระดานทั้งกรอบ
 function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, fan = -1, pad = 0, boxes = null) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
@@ -1633,16 +1634,22 @@ function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, 
   if (Array.isArray(boxes)) {
     const lo = sx + sy > 0 ? -c : -(n - 1 - c);
     const seen = new Set();
-    const box = (i0, j0) => {
-      for (let i = i0; i < i0 + 3; i++) for (let j = j0; j < j0 + 3; j++) {
+    const s = Math.max(1, boxes[2] | 0 || 3), j0 = lo + 1 - Math.floor((s - 1) / 2);
+    const cap = Math.ceil(((map.cols || 14) + (map.rows || 14)) / s) + 1; // กรอบเกินนี้หลุดกระดานแน่
+    const box = (i0, jb) => {
+      let hit = false;
+      for (let i = i0; i < i0 + s; i++) for (let j = jb; j < jb + s; j++) {
         const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
-        const k = tx + "," + ty;
-        if (seen.has(k) || !inBounds(map, tx, ty)) continue;
+        if (!inBounds(map, tx, ty)) continue;
+        hit = true;
+        const k = wx(tx) + "," + ty;
+        if (seen.has(k)) continue;
         seen.add(k); out.push({ x: wx(tx), y: ty });
       }
+      return hit;
     };
-    for (let b = 0; b < (boxes[0] | 0); b++) box(1 + 3 * b, lo);
-    for (let k = 1; k <= (boxes[1] | 0); k++) { box(3 * k - 2, lo - 3 * k); box(3 * k - 2, lo + 3 * k); }
+    for (let b = 0; b < Math.min(boxes[0] | 0, cap); b++) if (!box(1 + s * b, j0)) break;
+    for (let k = 1; k <= Math.min(boxes[1] | 0, cap); k++) { const i0 = s * (k - 1) + 1; const a = box(i0, j0 - s * k), b = box(i0, j0 + s * k); if (!a && !b) break; }
     return out;
   }
   if (fan >= 0) {

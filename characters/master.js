@@ -41,7 +41,7 @@ const REVIVE_HEAL = 25;
 const SUMMON_EVERY = 5, SUMMON_CAP = 10;
 const CD = { basic: 2, secondary: 3, ultimate: 3 };
 // จุดระเบิดหนามกรอบ 3×3: ตรง 3 กรอบ · เฉียงขึ้น/ลงข้างละ 2 (ภาพของเพื่อนผู้ใช้ 2026-11-15) · ครั้งที่ 3 ใหญ่ขึ้น: ตรง 4 · เฉียง 3 (Claude ตัดสิน)
-const SLAM = { dmg: 3, boxes: [3, 2], bigBoxes: [4, 3], stun: 2, uses2: 2 };
+const SLAM = { dmg: 3, boxes: [99, 99, 3], bigBoxes: [99, 99, 5], stun: 2, uses2: 2 }; // ทุกครั้งยาวสุดแผนที่ · ครั้งที่ 3 กรอบ 5×5 (ผู้ใช้ 2026-11-16)
 const KNOCK = { dmg: 4, len: 99, pad: 1, pad2: 1, push: 1 }; // ยาวสุดแผนที่ · กว้าง 4 ทั้งสองเฟส (ตัว 2 + ข้างละ 1 — ผู้ใช้ 2026-11-15 แทนสเปก 4x16/6x16)
 const SMITE = { dmg: 2, shock: 3 };
 const POISON_MAX = 3, LV_MAX = 2, LV_TURNS = 3;
@@ -247,7 +247,7 @@ function slamArea(p) {
   const s = st(p);
   const big = s.phase === 2 && (s.slamPress + 1) % 3 === 0;
   const boxes = big ? SLAM.bigBoxes : SLAM.boxes;
-  return { kind: "line", len: boxes[0] * 3, boxes, hostile: true, big };
+  return { kind: "line", len: 99, boxes, hostile: true, big };
 }
 function knockArea(p) { return { kind: "line", len: KNOCK.len, fan: 0, pad: phase2(p) ? KNOCK.pad2 : KNOCK.pad, hostile: true }; }
 

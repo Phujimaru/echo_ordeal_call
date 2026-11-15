@@ -298,14 +298,22 @@ test("เปลี่ยนแผนที่: ตัวอัญเชิญท
   assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
 });
 
-test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งที่ 3 ตรง 4 เฉียง 3) · Knockdown กว้าง 4 ยาวสุดแผนที่ทั้งสองเฟส", () => {
+test("พื้นที่: Twin Sword กรอบ 3×3 ยาวสุดแผนที่ 3 ทิศ (ครั้งที่ 3 กรอบ 5×5) · Knockdown กว้าง 4 ยาวสุดแผนที่ทั้งสองเฟส", () => {
   const { m } = setup();
-  assert.deepEqual(M.slamArea(m).boxes, [3, 2]);
-  // 7 กรอบ 3×3 (ตรง 3 · เฉียงขึ้น 2 · เฉียงลง 2) บนกระดานกว้างพอ = 63 ช่อง ไม่ซ้ำ
-  const all = Board.lineTiles(engine.boardMap(), 9, 7, "left", 9, 1, 2, 0, false, -1, 0, [3, 2]);
-  assert.equal(all.length, new Set(all.map((t) => `${t.x},${t.y}`)).size);
+  assert.deepEqual(M.slamArea(m).boxes, [99, 99, 3]);
+  const map = engine.boardMap();
+  const at = (b) => new Set(Board.lineTiles(map, 10, 6, "left", 99, 1, 2, 0, false, -1, 0, b).map((t) => `${t.x},${t.y}`));
+  const small = at([99, 99, 3]);
+  // ตรง: แถว 5–7 ไล่ถึงขอบซ้าย (x 0)
+  for (let x = 0; x <= 9; x++) for (const y of [5, 6, 7]) assert.ok(small.has(`${x},${y}`), `ตรง ${x},${y}`);
+  // เฉียงลงกรอบที่ 1 (x 7–9 · y 8–10) · กรอบที่ 3 (x 1–3 · y 14+ หลุดกระดาน 14 แถว) · เฉียงขึ้นกรอบที่ 1 (y 2–4)
+  for (const k of ["7,8", "9,10", "7,2", "9,4", "4,11", "6,13"]) assert.ok(small.has(k), k);
   m.master.phase = 2; m.master.slamPress = 2;
-  assert.deepEqual([M.slamArea(m).boxes, M.slamArea(m).big], [[4, 3], true]);
+  assert.deepEqual([M.slamArea(m).boxes, M.slamArea(m).big], [[99, 99, 5], true]);
+  const big = at([99, 99, 5]);
+  // 5×5: ตรง แถว 4–8 ถึงขอบ · เฉียงกรอบที่ 1 x 5–9 เยื้อง 5 (y 9–13 / y 0–… )
+  for (let x = 0; x <= 9; x++) for (const y of [4, 5, 6, 7, 8]) assert.ok(big.has(`${x},${y}`), `ใหญ่ ${x},${y}`);
+  for (const k of ["5,9", "9,13", "5,3", "9,0"]) assert.ok(big.has(k), k);
   const rows = (pad) => new Set(Board.lineTiles(engine.boardMap(), 6, 6, "left", 16, 1, 2, 0, false, 0, pad).map((t) => t.y));
   m.master.phase = 1;
   assert.equal(M.knockArea(m).pad, 1);
