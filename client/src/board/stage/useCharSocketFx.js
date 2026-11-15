@@ -519,7 +519,7 @@ export default function useCharSocketFx(ctx) {
         case "knock": {
           if (!base) return;
           const T = ev.wave ? MASTER_T.knock2 : MASTER_T.knock;
-          at(T * 0.3, () => masterPose(ev.id, "lunge", ev.dir, 700));
+          masterPose(ev.id, "sweep", ev.dir, (T * 0.45) / 0.55); // ฟาดกวาด (q 0.55) ตรงจังหวะใบดาบพุ่ง (T·0.45)
           pushFx([{ kind: "masterKnock", ...base, dir: ev.dir, tiles: tl(ev.tiles) || [], wave: ev.wave | 0, dur: T + 700 }]);
           look(pos);
           at(T * 0.45, () => punch(pos, 500, 1.08));

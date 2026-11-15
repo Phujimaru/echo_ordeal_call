@@ -35,7 +35,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
   const knock = (wave) => {
     const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", a.phase === 2 ? 6 : 4, 1, 2, 0, false, 0) : [];
     const T = wave ? MASTER_T.knock2 : MASTER_T.knock;
-    setTimeout(() => masterPose("me", "lunge", "right", 700), T * 0.3);
+    masterPose("me", "sweep", "right", (T * 0.45) / 0.55);
     pushFx([{ kind: "masterKnock", ...base(), dir: "right", tiles, wave, dur: T + 700 }]);
     playSfx("master_slash"); shake(T * 0.5, T * 0.7);
     setFocus({ x: a.x + 3, y: a.y + 1 });

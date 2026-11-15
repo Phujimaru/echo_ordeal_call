@@ -201,27 +201,58 @@ function auraBack(g, wx, wy, n, H, ph, now, lowQ, scale, down) {
 // ---------- แขนที่ขยับได้ (ตัดจากภาพตอนวาด — ท่า Twin Sword Slam ฟาดดาบคู่ลงพื้นจริง) ----------
 //  พิกัดในภาพต้นฉบับ (px) · poly = ส่วนแขน+ดาบ · pivot = ไหล่ · up = มุมเงื้อ (เรเดียน · บวก = ตามเข็ม) · down = มุมฟาดลงพื้น
 //  ภาพเฟส 1 = master.webp (1058×651 ต้นฉบับ) · เฟส 2 = master2.webp (1244×668) — ไฟล์ที่ใช้ย่อเป็นสูง 720 สัดส่วนเดิม
-const ARMS = {
+export const ARMS = {
   1: { iw: 1058, ih: 651, fill: "brightness(0.32)",
-    core: [[498, 138], [600, 138], [980, 86], [1002, 300], [872, 332], [862, 592], [556, 602], [552, 352], [598, 300], [498, 300]], parts: [
-    { poly: [[480, 232], [602, 232], [602, 382], [562, 402], [500, 442], [380, 442], [60, 472], [0, 497], [0, 470], [350, 372], [468, 322]], pivot: [548, 250], up: 1.75, down: -0.55 },
-    { poly: [[848, 248], [1002, 248], [1008, 322], [962, 472], [898, 478], [758, 422], [698, 398], [718, 368], [848, 330]], pivot: [905, 272], up: -1.95, down: 0.55 },
+    core: [[486, 132], [963, 82], [996, 384], [851, 464], [851, 596], [541, 603], [539, 358], [486, 305]], parts: [
+    { poly: [[478, 232], [588, 232], [588, 351], [548, 371], [528, 444], [489, 457], [41, 490], [0, 498], [0, 469], [423, 352], [465, 315], [478, 291]], pivot: [531, 245], up: 1.75, down: -0.75 },
+    { poly: [[838, 238], [989, 238], [992, 331], [957, 470], [884, 477], [779, 437], [686, 404], [693, 377], [779, 364], [831, 331]], pivot: [897, 258], up: 1.6, down: -0.9 },
   ] },
   2: { iw: 1244, ih: 668, fill: "brightness(0.62)",
     core: [[355, 165], [520, 165], [870, 78], [882, 300], [832, 392], [722, 642], [458, 602], [470, 402], [380, 332]], parts: [
-    { poly: [[352, 248], [472, 248], [472, 442], [400, 448], [330, 422], [60, 482], [0, 499], [0, 484], [300, 400], [358, 368]], pivot: [420, 292], up: 1.75, down: -0.55 },
-    { poly: [[788, 228], [884, 228], [884, 332], [832, 472], [762, 562], [640, 562], [618, 540], [728, 420], [758, 330]], pivot: [832, 262], up: -1.95, down: 0.55 },
+    { poly: [[352, 248], [472, 248], [472, 442], [400, 448], [330, 422], [60, 482], [0, 499], [0, 484], [300, 400], [358, 368]], pivot: [420, 292], up: 1.75, down: -0.75 },
+    { poly: [[788, 228], [884, 228], [884, 332], [832, 472], [762, 562], [640, 562], [618, 540], [728, 420], [758, 330]], pivot: [832, 262], up: 2.4, down: -0.3 },
   ] },
 };
-// มุมแขนตามจังหวะท่า slam (q ของ pose · ต้องตรงกับ twinSwords / slamFx): เงื้อ 0–0.62 · ฟาด 0.62–0.78 · ค้าง → คืน 0.9–1
-function armAngle(q, part) {
-  if (q < 0.62) return part.up * easeOut(q / 0.62);
-  if (q < 0.78) return part.up + (part.down - part.up) * easeIn((q - 0.62) / 0.16);
-  if (q < 0.9) return part.down;
-  return part.down * (1 - clamp01((q - 0.9) / 0.1));
+// ท่าแขนตามท่าของตัว — keyframe [q, มุม] (q = 0..1 ของ pose · มุม: ตัวเลข = เรเดียน · "up"/"down" = มุมเงื้อ/ฟาดของแขนนั้น · ×k ได้)
+//  slam: กระโดดเงื้อ → ฟาด (ต้องตรงกับ slamFx/twinSwords) · stab: แทงรัว (ตีปกติ) · sweep: เหวี่ยงกวาด (Knockdown)
+//  raise: ชูดาบสองมือ → ชี้ลงตอนฟ้าผ่า (Smite) · roar: กางแขนคำราม (อัญเชิญ) · land: ชูตอนตก → ฟาดตอนกระแทก · revive: ชูดาบค้าง
+const ARM_KEYS = {
+  slam: [[[0, 0], [0.62, "up"], [0.78, "down"], [0.9, "down"], [1, 0]], [[0, 0], [0.62, "up"], [0.78, "down"], [0.9, "down"], [1, 0]]],
+  stab: [[[0, 0], [0.14, 0.35], [0.26, -0.25], [0.38, 0.3], [0.5, -0.3], [0.62, 0.25], [0.74, -0.2], [1, 0]],
+    [[0, 0], [0.2, -0.2], [0.32, 0.3], [0.44, -0.25], [0.56, 0.3], [0.68, -0.15], [1, 0]]],
+  sweep: [[[0, 0], [0.35, 1.3], [0.55, -0.85], [0.8, -0.85], [1, 0]], [[0, 0], [0.35, 0.6], [0.55, -0.5], [0.8, -0.5], [1, 0]]],
+  raise: [[[0, 0], [0.28, "up"], [0.7, "up"], [0.78, ["down", 0.6]], [0.92, ["down", 0.6]], [1, 0]],
+    [[0, 0], [0.32, "up"], [0.7, "up"], [0.78, ["down", 0.6]], [0.92, ["down", 0.6]], [1, 0]]],
+  roar: [[[0, 0], [0.2, ["up", 0.75]], [0.8, ["up", 0.75]], [1, 0]], [[0, 0], [0.2, ["up", 0.75]], [0.8, ["up", 0.75]], [1, 0]]],
+  land: [[[0, 0], [0.18, "up"], [0.42, "down"], [0.62, "down"], [0.8, 0]], [[0, 0], [0.18, "up"], [0.42, "down"], [0.62, "down"], [0.8, 0]]],
+  revive: [[[0, 0], [0.4, "up"], [0.85, "up"], [1, 0]], [[0, 0], [0.45, "up"], [0.85, "up"], [1, 0]]],
+};
+const smooth = (t) => t * t * (3 - 2 * t);
+function keyVal(v, part) {
+  if (typeof v === "number") return v;
+  const [name, k] = Array.isArray(v) ? v : [v, 1];
+  return (name === "up" ? part.up : part.down) * k;
 }
+function armAngle(kind, q, part, idx) {
+  const keys = ARM_KEYS[kind] && ARM_KEYS[kind][idx];
+  if (!keys) return 0;
+  if (q >= keys[keys.length - 1][0]) return keyVal(keys[keys.length - 1][1], part);
+  for (let i = 1; i < keys.length; i++) {
+    const [t1, v1] = keys[i];
+    if (q > t1) continue;
+    const [t0, v0] = keys[i - 1];
+    const u = (q - t0) / (t1 - t0 || 1);
+    // ฟาดลง (มุมลดลงไปทาง down) = เร่ง · อย่างอื่น = นุ่ม
+    const a0 = keyVal(v0, part), a1 = keyVal(v1, part);
+    const e = Math.abs(a1 - part.down) < 1e-6 && a0 !== a1 ? easeIn(u) : smooth(clamp01(u));
+    return a0 + (a1 - a0) * e;
+  }
+  return 0;
+}
+export const hasArmPose = (kind) => kind in ARM_KEYS;
+
 // วาดภาพแยกชิ้น: เงาเกราะในกรอบลำตัว → ลำตัว (ตัดแขนเดิมออก) → แขนแต่ละข้างหมุนรอบไหล่ · ox/oy/W/H = กรอบภาพบนจอ (ในพิกัดที่หมุน/กลับด้านแล้ว)
-function drawCutImage(g, im, ox, oy, W, H, arms, q) {
+function drawCutImage(g, im, ox, oy, W, H, arms, kind, q) {
   const sx = W / arms.iw, sy = H / arms.ih;
   const pathOf = (poly) => { g.beginPath(); poly.forEach(([x, y], i) => (i ? g.lineTo(ox + x * sx, oy + y * sy) : g.moveTo(ox + x * sx, oy + y * sy))); g.closePath(); };
   // ลำตัว: ตัดแขนเดิมออก (ไม่ให้เห็น 4 แขน — ผู้ใช้ 2026-11-15) · รูที่แขนเคยบังลำตัว/ขา = เงาเกราะสีเข้ม (ภาพเดิมมืดลง
@@ -239,8 +270,8 @@ function drawCutImage(g, im, ox, oy, W, H, arms, q) {
   g.drawImage(im, ox, oy, W, H);
   g.restore();
   // แขน: หมุนรอบไหล่
-  for (const part of arms.parts) {
-    const a = armAngle(q, part), px = ox + part.pivot[0] * sx, py = oy + part.pivot[1] * sy;
+  for (const [idx, part] of arms.parts.entries()) {
+    const a = armAngle(kind, q, part, idx), px = ox + part.pivot[0] * sx, py = oy + part.pivot[1] * sy;
     g.save();
     g.translate(px, py); g.rotate(a); g.translate(-px, -py);
     pathOf(part.poly); g.clip();
@@ -265,7 +296,7 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const pose = poseOf(u.id, now);
   if (pose) {
     const q = pose.q, d = pose.dir || [0, 0];
-    if (pose.kind === "lunge") { const k = q < 0.25 ? -q / 0.25 * 0.15 : q < 0.45 ? -0.15 + (q - 0.25) / 0.2 * 0.6 : 0.45 * (1 - (q - 0.45) / 0.55); dx = d[0] * k; dy = d[1] * k; }
+    if (pose.kind === "lunge" || pose.kind === "stab" || pose.kind === "sweep") { const k = q < 0.25 ? -q / 0.25 * 0.15 : q < 0.45 ? -0.15 + (q - 0.25) / 0.2 * 0.6 : 0.45 * (1 - (q - 0.45) / 0.55); dx = d[0] * k; dy = d[1] * k; }
     else if (pose.kind === "slam") {
       // กระโดดสูง (เอนหลังเงื้อดาบ) → พุ่งลงพร้อมโน้มตัวไปข้างหน้าฟาดดาบ → ยุบตัวตอนกระแทก
       const up = q < 0.62 ? Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) * 1.6 : Math.max(0, 1.6 * (1 - easeIn((q - 0.62) / 0.16)));
@@ -308,8 +339,7 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const pad = boss ? H * 0.09 : 0;
   // ลำตัวไม่อยู่กลางภาพ (ดาบยื่นซ้าย · เฟส 2 มีปีกขวา) — จุดยึด = กลางขาในภาพ (สัดส่วนความกว้าง)
   const ax = boss ? (ph === 2 ? 0.47 : 0.67) : 0.5;
-  const slamQ = pose && pose.kind === "slam" && boss ? pose.q : null;
-  if (slamQ != null && ARMS[ph]) drawCutImage(g, im, -W * ax, -H + pad, W, H, ARMS[ph], slamQ); // ฟาดดาบคู่: แขนหมุนจริง
+  if (pose && boss && ARMS[ph] && hasArmPose(pose.kind)) drawCutImage(g, im, -W * ax, -H + pad, W, H, ARMS[ph], pose.kind, pose.q); // ท่าแขน: แขนหมุนจริง
   else g.drawImage(im, -W * ax, -H + pad, W, H);
   g.filter = "none"; g.shadowBlur = 0;
   if (flash > 0) { add(g, () => glow(g, 0, -H * 0.45, H * 0.75, palOf(ph).neon, flash, WHITE)); }
@@ -343,7 +373,7 @@ export function masterFx(g, e, now, lowQ) {
         if (e.by && !e._posed && e.to) {
           e._posed = true;
           const ddx = e.to.x - e.x, ddy = e.to.y - e.y;
-          masterPose(e.by, "lunge", Math.abs(ddx) >= Math.abs(ddy) ? (ddx >= 0 ? "right" : "left") : (ddy >= 0 ? "down" : "up"), dur);
+          masterPose(e.by, "stab", Math.abs(ddx) >= Math.abs(ddy) ? (ddx >= 0 ? "right" : "left") : (ddy >= 0 ? "down" : "up"), dur);
         }
         strikeFx(g, e, p, seed, lowQ);
       }
