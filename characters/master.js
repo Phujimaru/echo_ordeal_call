@@ -42,7 +42,7 @@ const SUMMON_EVERY = 5, SUMMON_CAP = 10;
 const CD = { basic: 2, secondary: 3, ultimate: 3 };
 // จุดระเบิดหนามกรอบ 3×3: ตรง 3 กรอบ · เฉียงขึ้น/ลงข้างละ 2 (ภาพของเพื่อนผู้ใช้ 2026-11-15) · ครั้งที่ 3 ใหญ่ขึ้น: ตรง 4 · เฉียง 3 (Claude ตัดสิน)
 const SLAM = { dmg: 3, boxes: [3, 2], bigBoxes: [4, 3], stun: 2, uses2: 2 };
-const KNOCK = { dmg: 4, len: 16, pad: 1, pad2: 2, push: 1 }; // สเปก "4x16" → หลังฟื้น "6x16" = กว้าง 4 → 6 (ตัว 2 + ข้างละ pad) ยาว 16
+const KNOCK = { dmg: 4, len: 99, pad: 1, pad2: 1, push: 1 }; // ยาวสุดแผนที่ · กว้าง 4 ทั้งสองเฟส (ตัว 2 + ข้างละ 1 — ผู้ใช้ 2026-11-15 แทนสเปก 4x16/6x16)
 const SMITE = { dmg: 2, shock: 3 };
 const POISON_MAX = 3, LV_MAX = 2, LV_TURNS = 3;
 // เวลาเอฟเฟกต์บนกระดาน (วินาที — masterFx.js)

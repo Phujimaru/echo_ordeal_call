@@ -1778,8 +1778,8 @@ const CHARACTERS = [
     },
     secondary: {
       name: "Knockdown Slash",
-      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือกทิศ: คลื่นดาบแนว 4×16 ศัตรูทุกคนเสียหาย 4 + ผลักถอย 1 (คูลดาวน์ 3 เทิร์น) · Holy: แนว 6×16 · ฟาดซ้ำ 2 ครั้ง · ธาตุแสง",
-      area: { kind: "line", len: 16, fan: 0, pad: 1, hostile: true },
+      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือกทิศ: คลื่นดาบกว้าง 4 ยาวสุดแผนที่ ศัตรูทุกคนเสียหาย 4 + ผลักถอย 1 (คูลดาวน์ 3 เทิร์น) · Holy: ฟาดซ้ำ 2 ครั้ง · ธาตุแสง",
+      area: { kind: "line", len: 99, fan: 0, pad: 1, hostile: true },
       cost: 0,
       img: "/characters/master/knockdown_slash.webp",
       instant: true,

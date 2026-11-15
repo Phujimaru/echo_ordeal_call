@@ -308,7 +308,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
   const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? (a.square ? `รอบตัว ${a.range * 2 + 1}×${a.range * 2 + 1}` : `รอบตัว ${a.range}`)
-    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : a.cone ? `กรวย ${a.len}` : Array.isArray(a.boxes) ? "คลื่น 3 ทิศ" : Number.isFinite(a.fan) ? (a.fan > 0 ? `คลื่น 3 ทิศ ${a.len}` : `ทิศทาง ${a.len}×${2 + 2 * (a.pad | 0)}`) : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : a.cone ? `กรวย ${a.len}` : Array.isArray(a.boxes) ? "คลื่น 3 ทิศ" : Number.isFinite(a.fan) ? (a.fan > 0 ? `คลื่น 3 ทิศ ${a.len}` : `ทิศทาง ${a.len >= 26 ? "สุดแผนที่" : a.len}×${2 + 2 * (a.pad | 0)}`) : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
   const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)

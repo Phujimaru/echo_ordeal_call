@@ -121,7 +121,7 @@ test("พิษร้ายจากตีหลายครั้งซ้อ�
   assert.equal(b.statuses.poison, 3);
 });
 
-test("Knockdown Slash: แนว 4×16 (หลังฟื้น 6×16) ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
+test("Knockdown Slash: กว้าง 4 ยาวสุดแผนที่ ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
   const { m, b, c } = setup();
   b.pos = { x: 2, y: 6 }; c.pos = { x: 1, y: 5 };
   b.statuses.poison = 2; b.statuses.elPoison = 2;
@@ -298,7 +298,7 @@ test("เปลี่ยนแผนที่: ตัวอัญเชิญท
   assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
 });
 
-test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งที่ 3 ตรง 4 เฉียง 3) · Knockdown กว้าง 4 → หลังฟื้น 6 ยาว 16", () => {
+test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งที่ 3 ตรง 4 เฉียง 3) · Knockdown กว้าง 4 ยาวสุดแผนที่ทั้งสองเฟส", () => {
   const { m } = setup();
   assert.deepEqual(M.slamArea(m).boxes, [3, 2]);
   // 7 กรอบ 3×3 (ตรง 3 · เฉียงขึ้น 2 · เฉียงลง 2) บนกระดานกว้างพอ = 63 ช่อง ไม่ซ้ำ
@@ -311,8 +311,8 @@ test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งท�
   assert.equal(M.knockArea(m).pad, 1);
   assert.deepEqual([...rows(1)].sort(), [5, 6, 7, 8]);
   m.master.phase = 2;
-  assert.equal(M.knockArea(m).pad, 2);
-  assert.deepEqual([...rows(2)].sort(), [4, 5, 6, 7, 8, 9]);
+  assert.equal(M.knockArea(m).pad, 1, "หลังฟื้นกว้าง 4 เหมือนเดิม");
+  assert.ok(M.knockArea(m).len >= 26, "ยาวสุดแผนที่");
 });
 
 test("ฟื้นเป็นเฟส 2: +25 แม้ติดไร้ทางเยียวยา / เลือดไหล / ผกผัน", () => {

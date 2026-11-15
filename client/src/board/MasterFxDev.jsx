@@ -33,7 +33,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
     setFocus({ x: a.x + 3, y: a.y + 1 });
   };
   const knock = (wave) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 16, 1, 2, 0, false, 0, a.phase === 2 ? 2 : 1) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 2, 0, false, 0, 1) : [];
     const T = wave ? MASTER_T.knock2 : MASTER_T.knock;
     masterPose("me", "sweep", "right", (T * 0.45) / 0.55);
     pushFx([{ kind: "masterKnock", ...base(), dir: "right", tiles, wave, dur: T + 700 }]);
