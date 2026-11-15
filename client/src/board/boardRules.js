@@ -1617,7 +1617,9 @@ function bandTiles(map, x, y, orient, width) {
 // cone = กรวย (มิโดริยะ: Smash) — แถว i (1..len) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงกลางตัว · ไม่สน width
 //  fan ≥ 0 (Master — Twin Sword Slam / Knockdown Slash · GRID_PLAN §7.34): แนวตรงกว้างเท่าตัว ยาว len + แฉกเฉียงจากมุมหน้าตัวสองข้าง แฉกละ fan ช่อง
 //   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · pad = แนวตรงกว้างเกินตัวข้างละ pad ช่อง (Knockdown 4 / 6 บนตัว 2×2) · ไม่ใช้ width/cone/arc
-function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, fan = -1, pad = 0) {
+//  boxes = [ตรง, เฉียง] (Master — Twin Sword Slam ตามภาพของเพื่อนผู้ใช้ 2026-11-15): จุดระเบิดกรอบ 3×3 ช่อง
+//   ตรง: กรอบต่อกันไปข้างหน้า (แถวขวางเริ่มที่ขอบตัวด้านลบ) · เฉียงขึ้น/ลง: กรอบที่ k อยู่ข้างหน้า 3k−2…3k และเยื้องข้าง 3k ช่อง
+function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, fan = -1, pad = 0, boxes = null) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
   if (!v) return [];
@@ -1628,6 +1630,21 @@ function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, 
   const cx = x + c, cy = y + c;
   const edge = fx + fy > 0 ? n - 1 - c : c; // จากกลางตัวถึงขอบด้านที่หัน
   const out = [];
+  if (Array.isArray(boxes)) {
+    const lo = sx + sy > 0 ? -c : -(n - 1 - c);
+    const seen = new Set();
+    const box = (i0, j0) => {
+      for (let i = i0; i < i0 + 3; i++) for (let j = j0; j < j0 + 3; j++) {
+        const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
+        const k = tx + "," + ty;
+        if (seen.has(k) || !inBounds(map, tx, ty)) continue;
+        seen.add(k); out.push({ x: wx(tx), y: ty });
+      }
+    };
+    for (let b = 0; b < (boxes[0] | 0); b++) box(1 + 3 * b, lo);
+    for (let k = 1; k <= (boxes[1] | 0); k++) { box(3 * k - 2, lo - 3 * k); box(3 * k - 2, lo + 3 * k); }
+    return out;
+  }
   if (fan >= 0) {
     const lo = sx + sy > 0 ? -c : -(n - 1 - c), hi = sx + sy > 0 ? n - 1 - c : c;
     const push = (i, j) => {

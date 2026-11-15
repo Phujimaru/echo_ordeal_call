@@ -95,11 +95,11 @@ test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกร�
   assert.equal(order[order.length - 1], "m");
 });
 
-test("Twin Sword Slam: คลื่น 3 แฉก ยาว 16 (ตรงกว้างเท่าตัว · เฉียง) ดาเมจ 3 + พิษร้าย + คราบพิษ · คูลดาวน์ 2", () => {
+test("Twin Sword Slam: หนามระเบิดกรอบ 3×3 ไล่ 3 ทิศ (ตรง 3 · เฉียง 2+2) ดาเมจ 3 + พิษร้าย + คราบพิษ · คูลดาวน์ 2", () => {
   const { m, b, c, d } = setup();
   b.pos = { x: 3, y: 7 };  // ทางตรง ช่องที่ 3 แถวล่างของตัว
   c.pos = { x: 4, y: 4 };  // เฉียงขึ้นช่องที่ 2
-  d.pos = { x: 0, y: 0 };  // เฉียงขึ้นช่องที่ 6 (ไกล — แฉกยาว 16)
+  d.pos = { x: 0, y: 0 };  // กรอบเฉียงกรอบที่ 2
   const tiles = Board.lineTiles(engine.boardMap(), 6, 6, "left", 3, 1, 2, 0, false, 2).map((t) => `${t.x},${t.y}`).sort();
   assert.deepEqual(tiles, ["3,6", "3,7", "4,4", "4,6", "4,7", "4,9", "5,5", "5,6", "5,7", "5,8"].sort());
   engine.useSkill("m", "basic", [], { dir: "left" });
@@ -298,11 +298,14 @@ test("เปลี่ยนแผนที่: ตัวอัญเชิญท
   assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
 });
 
-test("พื้นที่: Twin Sword ครั้งที่ 3 ยาว 12 · Knockdown กว้าง 4 → หลังฟื้น 6 ยาว 16", () => {
+test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งที่ 3 ตรง 4 เฉียง 3) · Knockdown กว้าง 4 → หลังฟื้น 6 ยาว 16", () => {
   const { m } = setup();
-  assert.deepEqual([M.slamArea(m).len, M.slamArea(m).fan], [16, 16]);
+  assert.deepEqual(M.slamArea(m).boxes, [3, 2]);
+  // 7 กรอบ 3×3 (ตรง 3 · เฉียงขึ้น 2 · เฉียงลง 2) บนกระดานกว้างพอ = 63 ช่อง ไม่ซ้ำ
+  const all = Board.lineTiles(engine.boardMap(), 9, 7, "left", 9, 1, 2, 0, false, -1, 0, [3, 2]);
+  assert.equal(all.length, new Set(all.map((t) => `${t.x},${t.y}`)).size);
   m.master.phase = 2; m.master.slamPress = 2;
-  assert.deepEqual([M.slamArea(m).len, M.slamArea(m).fan, M.slamArea(m).big], [12, 12, true]);
+  assert.deepEqual([M.slamArea(m).boxes, M.slamArea(m).big], [[4, 3], true]);
   const rows = (pad) => new Set(Board.lineTiles(engine.boardMap(), 6, 6, "left", 16, 1, 2, 0, false, 0, pad).map((t) => t.y));
   m.master.phase = 1;
   assert.equal(M.knockArea(m).pad, 1);

@@ -308,7 +308,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ป้ายระยะบนปุ่มสกิล (GRID_PLAN §7.2)
   //  target รูปเฉพาะ (area.cells — ไม่มี range) = ไม่มีป้ายระยะ
   const areaText = (a) => !a ? "" : a.kind === "target" ? (a.range != null ? `ระยะ ${a.range}` : "") : a.kind === "aoe" ? (a.square ? `รอบตัว ${a.range * 2 + 1}×${a.range * 2 + 1}` : `รอบตัว ${a.range}`)
-    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : a.cone ? `กรวย ${a.len}` : Number.isFinite(a.fan) ? (a.fan > 0 ? `คลื่น 3 ทิศ ${a.len}` : `ทิศทาง ${a.len}×${2 + 2 * (a.pad | 0)}`) : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
+    : a.kind === "line" ? (a.arc ? `ครึ่งวง ${a.arc}` : a.cone ? `กรวย ${a.len}` : Array.isArray(a.boxes) ? "คลื่น 3 ทิศ" : Number.isFinite(a.fan) ? (a.fan > 0 ? `คลื่น 3 ทิศ ${a.len}` : `ทิศทาง ${a.len}×${2 + 2 * (a.pad | 0)}`) : `ทิศทาง ${a.len}×${a.width}`) : a.kind === "tile" ? (a.band ? `แถบ ${a.band}` : a.range >= 26 ? "ทั้งสนาม" : `ระยะ ${a.range}`) : a.kind === "field" ? "ทั้งสนาม" : "";
   // ชั้นมิติ (วาเลนไทน์ · GRID_PLAN §7.13): คนคนละชั้นกับตัวที่คุม = ไม่นับเป็นเป้า/คนในระยะ
   const sameDim = (p) => !!p && (p.dim || null) === (me?.dim || null);
   // สกิลเลือกเป้าที่ไม่มีใครอยู่ในระยะ = กดไม่ได้ (เลือกตัวเองได้ = มีเป้าเสมอ)
@@ -598,7 +598,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       const small = ch?.id === "celine" && (pickReq.form === "swap" || pickReq.form === "pair") ? { allow: (p) => p.id !== me.id && (p.size || 1) <= 1 } : {};
       if (a.kind === "target") boardPick = { kind: "target", range: [1, a.range || 0], self: !!a.self, count, ...(cells ? { cells, allow: enemyOf } : {}), ...small, label, onPick: (id) => { socket.emit("useSkill", { tier, targets: Array.isArray(id) ? id : [id], ...f }); done(); }, onCancel: done };
       else if (a.kind === "aoe") boardPick = { kind: "aoe", radius: a.range || 0, square: !!a.square, label, onConfirm: () => { socket.emit("useSkill", { tier, ...f }); done(); }, onCancel: done };
-      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, arc: a.arc || 0, cone: !!a.cone, fan: Number.isFinite(a.fan) ? a.fan : undefined, pad: a.pad | 0, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
+      else if (a.kind === "line") boardPick = { kind: "line", len: a.len || 1, width: a.width || 1, arc: a.arc || 0, cone: !!a.cone, fan: Number.isFinite(a.fan) ? a.fan : undefined, pad: a.pad | 0, boxes: Array.isArray(a.boxes) ? a.boxes : undefined, label, onPick: (dir) => { socket.emit("useSkill", { tier, dir, ...f }); done(); }, onCancel: done };
       // เลือกช่องบนกระดาน (Ice Spike — วางน้ำแข็ง/หนาม/คุก) · dir = ทิศผลักเฉพาะวางหนามทับคน
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
