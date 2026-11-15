@@ -886,6 +886,8 @@ export default function BoardCanvas(props) {
         colony: !!st.cv3 && !st.cv3.isRoad, roadtrip3d: !!(st.cv3 && st.cv3.isRoad), colonyNear: st.cv3 ? st.cv3.focusDist() : null, colonyCapsule: st.cv3 ? st.cv3.capsuleAt(now) : null, colonyTurrets: p.colony && p.colony.turrets ? p.colony.turrets : null, colonyOcclude: st.cv3 ? st.cv3.occludeBelow() : null, colonyBurn: st.cv3 ? st.cv3.burnFrom() : null,
       }, now);
       st.boxes = frame(g);
+      // dev: window.__boardBench(n) วาดเฟรมล่าสุดซ้ำ n ครั้งแบบ synchronous → เวลาเฉลี่ยต่อเฟรม (ms) — วัดได้แม้หน้าต่างถูกซ่อน/หน่วงเฟรม
+      if (import.meta.env.DEV) window.__boardBench = (n = 60) => { const t0 = performance.now(); for (let i = 0; i < n; i++) frame(g); return (performance.now() - t0) / n; };
       // Colony: แฟลชขาวตอนระเบิด/ปิดผนึก
       // Colony: ลูกศรขอบจอชี้หมากที่อยู่นอกจอ (สีประจำตัว · ตัวเราขอบทอง) — เห็นทุกคนเสมอแม้หมุนกล้องไปทางอื่น
       if (st.cv3 && !(st.cv3.flash() > 0.5)) {
