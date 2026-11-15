@@ -166,6 +166,32 @@ test('คลื่นความมืด: ช่องกลางไม่ว
   assert.deepEqual(P.A.pos, { x: 4, y: 7 }, 'ช่องกลาง (3,7) มีคน → ช่องว่างแนวกลางที่ติดกัน');
 });
 
+test('คลื่นความมืด: หลบได้ — หลบพ้น = ไม่เสียหาย ไม่ถูกบีบ ไม่ถูกตรึง · ผู้ใช้มีแม่นยำ = หลบหลีก 100% ก็โดน', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  let P = setup([['K', 'kira', 2, 7], ['A', 'dummy', 3, 6], ['B', 'dummy', 4, 7]]);
+  P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
+  engine.setActor('K');
+  const a0 = vit(P.A), b0 = vit(P.B);
+  engine.useSkill('K', 'secondary', [], { dir: 'right' });
+  flush(t);
+  assert.equal(vit(P.A), a0, 'หลบพ้น ไม่เสียหาย');
+  assert.deepEqual(P.A.pos, { x: 3, y: 6 }, 'หลบพ้น ไม่ถูกบีบ');
+  assert.equal(P.A.statuses.rooted, undefined, 'หลบพ้น ไม่ถูกตรึง');
+  assert.equal(vit(P.B), b0 - 1, 'คนที่ไม่หลบยังโดน');
+  assert.equal(engine.gameState, 'ACTION');
+  // แม่นยำเจาะหลบหลีก
+  P = setup([['K', 'kira', 2, 7], ['A', 'dummy', 3, 6]]);
+  P.K.statuses.accurate = 2;
+  P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
+  engine.setActor('K');
+  const a1 = vit(P.A);
+  engine.useSkill('K', 'secondary', [], { dir: 'right' });
+  flush(t);
+  assert.equal(vit(P.A), a1 - 1, 'แม่นยำ = โดน');
+  assert.deepEqual(P.A.pos, { x: 3, y: 7 }, 'ถูกบีบเข้าแถวกลาง');
+  assert.equal(P.A.statuses.rooted, 1);
+});
+
 test('อัฐิราชา: 8 แต้ม · 3 เทิร์น (รวมเทิร์นที่กด) ตายแล้วฟื้นพลังชีวิต 1 ไม่จำกัดครั้ง · พลังโจมตี +2 · 2 ครั้งต่อเกม', () => {
   const P = setup([['K', 'kira', 2, 7], ['B', 'dummy', 3, 7]]);
   Math.random = () => 0.99;
@@ -281,6 +307,19 @@ test('ออร่าหมอกดำแดง (ร่างราชา): จ
   assert.equal(vit(P.C), before.C, 'ห่าง 2 ไม่โดน');
   assert.equal(vit(P.F), before.F, 'เพื่อนร่วมทีมไม่โดน');
   assert.ok(calls.sfx.includes('kira_wave'));
+});
+
+test('ออร่าหมอกดำแดง: หลบได้ — หลบหลีก 100% ไม่เสียหาย · กิระมีแม่นยำ = โดน', () => {
+  const P = setup([['K', 'kira', 4, 7], ['A', 'dummy', 3, 7], ['B', 'dummy', 5, 7]]);
+  P.K.kira.king = true;
+  P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
+  const a0 = vit(P.A), b0 = vit(P.B);
+  kira.onEndTurn(engine);
+  assert.equal(vit(P.A), a0, 'หลบพ้น');
+  assert.equal(vit(P.B), b0 - kira.AURA_DMG, 'คนที่ไม่หลบยังโดน');
+  P.K.statuses.accurate = 2;
+  kira.onEndTurn(engine);
+  assert.equal(vit(P.A), a0 - kira.AURA_DMG, 'แม่นยำเจาะหลบหลีก');
 });
 
 test('ออร่าหมอกดำแดง: ไม่มีศัตรูประชิด = ไม่มีเสียง · ร่างราชาไม่นับเทิร์นฟื้นของร่างกิระ', () => {

@@ -124,6 +124,8 @@ export default function useIceFx(ctx) {
         case "hit": {
           const at = ok(ev) ? { x: ev.x, y: ev.y } : posOf(id);
           if (!at) return 0;
+          // ไถลชนหลบพ้น (Ice Spike — ทุกสกิลหลบได้): ไม่มีภาพ/เสียงชน · ขึ้น "หลบ" แบบเดียวกับ Shock Wave
+          if (ev.dodge) { float(at, "หลบ", "#d8f2ff", 0, 24); look(at); return 90; }
           const dmg = Math.max(0, ev.dmg | 0);
           const mop = ev.style === "mop"; // ไม้ถูพื้นไถลชน (เอมิลิโกะ)
           pushFx([{ kind: mop ? "keMopHit" : "iceHit", x: at.x, y: at.y, dmg, max: !!ev.max, hitIds: id != null ? [id] : [] }]);

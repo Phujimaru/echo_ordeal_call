@@ -467,7 +467,7 @@ test('ร่าง UltraLive ตัว 3×3 (เดิน 3 · เดินพ�
   assert.equal(engine.sizeOf(P.H), 1, 'คืนร่าง = ตัวเล็ก');
 });
 
-test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · แนว 5×1 จากกลางด้านหน้าตัว · ดาเมจ 2 หลบไม่ได้ + ลุกไหม้ 2 · ไม่โดนเพื่อน · ลำแสงก่อนดาเมจ', (t) => {
+test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · แนว 5×1 จากกลางด้านหน้าตัว · ดาเมจ 2 + ลุกไหม้ 2 · หลบได้ · ไม่โดนเพื่อน · ลำแสงก่อนดาเมจ', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   let P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 3, 5]]);
   engine.setActor('H');
@@ -487,12 +487,40 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   assert.ok(beam.payload.tiles.every((c) => c.y === 8), 'กลางด้านหน้าตัว');
   assert.equal(vit(P.B), FULL, 'ดาเมจลงหลังลำแสงวิ่งถึง');
   flush(t, 5000);
-  assert.equal(vit(P.B), FULL - hk.BEAM_DMG, 'หลบไม่ได้');
-  assert.equal(P.B.statuses.hburn, hk.CROSS_BURN);
+  assert.equal(vit(P.B), FULL, 'หลบหลีก 100% = หลบพ้น ไม่โดนดาเมจ');
+  assert.equal(P.B.statuses.hburn, undefined, 'หลบพ้น = ไม่ลุกไหม้');
   assert.equal(vit(P.C), FULL - hk.BEAM_DMG);
+  assert.equal(P.C.statuses.hburn, hk.CROSS_BURN);
   assert.equal(vit(P.F), FULL, 'ไม่โดนเพื่อน');
   assert.equal(vit(P.G), FULL, 'เกินแนว 5 ไม่โดน');
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
+});
+
+test('Ginga Cross Shoot: ผู้ใช้มีแม่นยำ = หลบหลีก 100% ก็โดน (ดาเมจ + ลุกไหม้)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['H', 'raido_hikaru', 0, 7], ['B', 'dummy', 5, 8]]);
+  P.H.hikaru.ginga = true; P.H.statuses.hikaruGinga = 3; P.H.boardSize = 3;
+  P.H.statuses.accurate = 2;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('H');
+  engine.useSkill('H', 'ultimate', [], { dir: 'right' });
+  flush(t, 5000);
+  assert.equal(vit(P.B), FULL - hk.BEAM_DMG, 'แม่นยำเจาะหลบหลีก');
+  assert.equal(P.B.statuses.hburn, hk.CROSS_BURN);
+});
+
+test('Strium Ray: หลบพ้น = ไม่โดนดาเมจ ไม่ลุกไหม้ ไม่ถูกผลัก', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['H', 'raido_hikaru', 0, 6], ['B', 'dummy', 3, 7]]);
+  P.H.hikaru.ginga = true; P.H.hikaru.strium = true; P.H.statuses.hikaruGinga = 3; P.H.boardSize = 3;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('H');
+  engine.useSkill('H', 'ultimate', [], { dir: 'right' });
+  flush(t, 6000);
+  assert.equal(vit(P.B), FULL);
+  assert.equal(P.B.statuses.hburn, undefined);
+  assert.deepEqual(P.B.pos, { x: 3, y: 7 }, 'ไม่ถูกผลัก');
+  assert.ok(!calls.fx.some((f) => f.event === 'hikaruPush'));
 });
 
 test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืนไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {

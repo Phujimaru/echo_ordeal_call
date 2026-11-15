@@ -129,6 +129,35 @@ test('ติดตัว 2: ไถลชนศัตรู = เสียหา�
   assert.equal(ev.find((e) => e.kind === 'hit').max, true);
 });
 
+test('ติดตัว 2: ไถลชนหลบได้ — หลบพ้น = ไม่เสียหาย ไม่กระเด็น (เหตุการณ์ hit ติด dodge · ยังจบตา) · Ice Spike มีแม่นยำ = โดน', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 5, 5]]);
+  lay([[2, 5], [3, 5], [4, 5]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  const b0 = vit(P.B);
+  engine.setActor('I');
+  assert.equal(engine.moveTo('I', 4, 5), true);
+  assert.deepEqual(P.I.pos, { x: 4, y: 5 });
+  assert.equal(vit(P.B), b0, 'หลบพ้น ไม่เสียหาย');
+  assert.deepEqual(P.B.pos, { x: 5, y: 5 }, 'หลบพ้น ไม่กระเด็น');
+  const ev = fxEvents();
+  assert.equal(ev.find((e) => e.kind === 'hit').dodge, true);
+  assert.ok(!ev.some((e) => e.kind === 'knock'));
+  assert.equal(engine.gameState, 'ATTACKING', 'ยังนับเป็นการโจมตี');
+  engine.clearPhaseTimer();
+  // แม่นยำเจาะหลบหลีก
+  calls.fx = [];
+  P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 5, 5]]);
+  lay([[2, 5], [3, 5], [4, 5]]);
+  P.I.statuses.accurate = 2;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('I');
+  assert.equal(engine.moveTo('I', 4, 5), true);
+  assert.equal(vit(P.B), FULL - 3, 'แม่นยำ = โดนเต็ม');
+  assert.deepEqual(P.B.pos, { x: 6, y: 5 }, 'กระเด็น 1 ช่อง');
+  assert.ok(!fxEvents().find((e) => e.kind === 'hit').dodge);
+});
+
 test('คนอื่นไถลชนศัตรู = เป้ากระเด็น 1 ช่องไม่เสียเลือด · กระเด็นลงน้ำแข็ง = ไถลต่อ · ชนเพื่อนร่วมทีม = หยุดเฉยๆ', () => {
   const P = setup([['A', 'dummy', 1, 5], ['C', 'dummy', 5, 5], ['I', 'ice_spike', 1, 9]]);
   lay([[2, 5], [3, 5], [4, 5], [7, 5], [8, 5], [9, 5]]);
