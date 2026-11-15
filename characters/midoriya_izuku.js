@@ -41,7 +41,7 @@ const CUT = { smash: "midoriyaSmash", throw: "midoriyaThrow", detroit: "midoriya
 const CLIP_SEC = { smash: 6.6, throw: 5.6, detroit: 7.3, delaware: 6.4, million: 24.3 };
 const CLIP_ONCE = new Set(["million"]);
 // เสียง (client/src/audio.js): สังเคราะห์ .claude/plans/midoriya-sfx.py · million = ตัดจากคลิปของผู้ใช้ (เล่นเฉพาะครั้งที่ไม่มีคลิป)
-const SFX = { punch: "midoriya_punch", punchCowl: "midoriya_punch_cowl", cowl: "midoriya_cowl", recoil: "midoriya_recoil", million: "midoriya_million" };
+const SFX = { punch: "midoriya_punch", punchCowl: "midoriya_punch_cowl", cowl: "midoriya_cowl", recoil: "midoriya_recoil", million: "midoriya_million", storm: "midoriya_smash_storm", millionStorm: "midoriya_million_storm" };
 const PASSIVE = "One for All";
 const COWL_NAME = "Full Cowl";
 
@@ -167,7 +167,8 @@ function castSmash(engine, p, key, item, targets, dir) {
   if (!p.cutsceneShown) p.cutsceneShown = {};
   const clip = !(CLIP_ONCE.has(key) && p.cutsceneShown[CUT[key]]);
   const land = () => {
-    if (!clip && key === "million") engine.sfx(SFX.million); // ไม่มีคลิป = เสียงไคลแมกซ์จากคลิปแทน
+    // เสียงโจมตีบนกระดาน (หลังคลิปจบ — ไม่ซ้อนวีดีโอ · ผู้ใช้ขอ): 1,000,000% ไม่มีคลิป = เสียงไคลแมกซ์จากคลิป · ที่เหลือ = ลมระเบิดสังเคราะห์
+    engine.sfx(key === "million" ? (clip ? SFX.millionStorm : SFX.million) : SFX.storm);
     landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v, area);
   };
   if (clip) {

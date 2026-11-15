@@ -7,6 +7,8 @@
 #   midoriya_punch_cowl  ตีปกติระหว่าง Full Cowl: สายฟ้าเขียวแลบ + หมัดหนักกว่า (จุดปะทะ 0.30 วิ)
 #   midoriya_cowl        Full Cowl: กระแสไฟวิ่งขึ้นทั่วตัว (ฮัมไต่ขึ้น) + สายฟ้าแตกเปรี๊ยะ + ปลดพลังฟึ่บ
 #   midoriya_recoil      ร่างกายรับแรง: กระดูก/กล้ามเนื้อลั่นกร๊อบ + ทุ้มอั้น
+#   midoriya_smash_storm   Smash บนกระดาน (หลังคลิปจบ — ผู้ใช้ขอเสียงโจมตี): ชาร์จ → ตูมที่ 0.55 วิ → ลมคำรามซัดออกไป
+#   midoriya_million_storm 1,000,000% บนกระดาน (หลังคลิปครั้งแรก): ชาร์จ + สายฟ้า 1.6 วิ → ตูมหนัก → ลมคำรามยาว
 import importlib.util, os, sys
 import numpy as np
 
@@ -90,9 +92,38 @@ def recoil():
     return reverb(o, 0.12, 0.7)
 
 
+def roar(dur, amp, lo=60, hi=4200, rate=7.0):
+    # ลมคำราม: noise แบนด์กว้าง + ทุ้ม + แอมป์ขึ้นลงแบบลมกระโชก
+    t = T(dur)
+    n = int(dur * rate) + 3
+    g = np.interp(t * rate, np.arange(n), rng.uniform(0.55, 1.0, n))
+    x = band(noise(dur), 250, hi, 0.4) + 0.8 * band(noise(dur), lo, 300, 0.3)
+    return amp * softclip(x * g, 1.4)
+
+
+def storm(beat, tail, big):
+    # Smash บนกระดาน (หลังคลิปจบ): ชาร์จไต่ขึ้น → ตูมตรงจังหวะปะทะ (beat) → ลมคำรามซัดออกไปแล้วค่อยหาย
+    d = beat + tail; o = buf(d)
+    put(o, sweep_band(beat, 200, 3500 if big else 2500, 0.6) * env_lin(beat, beat * 0.9, beat * 0.1) * (0.5 if big else 0.4), 0.0)
+    if big:
+        zaps(o, 0.1, beat - 0.1, 22, 0.45)
+        hum = chirp(beat, 50, 300, 0.4, "exp", 3) * env_lin(beat, beat * 0.95, beat * 0.05)
+        put(o, hum, 0.0)
+    put(o, thump(0.9 if big else 0.6, 110, 26, 5 if big else 7, 1.0), beat)
+    put(o, crash(0.8 if big else 0.5, 6, 200, 9000, 0.7 if big else 0.55), beat)
+    put(o, rumble(tail, 25, 160, 0.8 if big else 0.6) * env_exp(tail, 2.2 if big else 3.0), beat)
+    put(o, roar(tail * 0.95, 0.75 if big else 0.6) * env_lin(tail * 0.95, 0.05, tail * 0.9), beat + 0.02)
+    if big:
+        zaps(o, beat, tail * 0.6, 16, 0.5)
+        put(o, thump(0.7, 80, 22, 5, 0.8), beat + 0.35)
+    return reverb(o, 0.3 if big else 0.22, 1.8 if big else 1.2)
+
+
 SOUNDS = {
     "midoriya_punch": (punch, 0.8), "midoriya_punch_cowl": (punch_cowl, 0.9),
     "midoriya_cowl": (cowl, 1.5), "midoriya_recoil": (recoil, 0.8),
+    # Smash บนกระดาน: จังหวะปะทะ = MIDORIYA_T (0.55 / 1,000,000% 1.6 วิ)
+    "midoriya_smash_storm": (lambda: storm(0.55, 1.9, False), 2.45), "midoriya_million_storm": (lambda: storm(1.6, 2.8, True), 4.4),
 }
 if __name__ == "__main__":
     args = sys.argv[1:]

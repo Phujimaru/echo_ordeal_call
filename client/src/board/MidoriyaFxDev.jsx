@@ -32,7 +32,7 @@ export default function MidoriyaFxDev({ units, setUnits, pushFx, setFocus, map, 
     const a = me(), ar = AREA[form];
     const tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", ar.len, ar.width, 1, 0, !!ar.cone) : [];
     pushFx([{ kind: "midoriyaSmash", x: a.x, y: a.y, dir: "right", form, cowl, tiles, dur: smashDur(form) }]);
-    if (form === "million" && cowl === "noclip") playSfx("midoriya_million"); // เกมจริง: เฉพาะครั้งที่ไม่มีคลิป · แบบอื่นเสียงมากับคลิป
+    playSfx(form === "million" ? (cowl === "noclip" ? "midoriya_million" : "midoriya_million_storm") : "midoriya_smash_storm"); // เหมือนเกมจริง (หลังคลิปจบ)
     const big = form === "million", beat = big ? MIDORIYA_T.million : MIDORIYA_T.smash;
     for (const d of big ? [0, 120, 260, 420, 620, 900, 1250] : [0, 150, 350]) setTimeout(() => setShake && setShake((n) => n + 1), beat + d);
     setTimeout(() => { pushFx([{ kind: "midoriyaRecoil", x: a.x, y: a.y, n: AREA[form].self }]); playSfx("midoriya_recoil"); }, beat + 60); // ร่างกายรับแรง (เกมจริง: ตอนดาเมจลง)

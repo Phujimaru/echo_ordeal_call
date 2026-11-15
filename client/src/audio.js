@@ -603,7 +603,7 @@ const FILES = {
   shinra_inferno: "/characters/kusakabe_shinra/shinra_inferno.mp3",
   ...Object.fromEntries(["kick", "kick_blaze", "hero", "storm", "warm", "latom", "latom_boom", "detonate"].map((k) => [`shinra_${k}`, `/effect_sound/shinra/shinra_${k}.m4a`])),
   // มิโดริยะ อิซึคุ (GRID_PLAN §7.33): สังเคราะห์ .claude/plans/midoriya-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · midoriya_million = ช่วงไคลแมกซ์ตัดจากคลิปของผู้ใช้ (1,000,000% ครั้งที่ไม่มีคลิป)
-  ...Object.fromEntries(["punch", "punch_cowl", "cowl", "recoil"].map((k) => [`midoriya_${k}`, `/effect_sound/midoriya/midoriya_${k}.m4a`])),
+  ...Object.fromEntries(["punch", "punch_cowl", "cowl", "recoil", "smash_storm", "million_storm"].map((k) => [`midoriya_${k}`, `/effect_sound/midoriya/midoriya_${k}.m4a`])),
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)
   //  parry (ชนกัน) / clock_over / kick_charge = สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
