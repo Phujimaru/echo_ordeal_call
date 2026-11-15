@@ -12,12 +12,14 @@ import { rtEmit } from "./rtSocket";
 let ac = null, out, comp, radioGain, carFilter, musicBus, rockIn, bedGain, bedBus, bedRock, sfxBus, noiseBuf;
 const OUT_BASE = 0.62;
 let inside = true, suspended = false;
+// กล้องนอกรถ (ค่าเริ่มของจอขับ = ไล่หลัง) = เบาลงเล็กน้อย — เดิม YouTube เหลือ 40% (+ ×0.9 + แถบ 80%) = ~20% ของเพลงเกม (ผู้ใช้แจ้ง 2026-11-15 "วิทยุเบามาก/เหมือนปิดเสียง")
+const OUTSIDE_K = 0.8;
 // ความดังวิทยุของเครื่องนี้ (แผงวิทยุ: ปุ่มปิดเสียง + แถบ 0–100 · จำในเครื่อง) — ใช้ทั้ง YouTube และสถานีสังเคราะห์ (ผู้ใช้ 2026-11-14: แถบเสียงในตัวเล่น YouTube หายก่อนกดทัน)
 const VOL_KEY = "echo_rt_radio_vol";
-const own = (() => { try { const o = JSON.parse(localStorage.getItem(VOL_KEY) || "null"); if (o && Number.isFinite(o.v)) return { v: Math.max(0, Math.min(1, o.v)), mute: !!o.mute }; } catch { /* ไม่มีที่เก็บ */ } return { v: 0.8, mute: false }; })();
+const own = (() => { try { const o = JSON.parse(localStorage.getItem(VOL_KEY) || "null"); if (o && Number.isFinite(o.v)) return { v: Math.max(0, Math.min(1, o.v)), mute: !!o.mute }; } catch { /* ไม่มีที่เก็บ */ } return { v: 1, mute: false }; })(); // ค่าเริ่ม = เต็มแถบ (ระดับจริงตามหลอดเพลงของเกม — ผู้ใช้แจ้ง 2026-11-15 วิทยุเบามาก)
 let duckK = 1; // วงดนตรีในรถ (VanFun) กำลังเล่น = วิทยุเบาลง
 const ownVol = () => (own.mute ? 0 : own.v) * duckK;
-const synthLevel = () => (inside ? 1 : 0.55) * ownVol();
+const synthLevel = () => (inside ? 1 : OUTSIDE_K) * ownVol();
 const outLevel = () => (suspended ? 0 : OUT_BASE * masterGain() * channelGain("music"));
 function makeRock(dest) {
   const inp = ac.createGain(); inp.gain.value = 0.9;
@@ -59,7 +61,8 @@ function initAudio() {
 }
 // เบราว์เซอร์ยังไม่ให้เล่นเสียง → ปลดล็อกตอนแตะจอ/กดปุ่มครั้งแรก
 if (typeof window !== "undefined") {
-  const unlock = () => { if (ac && ac.state === "suspended") ac.resume().catch(() => {}); };
+  // + YouTube ที่เบราว์เซอร์บังคับเริ่มแบบปิดเสียง (ยังไม่เคยแตะหน้า) = เปิดเสียงให้ตอนแตะครั้งถัดไป
+  const unlock = () => { if (ac && ac.state === "suspended") ac.resume().catch(() => {}); if (yt.want && yt.playing) { ytSyncMute(); ytSetVol(ytTargetVol()); } };
   window.addEventListener("pointerdown", unlock, true);
   window.addEventListener("keydown", unlock, true);
 }
@@ -302,18 +305,12 @@ function ytShow(on) {
 }
 const ytKey = (v) => (v ? `${v.id || ""}|${v.list || ""}|${v.at || 0}` : null);
 // ytTargetVol × yt.userK — userK = ระดับที่ผู้เล่นปรับเองบนแถบเสียงของตัวเล่น (ไม่ถูกจางทับตอนเข้า/ออกห้องรถ)
-function ytTargetVol() { return Math.round(100 * Math.min(1, masterGain() * channelGain("music") * 0.9) * (inside ? 1 : 0.4) * (suspended ? 0 : 1) * yt.userK * ownVol()); }
+//  = ระดับเดียวกับเพลงของเกม (masterGain × channelGain("music") — หลอดเสียงหลัก/หลอดเพลง) × แถบวิทยุของเครื่องนี้ × กล้องนอกรถ
+function ytTargetVol() { return Math.round(100 * Math.min(1, masterGain() * channelGain("music")) * (inside ? 1 : OUTSIDE_K) * (suspended ? 0 : 1) * yt.userK * ownVol()); }
 // ผู้เล่นเลื่อนแถบเสียงของตัวเล่นเอง (ค่าจริงต่างจากที่เราตั้งล่าสุด) → จำเป็นสัดส่วน
-function ytNoteUser() {
-  try {
-    if (!yt.player || !yt.ready) return;
-    const cur = yt.player.getVolume();
-    if (!Number.isFinite(cur) || Math.abs(cur - yt.vol) <= 2) return;
-    const base = yt.vol / Math.max(0.01, yt.userK);
-    yt.userK = base > 1 ? Math.max(0, Math.min(1, cur / base)) : 1;
-    yt.vol = cur;
-  } catch { /* ตัวเล่นยังไม่พร้อม */ }
-}
+//  ปิดไว้แล้ว (2026-11-15): getVolume() ของ iframe API ตอบค่าที่ค้างก่อน setVolume ล่าสุด (ส่งผ่าน postMessage) → ระหว่าง/หลังจางเสียง
+//  เห็นเป็น "ผู้เล่นหรี่เอง" แล้ว userK หดลงทุกครั้งที่เข้า-ออกช่วงขับ = วิทยุเบาลงเรื่อยๆ จนเหมือนปิดเสียง · ปรับความดังที่แถบในแผงวิทยุแทน
+function ytNoteUser() {}
 // ปิดเสียงตามแผงวิทยุ · เบราว์เซอร์บังคับเล่นอัตโนมัติแบบปิดเสียง (autoplay) = เปิดเสียงให้เมื่อแผงไม่ได้ปิดไว้
 function ytSyncMute() { try { if (!yt.player || !yt.ready) return; const m = yt.player.isMuted(); if (own.mute && !m) yt.player.mute(); else if (!own.mute && m) yt.player.unMute(); } catch { /* ตัวเล่นยังไม่พร้อม */ } }
 function ytSetVol(v) { yt.vol = v; try { if (yt.player && yt.ready) yt.player.setVolume(Math.max(0, Math.min(100, v))); } catch { /* ตัวเล่นยังไม่พร้อม */ } }
@@ -335,7 +332,7 @@ async function ytLoad(v, at) {
   yt.err = false; yt.title = "";
   ytShow(true);
   await loadYTApi();
-  if (yt.want !== v) return; // ระหว่างรอ API มีคำสั่งใหม่มาแทน
+  if (yt.want !== v) { if (!yt.want) ytShow(false); return; } // ระหว่างรอ API มีคำสั่งใหม่มาแทน · ออกจากช่วงขับไปแล้ว = ไม่ค้างกรอบว่าง
   const startSeconds = Math.floor(at);
   if (!yt.player) {
     yt.player = new window.YT.Player(yt.box, {
@@ -349,7 +346,7 @@ async function ytLoad(v, at) {
           if (yt.playing) {
             yt.err = false;
             try { yt.title = (yt.player.getVideoData() || {}).title || ""; } catch { yt.title = ""; }
-            if (yt.want) { ytSyncMute(); ytNoteUser(); ytFade(ytTargetVol(), 1.2); } else { ytFade(0, 0.3, () => { try { yt.player.pauseVideo(); } catch { /* */ } }); }
+            if (yt.want) { ytSyncMute(); ytNoteUser(); ytFade(ytTargetVol(), 1.2); } else { ytShow(false); ytFade(0, 0.3, () => { try { yt.player.pauseVideo(); } catch { /* */ } }); }
           }
           if (e.data === S.ENDED && !(yt.want && yt.want.list)) advance("ended");
           notify();
@@ -363,11 +360,13 @@ async function ytLoad(v, at) {
     else yt.player.loadPlaylist({ list: v.list, listType: "playlist" });
   }
 }
+// ออกจากช่วงขับ: ซ่อนตัวเล่นทันที (จุดพัก/ต่อสู้ไม่มีวิทยุ — ผู้ใช้แจ้ง 2026-11-15 เห็นตัวเล่นค้างตอนจั่วการ์ด) แล้วจางเสียงสั้นๆ ก่อนหยุด
 function ytPause(remember) {
-  clearInterval(yt.fadeT);
-  if (!yt.player || !yt.ready) { ytShow(false); return; }
+  clearInterval(yt.fadeT); yt.fadeT = 0;
+  ytShow(false);
+  if (!yt.player || !yt.ready) return;
   if (remember) { try { yt.pausedAt = yt.player.getCurrentTime(); yt.pausedKey = yt.key; } catch { yt.pausedAt = null; } }
-  ytFade(0, 1.2, () => { if (yt.want) return; try { yt.player.pauseVideo(); } catch { /* */ } ytShow(false); });
+  ytFade(0, 0.45, () => { if (yt.want) return; try { yt.player.pauseVideo(); } catch { /* */ } });
 }
 
 // ---------------------------------------------------------------- สถานะ + ซิงก์กับ state.roadtrip.radio

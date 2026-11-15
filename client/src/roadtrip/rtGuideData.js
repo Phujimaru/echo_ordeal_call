@@ -9,7 +9,8 @@ export const RT_ROUTE = {
   eliteFromKm: 20, motelFromKm: 30, lowFuelPct: 35,
   secs: { fork: 15, event: 20 }, // จุดพัก (ปั๊ม/โมเต็ล/แคมป์) ไม่จำกัดเวลา — ทุกคนพร้อม = ออก
 };
-export const RT_DRIVE = { fuelPerKm: 0.6, emptyKmh: 30, nitroMs: 5000, nitroMul: 1.5, driverIdleMs: 20000, hzWarnMs: 5000, onvanPct: 15, onvanMinKm: 25 };
+export const RT_DRIVE = { fuelPerKm: 0.6, emptyKmh: 30, nitroMs: 5000, nitroMul: 1.5, driverIdleMs: 20000, hzWarnMs: 5000, onvanPct: 15, onvanMinKm: 25,
+  throttle: { up: 1.3, down: 0.5 } }; // คันเร่ง/เบรกของคนขับ (drive.js THROTTLE)
 export const RT_REWARD = { base: 3, perKm: 25, elite: 5, boss: 10 };
 export const RT_FIGHT = { swerve: { cd: 1, dmg: 2, stun: 1 }, roofFall: 0.15, turretRange: 5, turretBase: 2, fallDmg: 2, maxRounds: 15, dog: { hp: 6, armor: 1, mov: 5, atk: 2 } };
 // ค่าความยาก (diff.js DIFF) — เฉพาะค่าที่คู่มือใช้

@@ -88,6 +88,8 @@ function start(introHold = 0) {
   fx("tripStart", { diff });
   const km = Math.max(0, Math.floor(Number(process.env.ECHO_DEV_RT_KM) || 0));
   if (km) { rt.km = km; rt.legKm = km; rt.nextBossKm = (Math.floor(km / Route.BOSS_KM) + 1) * Route.BOSS_KM; syncRoute(rt); }
+  const devBoss = Number(process.env.ECHO_DEV_RT_NEXTBOSS); // dev: หลักบอสถัดไป (QA — เช่น = กม. ปัจจุบัน → บอสทันทีที่กลับมาขับ)
+  if (Number.isFinite(devBoss) && devBoss > 0) rt.nextBossKm = devBoss;
   const secs = introHold > 0 ? introHold + SECS.intro : 0;
   if (secs > 0) setPhase("intro", secs, () => applyDev() || toDrive());
   else if (!applyDev()) toDrive();
@@ -126,6 +128,7 @@ function setPhase(name, secs, onExpire) {
   const rt = match.roadtrip;
   if (!rt) return;
   if (name !== "drive") { H.drive().stopTick(); rt.hazards = []; rt.nitroUntil = 0; }
+  H.drive().resetThrottle(rt); // เปลี่ยนช่วง = ปล่อยคันเร่ง (กลับมาขับ = ความเร็วปกติ)
   H.vanfun().onPhase(rt, name); // กิจกรรมในรถ: ออกจากช่วงเดินทาง = ยกเลิกทุกวง (คืนเงินกองเต๋า) · ไม่ใช่ขับ = กล่องข้างทางหาย // สิ่งกีดขวาง/ไนตรัสค้างไม่ข้ามช่วง (กลับมาขับแล้วไม่โดนชนรวดเดียว)
   H.camp().onPhase(rt, name); // โหวตแคมป์ที่ค้าง = ยกเลิกเมื่อออกจากช่วงขับ
   rt.phase = name;
@@ -143,6 +146,7 @@ function toDrive() {
   rt.fork = null; rt.event = null; rt.stop = null; rt.combat = null;
   rt.legKm = rt.km;
   H.vanfun().onDrive(rt); // ช่วงขับใหม่ = โควตาดนตรี/ปิ้งย่างใหม่
+  rt.driveAt = Date.now(); // เวลาเริ่มช่วงขับนี้ (drive.js BOSS_MIN_DRIVE_MS — บอสไม่ขึ้นก่อนฉากกลับมาขับเล่นจบ)
   rt.driverActAt = Date.now(); // นับไม่ขยับใหม่ทุกครั้งที่กลับมาขับ — เดิมค้างค่าก่อนเข้าปั๊ม/สู้/ทางแยก → คนขับหลุดทันทีที่ออกตัว (ผู้ใช้แจ้ง 2026-11-14)
   rt.hzNextAt = Date.now() + H.drive().HZ_FIRST_MS; // กลับมาขับ: สิ่งกีดขวางชิ้นแรกไม่ก่อน 8 วิ (ฉากชนะ/ออกจากปั๊มยังเล่นอยู่ · ช่วงพักในรถ)
   setPhase("drive", 0);
@@ -155,7 +159,7 @@ function fx(k, data = {}) {
   const rt = match.roadtrip;
   if (!rt) return 0;
   const key = ++FX_SEQ;
-  rt.fx.push({ k, key, ...data });
+  rt.fx.push({ ...data, k, key }); // k/key ของระบบทับข้อมูลเสมอ (เดิม data.key ทับเลข fx → client กันซ้ำผิด · fx ชนิดเดียวกันเล่นครั้งเดียว)
   if (rt.fx.length > FX_KEEP) rt.fx.splice(0, rt.fx.length - FX_KEEP);
   return key;
 }
@@ -344,7 +348,7 @@ function command(id, name, payload) {
   if (name === "alive") return false;
   let ok = false;
   switch (name) {
-    case "seat": case "steer": case "nitro": case "horn": ok = H.drive().command(p, name, o); break;
+    case "seat": case "steer": case "nitro": case "horn": case "throttle": ok = H.drive().command(p, name, o); break;
     case "vote": ok = H.drive().vote(p, o.i); break;
     case "event": ok = H.events().vote(p, o.key); break;
     case "walk": case "act": case "ready": case "use": ok = H.stop().command(p, name, o); break;
@@ -419,10 +423,11 @@ function publicInfo(viewerId = null) {
   const rt = match.roadtrip, v = rt.van;
   return {
     phase: rt.phase, endsAt: rt.endsAt, diff: rt.diff, km: Math.floor(rt.km * 100) / 100,
+    board: rt.phase === "combat" ? `c${rt.fights}` : rt.phase === "stop" ? `s${rt.stops}` : null, // กระดานชุดไหน (client: เปลี่ยน = mount กระดานใหม่ + ฉากเปลี่ยน แม้ไม่ผ่านจอขับ)
     region: { id: rt.region.id, loop: rt.region.loop }, night: rt.night || (rt.phase === "stop" && !!rt.stop && rt.stop.kind === "camp"), // แคมป์ = กลางคืนเสมอ (ภาพ/เพลง)
     van: {
       hp: v.hp, hpMax: v.hpMax, fuel: Math.round(v.fuel * 10) / 10, fuelMax: v.fuelMax, kmh: H.drive().speedOf(rt), lane: v.lane, driverId: v.driverId, seatReq: v.seatReq || null,
-      nitro: v.nitro, nitroOn: rt.nitroUntil > Date.now(), style: v.style, paint: v.paint, plate: v.plate, decor: [...v.decor], upg: { ...v.upg }, rearOpen: v.rearOpen,
+      nitro: v.nitro, nitroOn: rt.nitroUntil > Date.now(), throttle: rt.throttle | 0, thr: Math.round((Number.isFinite(rt.thrK) ? rt.thrK : 1) * 100) / 100, style: v.style, paint: v.paint, plate: v.plate, decor: [...v.decor], upg: { ...v.upg }, rearOpen: v.rearOpen,
       stash: require("./stash").publicInfo(rt),
       turretReady: true, // ป้อมปืนมือใช้ได้ไม่ต้องอัปเกรด (บัฟ 2026-11-14 — อัปเกรดเพิ่มดาเมจ + ยิงอัตโนมัติต้นเทิร์น)
       prices: { ...Object.fromEntries(Van.UPG_KEYS.map((k) => [k, Van.upgCost(rt, k)])), repair: H.stop().repairCost(rt) }, // ราคาขั้นถัดไป (null = เต็ม) · repair = ค่าซ่อมเต็ม

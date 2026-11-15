@@ -314,6 +314,13 @@ export default function BoardCanvas(props) {
       const road3 = !colony && !!(p.roadtrip && p.map);
       const want3 = colony ? "colony" : road3 ? "road" : null;
       if (st.cv3 && st.cv3Kind !== want3) { st.cv3.dispose(); st.cv3 = null; setCustomProjection(null); }
+      // WebGL context หาย (การ์ดจอรีเซ็ต / เบราว์เซอร์ทิ้ง context เก่าเมื่อหน้าเปิด WebGL หลายตัว) = ทิ้งฉาก 3D แล้วสร้างใหม่บนแคนวาสใหม่
+      //  เดิมไม่ฟัง webglcontextlost เลย → ฉากถนนใต้กระดานหายเป็นจอว่าง (ผู้ใช้แจ้ง 2026-11-15 "จอขาว") จนกว่าจะออกจากกระดาน
+      if (st.cv3 && st.cv3Lost) {
+        try { st.cv3.dispose(); } catch { /* context หายไปแล้ว */ }
+        st.cv3 = null; st.cv3Lost = false; setCustomProjection(null);
+        if (glRef.current) glRef.current.__lost = true;
+      }
       if (want3 && !st.cv3 && glRef.current && !(st.cv3Retry && now < st.cv3Retry)) {
         // แคนวาสที่ context ถูกปล่อยไปแล้ว (ออกจากกระดานก่อนหน้า / StrictMode) หรือ context หาย = เปลี่ยนเป็นแคนวาสใหม่ก่อนสร้าง
         //  (หน้าเดียวมี WebGL หลายตัว: ฉากขับที่ซ่อนค้างไว้ · รถตู้สไปรต์ · ฉากนี้ — context เก่าที่ค้างไม่คืน = เบราว์เซอร์ทิ้งตัวเก่าสุด)
@@ -325,6 +332,11 @@ export default function BoardCanvas(props) {
           console.error(want3 === "colony" ? "colony3d" : "road3d", err); st.cv3 = null;
           try { freshGl(); st.cv3 = make(); st.cv3Kind = want3; st.cv3Retry = 0; } // ลองอีกครั้งบนแคนวาสใหม่
           catch (err2) { console.error("3d retry", err2); st.cv3 = null; st.cv3Retry = now + 2000; }
+        }
+        if (st.cv3 && glRef.current && !glRef.current.__lossHook) {
+          const c = glRef.current;
+          c.__lossHook = true;
+          c.addEventListener("webglcontextlost", (e) => { e.preventDefault(); if (glRef.current === c) st.cv3Lost = true; });
         }
       }
       if (import.meta.env.DEV && st.cv3) window[want3 === "road" ? "__road3d" : "__colony3d"] = st.cv3; // dev (เฉพาะแคนวาสที่เป็น Colony — แคนวาสอื่นในหน้าไม่ทับเป็น null): เรียกฉากซ้ำจาก console (__colony3d.onEvent("colonyBoom", { dead: [] }))

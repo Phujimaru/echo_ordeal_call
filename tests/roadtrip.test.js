@@ -157,7 +157,7 @@ test('ทางแยก: หมดเวลา/ไม่มีใครโห�
 test('ข้าม 50 กม. = บอส แม็กซ์ เวอร์สแตปเพน (devilTruck) · state.roadtrip.combat.boss', () => {
   setup(1);
   rt().km = 49.99; rt().legKm = 40;
-  D.step(250, Date.now() + 250);
+  D.step(250, Date.now() + D.BOSS_MIN_DRIVE_MS + 250);
   assert.equal(rt().phase, 'combat');
   assert.equal(rt().combat.kind, 'boss');
   assert.ok(mobs().some((m) => m.summon.mobType === 'devilTruck'));
@@ -652,7 +652,13 @@ test('ทนทาน: ข้ามหลัก 50 กม. ระหว่าง
   rt().km = 163;
   RT.command('p0', 'ready', {});
   assert.equal(rt().phase, 'drive');
-  D.step(250, Date.now());
+  // กลับมาขับแล้วบอสยังไม่ขึ้นทันที (ฉากออกจากจุดพักฝั่ง client ต้องเล่นจบก่อน — ผู้ใช้แจ้ง 2026-11-15 จอขาว) · ครบเวลาขั้นต่ำ = บอส
+  const t0 = rt().driveAt;
+  D.step(250, t0 + 250);
+  assert.equal(rt().phase, 'drive');
+  D.step(250, t0 + D.BOSS_MIN_DRIVE_MS - 1);
+  assert.equal(rt().phase, 'drive');
+  D.step(250, t0 + D.BOSS_MIN_DRIVE_MS);
   assert.equal(rt().phase, 'combat');
   assert.equal(rt().combat.kind, 'boss');
   assert.equal(rt().nextBossKm, 200);
@@ -752,7 +758,7 @@ test('บอสหมุนตามหลัก: 50 แม็กซ์ เว�
   assert.equal(M.ROSTER.devilTruck.name, 'แม็กซ์ เวอร์สแตปเพน');
   setup(1);
   rt().km = 100.2; rt().legKm = 95; rt().nextBossKm = 100;
-  D.step(250, Date.now() + 250);
+  D.step(250, Date.now() + D.BOSS_MIN_DRIVE_MS + 250);
   assert.equal(rt().combat.kind, 'boss');
   assert.ok(mobs().some((m) => m.summon.mobType === 'darkKnight'));
   const lo = M.scale({ km: 100, diff: 'normal', region: { loop: 0 } }, M.ROSTER.darkKnight).hp;
@@ -1334,4 +1340,58 @@ test('กฎผู้ใช้: ช่วงเดินทางใช้สก
   P(0).inventory = [{ uid: 'fish', type: 'rtFish' }];
   assert.equal(RT.command('p0', 'use', { uid: 'fish' }), true);
   assert.equal(P(0).hp, 4);
+});
+
+test('คันเร่ง/เบรกของคนขับ (2026-11-15): เฉพาะคนขับ · ไล่ความเร็วนุ่มๆ ถึง ×1.3 / ×0.5 · น้ำมันต่อวินาทีตามความเร็ว · ไนตรัสซ้อน · ปล่อยเมื่อเปลี่ยนคนขับ/ช่วง', () => {
+  setup(2);
+  const T = D.THROTTLE;
+  const base = rt().van.kmh;
+  assert.equal(RT.command('p0', 'throttle', { t: 1 }), false, 'ยังไม่มีใครขับ');
+  RT.command('p0', 'seat', { seat: 'driver' });
+  assert.equal(RT.command('p1', 'throttle', { t: 1 }), false, 'ไม่ใช่คนขับ');
+  assert.equal(RT.command('p0', 'throttle', { t: 2 }), false, 'ค่าแปลก');
+  rt().driverActAt = 0;
+  assert.equal(RT.command('p0', 'throttle', { t: 1 }), true);
+  assert.ok(rt().driverActAt > 0, 'นับเป็นความเคลื่อนไหวของคนขับ');
+  assert.equal(RT.publicInfo().van.throttle, 1);
+  // ไล่ขึ้นทีละนิด ไม่กระโดด
+  D.rampThrottle(rt(), 100);
+  assert.ok(rt().thrK > 1 && rt().thrK < T.up);
+  D.rampThrottle(rt(), 5000);
+  assert.equal(rt().thrK, T.up);
+  assert.equal(D.speedOf(rt()), Math.round(base * T.up));
+  // น้ำมัน: เร็วกว่า = เปลืองต่อวินาทีกว่า (ต่อ กม. เท่าเดิม)
+  const burn = (k) => { rt().thrK = k; rt().throttle = k > 1 ? 1 : k < 1 ? -1 : 0; rt().van.fuel = 30; rt().km = 10; rt().legKm = 10; rt().hzNextAt = Date.now() + 1e9; const now = Date.now() + D.BOSS_MIN_DRIVE_MS; D.step(1000, now); return { fuel: 30 - rt().van.fuel, km: rt().km - 10 }; };
+  const fast = burn(T.up), slow = burn(T.down), norm = burn(1);
+  assert.ok(fast.fuel > norm.fuel && norm.fuel > slow.fuel);
+  assert.ok(fast.km > norm.km && norm.km > slow.km);
+  assert.ok(Math.abs(fast.fuel / fast.km - slow.fuel / slow.km) < 1e-9);
+  // ไนตรัสซ้อน
+  rt().thrK = T.up; rt().nitroUntil = Date.now() + 5000;
+  assert.equal(D.speedOf(rt()), Math.round(base * T.up * D.NITRO_MUL));
+  rt().nitroUntil = 0;
+  // เบรก
+  rt().thrAt = 0;
+  assert.equal(RT.command('p0', 'throttle', { t: -1 }), true);
+  D.rampThrottle(rt(), 5000);
+  assert.equal(rt().thrK, T.down);
+  // สิ่งกีดขวาง: เตือน 5 วิเท่าเดิม · เร่ง = ชิ้นถัดไปมาเร็วขึ้น
+  const gap = (k) => { rt().thrK = k; const now = Date.now(); const h = D.spawnHazard(rt(), now); assert.equal(h.at - now, D.HZ_WARN_MS); return rt().hzNextAt - now; };
+  Math.random = () => 0.5;
+  assert.ok(gap(T.up) < gap(1) && gap(1) < gap(T.down));
+  Math.random = realRandom;
+  // ปล่อยคันเร่ง = รับเสมอ (ไม่ติดคูลดาวน์)
+  rt().thrAt = Date.now();
+  assert.equal(RT.command('p0', 'throttle', { t: 0 }), true);
+  assert.equal(rt().throttle, 0);
+  // เปลี่ยนคนขับ = ปล่อย
+  rt().thrAt = 0; RT.command('p0', 'throttle', { t: 1 });
+  RT.command('p0', 'seat', { seat: null });
+  assert.equal(rt().throttle, 0);
+  // เปลี่ยนช่วง = ตัวคูณกลับ 1
+  RT.command('p1', 'seat', { seat: 'driver' });
+  rt().thrAt = 0; RT.command('p1', 'throttle', { t: 1 }); D.rampThrottle(rt(), 5000);
+  S.enter('gas');
+  assert.equal(rt().throttle, 0); assert.equal(rt().thrK, 1);
+  assert.equal(RT.command('p1', 'throttle', { t: 1 }), false, 'นอกช่วงขับ');
 });

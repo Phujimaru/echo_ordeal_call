@@ -53,7 +53,7 @@ import RtTransitions, { useRtView } from "../roadtrip/RtTransitions"; // ฉา�
 import StopBar from "../roadtrip/StopBar";
 import Garage from "../roadtrip/Garage";
 import "../roadtrip/roadtrip.css";
-import { P_DISPLAY, teamAccent, useViewport, isTargetable, resolveAttackPick, rankTiers, useCardFlights } from "./game/gameHelpers";
+import { P_DISPLAY, teamAccent, COOP_ONE_TEAM, useViewport, isTargetable, resolveAttackPick, rankTiers, useCardFlights } from "./game/gameHelpers";
 import { statusEntries, forecastStatusItems } from "./game/statusData";
 import { StatusChips } from "./game/StatusViews";
 import { Cutscene, DrawCall, AttackCall, OverlayLayer } from "./game/GameScenes";
@@ -79,7 +79,7 @@ export default function GameBoard(props) {
   return (
     <>
       {view !== "over" && <RoadtripScreen key="rt-drive" state={state} lowQ={props.lowQ} active={view === "drive"} />}
-      {view === "board" && <GameBoardCore key="rt-board" {...props} state={rtv.boardState} />}
+      {view === "board" && <GameBoardCore key={`rt-board-${rtv.boardKey}`} {...props} state={rtv.boardState} />}
       {view === "over" && (
         <div className="rtx-sumfade">
           <RoadtripSummary summary={rt.summary || { km: rt.km, region: rt.region, diff: rt.diff }} players={state.players || []} />
@@ -1029,7 +1029,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               duo={duoPick}
               name={me.character?.name || me.name}
               onName={() => { clickSound(); setShowChar(true); }}
-              teamId={state.gameMode === "eos" ? null : me.teamId} // Eos: ทุกคนทีมเดียว ไม่ต้องมีป้าย (ผู้ใช้ 2026-11-10)
+              teamId={COOP_ONE_TEAM.has(state.gameMode) ? null : me.teamId} // ร่วมมือทีมเดียว (Eos · Road Trip · Moon Cell) ไม่ต้องมีป้ายทีม (ผู้ใช้ 2026-11-10 · 2026-11-15)
               teamColor={teamAccent(me.teamId)}
               sp={me.skillPoints}
               spMax={me.maxSkill}

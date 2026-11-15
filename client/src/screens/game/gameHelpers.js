@@ -123,3 +123,5 @@ export function useCardFlights(state) {
   const removeFlight = (id) => setFlights((f) => f.filter((x) => x.id !== id));
   return { flights, removeFlight, deckRef, selfHandRef, registerOther, otherRefs };
 }
+// โหมดร่วมมือที่ผู้เล่นทุกคนอยู่ทีมเดียว — ป้าย "ทีม A" ไม่มีความหมาย (ผู้ใช้ 2026-11-15)
+export const COOP_ONE_TEAM = new Set(["eos", "roadtrip", "moon"]);

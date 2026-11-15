@@ -48,6 +48,7 @@ const I_HP = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15V9a2 2 0 
 const I_NOS = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z" /></svg>;
 const I_SEAT = <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="2" /><path d="M12 14v6.5M10 12H3.5M14 12h6.5" /></svg>;
 
+const THR_KEYS = { KeyW: 1, ArrowUp: 1, KeyS: -1, ArrowDown: -1 }; // e.code — แป้นไทยก็กดได้
 export default function RoadDrive({ state, lowQ = false, active = true }) {
   const activeRef = useRef(active);
   activeRef.current = active;
@@ -124,10 +125,14 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
     rtEmit("rt:seat", { seat: v.driverId === me ? null : "driver" });
   };
 
-  // ---- ฉาก 3D (สร้างครั้งเดียว · ทำลายตอนออก)
+  // ---- ฉาก 3D (สร้างครั้งเดียว · ทำลายตอนออก) · WebGL context หาย = แคนวาสใหม่ + สร้างฉากใหม่ (glGen)
+  const [glGen, setGlGen] = useState(0);
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv) return undefined;
+    let lostT = 0;
+    const onLost = (e) => { e.preventDefault(); clearTimeout(lostT); lostT = setTimeout(() => setGlGen((g) => g + 1), 250); };
+    cv.addEventListener("webglcontextlost", onLost);
     const synth = createVanSfx();
     const onSfx = (name) => { if (!rtSfx(name)) synth.play(name); };
     const onAction = (a, arg) => {
@@ -136,7 +141,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
       else if (a === "cam") setCam(arg === "sky" ? "roof" : arg || "roof");
     };
     let scene = null;
-    try { scene = createRoadDrive(cv, { lowQ, onSfx, onAction }); } catch (err) { console.error("road3d", err); return undefined; }
+    try { scene = createRoadDrive(cv, { lowQ, onSfx, onAction }); } catch (err) { console.error("road3d", err); cv.removeEventListener("webglcontextlost", onLost); return undefined; }
     sceneRef.current = scene;
     attachScene(scene); // ฉากเปลี่ยน (RtTransitions → rtDirector) สั่งชะลอ/บทกล้อง
     if (import.meta.env.DEV) window.__roadDrive = scene;
@@ -169,15 +174,29 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
     raf = requestAnimationFrame(frame);
     return () => {
       alive = false; cancelAnimationFrame(raf);
+      cv.removeEventListener("webglcontextlost", onLost); clearTimeout(lostT);
       radio.setInside(false);
       detachScene(scene);
-      scene.dispose(); synth.dispose();
+      try { scene.dispose(); } catch { /* context หายไปแล้ว */ }
+      synth.dispose();
       sceneRef.current = null;
       if (import.meta.env.DEV && window.__roadDrive === scene) window.__roadDrive = null;
     };
-  }, [lowQ]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lowQ, glGen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- คีย์บอร์ด
+  const thrHeld = useRef(new Set());
+  const thrSent = useRef(0);
+  const sendThr = () => {
+    const h = thrHeld.current, up = h.has("KeyW") || h.has("ArrowUp"), dn = h.has("KeyS") || h.has("ArrowDown");
+    const t = up && !dn ? 1 : dn && !up ? -1 : 0;
+    const s = stRef.current, v = (s && s.roadtrip && s.roadtrip.van) || {};
+    const drv = v.driverId != null && v.driverId === (s && s.youId);
+    if (!drv && t !== 0) return;
+    if (t === thrSent.current && (v.throttle | 0) === t) return;
+    thrSent.current = t;
+    rtEmit("rt:throttle", { t });
+  };
   useEffect(() => {
     const typing = (e) => e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     const onKey = (e) => {
@@ -205,11 +224,20 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
         rtEmit("rt:steer", { lane: nx });
         return;
       }
+      // คันเร่ง/เบรก (คนขับ): W/↑ เร่ง · S/↓ เบรก · ปล่อย = ความเร็วปกติ — ส่งเฉพาะตอนค่าเปลี่ยน (server ไล่ความเร็วเอง)
+      const tk = THR_KEYS[e.code];
+      if (tk) { e.preventDefault(); thrHeld.current.add(e.code); sendThr(); return; }
       if (k === "shift" && !e.repeat) { e.preventDefault(); rtEmit("rt:nitro", {}); }
     };
+    const onUp = (e) => { if (THR_KEYS[e.code] && thrHeld.current.delete(e.code)) sendThr(); };
+    const onBlur = () => { if (thrHeld.current.size) { thrHeld.current.clear(); sendThr(); } };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", onBlur);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onUp); window.removeEventListener("blur", onBlur); };
   }, []);
+  // ไม่ได้เป็นคนขับแล้ว / ออกจากจอขับ = ล้างปุ่มที่ค้าง (server ปล่อยคันเร่งเองอยู่แล้ว)
+  useEffect(() => { if (!amDriver || !active) { thrHeld.current.clear(); thrSent.current = 0; } }, [amDriver, active]);
   // เลนจริงจาก server มาถึง = ล้างค่าที่กดค้างไว้
   useEffect(() => { laneWant.current = null; }, [van.lane]);
 
@@ -313,7 +341,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
 
   return (
     <div className="rtd" ref={wrapRef} data-night={rt.night ? "true" : "false"}>
-      <canvas ref={cvRef} className="rtd-cv" />
+      <canvas key={glGen} ref={cvRef} className="rtd-cv" />
       {!intro && (
         <div className="rtd-cams" role="toolbar">
           {camsFor(amDriver).map(([k, n]) => (
@@ -337,7 +365,7 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
               {I_SEAT}<span>{van.seatReq === selfId ? "รอ…" : "ขอขับ"}</span>
             </button>
           ) : (
-            <button type="button" className="rtd-seat" data-on={amDriver ? "true" : "false"} onClick={() => { clickSound(); toggleSeat(); }} {...hoverTip(amDriver ? "ลุกจากที่นั่งคนขับ ให้คนอื่นขับแทน" : "นั่งที่คนขับ (ใครนั่งก่อนได้ก่อน) · A/D หรือ ←/→ เปลี่ยนเลน · Shift ไนตรัส · Space บีบแตร", amDriver ? "ลุก" : "ขับ")}>
+            <button type="button" className="rtd-seat" data-on={amDriver ? "true" : "false"} onClick={() => { clickSound(); toggleSeat(); }} {...hoverTip(amDriver ? "ลุกจากที่นั่งคนขับ ให้คนอื่นขับแทน" : "นั่งที่คนขับ (ใครนั่งก่อนได้ก่อน) · A/D หรือ ←/→ เปลี่ยนเลน · W/↑ เร่ง · S/↓ เบรก · Shift ไนตรัส · Space บีบแตร", amDriver ? "ลุก" : "ขับ")}>
               {I_SEAT}<span>{amDriver ? "ลุก" : "ขับ"}</span>
             </button>
           )}
@@ -346,7 +374,10 @@ export default function RoadDrive({ state, lowQ = false, active = true }) {
               {I_SEAT}<span>ยกให้ {nameOf(van.seatReq)}</span>
             </button>
           )}
-          <div className="rtd-spd"><b>{hud.kmh}</b><small>กม./ชม.</small></div>
+          <div className="rtd-spd">
+            <i className="rtd-thr" data-t={(van.throttle | 0) > 0 ? "up" : (van.throttle | 0) < 0 ? "down" : "0"} aria-hidden="true"><svg viewBox="0 0 12 20"><path className="u" d="M2 8l4-4 4 4" /><path className="d" d="M2 12l4 4 4-4" /></svg></i>
+            <b>{hud.kmh}</b><small>กม./ชม.</small>
+          </div>
           <div className="rtd-col">
             <div className="rtd-km">{km.toFixed(1)}<small>กม.</small></div>
             <div className="rtd-bar rtd-hp" data-low={hpK < 0.3 ? "true" : "false"} {...hoverTip("HP รถตู้ — หมดเมื่อไหร่ การเดินทางจบทันที", "รถตู้")}>{I_HP}<span><i style={{ width: `${hpK * 100}%` }} /></span><em>{Math.ceil(+van.hp || 0)}</em></div>
