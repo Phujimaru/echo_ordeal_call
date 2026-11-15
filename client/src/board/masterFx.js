@@ -218,17 +218,12 @@ function armAngle(q, part) {
   if (q < 0.9) return part.down;
   return part.down * (1 - clamp01((q - 0.9) / 0.1));
 }
-// วาดภาพแบบแยกชิ้น: ลำตัว (ตัดส่วนแขนออก) แล้วแขนแต่ละข้างหมุนรอบไหล่ · ox/oy/W/H = กรอบภาพบนจอ (ในพิกัดที่หมุน/กลับด้านแล้ว)
+// วาดภาพแบบซ้อน: ภาพเต็ม (ลำตัว) แล้วแขนแต่ละข้าง (ตัดจากภาพ) หมุนรอบไหล่ทับข้างบน · ox/oy/W/H = กรอบภาพบนจอ (ในพิกัดที่หมุน/กลับด้านแล้ว)
 function drawCutImage(g, im, ox, oy, W, H, arms, q) {
   const sx = W / arms.iw, sy = H / arms.ih;
   const pathOf = (poly) => { g.beginPath(); poly.forEach(([x, y], i) => (i ? g.lineTo(ox + x * sx, oy + y * sy) : g.moveTo(ox + x * sx, oy + y * sy))); g.closePath(); };
-  // ลำตัว: ทั้งภาพลบส่วนแขน (evenodd)
-  g.save();
-  g.beginPath(); g.rect(ox - 2, oy - 2, W + 4, H + 4);
-  for (const part of arms.parts) part.poly.forEach(([x, y], i) => (i ? g.lineTo(ox + x * sx, oy + y * sy) : g.moveTo(ox + x * sx, oy + y * sy)));
-  g.clip("evenodd");
+  // ลำตัว: ภาพเต็มเดิม (ไม่ตัด — ตัวไม่แหว่ง · ผู้ใช้ขอแบบภาพซ้อน 2026-11-15) แล้วแขนที่หมุนวาดทับ
   g.drawImage(im, ox, oy, W, H);
-  g.restore();
   // แขน: หมุนรอบไหล่
   for (const part of arms.parts) {
     const a = armAngle(q, part), px = ox + part.pivot[0] * sx, py = oy + part.pivot[1] * sy;
