@@ -10,7 +10,7 @@ Object.assign(module.exports, {
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
   sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
   actionTimeUp, clockOf, freshMove, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
-  walkUndoPatch, startMap, flowerWalk, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
+  walkUndoPatch, startMap, flowerWalk, swims, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
 });
 
 const { CHAR_BY_ID } = require("../../characters");
@@ -175,6 +175,11 @@ function flowerWalk(p) {
   const hook = CHAR_HOOKS[p.characterId];
   return !!(hook && hook.flowerWalk && hook.flowerWalk(p));
 }
+// ว่ายบนพื้นเปียก ไม่ไถล (Board opts.swim — ฮุค swims(p) · โซระ Orca Frame) · น้ำแข็งยังไถลตามปกติ
+function swims(p) {
+  const hook = p && CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.swims && hook.swims(p));
+}
 // ร่างที่เดินข้ามได้ (Board.reachable opts.hop) · ไม่มี = null
 function hopTiles() {
   const keys = Duo.corpseKeys();
@@ -282,7 +287,7 @@ function rebaseMove(p) {
   const all = walkUnits();
   const seen = all.filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const budget = movOf(p);
-  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) });
+  const reach = Board.reachable(startMap(), { id: p.id, ...a.from, size: sizeOf(p) }, budget, seen, { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), swim: swims(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) });
   const node = reach.get(Board.key(p.pos.x, p.pos.y));
   const left = node ? Math.max(0, budget - node.d) : 0;
   if (a.canto) a.cantoMov = left;
@@ -857,7 +862,7 @@ function planWalk(p, x, y, step) {
   const a = match.action, map = startMap();
   const seen = walkUnits().filter((u) => !Visibility.hiddenFrom(p, match.players[u.id]));
   const unit = { id: p.id, x: a.from.x, y: a.from.y, size: sizeOf(p) };
-  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) };
+  const opts = { isAlly: unitAlly, blocked: boardBlocked(p.id), hop: hopTiles(), smash: smashes(p), ghost: walksThrough(p), flowerWalk: flowerWalk(p), swim: swims(p), flatWalk: Fodlan.flatWalk(p), carWalk: Fodlan.carWalk(p) };
   if (!inLeash(leashOf(p), { x, y })) return null; // สายจูง (โล่บินได้): ปลายทางต้องอยู่ในระยะ
   const last = a.trail && a.trail[a.trail.length - 1];
   const trail = last && last.x === p.pos.x && last.y === p.pos.y ? a.trail : null; // เส้นทางที่ไม่ได้จบที่ช่องที่ยืน (ถูกย้ายด้วยสกิล) = เริ่มนับใหม่
@@ -904,7 +909,8 @@ function walkTo(id, x, y, { step = false } = {}) {
   // น้ำแข็ง (GRID_PLAN §7.9): ช่องน้ำแข็งช่องแรกที่เดินเข้า = จุดเริ่มไถล — เดินจริงแค่ถึงช่องนั้น ที่เหลือคิดใหม่ด้วยตำแหน่งจริงของทุกคน
   //  เดินทะลุ (ชั้นมิติ — Dim.ghost) ไม่เหยียบน้ำแข็ง/กับดัก ไม่ชนใคร
   const ghost = walksThrough(p);
-  const entry = s <= 1 && !ghost ? path.findIndex((t, i) => i > 0 && Board.isIce(map, t.x, t.y)) : -1;
+  const swim = { swim: swims(p) }; // Orca Frame: พื้นเปียกไม่ไถล
+  const entry = s <= 1 && !ghost ? path.findIndex((t, i) => i > 0 && Board.slickFor(map, t.x, t.y, swim)) : -1;
   const walk = entry > 0 ? path.slice(0, entry + 1) : path;
   const bodyAt = (t) => ({ x: t.x, y: t.y, size: s });
   // ซุ่มโจมตีแบบ Fire Emblem: เดินชนคนที่มองไม่เห็น = หยุดช่องก่อนหน้า (ถอยไปช่องว่างช่องล่าสุดถ้าช่องนั้นมีเพื่อนยืน)

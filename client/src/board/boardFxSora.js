@@ -6,6 +6,7 @@ import { REDUCED } from "./boardCamera";
 import { easeOut3 } from "./boardFxBasic";
 import { BEAM_DIRS, taper } from "./boardFxBeam";
 import { easeOutBack } from "./boardUnits";
+import { FRAME_PAL, frameDashExtra, frameWindup } from "./soraFrameFx";
 
 // =================================================================== โซระ โอโตสุมิ (ธีมหนู Myth)
 //  SORA_T.wheel / step ต้องตรงกับ characters/sora_otosumi.js (WHEEL_MS / DASH_STEP_MS) — server หยุดเกมรอตามค่านี้
@@ -15,7 +16,8 @@ const SKY = "80,185,255", SKY_HI = "185,235,255", DEEP = "28,72,235", ICE = "225
 const SORA_PAL = { SKY, SKY_HI, DEEP, ICE };
 // ร่าง Fire Frame (fx.fire): ส้มไฟ / เหลืองร้อน / แดงลึก / แกนขาวอมเหลือง — ใช้แทนสีฟ้าในวงล้อ เงาพุ่ง และระเบิด
 const FIRE_PAL = { SKY: "255,120,40", SKY_HI: "255,214,110", DEEP: "220,30,20", ICE: "255,240,200" };
-const soraPal = (e) => (e.fire ? FIRE_PAL : SORA_PAL);
+// Eagle / Tutle / Orca Frame (fx.frame): แดง / เขียว / น้ำเงินเข้ม — soraFrameFx.js
+const soraPal = (e) => (e.fire ? FIRE_PAL : FRAME_PAL[e.frame] || SORA_PAL);
 const h01 = (n) => { const s = Math.sin(n * 91.7 + 47.3) * 43758.5453; return s - Math.floor(s); };
 
 //  fx { kind: "mythSlash", x, y (มุมบนซ้ายเป้า), size } — ฟันมีด 2 ครั้ง: ครั้งแรกที่ t0 (จังหวะปะทะ) · ครั้งที่สอง t0 + SORA_T.slash2 ไขว้กันเป็นรูป X
@@ -102,6 +104,8 @@ export function wheelAt(e, t, still) {
 export function wheelFx(g, e, now, lowQ, front) {
   const T = e.dur || SORA_T.wheel, W = Math.min(T, e.spin || T), t = now - e.t0;
   if (t < 0 || t > T) return;
+  // Eagle / Orca: ชาร์จแบบพายุขนนก / น้ำวน แทนวงล้อหนู (ตำแหน่งตามตัวแบบเดียวกัน)
+  if (e.frame === "eagle" || e.frame === "orca") { const [fx0, fy0] = wheelAt(e, t, lowQ || REDUCED); frameWindup(g, e, now, t, T, W, fx0, fy0, lowQ, front); return; }
   const { SKY, SKY_HI, DEEP, ICE } = soraPal(e);
   const n = Math.max(1, e.size | 0), still = lowQ || REDUCED, k = Math.min(1, t / W);
   const dl = Math.hypot(e.dir && e.dir.x, e.dir && e.dir.y) || 0;
@@ -267,6 +271,8 @@ export function dashFx(g, e, now, lowQ) {
     });
   }
   if (t < run) { const [x, y, s] = hp(head); g.globalCompositeOperation = "lighter"; glow(g, x, y, Math.max(1, s * 0.6 * sz), ICE, 0.55); }
+  g.globalCompositeOperation = "source-over";
+  if (e.frame) frameDashExtra(g, e, now, lowQ, at, head, tail, fade, sz); // Eagle: ขนนกร่วงตามทาง · Orca: ละอองน้ำ
   g.restore();
 }
 

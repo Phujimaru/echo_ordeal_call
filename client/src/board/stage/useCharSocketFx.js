@@ -18,6 +18,7 @@ import { ZECT_FX_DUR } from "../zectFx";
 import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
+import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
 import { valentineEventFx } from "../valentineFx";
 import { celineEventFx } from "../celineFx";
 import { ryougiEventFx } from "../ryougiFx";
@@ -191,8 +192,57 @@ export default function useCharSocketFx(ctx) {
       }
     };
     socket.on("midoriyaFx", onMidoriya);
+    // โซระ Eagle / Tutle / Orca Frame (soraFrameFx.js): พายุขนนก · พายุน้ำ · โยน/ครอบ/แตกกระดอง · วาร์ป · โซนาร์ (Orca Echo — เฉพาะโซระ)
+    //  ทุกเหตุการณ์มาหลังคลิปจบแล้ว (เสียงไม่ซ้อนวีดีโอ)
+    const pt = (o) => (o && Number.isFinite(o.x) && Number.isFinite(o.y) ? { x: o.x, y: o.y } : null);
+    const onSora = (ev) => {
+      if (!ev) return;
+      const at = pt(ev.at);
+      if (ev.kind === "eagleStorm" && at) {
+        const pulled = Array.isArray(ev.pulled) ? ev.pulled.map((m) => ({ from: pt(m.from), to: pt(m.to) })).filter((m) => m.from) : [];
+        pushFx([{ kind: "soraEagleStorm", x: at.x, y: at.y, size: Math.max(1, ev.size | 0), r: ev.r || 2, pulled }]);
+        look(at);
+        playSfx("sora_eagle_storm");
+        if (!lowQ) for (const d of [0, 120, 280]) timers.current.push(setTimeout(() => setShake((n) => n + 1), SORA_FRAME_T.stormHit + d));
+      } else if (ev.kind === "orcaStorm" && Array.isArray(ev.tiles)) {
+        const tiles = ev.tiles.map(pt).filter(Boolean);
+        if (!tiles.length) return;
+        pushFx([{ kind: "soraOrcaStorm", x: tiles[0].x, y: tiles[0].y, tiles }]);
+        look(tiles[0]);
+        playSfx("sora_orca_storm");
+        if (!lowQ) for (const d of [0, 160, 360]) timers.current.push(setTimeout(() => setShake((n) => n + 1), SORA_FRAME_T.stormHit + d));
+      } else if (ev.kind === "shellThrow") {
+        const from = pt(ev.from), to = pt(ev.to), hit = pt(ev.hit);
+        if (!from || !to) return;
+        const dest = hit || to, flight = Math.max(1, Math.abs(dest.x - from.x) + Math.abs(dest.y - from.y));
+        const e = { kind: "soraShellThrow", x: from.x, y: from.y, from, to, hit, arc: !!ev.arc, flight };
+        pushFx([{ ...e, dur: shellThrowDur(e) }]);
+        look(from);
+        playSfx("sora_tutle_throw");
+        timers.current.push(setTimeout(() => { look(dest); if (!hit) playSfx("sora_tutle_land"); }, SORA_FRAME_T.shellLead + flight * SORA_FRAME_T.shellStep));
+      } else if (ev.kind === "encase" && at) {
+        pushFx([{ kind: "soraEncase", x: at.x, y: at.y, at }]);
+        playSfx("sora_tutle_clamp");
+        if (!lowQ) setShake((n) => n + 1);
+      } else if (ev.kind === "shellBreak" && at) {
+        pushFx([{ kind: "soraShellBreak", x: at.x, y: at.y, at }]);
+        look(at);
+        playSfx("sora_tutle_break");
+        if (!lowQ) { setShake((n) => n + 1); timers.current.push(setTimeout(() => setShake((n) => n + 1), 180)); }
+      } else if (ev.kind === "warp") {
+        const from = pt(ev.from), to = pt(ev.to);
+        if (!from || !to) return;
+        pushFx([{ kind: "soraWarp", x: to.x, y: to.y, from, to }]);
+        look(to);
+        playSfx("sora_tutle_warp");
+      } else if (ev.kind === "sonar" && at) {
+        pushFx([{ kind: "soraSonar", x: at.x, y: at.y, at }]);
+        playSfx("sora_orca_sonar");
+      }
+    };
+    socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

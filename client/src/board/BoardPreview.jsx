@@ -261,6 +261,7 @@ const btn = (on) => ({
 export default function BoardPreview() {
   const [area, setAreaState] = useState(() => qInt("area", 1, 60, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
+  const [soraShell, setSoraShell] = useState(false); // ?sora=1: กระดองเต่าค้าง (SoraFxDev)
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
   const [sq, setSq] = useState(() => Q.get("sq") === "1");
   const [otoyaDev, setOtoyaDev] = useState(null); // ?otoya=1: { night, links } (prop otoya ของ BoardCanvas)
@@ -515,12 +516,14 @@ export default function BoardPreview() {
     return () => { delete window.__kateStorm; delete window.__kateStormClear; };
   }, []);
 
+  // ?sora=1: กระดองเต่าค้างบนกระดาน (SoraFxDev ปุ่ม "กระดองค้าง") — "on" = ครอบ me · "ground" = วางพื้น 2 ช่องข้างหน้า
   return (
     <div style={{ position: "fixed", inset: 0, background: night ? "#0d1830" : "#dfeaf6", fontFamily: "Kanit, sans-serif" }}>
       <BoardCanvas
         map={lawMap}
         ice={iceMock}
         units={viewUnits}
+        soraShells={soraShell ? [soraShell === "on" ? { x: 0, y: 0, on: "me" } : (() => { const m = units.find((u) => u.id === "me"); return { x: m.x + 2, y: m.y, on: null }; })()] : null}
         highlights={highlights}
         shops={shops}
         rotation={rotation}
@@ -585,7 +588,7 @@ export default function BoardPreview() {
       {KAZUMA_DEV && <KazumaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} cinema={cinema} setCinema={setCinema} />}
       {LAW_DEV && <LawFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setAnim={setAnim} law={lawDev} setLaw={setLawDev} />}
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
-      {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
+      {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} setShell={setSoraShell} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}

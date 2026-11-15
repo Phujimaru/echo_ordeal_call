@@ -151,6 +151,19 @@ const FILES = {
   sora_dash: "/characters/sora_otosumi/sora_dash.mp3",
   // Fire Frame: ไฟลุกต่อท้ายเสียงตี + ตอนระเบิดท่าไม้ตาย (สำเนา celine_fire_hit ในเครื่อง — ไม่ได้ดาวน์โหลดใหม่)
   sora_fire: "/characters/sora_otosumi/sora_fire.mp3",
+  // Eagle / Tutle / Orca Frame (สังเคราะห์ในเครื่อง 2026-11-15 — ไม่ได้ดาวน์โหลด)
+  sora_eagle_wind: "/characters/sora_otosumi/sora_eagle_wind.mp3",
+  sora_eagle_dash: "/characters/sora_otosumi/sora_eagle_dash.mp3",
+  sora_eagle_storm: "/characters/sora_otosumi/sora_eagle_storm.mp3",
+  sora_tutle_throw: "/characters/sora_otosumi/sora_tutle_throw.mp3",
+  sora_tutle_land: "/characters/sora_otosumi/sora_tutle_land.mp3",
+  sora_tutle_clamp: "/characters/sora_otosumi/sora_tutle_clamp.mp3",
+  sora_tutle_break: "/characters/sora_otosumi/sora_tutle_break.mp3",
+  sora_tutle_warp: "/characters/sora_otosumi/sora_tutle_warp.mp3",
+  sora_orca_spin: "/characters/sora_otosumi/sora_orca_spin.mp3",
+  sora_orca_dash: "/characters/sora_otosumi/sora_orca_dash.mp3",
+  sora_orca_storm: "/characters/sora_otosumi/sora_orca_storm.mp3",
+  sora_orca_sonar: "/characters/sora_otosumi/sora_orca_sonar.mp3",
   // ไรโด ฮิคารุ — เสียงตีปกติตามร่าง / ท่าไม้ตาย (Mixkit ฟรี · ตัดให้พอดีจังหวะแล้ว — ต้นฉบับอยู่ .claude/plans/raido-hikaru-sfx-src/)
   hk_black: "/characters/raido_hikaru/sfx/hk_black.mp3",
   hk_thunder: "/characters/raido_hikaru/sfx/hk_thunder.mp3",

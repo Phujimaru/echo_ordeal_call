@@ -326,7 +326,7 @@ function units() { return action.boardUnits(); }
 function resolveEntry(p, dir, ctx) {
   if (!p || !p.alive || !p.pos || action.sizeOf(p) > 1 || ctx.depth > MAX_CHAIN) return;
   const map = action.boardMap();
-  if (!Board.isIce(map, p.pos.x, p.pos.y)) return;
+  if (!Board.slickFor(map, p.pos.x, p.pos.y, { swim: action.swims(p) })) return; // Orca Frame (โซระ): ว่ายบนพื้นเปียก ไม่ไถล
   ctx.depth++;
   const hook = hookOf(p);
   // ฮุค slidePierce(engine, p) → true = ไถลทะลุศัตรูทุกตัวในแนวจนสุดทาง (Ice Spike ใน Eos ตั้งแต่ LV.2) — ตัวที่ผ่านโดนชน (ไม่กระเด็น)

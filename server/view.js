@@ -426,6 +426,7 @@ function buildStateInner(viewerId) {
         stageNoSkill: Fodlan.noSkill(p) || undefined, // Eos: อยู่ในรถ = ใช้สกิลไม่ได้ (ปุ่มสกิลเทา)
         carWalk: Fodlan.carWalk(p) || undefined, // Eos: ขับรถ — ถนน/พื้นเรียบเท่านั้น (Rules.reachable opts.carWalk)
         flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่โชโกโบะ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
+        swim: action.swims(p) || undefined, // ว่ายบนพื้นเปียก ไม่ไถล (โซระ Orca Frame — Rules opts.swim)
         flowerWalk: action.flowerWalk(p) || undefined, // เดินตามช่องดอกไม้ไม่เสียก้าว (ราชาดอกไม้ — Rules.reachable opts.flowerWalk)
         flies: action.flies(p) || undefined, // บินได้ (โล่บินได้ของบานาจ): เดินทะลุแบบ ghost + ไม่ขวางทางใคร
         leash: mine ? action.leashOf(p) || undefined : undefined, // สายจูง { x, y, r }: ช่องที่หยุดได้ต้องห่างจุดนี้ไม่เกิน r
