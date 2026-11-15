@@ -160,8 +160,7 @@ function land(engine, p) {
   s.landRound = round(engine);
   s.nextSummon = s.landRound + SUMMON_EVERY;
   engine.log(`☄️ ${p.name} ลงมาจากท้องฟ้า! คลื่นกระแทกผลักทุกคนออกห่าง`);
-  fx(engine, p, "land", { secs: T.land });
-  engine.sfx(SFX.shock);
+  fx(engine, p, "land", { secs: T.land }); // เสียง (ดาวตก → คลื่นกระแทกตอนกระแทก) client เล่นตามจังหวะ (useCharSocketFx)
   engine.withEffectSource(p, () => shockwave(engine, p));
   return true;
 }
@@ -177,8 +176,7 @@ function revive(engine, p) {
   engine.withEffectSource(p, () => engine.healHp(p, REVIVE_HEAL));
   engine.log(`👼 ${p.name} ฟื้นคืนชีพ! พลังชีวิต +${REVIVE_HEAL} — กลายเป็น Holy`);
   fx(engine, p, "revive", { secs: T.revive });
-  engine.sfx(SFX.revive);
-  engine.sfx(SFX.shock);
+  engine.sfx(SFX.revive); // + ประสานเสียง/คลื่นกระแทกตามจังหวะฝั่ง client
   engine.withEffectSource(p, () => shockwave(engine, p));
 }
 
@@ -249,8 +247,7 @@ function castSlam(engine, p, dir) {
     if (s.slamUses >= SLAM.uses2) { s.slamUses = 0; s.ready.basic = r + CD.basic; }
   } else s.ready.basic = r + CD.basic;
   engine.log(`⚔️ ${p.name} Twin Sword Slam${area.big ? " (คลื่นใหญ่)" : ""}`);
-  fx(engine, p, "slam", { dir, tiles, big: area.big, secs: T.slam });
-  engine.sfx(SFX.slam);
+  fx(engine, p, "slam", { dir, tiles, big: area.big, secs: T.slam }); // เสียง (ฟาดดาบ → กระแทกพื้น + คลื่น) client เล่นตามจังหวะ
   engine.skillBeat(T.slam, () => {
     if (!p.alive || !p.pos) return;
     const hits = [];

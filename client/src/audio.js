@@ -469,6 +469,8 @@ const FILES = {
   elem_vapor: "/effect_sound/element/elem_vapor.m4a", elem_erode: "/effect_sound/element/elem_erode.m4a",
   elem_freeze: "/effect_sound/element/elem_freeze.m4a", elem_conduct: "/effect_sound/element/elem_conduct.m4a",
   elem_swirl: "/effect_sound/element/elem_swirl.m4a",
+  // ปฏิกิริยาธาตุใหม่ของ Master (Mixkit — ผู้ใช้เลือก 2026-11-15 · ตัด + ปรับ −16 LUFS)
+  ...Object.fromEntries(["fog", "stir", "spread", "hole", "hole_blast", "glare"].map((k) => [`elem_${k}`, `/effect_sound/element/elem_${k}.m4a`])),
   elem_bomb_fire: "/effect_sound/element/elem_bomb_fire.m4a", elem_bomb_ice: "/effect_sound/element/elem_bomb_ice.m4a",
   elem_bomb_bolt: "/effect_sound/element/elem_bomb_bolt.m4a", elem_bomb_water: "/effect_sound/element/elem_bomb_water.m4a",
   elem_bomb_wind: "/effect_sound/element/elem_bomb_wind.m4a",
@@ -606,7 +608,7 @@ const FILES = {
   ...Object.fromEntries(["punch", "punch_cowl", "cowl", "recoil", "smash_storm", "million_storm"].map((k) => [`midoriya_${k}`, `/effect_sound/midoriya/midoriya_${k}.m4a`])),
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
   // Master (GRID_PLAN §7.34): ไฟล์จากผู้ใช้ (แปลง wav → m4a · ยังไม่ปรับความดัง) · เพลงเฟส 1/2 วนจนเปลี่ยนเฟส/ตาย (state.skillMusic)
-  ...Object.fromEntries(["melee", "slash", "wave", "revive", "roar", "death", "shockwave", "thunder", "raider"].map((k) => [`master_${k}`, `/characters/master/master_${k}.m4a`])),
+  ...Object.fromEntries(["melee", "slash", "wave", "revive", "roar", "death", "shockwave", "thunder", "raider", "meteor", "choir", "summon", "swing", "stomp"].map((k) => [`master_${k}`, `/characters/master/master_${k}.m4a`])),
   master_phase1: "/characters/master/phase1.ogg",
   master_phase2: "/characters/master/phase2.ogg",
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)

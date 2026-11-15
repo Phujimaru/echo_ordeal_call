@@ -475,6 +475,7 @@ export default function useCharSocketFx(ctx) {
           const hit = MASTER_T.land * 0.42;
           masterPose(ev.id, "land", null, MASTER_T.land);
           pushFx([{ kind: "masterLand", ...base }]);
+          playSfx("master_meteor"); at(hit, () => playSfx("master_shockwave"));
           look(pos);
           at(hit, () => punch(pos, 700, 1.18));
           shake(hit, hit + 140, hit + 320, hit + 560);
@@ -484,6 +485,7 @@ export default function useCharSocketFx(ctx) {
           if (!base) return;
           masterPose(ev.id, "revive", null, MASTER_T.revive);
           pushFx([{ kind: "masterRevive", ...base, phase: 2 }]);
+          playSfx("master_choir"); at(MASTER_T.revive * 0.45, () => playSfx("master_shockwave"));
           look(pos);
           punch(pos, 1200, 1.1);
           shake(MASTER_T.revive * 0.45, MASTER_T.revive * 0.45 + 200);
@@ -496,6 +498,7 @@ export default function useCharSocketFx(ctx) {
           masterPose(ev.id, "roar", null, 1200);
           const units = Array.isArray(ev.units) ? ev.units.filter((u) => u && ok(u.at)).map((u) => ({ id: u.id, at: { x: u.at.x, y: u.at.y }, kind: u.kind })) : [];
           pushFx([{ kind: "masterSummon", ...base, units }]);
+          at(150, () => playSfx("master_summon"));
           look(pos);
           punch(pos, 900, 1.08);
           shake(0, 180, 360);
@@ -506,6 +509,8 @@ export default function useCharSocketFx(ctx) {
           const hit = MASTER_T.slam * 0.8;
           masterPose(ev.id, "slam", ev.dir, hit / 0.78);
           pushFx([{ kind: "masterSlam", ...base, dir: ev.dir, tiles: tl(ev.tiles) || [], big: !!ev.big }]);
+          at(hit * 0.62, () => playSfx("master_swing")); // เงื้อเสร็จ → ฟาดลง
+          at(hit, () => { playSfx("master_stomp"); playSfx("master_wave"); }); // ดาบกระแทกพื้น + คลื่นหนาม
           look(pos);
           at(hit, () => punch(pos, ev.big ? 800 : 600, ev.big ? 1.16 : 1.1));
           shake(hit, hit + 160, ...(ev.big ? [hit + 330, hit + 520] : []));
