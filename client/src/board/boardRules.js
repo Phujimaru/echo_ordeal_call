@@ -1616,8 +1616,8 @@ function bandTiles(map, x, y, orient, width) {
 }
 // cone = กรวย (มิโดริยะ: Smash) — แถว i (1..len) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงกลางตัว · ไม่สน width
 //  fan ≥ 0 (Master — Twin Sword Slam / Knockdown Slash · GRID_PLAN §7.34): แนวตรงกว้างเท่าตัว ยาว len + แฉกเฉียงจากมุมหน้าตัวสองข้าง แฉกละ fan ช่อง
-//   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · ไม่ใช้ width/cone/arc
-function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, fan = -1) {
+//   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · pad = แนวตรงกว้างเกินตัวข้างละ pad ช่อง (Knockdown 4 / 6 บนตัว 2×2) · ไม่ใช้ width/cone/arc
+function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, fan = -1, pad = 0) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
   if (!v) return [];
@@ -1634,8 +1634,9 @@ function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, 
       const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
       if (inBounds(map, tx, ty)) out.push({ x: wx(tx), y: ty });
     };
-    for (let i = 1; i <= len; i++) for (let j = lo; j <= hi; j++) push(i, j);
-    for (let i = 1; i <= fan; i++) { push(i, lo - i); push(i, hi + i); }
+    const pd = Math.max(0, pad | 0);
+    for (let i = 1; i <= len; i++) for (let j = lo - pd; j <= hi + pd; j++) push(i, j);
+    for (let i = 1; i <= fan; i++) { push(i, lo - pd - i); push(i, hi + pd + i); }
     return out;
   }
   if (arc > 0) {

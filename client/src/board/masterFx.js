@@ -38,7 +38,7 @@ export const MASTER_HIT_P = { masterSlash: 0.42, masterSlash2: 0.42, master_unde
 export const MASTER_FX_DUR = {
   ...MASTER_MS,
   masterLand: MASTER_T.land + 900, masterRevive: MASTER_T.revive + 600, masterDown: 1600, masterDeath: 2600,
-  masterSummon: MASTER_T.summon + 900, masterSlam: MASTER_T.slam + 1700, masterKnock: MASTER_T.knock + 700,
+  masterSummon: MASTER_T.summon + 900, masterSlam: MASTER_T.slam + 2200, masterKnock: MASTER_T.knock + 700,
   masterSmite: MASTER_T.smite + 900, masterRise: 1400,
 };
 export const isMasterFx = (kind) => typeof kind === "string" && kind in MASTER_FX_DUR;
@@ -545,7 +545,7 @@ function slamFx(g, e, ms, seed, lowQ) {
   ring(g, wx, wy, n * 0.7 + after / 300, 0.02, C.neon, Math.max(0, 1 - after / 600), 4);
   const dist = (t) => Math.abs(t.x + 0.5 - wx) + Math.abs(t.y + 0.5 - wy);
   for (const t of tiles) {
-    const d = dist(t), delay = d * 85, q = (after - delay) / 900;
+    const d = dist(t), delay = d * 45, q = (after - delay) / 900; // แฉกยาว 16 — ไล่ผุดเร็วขึ้นให้ถึงปลายทัน
     if (q < 0) continue;
     const tx = t.x + 0.5, ty = t.y + 0.5;
     const grow = easeOut(q / 0.18), fade = env(q, 0, 0.05, 0.7, 1);
@@ -614,7 +614,8 @@ function knockFx(g, e, ms, seed, lowQ) {
   }
   const q = (ms - go) / (T * 0.55 + 700), travel = easeOut(q / 0.55);
   const d = n * 0.5 + travel * len;
-  const half = n * 0.5 + 0.3, a = env(q, 0, 0.04, 0.6, 0.9);
+  // ครึ่งความกว้างแนว (Knockdown 4 / 6 ช่อง) จากช่องจริง
+  const half = (tiles.length ? Math.max(...tiles.map((t) => Math.abs((t.x + 0.5 - wx) * side[0] + (t.y + 0.5 - wy) * side[1]))) : n * 0.5) + 0.3, a = env(q, 0, 0.04, 0.6, 0.9);
   // ใบดาบ: แผ่นโค้งตั้ง (crescent) สูง ~1.7 ช่อง กว้างเท่าแนว
   const cx0 = wx + v[0] * d, cy0 = wy + v[1] * d;
   const pts = [];

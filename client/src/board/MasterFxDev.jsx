@@ -24,7 +24,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
   const shake = (...ms) => { for (const d of ms) setTimeout(() => setShake && setShake((n) => n + 1), d); };
   const base = () => { const a = me(); return { x: a.x, y: a.y, size: 2, phase: a.phase, by: "me" }; };
   const slam = (big) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", big ? 4 : 3, 1, 2, 0, false, big ? 3 : 2) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", big ? 12 : 16, 1, 2, 0, false, big ? 12 : 16) : [];
     window.__masterLast = { me: a, tiles: tiles.length, map: !!map };
     const hit = MASTER_T.slam * 0.8;
     masterPose("me", "slam", "right", hit / 0.78);
@@ -33,7 +33,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
     setFocus({ x: a.x + 3, y: a.y + 1 });
   };
   const knock = (wave) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", a.phase === 2 ? 6 : 4, 1, 2, 0, false, 0) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 16, 1, 2, 0, false, 0, a.phase === 2 ? 2 : 1) : [];
     const T = wave ? MASTER_T.knock2 : MASTER_T.knock;
     masterPose("me", "sweep", "right", (T * 0.45) / 0.55);
     pushFx([{ kind: "masterKnock", ...base(), dir: "right", tiles, wave, dur: T + 700 }]);

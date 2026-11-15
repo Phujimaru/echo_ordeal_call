@@ -553,7 +553,7 @@ function resolveArea(p, area, targets, dir, tile) {
   }
   if (kind === "line") {
     if (!Board.LINE_DIRS[dir]) return null;
-    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1);
+    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1, area.pad | 0);
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
@@ -598,7 +598,7 @@ function areaTiles(p, area, dir, tile) {
   if (kind === "tile") { const t = tileOf(tile); return t ? tileArea(area, t) : []; }
   if (!p || !p.pos) return [];
   if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p), !!area.square);
-  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1);
+  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1, area.pad | 0);
   return [];
 }
 

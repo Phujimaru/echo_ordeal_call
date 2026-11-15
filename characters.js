@@ -1769,8 +1769,8 @@ const CHARACTERS = [
     },
     basic: {
       name: "Twin Sword Slam",
-      desc: "ไม่ใช้แต้ม · เลือกทิศ: คลื่น 3 ทิศ (ตรงกว้างเท่าตัว ยาว 3 · เฉียงขึ้น/ลง 2) ศัตรูทุกคนเสียหาย 3 (คูลดาวน์ 2 เทิร์น) · Holy: กดได้ 2 ครั้งก่อนคูลดาวน์ · ติดเปราะบาง +1 Lv (Lv2 · 3 เทิร์น) · ครั้งที่ 3, 6, 9… ตรงยาว 4 เฉียง 3 + สตั้น 2 เทิร์น",
-      area: { kind: "line", len: 3, fan: 2, hostile: true },
+      desc: "ไม่ใช้แต้ม · เลือกทิศ: คลื่น 3 ทิศ (ตรงกว้างเท่าตัว · เฉียงขึ้น/ลง) ยาว 16 ศัตรูทุกคนเสียหาย 3 (คูลดาวน์ 2 เทิร์น) · Holy: กดได้ 2 ครั้งก่อนคูลดาวน์ · ติดเปราะบาง +1 Lv (Lv2 · 3 เทิร์น) · ครั้งที่ 3, 6, 9… ยาว 12 + สตั้น 2 เทิร์น",
+      area: { kind: "line", len: 16, fan: 16, hostile: true },
       cost: 0,
       img: "/characters/master/twin_sword_slam.webp",
       instant: true,
@@ -1778,8 +1778,8 @@ const CHARACTERS = [
     },
     secondary: {
       name: "Knockdown Slash",
-      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือกทิศ: คลื่นดาบแนวกว้างเท่าตัว ยาว 4 ศัตรูทุกคนเสียหาย 4 + ผลักถอย 1 (คูลดาวน์ 3 เทิร์น) · Holy: ยาว 6 · ฟาดซ้ำ 2 ครั้ง · ธาตุแสง",
-      area: { kind: "line", len: 4, fan: 0, hostile: true },
+      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือกทิศ: คลื่นดาบแนว 4×16 ศัตรูทุกคนเสียหาย 4 + ผลักถอย 1 (คูลดาวน์ 3 เทิร์น) · Holy: แนว 6×16 · ฟาดซ้ำ 2 ครั้ง · ธาตุแสง",
+      area: { kind: "line", len: 16, fan: 0, pad: 1, hostile: true },
       cost: 0,
       img: "/characters/master/knockdown_slash.webp",
       instant: true,

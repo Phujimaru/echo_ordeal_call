@@ -40,8 +40,8 @@ const LAND_ROUND = 3;
 const REVIVE_HEAL = 25;
 const SUMMON_EVERY = 5, SUMMON_CAP = 10;
 const CD = { basic: 2, secondary: 3, ultimate: 3 };
-const SLAM = { dmg: 3, len: 3, fan: 2, bigLen: 4, bigFan: 3, stun: 2, uses2: 2 };
-const KNOCK = { dmg: 4, len: 4, len2: 6, push: 1 };
+const SLAM = { dmg: 3, len: 16, fan: 16, bigLen: 12, bigFan: 12, stun: 2, uses2: 2 }; // สเปก "3x16" / ครั้งที่ 3 "4x12" — เลขหลัง = ความยาว (ผู้ใช้ 2026-11-15)
+const KNOCK = { dmg: 4, len: 16, pad: 1, pad2: 2, push: 1 }; // สเปก "4x16" → หลังฟื้น "6x16" = กว้าง 4 → 6 (ตัว 2 + ข้างละ pad) ยาว 16
 const SMITE = { dmg: 2, shock: 3 };
 const POISON_MAX = 3, LV_MAX = 2, LV_TURNS = 3;
 // เวลาเอฟเฟกต์บนกระดาน (วินาที — masterFx.js)
@@ -246,7 +246,7 @@ function slamArea(p) {
   const big = s.phase === 2 && (s.slamPress + 1) % 3 === 0;
   return { kind: "line", len: big ? SLAM.bigLen : SLAM.len, fan: big ? SLAM.bigFan : SLAM.fan, hostile: true, big };
 }
-function knockArea(p) { return { kind: "line", len: phase2(p) ? KNOCK.len2 : KNOCK.len, fan: 0, hostile: true }; }
+function knockArea(p) { return { kind: "line", len: KNOCK.len, fan: 0, pad: phase2(p) ? KNOCK.pad2 : KNOCK.pad, hostile: true }; }
 
 // ---------- สกิล ----------
 function castSlam(engine, p, dir) {
@@ -284,7 +284,7 @@ function castKnock(engine, p, dir) {
   const s = st(p), r = round(engine);
   s.ready.secondary = r + CD.secondary;
   const area = knockArea(p);
-  const tiles = Board.lineTiles(engine.boardMap(), p.pos.x, p.pos.y, dir, area.len, 1, engine.sizeOf(p), 0, false, 0);
+  const tiles = Board.lineTiles(engine.boardMap(), p.pos.x, p.pos.y, dir, area.len, 1, engine.sizeOf(p), 0, false, 0, area.pad);
   const waves = s.phase === 2 ? 2 : 1;
   const v = Board.LINE_DIRS[dir];
   engine.log(`🗡️ ${p.name} Knockdown Slash${waves > 1 ? " ×2" : ""}`);
@@ -293,7 +293,7 @@ function castKnock(engine, p, dir) {
     fx(engine, p, "knock", { dir, tiles, wave: i, secs: i ? T.knock2 : T.knock });
     engine.skillBeat(i ? T.knock2 : T.knock, () => {
       if (!p.alive || !p.pos) return;
-      const now = foesOn(engine, p, Board.lineTiles(engine.boardMap(), p.pos.x, p.pos.y, dir, area.len, 1, engine.sizeOf(p), 0, false, 0));
+      const now = foesOn(engine, p, Board.lineTiles(engine.boardMap(), p.pos.x, p.pos.y, dir, area.len, 1, engine.sizeOf(p), 0, false, 0, area.pad));
       const hits = [];
       const pushed = [];
       engine.withEffectSource(p, () => {

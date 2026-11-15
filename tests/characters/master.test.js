@@ -95,18 +95,18 @@ test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกร�
   assert.equal(order[order.length - 1], "m");
 });
 
-test("Twin Sword Slam: คลื่น 3 แฉก (ตรงกว้างเท่าตัว 3 · เฉียง 2) ดาเมจ 3 + พิษร้าย + คราบพิษ · คูลดาวน์ 2", () => {
+test("Twin Sword Slam: คลื่น 3 แฉก ยาว 16 (ตรงกว้างเท่าตัว · เฉียง) ดาเมจ 3 + พิษร้าย + คราบพิษ · คูลดาวน์ 2", () => {
   const { m, b, c, d } = setup();
   b.pos = { x: 3, y: 7 };  // ทางตรง ช่องที่ 3 แถวล่างของตัว
   c.pos = { x: 4, y: 4 };  // เฉียงขึ้นช่องที่ 2
-  d.pos = { x: 3, y: 4 };  // นอกพื้นที่
+  d.pos = { x: 0, y: 0 };  // เฉียงขึ้นช่องที่ 6 (ไกล — แฉกยาว 16)
   const tiles = Board.lineTiles(engine.boardMap(), 6, 6, "left", 3, 1, 2, 0, false, 2).map((t) => `${t.x},${t.y}`).sort();
   assert.deepEqual(tiles, ["3,6", "3,7", "4,4", "4,6", "4,7", "4,9", "5,5", "5,6", "5,7", "5,8"].sort());
   engine.useSkill("m", "basic", [], { dir: "left" });
   runBeats();
   assert.equal(b.hp, 47);
   assert.equal(c.hp, 47);
-  assert.equal(d.hp, 50);
+  assert.equal(d.hp, 47, "ไกลสุดแฉกยังโดน");
   assert.equal(b.statuses.poison, 1);
   assert.equal(Element.auraOf(b), "poison");
   nextRound();
@@ -121,7 +121,7 @@ test("พิษร้ายจากตีหลายครั้งซ้อ�
   assert.equal(b.statuses.poison, 3);
 });
 
-test("Knockdown Slash: แนวกว้างเท่าตัว ยาว 4 ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
+test("Knockdown Slash: แนว 4×16 (หลังฟื้น 6×16) ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
   const { m, b, c } = setup();
   b.pos = { x: 2, y: 6 }; c.pos = { x: 1, y: 5 };
   b.statuses.poison = 2; b.statuses.elPoison = 2;
@@ -296,4 +296,18 @@ test("เปลี่ยนแผนที่: ตัวอัญเชิญท
   assert.equal(made[0].hp, 3);
   assert.equal(made[0].statuses.poison, 2);
   assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
+});
+
+test("พื้นที่: Twin Sword ครั้งที่ 3 ยาว 12 · Knockdown กว้าง 4 → หลังฟื้น 6 ยาว 16", () => {
+  const { m } = setup();
+  assert.deepEqual([M.slamArea(m).len, M.slamArea(m).fan], [16, 16]);
+  m.master.phase = 2; m.master.slamPress = 2;
+  assert.deepEqual([M.slamArea(m).len, M.slamArea(m).fan, M.slamArea(m).big], [12, 12, true]);
+  const rows = (pad) => new Set(Board.lineTiles(engine.boardMap(), 6, 6, "left", 16, 1, 2, 0, false, 0, pad).map((t) => t.y));
+  m.master.phase = 1;
+  assert.equal(M.knockArea(m).pad, 1);
+  assert.deepEqual([...rows(1)].sort(), [5, 6, 7, 8]);
+  m.master.phase = 2;
+  assert.equal(M.knockArea(m).pad, 2);
+  assert.deepEqual([...rows(2)].sort(), [4, 5, 6, 7, 8, 9]);
 });
