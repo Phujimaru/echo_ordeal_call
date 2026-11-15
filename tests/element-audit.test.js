@@ -69,7 +69,7 @@ test('Ice Spike: ทุกดาเมจที่ Ice Spike เป็นต้�
   assert.equal(Element.auraOf(P.t), 'ice');
   P = setup('roland');
   CHAR_HOOKS.roland.resetCombat(P.a);
-  P.a.roland.ego = 'kiss'; P.a.statuses.rolandKiss = 2;
+  P.a.roland.egos.kiss = 1; P.a.statuses.rolandKiss = 1;
   combat.withEffectSource(P.a, () => combat.dealMixed(P.t, 1));
   assert.equal(Element.auraOf(P.t), 'ice');
 });
@@ -104,6 +104,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'kagami', 'gilgamesh_fake', 'roland', 'echo', 'muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine',
     'fern', 'ryougi', 'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
     'emiya_kiritsugu', 'inui_takumi', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra',
+    'master', // Master: ตี/สกิลเฟส 1 พิษ · เฟส 2 แสง · Knockdown ลม→แสง · Smite สายฟ้า→มืด — tests/characters/master.test.js
     'midoriya_izuku']); // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));

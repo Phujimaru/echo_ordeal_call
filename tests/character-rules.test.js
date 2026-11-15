@@ -48,7 +48,7 @@ test('ทะเบียน: id ไม่ซ้ำ · ทุกตัวมี�
   const ids = CHARACTERS.map((c) => c.id);
   assert.equal(new Set(ids).size, ids.length, 'id ซ้ำ');
   for (const id of ids) assert.ok(HOOKS[id], `${id} ไม่มีโมดูลใน characters/index.js`);
-  for (const id of Object.keys(HOOKS)) if (id !== 'kishinami_hakuno') assert.ok(ids.includes(id), `ฮุค ${id} ไม่มีใน characters.js`);
+  for (const id of Object.keys(HOOKS)) if (id !== 'kishinami_hakuno' && id !== 'master_summon') assert.ok(ids.includes(id), `ฮุค ${id} ไม่มีใน characters.js`);
 });
 
 for (const c of playable) {

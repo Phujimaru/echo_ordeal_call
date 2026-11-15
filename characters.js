@@ -1735,6 +1735,66 @@ const CHARACTERS = [
     },
     ultimate: null,
   },
+  {
+    // ---------- Master (World Tower Defense) — Boss · unique — ดู characters/master.js (GRID_PLAN §7.34) ----------
+    //  พลังชีวิต 100 · เกราะ 0 · พลังโจมตี 3 · ตัว 2×2 · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม) · ตีปกติกวาดหน้าตัว กว้าง 4 (strikeRect)
+    id: "master",
+    gender: "m",
+    name: "Master",
+    avatar: 0,
+    difficulty: "boss",
+    unique: true,
+    img: "/characters/master/master.webp",
+    mov: 9,
+    range: [1, 2],
+    passive: {
+      name: "Delay Arrival",
+      desc: "ไม่อยู่บนกระดาน 2 เทิร์นแรก · ต้นเทิร์นที่ 3 ลงจากฟ้าที่จุดเกิดแบบสุ่ม แล้วคลื่นกระแทกผลักทุกคนทั้งสนามออกห่าง 1 ช่อง (ไม่มีดาเมจ)",
+    },
+    passive2: {
+      name: "Card Restriction",
+      desc: "จั่วไพ่ไม่ได้ · เดินลำดับสุดท้ายเสมอ (หลังคนไพ่แตก)",
+    },
+    passive3: {
+      name: "Zombification/Holy Interval",
+      desc: "เริ่มเป็น Zombie · ตี/สกิลที่โดน = พิษร้าย +1 เทิร์น (สูงสุด 3) ธาตุพิษ · ทุก 5 เทิร์นนับจากที่ลง อัญเชิญ Undead 2 + Raider 1 (บนสนามไม่เกิน 10) · ดาเมจถึงตาย = เลือด 1 + สตั้นเทิร์นนั้น ตายไม่ได้จนฟื้น · ต้นเทิร์นหน้าฟื้น 25 + คลื่นกระแทก → Holy: ตีปกติ 2 ครั้ง · ตี/สกิลที่โดน = อ่อนแอ +1 Lv (Lv2 · 3 เทิร์น) ธาตุแสง · อัญเชิญ Blessed 2 + Holy Crusader 1 (ฟื้นครั้งเดียว)",
+    },
+    passive4: {
+      name: "A fking boss!!",
+      desc: "คนอื่นฮีลให้ไม่ได้ (ฮีลตัวเองได้) · เลือกได้ทีละตัวในหมวด Boss",
+    },
+    passive5: {
+      name: "Otherly Worlder",
+      desc: "Echo สวมร่างไม่ได้",
+    },
+    basic: {
+      name: "Twin Sword Slam",
+      desc: "ไม่ใช้แต้ม · เลือกทิศ: คลื่น 3 ทิศ (ตรงกว้างเท่าตัว ยาว 3 · เฉียงขึ้น/ลง 2) ศัตรูทุกคนเสียหาย 3 (คูลดาวน์ 2 เทิร์น) · Holy: กดได้ 2 ครั้งก่อนคูลดาวน์ · ติดเปราะบาง +1 Lv (Lv2 · 3 เทิร์น) · ครั้งที่ 3, 6, 9… ตรงยาว 4 เฉียง 3 + สตั้น 2 เทิร์น",
+      area: { kind: "line", len: 3, fan: 2, hostile: true },
+      cost: 0,
+      img: "/characters/master/twin_sword_slam.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "Knockdown Slash",
+      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือกทิศ: คลื่นดาบแนวกว้างเท่าตัว ยาว 4 ศัตรูทุกคนเสียหาย 4 + ผลักถอย 1 (คูลดาวน์ 3 เทิร์น) · Holy: ยาว 6 · ฟาดซ้ำ 2 ครั้ง · ธาตุแสง",
+      area: { kind: "line", len: 4, fan: 0, hostile: true },
+      cost: 0,
+      img: "/characters/master/knockdown_slash.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Smite",
+      desc: "ไม่ใช้แต้ม · ธาตุสายฟ้า · ฟ้าผ่าศัตรูทุกคนในสนาม เสียหาย 2 + ช็อต 3 เทิร์น (หลบได้ทีละสาย · คูลดาวน์ 3 เทิร์น) · Holy: ผ่า 2 ครั้ง · ธาตุมืด",
+      area: { kind: "field", hostile: true },
+      cost: 0,
+      img: "/characters/master/smite.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
@@ -1764,6 +1824,8 @@ function publicRoster() {
     passive: c.passive ? { name: c.passive.name, desc: c.passive.desc } : null,
     passive2: c.passive2 ? { name: c.passive2.name, desc: c.passive2.desc } : null,
     passive3: c.passive3 ? { name: c.passive3.name, desc: c.passive3.desc } : null, // Ice Spike
+    passive4: c.passive4 ? { name: c.passive4.name, desc: c.passive4.desc } : null, // Master
+    passive5: c.passive5 ? { name: c.passive5.name, desc: c.passive5.desc } : null,
     basic: pub(c.basic),
     secondary: pub(c.secondary),
     ultimate: pub(c.ultimate),

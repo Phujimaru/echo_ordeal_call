@@ -26,6 +26,7 @@
 Object.assign(module.exports, {
   current, withElement, withChainBlock, capture, auraOf, terrainAura, terrainAt, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
   attackElementOf, skillElementOf, lastReaction, takeReaction,
+  tickFields, resetFields, fieldsPub, typeOf, typeBlocks, typeAdjust, withReaction,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -38,9 +39,16 @@ const ELEMENTS = {
   bolt: { icon: "⚡", name: "สายฟ้า" },
   water: { icon: "💧", name: "น้ำ" },
   wind: { icon: "🌪️", name: "ลม" },
+  // ธาตุใหม่ของ Master (GRID_PLAN §7.34 · ผู้ใช้ 2026-11-15) — คู่กับธาตุเดิมที่ไม่ได้กำหนด = ไม่เกิดปฏิกิริยา (คราบใหม่แทนที่)
+  poison: { icon: "☠️", name: "พิษ" },
+  light: { icon: "✨", name: "แสง" },
+  dark: { icon: "🌑", name: "มืด" },
 };
-const AURA_KEYS = { fire: "elFire", ice: "elIce", bolt: "elBolt", water: "elWater" };
-const ORDER = ["fire", "ice", "bolt", "water"];
+const AURA_KEYS = { fire: "elFire", ice: "elIce", bolt: "elBolt", water: "elWater", poison: "elPoison", light: "elLight", dark: "elDark" };
+const ORDER = ["fire", "ice", "bolt", "water", "poison", "light", "dark"];
+const CLASSIC = new Set(["fire", "ice", "bolt", "water"]); // พัดพาเดิม (ลม) ใช้กับ 4 ธาตุนี้เท่านั้น
+const REACT_LOCK = 5; // หลุมดำ / แสงจ้า: โดนแล้วโดนปฏิกิริยาเดิมไม่ได้อีก 5 เทิร์น
+const FOG_TURNS = 3, HOLE_TURNS = 3, STIR_TURNS = 3, GLARE_TURNS = 3;
 const AURA_TURNS = 2; // ลูป endTurn ลดทุกจบเทิร์น = ค้างเทิร์นนี้ + เทิร์นถัดไป
 const FROST_TURNS = 2; // เยือกแข็ง: น้ำแข็งกัด 2 เทิร์น
 const ROOT_TURNS = 1; // เยือกแข็ง: เดินไม่ได้ 1 เทิร์น
@@ -54,6 +62,12 @@ const REACTIONS = {
   [pairKey("ice", "water")]: { key: "freeze", name: "เยือกแข็ง", frost: true },
   [pairKey("bolt", "water")]: { key: "conduct", name: "นำไฟฟ้า", bonus: 2, pierce: true },
   wind: { key: "swirl", name: "พัดพา" },
+  // ---- Master (GRID_PLAN §7.34 · ชื่อผู้ใช้อนุมัติ) ----
+  [pairKey("poison", "fire")]: { key: "fog", name: "หมอกพิษ", special: true },
+  [pairKey("poison", "bolt")]: { key: "stir", name: "กระตุ้น", special: true },
+  poisonWind: { key: "spread", name: "กระจายพิษ", special: true },
+  [pairKey("light", "dark")]: { key: "hole", name: "หลุมดำ", special: true, lock: true },
+  [pairKey("light", "light")]: { key: "glare", name: "แสงจ้า", special: true, lock: true },
 };
 
 const combat = () => require("./combat");
@@ -130,10 +144,13 @@ function apply(t, el, source, opts = {}) {
   if (el === "wind") {
     const have = auraOf(t);
     if (!have || opts.noSwirl) return null;
+    if (have === "poison") { clearAura(t); return react(t, "poison", "wind", source); } // กระจายพิษ
+    if (!CLASSIC.has(have)) return null; // ลม + แสง/มืด = ไม่เกิดปฏิกิริยา
     return windBurst([t], source);
   }
   const have = auraOf(t);
-  if (!have || have === el) {
+  const r = have ? REACTIONS[pairKey(have, el)] : null;
+  if (!have || !r || (have === el && el !== "light") || locked(t, r)) {
     setAura(t, el);
     fx("elemAura", { id: t.id, el });
     return null;
@@ -152,13 +169,14 @@ function withChainBlock(ids, fn) {
 }
 //  chain = { from, step } = ปฏิกิริยาที่ลามมา (ลูกโซ่ — ผู้ใช้สั่ง 2026-11-14)
 function react(t, a, b, source, chain = null) {
-  const r = REACTIONS[pairKey(a, b)];
+  const r = b === "wind" && a === "poison" ? REACTIONS.poisonWind : REACTIONS[pairKey(a, b)];
   if (!r) return null;
+  if (r.special) return reactSpecial(t, a, b, r, source);
   const C = combat();
   const at = t.pos ? { ...t.pos } : null;
   const ring = r.ring || r.push ? ringOf(t, source) : [];
   const lines = [];
-  withElement(null, () => {
+  withReaction(a, b, () => withElement(null, () => {
     if (r.bonus) {
       const before = hpArm(t);
       if (r.pierce) C.dealDirect(t, r.bonus);
@@ -183,7 +201,7 @@ function react(t, a, b, source, chain = null) {
     }
     if (r.push && at) pushRing(at, t, ring, r.push);
     for (const u of [t, ...ring]) killCheck(u, t);
-  });
+  }));
   match.lastLog.push(`${chain ? "⛓️ " : ""}${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}${chain ? " (ลูกโซ่)" : "!"} ${lines.join(" · ")}`.trim());
   const out = { key: r.key, name: r.name, a, b, id: t.id };
   if (!chain) match.elemLast = out;
@@ -271,12 +289,13 @@ function windBurst(sources, source) {
   const snap = [];
   for (const s of sources) {
     const el = auraOf(s);
-    if (!el || !canTake(s, source)) continue;
+    if (!el || !CLASSIC.has(el) || !canTake(s, source)) continue;
     snap.push({ from: s, el });
   }
   if (!snap.length) return null;
   const incoming = new Map(); // ผู้รับ → Set ธาตุ
   for (const { from, el } of snap) {
+    if (!CLASSIC.has(el)) continue;
     for (const u of ringOf(from, source)) {
       if (!incoming.has(u)) incoming.set(u, new Set());
       incoming.get(u).add(el);
@@ -361,4 +380,220 @@ function sfx(key) {
   try { engine().sfx(`elem_${key}`); } catch (_) { /* เทสต์ */ }
 }
 
-Object.assign(module.exports, { ELEMENTS, AURA_KEYS, REACTIONS, ORDER, AURA_TURNS, FROST_TURNS, ROOT_TURNS });
+// ============================================================
+//  ปฏิกิริยาของธาตุใหม่ (Master — GRID_PLAN §7.34 · ชื่อ/ตัวเลขผู้ใช้ 2026-11-15)
+//   หมอกพิษ ☠️🔥 หมอก 3×3 ที่เป้า 3 เทิร์น — คนในหมอกตาบอด + เสีย 1 ทุกต้นเทิร์น
+//   กระตุ้น ☠️⚡ 3 เทิร์น ดาเมจต่อเทิร์นทุกแบบ ×2 (สถานะ stirred)
+//   กระจายพิษ ☠️🌪️ พิษร้ายของเป้า (เทิร์นเท่าเดิม) ไปติดศัตรูในกรอบ 5×5 รอบเป้า
+//   หลุมดำ ✨🌑 ที่เป้า 3 เทิร์น — ทุกต้นเทิร์นดูดคนในกรอบ 5×5 เข้ากลาง 1 ช่อง (ถูกดูด −1 · คนกลาง −2) · ครบแล้วระเบิด 3 ใน 3×3
+//   แสงจ้า ✨✨ ตาบอด + ลบสกิลติดตัว 3 เทิร์น
+//   หลุมดำ/แสงจ้า: เป้าที่โดนแล้วโดนปฏิกิริยาเดิมไม่ได้อีก 5 เทิร์น (ผู้ใช้: กันเฉพาะปฏิกิริยาเดิม)
+// ============================================================
+const FOG_RADIUS = 1, HOLE_RADIUS = 2, SPREAD_RADIUS = 2, HOLE_BLAST = 3, HOLE_BLAST_RADIUS = 1;
+
+function locked(t, r) {
+  if (!r || !r.lock || !t || !t.reactLock) return false;
+  const until = t.reactLock[r.key];
+  return until != null && (match.roundNumber || 0) < until;
+}
+function lockFor(t, r) {
+  if (!r.lock || !t) return;
+  t.reactLock = t.reactLock || {};
+  t.reactLock[r.key] = (match.roundNumber || 0) + REACT_LOCK + 1;
+}
+function withReaction(a, b, fn) {
+  const prev = match.reactEls;
+  match.reactEls = [a, b];
+  try { return fn(); } finally { match.reactEls = prev; }
+}
+// ศัตรูของต้นตอในกรอบ (2r+1)×(2r+1) รอบกล่อง box (นับทั้งกล่อง · ตัวใหญ่ทับช่องไหนก็นับ)
+function unitsAround(box, r, source, { withMain = null } = {}) {
+  return Object.values(match.players).filter((u) => u.alive && u.pos && (u === withMain || canTake(u, source)) &&
+    cheb(box, { x: u.pos.x, y: u.pos.y, size: action().sizeOf(u) }) <= r);
+}
+const boxOfUnit = (t) => ({ x: t.pos.x, y: t.pos.y, size: action().sizeOf(t) });
+function blindTurns(u, n) {
+  const C = combat();
+  return C.applyDebuff(u, "blind", 1, n);
+}
+
+function reactSpecial(t, a, b, r, source) {
+  const C = combat();
+  const at = t.pos ? { ...t.pos } : null;
+  const size = action().sizeOf(t);
+  const lines = [];
+  let ring = [];
+  withReaction(a, b, () => withElement(null, () => {
+    if (r.key === "fog" && at) {
+      const f = addField("fog", t, source, FOG_TURNS, a, b);
+      ring = unitsAround(f.box, FOG_RADIUS, source, { withMain: t });
+      for (const u of ring) if (blindTurns(u, 1)) lines.push(`${u.name} ตาบอด`);
+      lines.unshift(`หมอกพิษ 3×3 ${FOG_TURNS} เทิร์น`);
+    } else if (r.key === "stir") {
+      if (C.applyDebuff(t, "stirred", 1, STIR_TURNS)) lines.push(`${t.name} ดาเมจต่อเทิร์น ×2 ${STIR_TURNS} เทิร์น`);
+    } else if (r.key === "spread" && at) {
+      const turns = (t.statuses && t.statuses.poison) || 0;
+      const Status = require("../characters/_universal_status");
+      ring = unitsAround(boxOfUnit(t), SPREAD_RADIUS, source).filter((u) => u !== t);
+      if (turns > 0) for (const u of ring) if (Status.applyPoison(u, turns)) lines.push(`${u.name} พิษร้าย ${turns} เทิร์น`);
+    } else if (r.key === "hole" && at) {
+      addField("hole", t, source, HOLE_TURNS, a, b);
+      lines.push(`หลุมดำ ${HOLE_TURNS} เทิร์น`);
+    } else if (r.key === "glare") {
+      if (blindTurns(t, GLARE_TURNS)) lines.push(`${t.name} ตาบอด ${GLARE_TURNS} เทิร์น`);
+      if (engine().applyPassiveSeal && engine().applyPassiveSeal(t, GLARE_TURNS) !== false) lines.push(`สกิลติดตัวใช้ไม่ได้ ${GLARE_TURNS} เทิร์น`);
+    }
+    lockFor(t, r);
+  }));
+  match.lastLog.push(`${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}! ${lines.join(" · ")}`.trim());
+  const out = { key: r.key, name: r.name, a, b, id: t.id };
+  match.elemLast = out;
+  fx("elemReact", { key: r.key, name: r.name, a, b, id: t.id, at, ring: ring.filter((u) => u !== t).map((u) => u.id), size });
+  sfx(r.key);
+  return out;
+}
+
+// ---------- พื้นที่ค้างของปฏิกิริยา (หมอกพิษ / หลุมดำ) — ลงผลต้นเทิร์น (phases/draw.js dealRound หลังลูปผู้เล่น) ----------
+function addField(kind, t, source, turns, a, b) {
+  match.elemFields = match.elemFields || [];
+  const s = action().sizeOf(t);
+  // กลางกรอบ = ช่องกลางตัวเป้า (ตัวใหญ่ = ช่องบนซ้ายของกลาง)
+  const c = Math.floor((s - 1) / 2);
+  const f = {
+    id: `${kind}${match.elemFieldSeq = (match.elemFieldSeq || 0) + 1}`, kind,
+    box: { x: t.pos.x + c, y: t.pos.y + c, size: 1 }, turns, srcId: source ? source.id : null, a, b,
+  };
+  match.elemFields.push(f);
+  return f;
+}
+function resetFields() { match.elemFields = []; }
+function fieldsPub() {
+  return (match.elemFields || []).map((f) => ({ id: f.id, kind: f.kind, x: f.box.x, y: f.box.y, turns: f.turns,
+    r: f.kind === "fog" ? FOG_RADIUS : HOLE_RADIUS }));
+}
+function tickFields() {
+  const list = match.elemFields || [];
+  if (!list.length) return;
+  const keep = [];
+  for (const f of list) {
+    const src = (f.srcId && match.players[f.srcId]) || null;
+    const run = () => withReaction(f.a, f.b, () => withElement(null, () => tickField(f, src)));
+    if (src) combat().withEffectSource(src, run); else run();
+    f.turns--;
+    if (f.turns > 0) { keep.push(f); continue; }
+    if (f.kind === "hole") {
+      const boom = () => withReaction(f.a, f.b, () => withElement(null, () => holeBlast(f, src)));
+      if (src) combat().withEffectSource(src, boom); else boom();
+    }
+    fx("elemField", { kind: f.kind, id: f.id, at: { x: f.box.x, y: f.box.y }, end: true });
+  }
+  match.elemFields = keep;
+}
+function tickField(f, src) {
+  const C = combat();
+  if (f.kind === "fog") {
+    const hit = unitsAround(f.box, FOG_RADIUS, src);
+    const lines = [];
+    for (const u of hit) {
+      const before = hpArm(u);
+      C.dealMixed(u, 1);
+      blindTurns(u, 1);
+      lines.push(`${u.name} -${Math.max(0, before - hpArm(u))}`);
+      killCheck(u, null);
+    }
+    if (hit.length) match.lastLog.push(`☠️ หมอกพิษ ${lines.join(" · ")}`);
+    fx("elemField", { kind: "fog", id: f.id, at: { x: f.box.x, y: f.box.y }, ids: hit.map((u) => u.id) });
+    return;
+  }
+  if (f.kind === "hole") {
+    const Ice = require("./ice");
+    const near = unitsAround(f.box, HOLE_RADIUS, src);
+    const ctx = Ice.begin();
+    const pulled = [];
+    for (const u of near) {
+      const ub = boxOfUnit(u);
+      if (cheb(f.box, ub) === 0) continue; // ทับกลางอยู่แล้ว
+      const us = ub.size, ucx = u.pos.x + (us - 1) / 2, ucy = u.pos.y + (us - 1) / 2;
+      const dir = { x: Math.sign(f.box.x - ucx), y: Math.sign(f.box.y - ucy) };
+      if (!dir.x && !dir.y) continue;
+      Ice.pushUnit(u, dir, ctx, 1);
+      pulled.push(u);
+    }
+    Ice.flush(ctx);
+    const lines = [];
+    for (const u of near) {
+      if (!u.alive || !u.pos) continue;
+      const centre = cheb(f.box, boxOfUnit(u)) === 0;
+      const before = hpArm(u);
+      C.dealMixed(u, centre ? 2 : 1);
+      lines.push(`${u.name} -${Math.max(0, before - hpArm(u))}`);
+      killCheck(u, null);
+    }
+    if (lines.length) match.lastLog.push(`🕳️ หลุมดำดูด ${lines.join(" · ")}`);
+    fx("elemField", { kind: "hole", id: f.id, at: { x: f.box.x, y: f.box.y }, ids: near.map((u) => u.id), pulled: pulled.map((u) => u.id) });
+  }
+}
+function holeBlast(f, src) {
+  const C = combat();
+  const hit = unitsAround(f.box, HOLE_BLAST_RADIUS, src);
+  const lines = [];
+  for (const u of hit) {
+    const before = hpArm(u);
+    C.dealMixed(u, HOLE_BLAST);
+    lines.push(`${u.name} -${Math.max(0, before - hpArm(u))}`);
+    killCheck(u, null);
+  }
+  match.lastLog.push(`💥 หลุมดำระเบิด${lines.length ? ` ${lines.join(" · ")}` : ""}`);
+  fx("elemField", { kind: "holeBlast", id: f.id, at: { x: f.box.x, y: f.box.y }, ids: hit.map((u) => u.id) });
+  sfx("hole_blast");
+}
+
+// ============================================================
+//  ประเภทตัวละคร (Master + ตัวอัญเชิญ — GRID_PLAN §7.34 · ผู้ใช้: ใส่เฉพาะ Master + ตัวอัญเชิญ)
+//   Zombie: พิษ (ธาตุ + ปฏิกิริยา) ×0.5 · ไม่ติดพิษร้าย · ไฟ (ธาตุ + ปฏิกิริยา) ×2 · ลุกไหม้ ×2
+//   Holy: แสง ×0.5 · ไม่ติดอ่อนแอ/เชื่องช้า · มืด ×2.5
+//   Metal: น้ำแข็ง/สายฟ้า (ธาตุ + ปฏิกิริยา) ×0.75 · ไฟ (ธาตุ + ปฏิกิริยา) ×1.5
+//   ตัวคูณปัดขึ้น · ปฏิกิริยาที่มีทั้งธาตุแรงขึ้นและอ่อนลง = นับธาตุที่โดนก่อน (คราบเดิม) ก่อน (ผู้ใช้)
+//   ฮุคตัวละคร unitType(p) → "zombie" | "holy" | "metal" · ยูนิตที่ถูกเรียก summon.utype
+// ============================================================
+const TYPE_RULES = {
+  zombie: { poison: 0.5, fire: 2, burn: 2 },
+  holy: { light: 0.5, dark: 2.5 },
+  metal: { ice: 0.75, bolt: 0.75, fire: 1.5 },
+};
+const TYPE_IMMUNE = { zombie: ["poison"], holy: ["weak", "slow"] };
+const TYPE_NAMES = { zombie: "Zombie", holy: "Holy", metal: "Metal" };
+function typeOf(p) {
+  if (!p) return null;
+  if (p.summon && p.summon.utype) return p.summon.utype;
+  const h = CHAR_HOOKS[p.characterId];
+  if (!h || typeof h.unitType !== "function") return null;
+  try { return h.unitType(p) || null; } catch (err) { console.error(`[hook] ${h.id}.unitType โยน error:`, err); return null; }
+}
+function typeBlocks(p, key) {
+  const t = typeOf(p);
+  return !!(t && TYPE_IMMUNE[t] && TYPE_IMMUNE[t].includes(key));
+}
+function typeAdjust(p, n) {
+  if (!(n > 0) || !p) return n;
+  let mult = 1;
+  const t = typeOf(p), rule = t && TYPE_RULES[t];
+  if (rule) {
+    if (p._dotKind === "burn" && rule.burn) mult = rule.burn;
+    else if (match.reactEls) {
+      const [a, b] = match.reactEls;
+      const k = rule[a] != null ? a : rule[b] != null ? b : null;
+      if (k) mult = rule[k];
+    } else if (!p._statusDamage) {
+      const el = current();
+      if (el && rule[el] != null) mult = rule[el];
+    }
+  }
+  if (p._statusDamage && ((p.statuses && p.statuses.stirred) || 0) > 0) mult *= 2; // กระตุ้น: ดาเมจต่อเทิร์น ×2
+  return mult === 1 ? n : Math.ceil(n * mult);
+}
+
+Object.assign(module.exports, {
+  ELEMENTS, AURA_KEYS, REACTIONS, ORDER, AURA_TURNS, FROST_TURNS, ROOT_TURNS,
+  REACT_LOCK, TYPE_RULES, TYPE_IMMUNE, TYPE_NAMES, CLASSIC,
+});

@@ -42,6 +42,7 @@ const STAT_BONUS_OF = {
   kate: { hp: 2, armor: 2 }, emiliko: { hp: 2, armor: 2 },
   dio_brando: { hp: 5, armor: 0 },
   gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 },
+  master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 100 · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
 };
 const statBonusOf = (p) => (p && STAT_BONUS_OF[statId(p)]) || STAT_BONUS;
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)
@@ -62,6 +63,11 @@ function healHp(p, amount) {
     return 0;
   }
   if (noHealActive(p)) return 0;
+  // ฮุค blocksHealFrom(engine, p, ผู้ฮีล) → true = คนอื่นฮีลให้ไม่ได้ (Master: A fking boss!! — ฮีลตัวเองได้)
+  if (match.effectSourceId && match.effectSourceId !== p.id) {
+    const hh = CHAR_HOOKS[p.characterId];
+    if (hh && hh.blocksHealFrom && runHook(hh, "blocksHealFrom", engine, p, match.players[match.effectSourceId])) return 0;
+  }
   // เลือดไหล (hbleed, สถานะ Universal patch 2.5): การฟื้นพลังชีวิตเหลือครึ่งเดียว
   //  (ฟื้นทีละ 1 หน่วยไม่ถูกลด — ตรรกะเต็มอยู่ characters/_universal_status.js)
   amount = bleedHealPenalty(engine, p, amount);
@@ -119,6 +125,7 @@ function applyDebuff(p, key, amount, turns) {
   if (Dim.blocks(p)) return false; // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้น = ไม่ติด
   if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น
   if (statusReflected(p, (src) => applyDebuff(src, key, amount, turns))) return false; // สะท้อน (โจรุโน่: ต้นตอแห่งชีวิต)
+  if (Element().typeBlocks(p, key)) return false; // ประเภทตัวละคร (Holy: ไม่ติดอ่อนแอ/เชื่องช้า · Zombie: ไม่ติดพิษร้าย — server/element.js)
   return rawApplyDebuff(p, key, amount, turns);
 }
 // ============================================================
@@ -237,7 +244,13 @@ function instantDeath(p, force) {
   if (!absolute && TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
   // ยูนิตที่ถูกเรียก (server/summon.js): ตายแล้วแค่หายไป — ไม่มีศพ/ขี่/QTE · ไม่ยิงฮุค onDeath/onKill ของตัวละคร (ไม่ใช่ผู้เล่น)
   //  → ฮุค onSummonDeath ของโมดูลเจ้าของ
-  if (p.summon) { Summon.onDeath(p); return; }
+  if (p.summon) {
+    // ยูนิตที่ถูกเรียกที่ฟื้นได้ (ฮุค deathless ของ characterId ยูนิต — Undead ของ Master)
+    const sh = !absolute && CHAR_HOOKS[p.characterId];
+    if (sh && sh.deathless && sh.deathless(engine, p)) return;
+    Summon.onDeath(p);
+    return;
+  }
   // ฮุค preventDeath(engine, p) → true = ไม่ตาย (ฮุคตั้งเลือดใหม่เอง — กิระ: อัฐิราชาฟื้นด้วยพลังชีวิต 1)
   const deathHook = CHAR_HOOKS[p.characterId];
   // ฮุค deathless(engine, p) → true = ไม่ตายแม้ force (ฮุคตั้งเลือดเอง — ยูกิ มาโคโตะ: มิตรภาพ) · ยกเว้น "absolute"
@@ -368,6 +381,8 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
   if (n > 0 && untouchable(p)) return 0;
   const hook = CHAR_HOOKS[p && p.characterId];
   n = hook && hook.adjustIncomingDamage ? hook.adjustIncomingDamage(engine, p, n, isNormalAttack, kind) : n;
+  // ประเภทตัวละคร × ธาตุ (Zombie/Holy/Metal) + กระตุ้น (ดาเมจต่อเทิร์น ×2) — server/element.js typeAdjust (ปัดขึ้น)
+  if (n > 0) n = Element().typeAdjust(p, n);
   // ออร่าของคนอื่นที่เพิ่ม/ลดความเสียหายที่ได้รับ (ฮุค auraIncoming(engine, p, n) → ส่วนต่าง · ยูนะ: Delete +1 / Smile for You −1)
   //  ทุกความเสียหาย (ตีปกติ · สกิล · ผลต่อเทิร์น) ที่ยังเหลือ > 0 หลังฮุคของเป้าเอง · ลดถึง 0 ได้
   if (n > 0) {

@@ -50,7 +50,8 @@ test('สมุด: เคท & เอมิลิโกะเลือกได
   const c = pub.character.basic.choices.find((x) => x.key === 'kate');
   assert.ok(c);
   assert.equal(c.locked, false);
-  assert.equal(echo.BLOCKED.size, 0, 'Echo ต้องสวมร่างได้ทุกตัว');
+  // Echo ต้องสวมร่างได้ทุกตัว — ข้อยกเว้นเดียวที่ผู้ใช้อนุญาต: Master (2026-11-15 · GRID_PLAN §7.34)
+  assert.deepEqual([...echo.BLOCKED], ['master'], 'Echo ต้องสวมร่างได้ทุกตัว (ยกเว้น Master)');
 });
 
 test('สวมร่างเคท = Echo อีกคนเกิดข้างๆ เป็นเอมิลิโกะ · ภาพเงากลับด้าน · ใช้แต้มร่วมกัน', () => {

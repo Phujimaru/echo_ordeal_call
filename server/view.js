@@ -93,6 +93,7 @@ function boardPublic() {
     special: m.special || {}, flow: m.flow || {}, healKind: m.healKind || "heal",
     ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike) / พื้นเปียก (เอมิลิโกะ)
     storms: Soot.publicInfo(), // ม่านแดง (ระบำเขม่า — เคท)
+    elemFields: require("./element").fieldsPub(), // หมอกพิษ / หลุมดำ (ปฏิกิริยาธาตุของ Master — server/element.js)
     spawns: m.spawns, shopSpots: m.shopSpots,
     ...(match.world === "roadtrip" && match.roadtrip ? { rtRegion: match.roadtrip.region.id, rtNight: !!match.roadtrip.night } : {}), // Road Trip: ภูมิภาค/กลางคืน (client เปลี่ยนชุดสีพื้นเมื่อเปลี่ยน)
     // Colony (GRID_PLAN §8.3): กระดานต่อวงรอบ · กำแพงกั้นปล้อง + ประตู · แถวแรกที่ยังไม่ปิดผนึก · แถบกระจก
@@ -396,7 +397,8 @@ function buildStateInner(viewerId) {
         otoya: CHAR_HOOKS.kurenai_otoya.unitMark(engine, p), // คุเรไน: สายดนตรี (ใครก็ได้) / ร่าง Dark Kiva / หลุมพราง / Wake Up 2 (เจ้าตัว)
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
         allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
-        freddy: hook && hook.freddyState ? hook.freddyState(engine, p) : undefined, // เฟรดดี้: ภาพตัวบนกระดาน · กลางคืน
+        freddy: hook && hook.freddyState ? hook.freddyState(engine, p) : undefined,
+        master: hook && hook.masterState ? hook.masterState(engine, p) : undefined, // Master / ตัวอัญเชิญ: ภาพตัวเต็ม · เฟส (masterFx.js) // เฟรดดี้: ภาพตัวบนกระดาน · กลางคืน
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
@@ -508,11 +510,11 @@ function broadcastPositions() {
 }
 // ตัวละคร unique ที่มีคนเลือกไปแล้วในแมตช์นี้ (หน้าเลือกตัวละครใช้ปิดการ์ดไม่ให้เลือกซ้ำ)
 function takenUniqueChars() {
-  return [...new Set(
-    Object.values(match.players)
-      .flatMap((p) => [p.characterId, CHAR_HOOKS.echo.baseId(p)]) // + เจ้าหญิง Echo ที่สวมร่างอยู่
-      .filter((id) => (CHAR_BY_ID[id] || {}).unique)
-  )];
+  const ids = Object.values(match.players).filter((p) => !p.summon).flatMap((p) => [p.characterId, CHAR_HOOKS.echo.baseId(p)]); // + เจ้าหญิง Echo ที่สวมร่างอยู่
+  const taken = new Set(ids.filter((id) => (CHAR_BY_ID[id] || {}).unique));
+  // หมวด Boss (Master — GRID_PLAN §7.34): มีคนเลือกตัว Boss แล้ว = ตัว Boss ทุกตัวเลือกไม่ได้
+  if (ids.some((id) => (CHAR_BY_ID[id] || {}).difficulty === "boss")) for (const c of Object.values(CHAR_BY_ID)) if (c.difficulty === "boss") taken.add(c.id);
+  return [...taken];
 }
 // ผู้ชมมองไม่เห็นทั้งคนตีและเป้าของฉากตีนี้ (ม่านแดงของเคท — สู้กันข้างในคนนอกไม่เห็น)
 function attackUnseen(viewer, card) {

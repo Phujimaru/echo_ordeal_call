@@ -33,6 +33,7 @@ const emiya_kiritsugu = require("./emiya_kiritsugu"); // เอมิยะ ค�
 const kusakabe_shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ — ยาก (เปลวเพลง · ฮีโร่เดินต่อ · พายุไฟ 3×3 · อุ่นเครื่อง / ลาทัมพุ่งสละไอเทม · มอดไหม้จากภายใน)
 const midoriya_izuku = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ — กลาง (Smash 5 แบบ ไม่ใช้แต้ม ดาเมจเข้าตัวเอง · กรวย/แนว · ผลักสุดระยะ · Full Cowl · One for All เยียวยา ×2 ลม→ไฟฟ้า)
 const freddy_fazbear = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์ — เอาฮา (ไม่มีสกิล · กลางวันล่องหน + มินิเกมประตู · กลางคืนเดิน 9)
+const master = require("./master"); // Master — Boss (2 เฟส Zombie/Holy · ลงจากฟ้า · อัญเชิญ · Twin Sword Slam / Knockdown Slash / Smite)
 const Status = require("./_universal_status");
 
 // ลำดับในรายการนี้ = ลำดับที่ engine กระจายฮุคแบบ broadcast (resetCombat / onRoundStartTick / onEndTurn / onDeath — combat.broadcastHook)
@@ -85,12 +86,15 @@ const CHARACTER_MODULES = [
   emiya_kiritsugu,
   kusakabe_shinra,
   midoriya_izuku,
+  master,
 ];
 
 const CHAR_HOOKS = {};
 for (const mod of CHARACTER_MODULES) CHAR_HOOKS[mod.id] = mod;
 // บอสของโหมด Moon Cell (characters/_hakuno.js) — ฮุครายตัว (CHAR_HOOKS[characterId]) ได้ แต่ไม่อยู่ใน MODULES (ไม่รับฮุคแบบกระจาย)
 CHAR_HOOKS.kishinami_hakuno = require("./_hakuno");
+// ตัวอัญเชิญของ Master (characters/_master_summon.js) — ฮุครายตัว ไม่อยู่ใน MODULES
+CHAR_HOOKS.master_summon = require("./_master_summon");
 // รายการตามลำดับ (ไม่ enumerable — CHAR_HOOKS ยังเป็นแผนที่ id → โมดูลล้วนๆ)
 // "แม่นยำ" จากออร่า (ฮุค auraAccurate(p)) — _universal_status.accurateActive ถามทุกแหล่ง
 for (const mod of CHARACTER_MODULES) if (typeof mod.auraAccurate === "function") Status.addAccurateSource((p) => mod.auraAccurate(p));

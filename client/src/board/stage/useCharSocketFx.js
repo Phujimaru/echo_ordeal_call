@@ -19,6 +19,8 @@ import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
 import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
+import { MASTER_T, masterPose } from "../masterFx";
+import { P as projectTile, LW, LH } from "../boardGeo";
 import { valentineEventFx } from "../valentineFx";
 import { celineEventFx } from "../celineFx";
 import { ryougiEventFx } from "../ryougiFx";
@@ -495,5 +497,101 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("divineFx", onDivine);
     return () => socket.off("divineFx", onDivine);
+  }, [pushFx, look, lowQ]);
+
+  // ---------- Master (masterFx.js · GRID_PLAN §7.34): socket "masterFx" — ทุกท่า: จอสั่น + กล้องเลื่อนไปจุดเกิดเหตุ + ซูมกระแทก (ผู้ใช้ "เต็มที่ ทุกท่า") ----------
+  useEffect(() => {
+    const ok = (t) => !!t && Number.isFinite(t.x) && Number.isFinite(t.y);
+    const tl = (arr) => (Array.isArray(arr) ? arr.filter(ok).map((t) => ({ x: t.x, y: t.y })) : null);
+    const posOf = (id) => { const p = byIdRef.current[id] || (prevPlayers.current || {})[id]; return p && p.pos ? { x: p.pos.x, y: p.pos.y, size: sizeOfP(p) } : null; };
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const shake = (...list) => { if (!lowQ) for (const ms of list) at(ms, () => setShake((n) => n + 1)); };
+    // ซูมกระแทก: ขยายภาพกระดานชั่วคราวรอบจุดเกิดเหตุ (transform อย่างเดียว — ไม่แตะระดับซูมที่ผู้เล่นตั้ง)
+    const punch = (pos, ms, k = 1.12) => {
+      if (lowQ || !pos || typeof document === "undefined") return;
+      const cv = document.querySelector(".bs-root canvas");
+      if (!cv || typeof cv.animate !== "function") return;
+      const n = Math.max(1, pos.size | 0), [sx, sy] = projectTile(pos.x + n / 2, pos.y + n / 2, 0.6);
+      cv.style.transformOrigin = `${Math.max(0, Math.min(100, (sx / LW) * 100))}% ${Math.max(0, Math.min(100, (sy / LH) * 100))}%`;
+      cv.animate([{ transform: "scale(1)" }, { transform: `scale(${k})`, offset: 0.35 }, { transform: "scale(1)" }], { duration: ms, easing: "ease-out" });
+    };
+    const onMaster = (ev) => {
+      if (!ev || !ev.kind) return;
+      const pos = ok(ev.at) ? { x: ev.at.x, y: ev.at.y, size: Math.max(1, ev.size | 0) } : ev.id ? posOf(ev.id) : null;
+      const base = pos ? { x: pos.x, y: pos.y, size: pos.size, phase: ev.phase || 1, by: ev.id } : null;
+      switch (ev.kind) {
+        case "land": {
+          if (!base) return;
+          const hit = MASTER_T.land * 0.42;
+          masterPose(ev.id, "land", null, MASTER_T.land);
+          pushFx([{ kind: "masterLand", ...base }]);
+          playSfx("master_meteor"); at(hit, () => playSfx("master_shockwave"));
+          look(pos);
+          at(hit, () => punch(pos, 700, 1.18));
+          shake(hit, hit + 140, hit + 320, hit + 560);
+          break;
+        }
+        case "revive": {
+          if (!base) return;
+          masterPose(ev.id, "revive", null, MASTER_T.revive);
+          pushFx([{ kind: "masterRevive", ...base, phase: 2 }]);
+          playSfx("master_choir"); at(MASTER_T.revive * 0.45, () => playSfx("master_shockwave"));
+          look(pos);
+          punch(pos, 1200, 1.1);
+          shake(MASTER_T.revive * 0.45, MASTER_T.revive * 0.45 + 200);
+          break;
+        }
+        case "down": if (base) { pushFx([{ kind: "masterDown", ...base }]); shake(0, 160); punch(pos, 600, 1.08); } break;
+        case "death": if (base) { pushFx([{ kind: "masterDeath", ...base }]); look(pos); shake(800, 950, 1200); at(800, () => punch(pos, 900, 1.2)); } break;
+        case "summon": {
+          if (!base) return;
+          masterPose(ev.id, "roar", null, 1200);
+          const units = Array.isArray(ev.units) ? ev.units.filter((u) => u && ok(u.at)).map((u) => ({ id: u.id, at: { x: u.at.x, y: u.at.y }, kind: u.kind })) : [];
+          pushFx([{ kind: "masterSummon", ...base, units }]);
+          at(150, () => playSfx("master_summon"));
+          look(pos);
+          punch(pos, 900, 1.08);
+          shake(0, 180, 360);
+          break;
+        }
+        case "slam": {
+          if (!base) return;
+          const hit = MASTER_T.slam * 0.8;
+          masterPose(ev.id, "slam", ev.dir, hit / 0.78);
+          pushFx([{ kind: "masterSlam", ...base, dir: ev.dir, tiles: tl(ev.tiles) || [], big: !!ev.big }]);
+          at(hit * 0.62, () => playSfx("master_swing")); // เงื้อเสร็จ → ฟาดลง
+          at(hit, () => { playSfx("master_stomp"); playSfx("master_wave"); }); // ดาบกระแทกพื้น + คลื่นหนาม
+          look(pos);
+          at(hit, () => punch(pos, ev.big ? 800 : 600, ev.big ? 1.16 : 1.1));
+          shake(hit, hit + 160, ...(ev.big ? [hit + 330, hit + 520] : []));
+          break;
+        }
+        case "knock": {
+          if (!base) return;
+          const T = ev.wave ? MASTER_T.knock2 : MASTER_T.knock;
+          masterPose(ev.id, "sweep", ev.dir, (T * 0.45) / 0.55); // ฟาดกวาด (q 0.55) ตรงจังหวะใบดาบพุ่ง (T·0.45)
+          pushFx([{ kind: "masterKnock", ...base, dir: ev.dir, tiles: tl(ev.tiles) || [], wave: ev.wave | 0, dur: T + 700 }]);
+          look(pos);
+          at(T * 0.45, () => punch(pos, 500, 1.08));
+          shake(T * 0.5, T * 0.7);
+          break;
+        }
+        case "smite": {
+          if (!base) return;
+          const T = ev.bolt ? MASTER_T.smite2 : MASTER_T.smite, strike = T * 0.72;
+          masterPose(ev.id, "raise", null, T + 300);
+          const targets = (Array.isArray(ev.ids) ? ev.ids : []).map(posOf).filter(Boolean);
+          pushFx([{ kind: "masterSmite", ...base, targets, bolt: ev.bolt | 0, dark: !!ev.dark, dur: T + 900 }]);
+          at(strike, () => punch(pos, 600, 1.1));
+          shake(strike, strike + 120, strike + 300);
+          break;
+        }
+        case "undeadRise": if (base) pushFx([{ kind: "masterRise", ...base }]); break;
+        case "slamHit": case "knockHit": case "smiteHit": if (!lowQ) setShake((n) => n + 1); break;
+        default: break;
+      }
+    };
+    socket.on("masterFx", onMaster);
+    return () => socket.off("masterFx", onMaster);
   }, [pushFx, look, lowQ]);
 }

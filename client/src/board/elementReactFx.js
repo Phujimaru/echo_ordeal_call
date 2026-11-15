@@ -7,7 +7,8 @@
 import { P, gEllipse, glow } from "./boardGeo";
 
 const TAU = Math.PI * 2;
-const RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181" };
+const RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181", poison: "125,220,74", light: "255,236,160", dark: "138,92,255" };
+const TOX = "150,235,80", MIASMA = "120,70,150", VOID = "30,10,45";
 const WHITE = "255,255,255", STEAM = "235,240,245", SMOKE = "70,55,50", HOT = "255,220,120";
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -269,6 +270,82 @@ export function elReact(g, e, p, lowQ) {
       break;
     }
     // 🌪️ พัดพา: ทอร์นาโดสูงหมุนที่เป้า ดูดอนุภาคธาตุขึ้นไป แล้วเหวี่ยงไปลงตัว/ช่องรอบข้าง · พื้น 3×3 เป็นลม
+    // ☠️🔥 หมอกพิษ: ไฟจุดพิษ → ควันเขียวม่วงพวยพุ่งเต็ม 3×3 แล้วแผ่ค้าง (หมอกที่ค้างวาดจาก state — masterFieldFx)
+    case "fog": {
+      const k = env(p, 0, 0.08, 0.7, 1), grow = easeOut3(clamp01(p / 0.4));
+      for (const t of [...own, ...ring]) quad(g, t.x, t.y, 1, 1, 0.01, rgba(TOX, 0.22 * k));
+      quadStroke(g, e.at.x - 1, e.at.y - 1, n + 2, n + 2, 0.02, rgba(TOX, 0.8 * k), 3);
+      for (let i = 0; i < 26 * many; i++) {
+        const h = hash01(seed + i), an = h * TAU, r = (0.2 + hash01(seed + i * 7) * 1.4) * grow, z = 0.2 + hash01(seed + i * 3) * 1.6 * grow + p * 0.6;
+        const [px, py, ps] = P(wx + Math.cos(an) * r, wy + Math.sin(an) * r, z);
+        glow(g, px, py, ps * (0.35 + h * 0.4), i % 3 ? TOX : MIASMA, 0.5 * k);
+      }
+      additive(g, () => { const [fx, fy, fs] = P(wx, wy, 0.4); glow(g, fx, fy, fs * 1.4 * (1 - p), RGB.fire, 0.8 * env(p, 0, 0.03, 0.15, 0.35)); });
+      break;
+    }
+    // ☠️⚡ กระตุ้น: ประกายเขียวเหลืองวิ่งรอบตัว + ฟองพิษเดือด
+    case "stir": {
+      const k = env(p, 0, 0.05, 0.75, 1);
+      additive(g, () => {
+        glow(g, x, y, s * 1.3 * n, TOX, 0.5 * k);
+        for (let i = 0; i < 14 * many; i++) {
+          const h = hash01(seed + i), an = h * TAU + p * 9, r = 0.35 * n + h * 0.3;
+          const [ax, ay] = P(wx + Math.cos(an) * r, wy + Math.sin(an) * r, 0.2 + h * 1.2);
+          const [bx, by] = P(wx + Math.cos(an + 0.5) * r, wy + Math.sin(an + 0.5) * r, 0.3 + h * 1.2);
+          g.strokeStyle = rgba(i % 2 ? RGB.bolt : TOX, 0.9 * k); g.lineWidth = 2.2; g.beginPath(); g.moveTo(ax, ay); g.lineTo((ax + bx) / 2 + (h - 0.5) * 10, (ay + by) / 2 - 6); g.lineTo(bx, by); g.stroke();
+        }
+      });
+      for (let i = 0; i < 12 * many; i++) {
+        const h = hash01(seed + i * 5), q = (p * 2 + h) % 1, an = h * TAU;
+        const [px, py, ps] = P(wx + Math.cos(an) * 0.3 * n, wy + Math.sin(an) * 0.3 * n, 0.2 + q * 1.4);
+        g.strokeStyle = rgba(TOX, 0.8 * k * (1 - q)); g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, Math.max(2, ps * 0.06), 0, TAU); g.stroke();
+      }
+      break;
+    }
+    // ☠️🌪️ กระจายพิษ: ลมหมุนหอบละอองพิษ แล้วยิงหยดพิษไปศัตรูในกรอบ 5×5
+    case "spread": {
+      const k = env(p, 0, 0.05, 0.8, 1), spin = p * TAU * 3;
+      quadStroke(g, e.at.x - 2, e.at.y - 2, n + 4, n + 4, 0.02, rgba(TOX, 0.75 * k), 3);
+      for (let j = 0; j < 8; j++) { gEllipse(g, wx, wy, (0.3 + j * 0.25) * n, j * 0.35, 36); g.strokeStyle = rgba(j % 2 ? TOX : RGB.wind, (0.7 - j * 0.06) * k); g.lineWidth = 3; g.stroke(); }
+      for (const [ox, oy] of others) {
+        const q = clamp01((p - 0.2) / 0.45);
+        const mx = wx + (ox - wx) * q, my = wy + (oy - wy) * q, z = 0.4 + Math.sin(q * Math.PI) * 1.4;
+        const [px, py, ps] = P(mx, my, z);
+        glow(g, px, py, ps * 0.25, TOX, 0.95 * k);
+        if (q >= 1) { const [hx, hy, hs] = P(ox, oy, 0.4); glow(g, hx, hy, hs * 0.6 * (1 - clamp01((p - 0.65) / 0.3)), TOX, 0.8); }
+      }
+      for (let i = 0; i < 20 * many; i++) {
+        const h = hash01(seed + i), an = spin + h * TAU, r = (0.2 + h * 0.9) * n;
+        const [px, py, ps] = P(wx + Math.cos(an) * r, wy + Math.sin(an) * r, h * 2.2);
+        g.fillStyle = rgba(TOX, 0.8 * k); g.beginPath(); g.arc(px, py, Math.max(1.5, ps * 0.04), 0, TAU); g.fill();
+      }
+      break;
+    }
+    // ✨🌑 หลุมดำ: แสงกับความมืดชนกัน → จุดดำยุบตัว วงแสงม่วงทองหมุนเข้า (หลุมที่ค้างวาดจาก state — masterFieldFx)
+    case "hole": {
+      const k = env(p, 0, 0.06, 0.8, 1), shrink = 1 - easeOut3(clamp01(p / 0.5));
+      additive(g, () => {
+        glow(g, x, y, s * (2.5 * shrink + 0.6), RGB.light, 0.8 * k);
+        for (let j = 0; j < 5; j++) { gEllipse(g, wx, wy, (2.4 - j * 0.4) * (0.4 + shrink * 0.6), 0.6, 44); g.strokeStyle = rgba(j % 2 ? RGB.dark : RGB.light, 0.8 * k); g.lineWidth = 3; g.stroke(); }
+      });
+      const [cx, cy, cs] = P(wx, wy, 0.6);
+      g.fillStyle = rgba(VOID, 0.95 * k); g.beginPath(); g.arc(cx, cy, cs * 0.35 * (1 - shrink * 0.5), 0, TAU); g.fill();
+      break;
+    }
+    // ✨✨ แสงจ้า: ดาวแสงขาวระเบิดที่ตา — แฉกยาวเต็มจอสั้นๆ + วงทอง
+    case "glare": {
+      const k = env(p, 0, 0.04, 0.5, 1), [hx, hy, hs] = P(wx, wy, 1.0);
+      additive(g, () => {
+        glow(g, hx, hy, hs * 3.2 * k, RGB.light, 0.95 * k, WHITE);
+        g.strokeStyle = rgba(WHITE, 0.9 * k); g.lineWidth = 3;
+        for (let i = 0; i < 8; i++) {
+          const an = i * (TAU / 8) + p * 0.6, L = hs * (i % 2 ? 2.2 : 4.5) * k;
+          g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx + Math.cos(an) * L, hy + Math.sin(an) * L); g.stroke();
+        }
+      });
+      gEllipse(g, wx, wy, 0.8 * n * (0.5 + p), 0.05, 40); g.strokeStyle = rgba(RGB.light, 0.8 * k); g.lineWidth = 3; g.stroke();
+      break;
+    }
     case "swirl": {
       const W = RGB.wind, k = env(p, 0, 0.05, 0.78, 1), grow = easeOut3(clamp01(p / 0.28)), spin = p * TAU * 3.2;
       for (const t of [...own, ...ring]) quad(g, t.x, t.y, 1, 1, 0.01, rgba(W, 0.25 * k));
