@@ -40,7 +40,7 @@
 //      ตีปกติใส่คนในกระดองของเรา (ฮุค interceptStrike · หลบได้) = คลิปชนทุกครั้ง → ความเสียหาย 6 + ผุพัง 2 เทิร์น · กระดองแตก
 //    Orca: ระยะเดิน +1 · เริ่มตาเดินบนพื้นเปียก = +3 แทน · เดินทิ้งพื้นเปียก 3 เทิร์น (ย้อนการเดินได้) · ว่ายบนพื้นเปียก ไม่ไถล (ฮุค swims)
 //      Orca Echo (ปุ่มพิเศษบน HUD ไม่ใช่สกิลรอง — My-Th Edge ใช้ได้ตามเดิม · 0 แต้ม · ไม่นับเป็นการใช้สกิล · คูลดาวน์ 2 เทิร์น): 2 เทิร์น โซระเห็นทุกคนที่ซ่อนอยู่ (ล่องหน/พุ่ม/ม่าน — ฮุค trueSight)
-//      Orca Separade: เลือกทิศ — ช่องแรกเปียก = ไถลตามพื้นเปียกที่ต่อกันจนสุด · ไม่เปียก = พุ่ง 6×1 ทิ้งพื้นเปียก
+//      Orca Separade: เลือกทิศ — ช่องแรกเปียก = ไถลตามพื้นเปียกที่ต่อกันจนสุด (สั้นกว่า 6 = ไปต่อจนครบ 6) · ไม่เปียก = พุ่ง 6×1 · ทิ้งพื้นเปียกตามทาง
 //        ชนศัตรูคนแรก (หลบได้) → หยุดหน้าเป้า → พายุน้ำ: ศัตรูทุกคนในแนวจากเป้าถึงสุดแนว (หลบแยก) ความเสียหาย 5 + แต้มสกิล -2 (ไม่พอ = ส่วนที่ขาดเป็นความเสียหาย)
 //  ธาตุ (ผู้ใช้สั่ง): Fire 🔥 · Eagle 🌪️ ลม · Orca 💧 น้ำ · Tutle ไม่มี
 // ============================================================
@@ -264,9 +264,10 @@ function chargePlan(engine, p, dir, frame) {
   if (frame === "orca") {
     const all = engine.chargeTiles(p, dir, 64);
     if (all.length && engine.ice.wetAt(all[0].x, all[0].y)) {
-      const run = [];
-      for (const t of all) { if (!engine.ice.wetAt(t.x, t.y) || t.obstacle) break; run.push(t); }
-      return { tiles: run, water: true };
+      // ไถลตามพื้นเปียกที่ต่อกัน · สั้นกว่า 6 = ไปต่อจนครบ 6 ช่อง (ผู้ใช้สั่ง 2026-11-15) · ยาวกว่า = ไถลจนสุดพื้นเปียก
+      let run = 0;
+      for (const t of all) { if (!engine.ice.wetAt(t.x, t.y) || t.obstacle) break; run++; }
+      return { tiles: all.slice(0, Math.max(ORCA.len, run)), water: true };
     }
     return { tiles: all.slice(0, ORCA.len), water: false };
   }
@@ -291,8 +292,8 @@ function charge(engine, p, dir, frame) {
     hitCrossed(p, blocked ? [...passed, blocked] : passed); // ก่อนพัง — หนามที่พุ่งผ่านโดนดาเมจก่อนแตก
     const broke = smashPassed(engine, p, passed.slice(0, runTo + 1));
     if (broke.length) engine.boardFx("smashFx", { id: p.id, tiles: broke.map((b) => ({ ...b, step: 0 })) });
-    // Orca บนพื้นแห้ง: ทิ้งพื้นเปียกตามทางที่พุ่งผ่าน (รวมช่องออกตัว)
-    if (frame === "orca" && !water) engine.ice.layWet([start, ...passed.slice(0, Math.max(0, land) + 1)].map(tile), ORCA.wetTurns);
+    // Orca: ทิ้งพื้นเปียกตามทางที่พุ่งผ่าน (รวมช่องออกตัว · ช่องที่เปียกอยู่แล้วข้าม)
+    if (frame === "orca") engine.ice.layWet([start, ...passed.slice(0, Math.max(0, land) + 1)].map(tile), ORCA.wetTurns);
     if (!hit) {
       if (land >= 0) p.pos = tile(passed[land]);
       engine.log(`🐭 ${p.name} พุ่งไปสุดทาง — ไม่ชนใคร`);
@@ -802,7 +803,7 @@ module.exports = {
       const b = ultBonus();
       if (f === "eagle") return { name: "Eagle Separade", img: IMG.eagleUlt, desc: `เลือกทิศ: พุ่งสุดแนว ${EAGLE.len}×1 · ชนศัตรูคนแรก: รวบศัตรูในระยะ ${EAGLE.radius} รอบเป้าเข้ามาติดเป้า แล้วพายุขนนก — เป้า ${EAGLE.center + b} · คนอื่น ${EAGLE.other + b} (คูลดาวน์ ${ULT_CD} เทิร์น)` };
       if (f === "tutle") return { name: "Tutle Separade", img: IMG.tutleUlt, desc: `เลือกช่องในระยะ ${TUTLE.range}: โยนกระดองเต่า (แนวตรง = ไถลชนคนแรกแล้วดันไปถึงช่องนั้น) · อยู่ ${TUTLE.turns} เทิร์น · ครอบศัตรู = เดินไม่ได้ ${TUTLE.turns} เทิร์น และไม่ได้รับความเสียหายจากคนอื่น · ตีปกติใส่คนในกระดอง = ${TUTLE.dmg + b} + ผุพัง ${TUTLE.decay} เทิร์น · ปุ่มวาร์ป: ไปที่กระดอง (ท่าจบ) (คูลดาวน์ ${ULT_CD} เทิร์น)` };
-      if (f === "orca") return { name: "Orca Separade", img: IMG.orcaUlt, desc: `เลือกทิศ: ช่องแรกเปียก = ไถลตามพื้นเปียกจนสุด · ไม่เปียก = พุ่ง ${ORCA.len}×1 ทิ้งพื้นเปียก · ชนศัตรูคนแรก: พายุน้ำ ศัตรูทุกคนในแนวจากเป้า ${ORCA.dmg + b} + แต้มสกิล -${ORCA.drain} (ไม่พอ = ส่วนที่ขาดเป็นความเสียหาย) (คูลดาวน์ ${ULT_CD} เทิร์น)` };
+      if (f === "orca") return { name: "Orca Separade", img: IMG.orcaUlt, desc: `เลือกทิศ: พุ่ง ${ORCA.len}×1 ทิ้งพื้นเปียก · ช่องแรกเปียกและพื้นเปียกยาวกว่า ${ORCA.len} = ไถลจนสุดพื้นเปียก · ชนศัตรูคนแรก: พายุน้ำ ศัตรูทุกคนในแนวจากเป้า ${ORCA.dmg + b} + แต้มสกิล -${ORCA.drain} (ไม่พอ = ส่วนที่ขาดเป็นความเสียหาย) (คูลดาวน์ ${ULT_CD} เทิร์น)` };
       if (b) return { desc: `ร่าง My-Th · เลือกทิศ: พุ่งสุดแนว ${ULT_LEN}×1 พังสิ่งกีดขวางที่ผ่าน · ชนศัตรูคนแรกที่หลบไม่พ้น: ความเสียหาย ${ULT_DMG + b} แล้วสลับที่ · ตัวใหญ่: ความเสียหาย ${ULT_DMG + BIG_BONUS + b} แล้วผลักถอย ${BIG_PUSH} ช่อง (คูลดาวน์ ${ULT_CD} เทิร์น)` };
     }
     return null;

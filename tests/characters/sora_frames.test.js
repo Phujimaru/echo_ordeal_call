@@ -162,6 +162,18 @@ test('Orca Separade: พื้นแห้ง = พุ่ง 6×1 ทิ้ง�
   assert.ok(engine.ice.wetAt(1, 5) && engine.ice.wetAt(2, 5) && engine.ice.wetAt(3, 5), 'ทิ้งพื้นเปียกตามทาง');
 });
 
+test('Orca Separade: พื้นเปียกสั้นกว่า 6 = ไถลต่อจนครบ 6 ช่อง (ทิ้งพื้นเปียกช่วงที่แห้ง)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 12, 12]]);
+  frame(P.S, 'orca');
+  engine.ice.layWet([{ x: 2, y: 5 }, { x: 3, y: 5 }]);
+  engine.setActor('S');
+  engine.useSkill('S', 'ultimate', [], { dir: 'right' });
+  flush(t, 12000);
+  assert.deepEqual(P.S.pos, { x: 7, y: 5 }, 'ครบ 6 ช่อง');
+  assert.ok(engine.ice.wetAt(5, 5) && engine.ice.wetAt(7, 5), 'ช่วงที่แห้งกลายเป็นพื้นเปียก');
+});
+
 test('Orca Separade: ช่องแรกเปียก = ไถลตามพื้นเปียกเกิน 6 ช่องจนชน', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 10, 5]]);
