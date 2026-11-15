@@ -314,3 +314,12 @@ test("พื้นที่: Twin Sword 7 กรอบ 3×3 (ครั้งท�
   assert.equal(M.knockArea(m).pad, 2);
   assert.deepEqual([...rows(2)].sort(), [4, 5, 6, 7, 8, 9]);
 });
+
+test("ฟื้นเป็นเฟส 2: +25 แม้ติดไร้ทางเยียวยา / เลือดไหล / ผกผัน", () => {
+  const { m, b } = setup();
+  kill(b, m);
+  m.statuses.nohealing = 3; m.statuses.hbleed = 2; m.statuses.invert = 2;
+  draw.dealRound(); engine.clearPhaseTimer();
+  assert.equal(m.master.phase, 2);
+  assert.equal(m.hp, 26);
+});

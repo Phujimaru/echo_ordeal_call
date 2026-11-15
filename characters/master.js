@@ -174,7 +174,8 @@ function revive(engine, p) {
   s.phase = 2;
   s.slamUses = 0;
   s.slamPress = 0;
-  engine.withEffectSource(p, () => engine.healHp(p, REVIVE_HEAL));
+  // ฟื้น 25 ตรงๆ ไม่ผ่านท่อฮีล — ไม่สนไร้ทางเยียวยา / เลือดไหล / ผกผัน (ผู้ใช้ 2026-11-15)
+  p.hp = Math.min(engine.maxHpOf ? engine.maxHpOf(p) : HP, (p.hp || 0) + REVIVE_HEAL);
   engine.log(`👼 ${p.name} ฟื้นคืนชีพ! พลังชีวิต +${REVIVE_HEAL} — กลายเป็น Holy`);
   fx(engine, p, "revive", { secs: T.revive });
   engine.sfx(SFX.revive); // + ประสานเสียง/คลื่นกระแทกตามจังหวะฝั่ง client
