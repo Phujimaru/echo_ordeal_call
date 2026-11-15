@@ -39,7 +39,7 @@
 //      ปุ่ม HUD "วาร์ป" (ตาของตัวเอง · ไม่ใช้แต้ม): วาร์ปไปที่กระดอง (มีคนในกระดอง = ช่องว่างติดกระดอง) → ท่าจบ กระดองหาย ปล่อยคนในกระดอง · เดินต่อไม่ได้
 //      ตีปกติใส่คนในกระดองของเรา (ฮุค interceptStrike · หลบได้) = คลิปชนทุกครั้ง → ความเสียหาย 6 + ผุพัง 2 เทิร์น · กระดองแตก
 //    Orca: ระยะเดิน +1 · เริ่มตาเดินบนพื้นเปียก = +3 แทน · เดินทิ้งพื้นเปียก 3 เทิร์น (ย้อนการเดินได้) · ว่ายบนพื้นเปียก ไม่ไถล (ฮุค swims)
-//      Orca Echo (แทน My-Th Edge · 0 แต้ม · ไม่นับเป็นการใช้สกิล · คูลดาวน์ 2 เทิร์น): 2 เทิร์น โซระเห็นทุกคนที่ซ่อนอยู่ (ล่องหน/พุ่ม/ม่าน — ฮุค trueSight)
+//      Orca Echo (ปุ่มพิเศษบน HUD ไม่ใช่สกิลรอง — My-Th Edge ใช้ได้ตามเดิม · 0 แต้ม · ไม่นับเป็นการใช้สกิล · คูลดาวน์ 2 เทิร์น): 2 เทิร์น โซระเห็นทุกคนที่ซ่อนอยู่ (ล่องหน/พุ่ม/ม่าน — ฮุค trueSight)
 //      Orca Separade: เลือกทิศ — ช่องแรกเปียก = ไถลตามพื้นเปียกที่ต่อกันจนสุด · ไม่เปียก = พุ่ง 6×1 ทิ้งพื้นเปียก
 //        ชนศัตรูคนแรก (หลบได้) → หยุดหน้าเป้า → พายุน้ำ: ศัตรูทุกคนในแนวจากเป้าถึงสุดแนว (หลบแยก) ความเสียหาย 5 + แต้มสกิล -2 (ไม่พอ = ส่วนที่ขาดเป็นความเสียหาย)
 //  ธาตุ (ผู้ใช้สั่ง): Fire 🔥 · Eagle 🌪️ ลม · Orca 💧 น้ำ · Tutle ไม่มี
@@ -177,7 +177,7 @@ function burn(engine, t) {
 }
 const gunOn = (p) => mythOn(p) && !!st(p).gun;
 const knifeOn = (p) => mythOn(p) && !st(p).gun;
-// แปลงร่าง / สลับอาวุธ / Orca Echo = ไม่กินโควตาสกิลของเทิร์น และกดได้แม้ใช้โควตาไปแล้ว
+// แปลงร่าง / สลับอาวุธ = ไม่กินโควตาสกิลของเทิร์น และกดได้แม้ใช้โควตาไปแล้ว
 const freeTier = (p, tier) => isSora(p) && (tier === "basic" || tier === "secondary");
 const formAtk = (p) => (mythOn(p) ? (pveOn() ? PVE_FORM_ATK : FORM_ATK) : 0);
 const fxOut = (engine, kind, data) => engine.boardFx("soraFx", { kind, ...data });
@@ -570,12 +570,25 @@ function warp(engine, p) {
 }
 const encasedBy = (engine, u) => Object.values(engine.players).find((q) => isSora(q) && q.alive && q.sora && q.sora.shell && q.sora.shell.on === u.id) || null;
 
+// Orca Echo (ปุ่มพิเศษ ร่าง Orca · 0 แต้ม · ไม่ใช้โควตาสกิล · ไม่ล็อกการเดิน · คูลดาวน์ 2): โซระเห็นทุกคนที่ซ่อน 2 เทิร์น
+//  คลิปทุกครั้ง (ผู้ใช้สั่ง) แล้วคลื่นโซนาร์เห็นเฉพาะโซระ
+function orcaEcho(engine, p) {
+  const s = st(p), r = engine.roundNumber;
+  if (frameOf(p) !== "orca" || r < (s.echoReady || 0)) return false;
+  s.echoReady = r + 1 + ORCA.echoCd;
+  s.sightUntil = r + ORCA.echoTurns;
+  engine.queueCutscene(p, CUT.orcaEcho);
+  engine.deferAfterCutscene(() => { if (p.alive && p.pos) engine.boardFxTo([p.id], "soraFx", { kind: "sonar", at: tile(p.pos) }); });
+  engine.log(`🐋 ${p.name} ใช้ Orca Echo — มองเห็นทุกคนที่ซ่อนอยู่ ${ORCA.echoTurns} เทิร์น`);
+  return true;
+}
+
 // ร่าง My-Th / Frame: ปุ่มแปลงร่างเป็นตัวเลือก (desc = คำอธิบายตอนชี้ค้าง — กฎผู้ใช้ 2026-10-19)
 const CHOICE = {
   fire: { key: "fire", name: "Fire Frame", img: IMG.fire, desc: `Fire Frame: ตีปกติและ Mouse Separade ติดลุกไหม้ ${FIRE_BURN} · จบเทิร์นเสียแต้มสกิล ${FIRE_UPKEEP} (แต้มไม่พอ = กลับร่าง My-Th)` },
   eagle: { key: "eagle", name: "Eagle Frame", img: IMG.eagle, desc: `Eagle Frame: ระยะเดิน +${EAGLE.mov} · ท่าไม้ตาย Eagle Separade` },
   tutle: { key: "tutle", name: "Tutle Frame", img: IMG.tutle, desc: `Tutle Frame: ระยะเดิน ${TUTLE.mov} · เกราะสูงสุด +${TUTLE.armor} · ท่าไม้ตาย Tutle Separade` },
-  orca: { key: "orca", name: "Orca Frame", img: IMG.orca, desc: `Orca Frame: ระยะเดิน +${ORCA.mov} (เริ่มบนพื้นเปียก +${ORCA.wetMov}) · เดินทิ้งพื้นเปียก ไม่ลื่น · สกิลรอง Orca Echo · ท่าไม้ตาย Orca Separade` },
+  orca: { key: "orca", name: "Orca Frame", img: IMG.orca, desc: `Orca Frame: ระยะเดิน +${ORCA.mov} (เริ่มบนพื้นเปียก +${ORCA.wetMov}) · เดินทิ้งพื้นเปียก ไม่ลื่น · ปุ่มพิเศษ Orca Echo · ท่าไม้ตาย Orca Separade` },
   myth: { key: "myth", name: "Kamen Rider My-Th", img: IMG.myth, desc: "กลับเป็นร่าง Kamen Rider My-Th" },
   sora: { key: "sora", name: "คืนร่าง", img: IMG.toSora, desc: "กลับเป็นร่างโซระ" },
 };
@@ -716,13 +729,21 @@ module.exports = {
     }
     return shells.length ? { soraShells: shells } : {};
   },
+  // ปุ่มพิเศษบน HUD (ไม่ใช่ช่องสกิล — ผู้ใช้สั่ง 2026-11-15): วาร์ปไปกระดอง (มีกระดองอยู่) · Orca Echo (ร่าง Orca)
   hudActions(engine, p) {
-    if (!isSora(p) || !p.alive || !st(p).shell) return undefined;
-    return [{ key: "soraWarp", icon: "🐢", name: "วาร์ป", img: IMG.tutleUlt, disabled: !(engine.canAct(p) && warpSpot(engine, p)) }];
+    if (!isSora(p) || !p.alive) return undefined;
+    const s = st(p), r = engine.roundNumber, out = [];
+    if (frameOf(p) === "orca") {
+      const cd = Math.max(0, (s.echoReady || 0) - r);
+      out.push({ key: "orcaEcho", icon: "🐋", name: "Orca Echo", img: IMG.orcaEcho, cd: Math.min(ORCA.echoCd, cd), on: r < (s.sightUntil || 0), disabled: cd > 0 || !engine.canAct(p) });
+    }
+    if (s.shell) out.push({ key: "soraWarp", icon: "🐢", name: "วาร์ป", img: IMG.tutleUlt, disabled: !(engine.canAct(p) && warpSpot(engine, p)) });
+    return out.length ? out : undefined;
   },
   charAction(engine, p, key) {
-    if (!isSora(p) || key !== "soraWarp" || !engine.canAct(p) || !st(p).shell) return;
-    if (warp(engine, p)) engine.broadcastState();
+    if (!isSora(p) || !engine.canAct(p)) return;
+    if (key === "soraWarp" && st(p).shell) { if (warp(engine, p)) engine.broadcastState(); return; }
+    if (key === "orcaEcho" && orcaEcho(engine, p)) engine.pausePlayingForCutscene();
   },
 
   // ---------- สกิล ----------
@@ -735,7 +756,6 @@ module.exports = {
     }
     if (tier === "secondary") {
       if (!s.myth) return false;
-      if (frameOf(p) === "orca") return engine.roundNumber >= (s.echoReady || 0);
       return s.weaponRound !== engine.roundNumber;
     }
     if (tier === "ultimate") {
@@ -749,7 +769,7 @@ module.exports = {
     }
     return false;
   },
-  // แปลงร่าง / สลับอาวุธ / Orca Echo ไม่นับเป็นการใช้สกิล (ผู้ใช้ตัดสิน) — กดแล้วยังใช้ท่าไม้ตายได้ในเทิร์นเดียวกัน
+  // แปลงร่าง / สลับอาวุธ ไม่นับเป็นการใช้สกิล (ผู้ใช้ตัดสิน) — กดแล้วยังใช้ท่าไม้ตายได้ในเทิร์นเดียวกัน
   skipsTurnQuota: freeTier,
   ignoresTurnQuota: freeTier,
   // ท่าพุ่ง: ผลของสกิลโจมตีพื้นที่ลงเองเฉพาะช่องที่พุ่งผ่านจริง (hitCrossed)
@@ -763,7 +783,7 @@ module.exports = {
     return area;
   },
   skillSound(p, tier) {
-    if (!isSora(p) || tier !== "secondary" || frameOf(p) === "orca") return null; // Orca Echo = คลิป (ไม่มีเสียงซ้อน)
+    if (!isSora(p) || tier !== "secondary") return null;
     return st(p).gun ? SFX.toGun : SFX.toKnife; // เรียกหลังสลับแล้ว = เสียงของอาวุธที่ถืออยู่ตอนนี้
   },
   skillPub(p, tier) {
@@ -776,7 +796,6 @@ module.exports = {
       return { img: f ? IMG.toSora : IMG.fire, choices: formChoices(f).map((c) => ({ ...c, area: { kind: "self" }, cost: 0, free: true, locked })) };
     }
     if (tier === "secondary") {
-      if (f === "orca") return { name: "Orca Echo", img: IMG.orcaEcho, desc: `ไม่นับเป็นการใช้สกิล: ${ORCA.echoTurns} เทิร์น เห็นทุกคนที่ซ่อนอยู่ (ล่องหน/พุ่มหญ้า/ม่าน) และโจมตีได้ · คนอื่นยังมองไม่เห็นตามเดิม (คูลดาวน์ ${ORCA.echoCd} เทิร์น)` };
       return { name: `My-Th Edge (${st(p).gun ? "มีด" : "ปืน"})` };
     }
     if (tier === "ultimate") {
@@ -822,14 +841,6 @@ module.exports = {
       return s.myth ? " — Kamen Rider My-Th" : " — โซระ";
     }
     if (tier === "secondary") {
-      if (frameOf(p) === "orca") {
-        s.echoReady = engine.roundNumber + 1 + ORCA.echoCd;
-        s.sightUntil = engine.roundNumber + ORCA.echoTurns;
-        engine.queueCutscene(p, CUT.orcaEcho); // ทุกครั้ง (ผู้ใช้สั่ง)
-        engine.deferAfterCutscene(() => { if (p.alive && p.pos) engine.boardFxTo([p.id], "soraFx", { kind: "sonar", at: tile(p.pos) }); });
-        engine.log(`🐋 ${p.name} ใช้ Orca Echo — มองเห็นทุกคนที่ซ่อนอยู่ ${ORCA.echoTurns} เทิร์น`);
-        return "";
-      }
       s.weaponRound = engine.roundNumber;
       s.gun = !s.gun;
       engine.log(`🗡️ ${p.name} เปลี่ยน My-Th Edge เป็น${s.gun ? "ปืน" : "มีด"}`);
@@ -913,12 +924,9 @@ module.exports = {
   skillLocks(engine, p) {
     if (!isSora(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
-    const orca = frameOf(p) === "orca";
     return {
       basic: { locked: s.formRound === r, free: true }, // free = ไม่กินโควตาสกิลของเทิร์น (ปุ่มยังกดได้หลังใช้สกิลอื่น)
-      secondary: orca
-        ? { locked: r < (s.echoReady || 0), free: true, cd: Math.min(ORCA.echoCd, Math.max(0, (s.echoReady || 0) - r)) }
-        : { locked: !s.myth || s.weaponRound === r, free: true },
+      secondary: { locked: !s.myth || s.weaponRound === r, free: true },
       // เทิร์นที่กดเอง = โควตาสกิลล็อกอยู่แล้ว → โชว์ไม่เกิน ULT_CD
       ultimate: { locked: !s.myth, cd: Math.min(ULT_CD, Math.max(0, s.ultReady - r)) },
     };
