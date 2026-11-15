@@ -26,7 +26,6 @@ const timers = require("../timers");
 const view = require("../view");
 const Visibility = require("../visibility");
 const Ice = require("../ice");
-const Zero = require("../zeroTime");
 const Ride = require("../ride");
 const Voice = require("../voice");
 
@@ -96,9 +95,6 @@ function computeAttackBase(engine, attacker, target) {
   // ช่องพิเศษ (GRID_PLAN §3.1): ยืนบนแท่นพลัง พลังโจมตี +1 — ungated ใครยืนก็ได้
   //  ตัวใหญ่ (Echo ขยายร่าง) ไม่ได้โบนัสจากช่องที่ยืน
   const terrainAtk = attacker.pos && action.sizeOf(attacker) <= 1 ? Board.terrainAtk(action.boardMap(), attacker.pos.x, attacker.pos.y) : 0;
-  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เฟส 3 +1 · เฟส 4 +2 — ทุกคน ungated
-  const zeroAtkFx = Zero.attackBonus();
-  const zeroAtk = zeroAtkFx ? zeroAtkFx.amount : 0;
   // ออร่าพลังโจมตีจากคนอื่น/ตัวเอง (ฮุค auraAtk(engine, attacker) → { amount, name } — ยูนะ: ร้อนแรงดังไฟ / คำอวยพรสุดท้าย) — ungated
   const auraAtkFx = [];
   for (const mod of CHAR_HOOKS.MODULES) {
@@ -109,10 +105,10 @@ function computeAttackBase(engine, attacker, target) {
   const auraAtk = auraAtkFx.reduce((n, r) => n + r.amount, 0);
   // Fodlan: ผลของด่าน (ถือศิลาตรา +1 — server/fodlan/stage5.js atkBonus) — ungated
   const fodlanAtk = require("../fodlan").atkBonus(attacker, target);
-  const base = baseHook + hookBonus + journeyAtk + giftAtk + terrainAtk + zeroAtk + auraAtk + fodlanAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
+  const base = baseHook + hookBonus + journeyAtk + giftAtk + terrainAtk + auraAtk + fodlanAtk + (empowerAtk ? 1 : 0) + cardAtkBonus;
   return {
     base,
-    empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, zeroAtkFx, auraAtkFx, fodlanAtk,
+    empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, auraAtkFx, fodlanAtk,
     ...hookCtx,
   };
 }
@@ -277,7 +273,7 @@ function strikeBody(attacker, target, counter) {
 
   const atkCtx = computeAttackBase(engine, attacker, target);
   let { base } = atkCtx;
-  const { empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, zeroAtkFx, muimiTowerAtk, auraAtkFx } = atkCtx;
+  const { empowerAtk, cardAtkBonus, journeyAtkFx, terrainAtk, muimiTowerAtk, auraAtkFx } = atkCtx;
   // ผกผัน (สถานะ Universal patch 2.2.1): โบนัสพลังโจมตีที่ควรได้ กลับกลายเป็นลดพลังโจมตีแทน (คำนวณรอบเพดานฐาน 1 หน่วย)
   if (invertActive(attacker)) base = Math.max(0, 1 - (base - 1));
   // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
@@ -355,7 +351,6 @@ function strikeBody(attacker, target, counter) {
   const atkFx = (name, img = view.displayImg(attacker)) => addFx({ name, img, by: attacker.name, color: lobby.colorOf(attacker) }, "atk");
   const defFx = (name, img = view.displayImg(target)) => addFx({ name, img, by: target.name, color: lobby.colorOf(target) }, "def");
   if (journeyAtkFx) atkFx(journeyAtkFx.name, null);
-  if (zeroAtkFx) atkFx(zeroAtkFx.name, null);
   if (terrainAtk > 0) atkFx(`แท่นพลัง +${terrainAtk}`, null);
   for (const r of auraAtkFx || []) atkFx(r.name, r.img || null);
   for (const name of CHAR_HOOKS.oberon_summer.atkFx(attacker)) atkFx(name, CHAR_HOOKS.oberon_summer.IMG.base);

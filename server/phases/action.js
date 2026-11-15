@@ -29,7 +29,6 @@ const timers = require("../timers");
 const view = require("../view");
 const Visibility = require("../visibility");
 const { engine } = require("../engine");
-const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
@@ -113,7 +112,7 @@ function breakObstacles(keys) {
   const out = [];
   for (const k of keys) {
     const kind = map.terrain[k];
-    if (!kind || Board.UNBREAKABLE.has(kind) || Fodlan.keepsTile(k)) continue; // เสายึด Eos ก็พังไม่ได้ · ผนึกมิโกะ (ห่วงเวลาซีโร่) พังด้วยการเดิน/ขยายร่างไม่ได้
+    if (!kind || Board.UNBREAKABLE.has(kind) || Fodlan.keepsTile(k)) continue; // เสายึด Eos ก็พังไม่ได้
     if (Ice.isSpikeKind(kind) || Ice.isWallKind(kind)) {
       // หนามน้ำแข็ง (Ice Spike) / กำแพงน้ำแข็ง (เซลิน): พังแล้วหายจากชั้นหนาม (เก็บไว้คืนตอนกดย้อนการเดิน)
       (match.board.smashedSpikes ||= {})[k] = Ice.removeSpike(k);
@@ -413,7 +412,7 @@ function placeOnBoard(area) {
     breakObstacles(spot.rubble);
     p.pos = { x: spot.x, y: spot.y };
   }
-  // ฮุค broadcast onBoardPlaced(engine): แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค/ห่วงเวลาซีโร่) — ไจโร: ลูกเหล็กบนพื้นกลับมือ
+  // ฮุค broadcast onBoardPlaced(engine): แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค) — ไจโร: ลูกเหล็กบนพื้นกลับมือ
   combat.broadcastHook("onBoardPlaced", engine);
 }
 // ช่องว่างที่ใกล้ pos ที่สุด (ไล่วงข้าวหลามตัดออกไป) — ไม่มีเลย = null
@@ -490,7 +489,7 @@ function tileFree(x, y, selfId = null) {
   return Board.freeTile(boardMap(), x, y, boardUnits(selfId || undefined), selfId, boardBlocked(selfId));
 }
 // ช่องตามแนวพุ่งตรงจากตัว (โซระ: Mouse Separade) ทีละช่องไม่เกิน len · ตัดที่ขอบกระดาน
-//  ต่อช่อง { x, y, obstacle: ชนิดสิ่งกีดขวาง | null, wall: พังไม่ได้ (ผนึกมิโกะ), shop, unitId: คนที่ยืน (ไม่นับตัวเอง · รวมคนที่มองไม่เห็น) }
+//  ต่อช่อง { x, y, obstacle: ชนิดสิ่งกีดขวาง | null, wall: พังไม่ได้ (UNBREAKABLE), shop, unitId: คนที่ยืน (ไม่นับตัวเอง · รวมคนที่มองไม่เห็น) }
 function chargeTiles(p, dir, len) {
   const v = Board.LINE_DIRS[dir];
   if (!v || !p || !p.pos) return [];
@@ -585,7 +584,7 @@ function tileArea(area, t) {
   for (let y = t.y - ly; y <= t.y + h - 1 - ly; y++) for (let x = t.x - lx; x <= t.x + w - 1 - lx; x++) if (Board.inBounds(map, x, y)) out.push({ x, y });
   return out;
 }
-// ช่องที่สกิลพื้นที่คลุม (aoe / line / tile) — ใช้ลงผลกับผนึกมิโกะ (ห่วงเวลาซีโร่) / หนามน้ำแข็ง · ชนิดอื่น = []
+// ช่องที่สกิลพื้นที่คลุม (aoe / line / tile) — ใช้ลงผลกับหนามน้ำแข็ง · ชนิดอื่น = []
 function areaTiles(p, area, dir, tile) {
   const kind = (area && area.kind) || "self";
   if (kind === "tile") { const t = tileOf(tile); return t ? tileArea(area, t) : []; }
@@ -1130,17 +1129,6 @@ function strikeTarget(id, targetId) {
     }
     finishActor();
   };
-  // ห่วงเวลาซีโร่: ตีผนึกมิโกะ ("seal:N") — ระยะเหมือนตีคน
-  const seal = Zero.sealIndexOf(targetId);
-  if (seal >= 0) {
-    if (!canAct(p) || !Zero.canHitSeal(p, seal)) return false;
-    timers.clearPhaseTimer();
-    match.action.locked = true;
-    Visibility.onHostileAct(p, "strike");
-    strikeObject(p, Zero.sealUnit(seal).pos);
-    Zero.attackSeal(p, seal, done);
-    return true;
-  }
   // หนามน้ำแข็ง ("spike:x,y" — Ice Spike): ทุกคนตีได้ · ระยะเหมือนตีคน
   const spikeK = Ice.spikeKeyOf(targetId);
   if (spikeK) {
@@ -1249,7 +1237,7 @@ function strikeAlly(p, target, done) {
   view.broadcastState();
   return true;
 }
-// ตีปกติใส่ของบนกระดาน (ผนึกมิโกะ / หนามน้ำแข็ง) — ฮุค onStrikeObject(engine, p, at) ก่อนลงผล (ไจโร: ใช้ลูกเหล็ก ลูกตกช่องนั้น)
+// ตีปกติใส่ของบนกระดาน (หนามน้ำแข็ง) — ฮุค onStrikeObject(engine, p, at) ก่อนลงผล (ไจโร: ใช้ลูกเหล็ก ลูกตกช่องนั้น)
 function strikeObject(p, at) {
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onStrikeObject) combat.withEffectSource(p, () => combat.runHook(hook, "onStrikeObject", engine, p, { x: at.x, y: at.y }));
@@ -1393,7 +1381,7 @@ function startCanto(p) {
   resumeAction();
   return true;
 }
-// ผลของช่องที่ยืนตอนจบตาของตัวนี้ (จุดฟื้นฟู / ช่องพิเศษ / ของในห่วงเวลาซีโร่)
+// ผลของช่องที่ยืนตอนจบตาของตัวนี้ (จุดฟื้นฟู / ช่องพิเศษ)
 function endUnitTile(p) {
   const map = boardMap();
   // ตัวใหญ่: ช่องไหนของตัวทับจุดฟื้นฟูก็ได้ (ฟื้นครั้งเดียว)
@@ -1403,7 +1391,6 @@ function endUnitTile(p) {
   }
   if (p && p.alive && p.pos) tileEndEffect(p);
   if (p && p.alive && p.pos) require("../element").terrainAura(p); // พื้นธาตุ (server/element.js · GRID_PLAN §8.7): จบตาบนพื้นไฟ/น้ำแข็ง/น้ำ = ติดคราบ
-  if (p && p.alive && p.pos) Zero.collectPickup(p); // ห่วงเวลาซีโร่: จบตาบนของฟื้นพลังชีวิต = เก็บ
   if (p && p.alive && p.pos) RT.onUnitEnd(p); // Road Trip สู้บนรถตู้: ใครหลุดออกนอกรถ (พุ่ง/วาร์ป/ผลัก) = ร่วง
   if (p && p.alive && p.pos) Fodlan.onUnitEnd(p); // Fodlan: ยึดธง · ยืนบนไฟ · นั่งบัลลังก์ … (server/fodlan/stageN.js)
 }

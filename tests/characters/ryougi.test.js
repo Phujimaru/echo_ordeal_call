@@ -334,3 +334,32 @@ test('ดับสิ้นซะ: สังหารทันที 5% · เ�
   assert.equal(P.A.ryougiSlain, true);
   assert.equal(fxOf('kill').filter((k) => k.how === 'skill').length, 1);
 });
+
+// ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15) — ท่าไม้ตายทอยหลบทีละคน · แม่นยำของเรียวกิ = โดนเสมอ
+test('ดับสิ้นซะ: หลบหลีก 100% = ไม่ถูกขโมยแต้ม ไม่เสีย ไม่ติดรากฐานจิต ไม่ลดคูลดาวน์เนตรมณะ (ยังถูกผลัก) · แม่นยำโดน', () => {
+  let { P, row } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2], ['B', 'dummy', 4]]);
+  engine.setActor('R');
+  Math.random = () => 0.99;
+  P.A.statuses.evade = 3; P.A.statusAmt.evade = 100;
+  P.A.skillPoints = 5; P.B.skillPoints = 5;
+  P.R.statuses.ryougiMind = 3;
+  P.R.ryougi.eyesReady = engine.roundNumber + 10;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.equal(P.A.skillPoints, 5, 'A หลบพ้น = ไม่ถูกขโมย');
+  assert.equal(P.A.hp + P.A.armor, 10, 'A ไม่เสีย');
+  assert.equal(P.A.statuses.evade, 3, 'รากฐานจิตไม่ลบบัฟของคนที่หลบ');
+  assert.equal(P.B.skillPoints, 3);
+  assert.equal(P.B.hp + P.B.armor, 7, 'B โดนตามปกติ');
+  assert.equal(P.R.ryougi.eyesReady - engine.roundNumber, 8, 'โดน 1 คน = −2');
+  assert.equal(Math.abs(P.A.pos.y - row.y), 1, 'หลบแล้วยังถูกผลักออกข้าง (พื้นพัง)');
+  assert.deepEqual(fxOf('crumble')[0].dodged, ['A']);
+  assert.ok(!fxOf('steal').some((f) => f.targetId === 'A'));
+
+  ({ P } = setup([['R', 'ryougi', 0], ['A', 'dummy', 2]]));
+  engine.setActor('R');
+  P.A.statuses.evade = 3; P.A.statusAmt.evade = 100;
+  P.R.statuses.accurate = 3;
+  drain(() => engine.useSkill('R', 'ultimate', [], { dir: 'right' }));
+  assert.equal(P.A.hp + P.A.armor, 7, 'แม่นยำ — โดน 3');
+  Math.random = realRandom;
+});

@@ -25,7 +25,6 @@ const shop = require("./shop");
 const socketLayer = require("./socket");
 const timers = require("./timers");
 const view = require("./view");
-const Zero = require("./zeroTime");
 const Duo = require("./duo");
 const Colony = require("./colony");
 const Fodlan = require("./fodlan");
@@ -364,7 +363,6 @@ function startMatch() {
   match.forcedNight = null;
   match.legStart = 1;
   match.journeyScene = null;
-  Zero.reset(); // ห่วงเวลาซีโร่: ยังไม่เกิด (ครั้งเดียวต่อเกม)
   const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
   match.journeyArea = startArea;
   match.journeyRoute = startArea === 1 ? [1] : [1, startArea];
@@ -472,7 +470,6 @@ function backToLobby() {
   match.fodlan = null;
   RT.reset(); // Road Trip: หยุดตัวจับเวลาขับ + ล้างสถานะ
   Board.setWrap(0);
-  Zero.reset();
   match.lastLog = [];
   match.cutsceneQueue = [];
   match.cutsceneInfo = null;

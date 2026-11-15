@@ -101,7 +101,7 @@ test('นกจาบยามเช้า: ฟื้น 5 · ต้านสถ
   engine.applyDebuff(T, 'weak', 1, 3);
   engine.applyDebuff(T, 'fragile', 1, 3);
   engine.useSkill('O', 'secondary', ['T']);
-  assert.equal(T.hp, 7, 'ฟื้น 5 (เพดาน 7)');
+  assert.equal(T.hp, 8, 'ฟื้น 5 (3 → 8 · เพดาน 10 รวมค่าเพิ่ม +3 ผู้ใช้สั่ง 2026-11-14)');
   assert.equal(T.statuses.resist, 2);
   assert.equal(T.statuses.fragile, undefined, 'ล้างตัวที่โดนล่าสุด');
   assert.equal(T.statuses.weak, 3, 'ตัวที่โดนก่อนหน้ายังอยู่');

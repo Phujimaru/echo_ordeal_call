@@ -90,8 +90,8 @@ test('เอมิลิโกะ: แจกันใส่น้ำ = น้ำ
 test('ตัวละครที่ตารางบอกว่าปกติทั้งตัว: ตีปกติไม่มีธาตุ', () => {
   const plain = ['muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine', 'fern', 'ryougi',
     'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
-    'emiya_kiritsugu', 'inui_takumi', 'trafalgar_law', 'diego_alt', 'gilgamesh_fake', 'gira_ohger', 'yanma_ohger', 'himeno_ohger',
-    'rita_ohger', 'kaguragi_ohger', 'daisuke', 'yaguruma', 'tsurugi'];
+    'emiya_kiritsugu', 'inui_takumi', 'trafalgar_law', 'diego_alt', 'gilgamesh_fake',
+    'daisuke', 'yaguruma', 'tsurugi'];
   for (const ch of plain) {
     if (!CHAR_BY_ID[ch]) continue;
     const P = setup(ch);
@@ -103,7 +103,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
   const covered = new Set(['ice_spike', 'sora_otosumi', 'raido_hikaru', 'kate', 'emiliko', 'celine', 'diego_alt', 'kensaki_kazuma', 'trafalgar_law',
     'kagami', 'gilgamesh_fake', 'roland', 'echo', 'muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine',
     'fern', 'ryougi', 'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
-    'emiya_kiritsugu', 'inui_takumi', 'gira_ohger', 'yanma_ohger', 'himeno_ohger', 'rita_ohger', 'kaguragi_ohger', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra']);
+    'emiya_kiritsugu', 'inui_takumi', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra']);
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));
   assert.deepEqual(missing, [], `ตัวที่ยังไม่อยู่ในตารางธาตุ: ${missing.join(', ')}`);

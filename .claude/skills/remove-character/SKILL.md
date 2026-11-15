@@ -21,7 +21,7 @@ grep -rn "<id>\|<Id>\|<ID>\|<prefix>" --include=*.js --include=*.jsx --include=*
 
 ต้องค้น **ทุกรูปแบบตัวพิมพ์** เพราะโค้ดใช้ปนกัน: `muimi` (id/ฮุค) · `Muimi` (ชื่อคอมโพเนนต์ เช่น `MuimiLoseBadge`)
 · `MUIMI` (ค่าคงที่) และ **คำนำหน้าย่อของตัวละคร** ที่ไม่มีชื่อเต็มอยู่เลย — โอเบรอน (ฤดูร้อน) ใช้ `obs`
-(`obsVeil`/`obsDream`/`obsLark` ใน `STATUS_INFO` ของ Game.jsx และในเทสต์รวม) grep แค่ `oberon` จะไม่เจอ
+(`obsVeil`/`obsDream`/`obsLark` ใน `STATUS_INFO` ของ screens/game/statusData.js และในเทสต์รวม) grep แค่ `oberon` จะไม่เจอ
 ดูคำนำหน้าจากคีย์ `statuses.*` และฟิลด์ใน `resetCombat` ของไฟล์ตัวละครก่อน
 ไฟล์เสียงบางไฟล์สะกดเพี้ยน (`mumi_normal_hit.mp3`) — ค้นใน `client/src/audio.js` ด้วยตาด้วย
 **อ่านผลให้ครบก่อนลงมือ** — รายการนี้คือเช็คลิสต์ ไม่ใช่แค่ตัวเลข
@@ -29,6 +29,8 @@ grep -rn "<id>\|<Id>\|<ID>\|<prefix>" --include=*.js --include=*.jsx --include=*
 ⚠️ **ระวังชื่อชนกัน** — คำนำหน้าสั้นๆ อาจชนกับของกลาง (เช่น `obs` กับคำอื่นที่ขึ้นต้นเหมือนกัน) ต้องอ่านคอมเมนต์ข้างๆ ก่อนลบทุกครั้ง
 
 ## ลำดับที่ปลอดภัย
+
+(อย่าลืมลบบรรทัดของเขาใน [CHARACTERS.md](../../../CHARACTERS.md) และข้อยกเว้นใน `tests/character-rules.test.js` ถ้ามี)
 
 ไล่จาก "ปลายน้ำ" เข้าหา "ต้นน้ำ" แล้วเช็ค syntax ทุกก้าว — ถ้าลบ `characters/<id>.js`
 ตั้งแต่แรก ไฟล์อื่นจะพังหมดจนหาจุดที่เหลือไม่เจอ
@@ -67,7 +69,7 @@ grep -rn "<id>\|<Id>\|<ID>\|<prefix>" --include=*.js --include=*.jsx --include=*
 **ลบ** — สิ่งที่ตายไปพร้อมเขา:
 - สถานะที่ **มีแต่เขาแจกได้** (เช่น `obsVeil`/`obsDream`/`obsLark` ของโอเบรอน · `muimiTower`/`muimiRusty` ของมุยมิ) รวมถึงชื่อใน
   `BUFF_KEYS` / `SOFT_DEBUFF_STEP` / `NO_TICK_STATUS` / `client/src/data/permanentStatus.js`
-  และป้ายใน `STATUS_INFO` ของ `Game.jsx`
+  และป้ายใน `STATUS_INFO` ของ `client/src/screens/game/statusData.js`
 - คัตซีนทุกคีย์ใน `_transforms.js` · เสียง/เพลงใน `audio.js` · CSS เฉพาะตัวของเขา
 - ตัวแปรที่ destructure แล้วไม่มีใครผลิตอีก · คอมโพเนนต์/ป้ายบน HUD ของเขา
 

@@ -20,11 +20,6 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   // การเดินทาง: ฉากเปลี่ยนภูมิภาค (ลูกโลก) ไม่มีเพลงของตัวเอง — state.journey เป็นภูมิภาคปลายทางแล้ว
   //  เพลงประจำภูมิภาคใหม่จึงเริ่มตั้งแต่ฉากเริ่ม (App ขยับ cycleSeq เมื่อภูมิภาค/ช่วงเวลาเปลี่ยน)
   const journey = state?.journey;
-  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): เพลงตามระดับ เล่นเสมอ — เพลงท่าไม้ตาย/เพลงอื่นทับไม่ได้ (ผู้ใช้สั่ง)
-  //  ฉากปลดผนึก (zero.active = false) = กลับเพลงภูมิภาค
-  //  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ) = ไม่เล่นเพลง zero_N ให้เพลงสกิล (takuto_theme) เล่นแทน
-  const zero = state?.zero;
-  if (zero && zero.active && !zero.collapse && isMatchPhase(phase)) return { name: `zero_${Math.min(4, Math.max(1, zero.stage || 1))}` };
   // สนาม Colony (GRID_PLAN §8.3): นับถอยหลังระเบิดตัวเอง = colony_alert ทับทุกเพลง · ก่อนนั้นเพลงตามปล้องที่กำลังจะปิด (I/II/III) — เพลงท่าไม้ตายทับได้
   const colony = state?.colony;
   if (colony && isMatchPhase(phase) && colony.countdown != null) return { name: "colony_alert" };

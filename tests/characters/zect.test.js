@@ -61,7 +61,7 @@ test("Henshin → PUT ON (เดิน 3 เกราะ 5) ⇄ CAST OFF (เด
   assert.deepEqual(clips, [daisuke.CUT.henshin]);
   assert.equal(p.zect.henshin, true);
   assert.equal(engine.baseMovOf(p), 3);
-  assert.equal(engine.maxArmorOf(p), 5);
+  assert.equal(engine.maxArmorOf(p), 7, "5 + เกราะ +2 ทุกตัว (ผู้ใช้สั่ง 2026-11-14)");
   assert.equal(engine.action.locked, false, "แปลงร่างแล้วยังเดินได้");
   assert.equal(p.skillUsedRound, false, "ไม่นับโควตา");
   p.armor = 5;

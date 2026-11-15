@@ -20,12 +20,12 @@
 //  Weapon Skill (รอง · เปลี่ยนตามอาวุธ · ไม่มีอาวุธ = ใช้ไม่ได้ · คูลดาวน์ร่วม 4 นับตอนใช้):
 //    Throwing Blade (3 · ระยะ 4 · 1 + เลือดไหล 1) · Caladbolg II (ครึ่งความจุ · แนว 8×1 หยุดที่ศัตรูคนแรก · 1 + ราคา÷2 + ระเบิด 1 รัศมี 2 ·
 //    คลิป Before → After ก่อนผลลง) · Ground Smash (6 · แนว 4×3 · 3 + ผลัก 2 ชน = สตั้น) · Rho Aias (4 · คุ้มครอง −1 + ต้านสถานะ 2 เทิร์น) ·
-//    Ex calibruuuu! (8 · แนว 7×1 · 5 หลบไม่ได้ คุ้มครองไม่มีผล · Excalibur ยังอยู่)
+//    Ex calibruuuu! (8 · แนว 7×1 · 5 หลบได้ (กฎผู้ใช้ 2026-11-15) คุ้มครองไม่มีผล · Excalibur ยังอยู่)
 //  Unlimited Blade Works (ท่าไม้ตาย · 12 · ทั้งสนาม): 6 เทิร์น (นับเทิร์นที่กด) · คูลดาวน์ 6 นับหลังจบ (กด N → N+12) ·
 //    ต้นเทิร์นแต้มสกิล +1 · คูลดาวน์สกิลรองลดเพิ่ม 1/เทิร์น · Trace On ไม่มีคูลดาวน์ · เดิน +1 · ชิโร่ตาย = จบ · ภาพทั้งกระดาน (ช่องเหมือนเดิม)
 //
 //  Claude ตัดสินเอง (GRID_PLAN §7.18): กดอาวุธเดิมซ้ำได้ (รีเฟรช) · แต้ม UBW ต้นเทิร์นเริ่มเทิร์นถัดไป (5 ครั้ง) · Caladbolg ไม่มีศัตรูในแนว = ยิงเปล่า ·
-//    ดาเมจสกิลบวกเปราะบางของเป้า + คุ้มครองลดได้ (ยกเว้น Ex calibruuuu!) · ทอยหลบ: Throwing Blade / Caladbolg (คนแรก) / Ground Smash
+//    ดาเมจสกิลบวกเปราะบางของเป้า + คุ้มครองลดได้ (ยกเว้น Ex calibruuuu!) · ทอยหลบ: ทุกสกิลดาเมจ (กฎผู้ใช้ 2026-11-15 — รวม Caladbolg ระเบิด + Ex calibruuuu! · แม่นยำของชิโร่เท่านั้นที่โดนแน่นอน)
 //  Claude ตัดสินเอง (บัฟ 2026-11-12): K&B UBW เลือดไหล 1 ครั้งต่อการโจมตี (2 ฮิตไม่ซ้อน) · Nine Lives UBW ผลักทุกคนในกรอบตามทิศของกรอบ ไกลสุดก่อน ชน = หยุด (ไม่สตั้น/ไม่เสียเพิ่ม) ·
 //    ไม่ผลักตอนตีสวน · Hrunting UBW +1 นับเป็นโบนัสอาวุธ (ป้าย "Hrunting & Caladbolg II +1")
 // ============================================================
@@ -117,7 +117,7 @@ const WEAPONS = {
     name: "Excalibur", cost: 5, style: "emiyaExcal", atk: 1, range: [1, 3], lane: true, turns: EXCAL_TURNS,
     desc: `เฉพาะตอน Unlimited Blade Works · 1 ครั้งต่อเกม: พลังโจมตี +1 · ตีแนว 3×1 โดนทุกคนในแนว · ตีโดนติดเปราะบาง +${EXCAL_FRAGILE} ${EXCAL_FRAGILE_TURNS} เทิร์น · อยู่ ${EXCAL_TURNS} เทิร์น · เปลี่ยนอาวุธไม่ได้`,
     skill: { key: "excalibur", name: "Ex calibruuuu!", cost: 8, area: { kind: "line", len: EXCAL_LEN, width: 1, hostile: true },
-      desc: `เลือกทิศ: แนว ${EXCAL_LEN}×1 ความเสียหาย ${EXCAL_DMG} · โดนแน่นอน · ลดความเสียหายไม่ได้` },
+      desc: `เลือกทิศ: แนว ${EXCAL_LEN}×1 ความเสียหาย ${EXCAL_DMG} · ลดความเสียหายไม่ได้` },
   },
 };
 const WEAPON_KEYS = Object.keys(WEAPONS);
@@ -156,11 +156,11 @@ const enemiesOf = (engine, p, ids) => (ids || []).map((id) => engine.players[id]
 // ราคา Caladbolg II = ครึ่งหนึ่งของความจุแต้มสกิล
 const caladbolgCost = (engine, p) => Math.floor(engine.maxSkillOf(p) / 2);
 const caladbolgDmg = (cost) => 1 + Math.floor(cost / 2);
-// ดาเมจจากสกิล: หลบได้ (เว้น sure) · คุ้มครองลด (เว้น sure) · เปราะบางเพิ่ม · เกราะก่อน · ตายได้ → { dodge, dealt }
-function hurt(engine, p, t, n, reason, { sure = false } = {}) {
+// ดาเมจจากสกิล: หลบได้เสมอ (กฎผู้ใช้ 2026-11-15 · แม่นยำเจาะ — ในตัว skillDodge) · คุ้มครองลด (เว้น noGuard) · เปราะบางเพิ่ม · เกราะก่อน · ตายได้ → { dodge, dealt }
+function hurt(engine, p, t, n, reason, { noGuard = false } = {}) {
   t.wasAttacked = true;
-  if (!sure && engine.skillDodge(p, t, reason)) return { dodge: true, dealt: 0 };
-  const dmg = Math.max(0, n - (sure ? 0 : guardOf(engine, t))) + engine.statusAmtOf(t, "fragile");
+  if (engine.skillDodge(p, t, ` ${reason}`)) return { dodge: true, dealt: 0 };
+  const dmg = Math.max(0, n - (noGuard ? 0 : guardOf(engine, t))) + engine.statusAmtOf(t, "fragile");
   const before = vit(t);
   engine.dealMixed(t, dmg);
   if (t.alive && t.hp <= 0) engine.instantDeath(t);
@@ -289,8 +289,8 @@ function caladbolg(engine, p, dir, ids, cost) {
       engine.sfx("emiya_caladbolg_blast");
       const splash = [];
       for (const o of near) {
-        const r2 = hurt(engine, p, o, CAL_SPLASH, "Caladbolg II — ระเบิด", { sure: true });
-        splash.push({ id: o.id, dmg: r2.dealt });
+        const r2 = hurt(engine, p, o, CAL_SPLASH, "Caladbolg II — ระเบิด", { noGuard: true }); // หลบได้ (2026-11-15 — เดิมโดนแน่นอน)
+        splash.push({ id: o.id, dmg: r2.dealt, dodge: r2.dodge });
       }
       if (splash.length) fx(engine, p, "caladbolgSplash", { hits: splash });
       engine.hitArea(p, blast, near.map((o) => o.id));
@@ -347,8 +347,8 @@ function excalibur(engine, p, dir, ids, tiles) {
     if (!p.alive) return;
     const hits = [];
     for (const t of enemiesOf(engine, p, ids)) {
-      const res = hurt(engine, p, t, EXCAL_DMG, "Ex calibruuuu!", { sure: true });
-      hits.push({ id: t.id, dmg: res.dealt });
+      const res = hurt(engine, p, t, EXCAL_DMG, "Ex calibruuuu!", { noGuard: true }); // หลบได้ (2026-11-15) · คุ้มครองไม่มีผล
+      hits.push({ id: t.id, dmg: res.dealt, dodge: res.dodge });
     }
     fx(engine, p, "excaliburHit", { hits });
   });

@@ -1572,6 +1572,15 @@ export function diegoEventFx(ev, ctx = {}) {
   const sizeOf = (id) => (id != null && typeof ctx.sizeOf === "function" ? Math.max(1, ctx.sizeOf(id) | 0) : 1);
   const ping = (id, ms, at) => { if (id != null) out.fx.push({ kind: "diegoPing", x: at ? at.x : 0, y: at ? at.y : 0, hitIds: [id], hitDelay: Math.max(0, Math.round(ms)), dur: Math.round(ms) + PING_MS }); };
   const quake = (ms, amp) => { out.shake.push(ms); out.later.push([ms, [{ kind: "iceShake", x: 0, y: 0, amp, dur: 420 }]]); };
+  // หลบพ้น (ทุกสกิลหลบได้ — server ส่ง dodgeId / dodged): ขึ้น "หลบ" ตอนของถึงตัว แบบเดียวกับ Ice Spike · ไม่มีภาพโดน
+  const dodgeAt = (id, ms) => {
+    const p = posOf(id);
+    if (!okT(p)) return;
+    const n = sizeOf(id), at = { x: p.x + (n - 1) / 2, y: p.y + (n - 1) / 2 };
+    out.later.push([Math.max(0, Math.round(ms)), [{ kind: "float", x: at.x, y: at.y, text: "หลบ", color: "#d8f2ff", size: 24, z: 1.5 }]]);
+    out.look.push([at, Math.max(0, Math.round(ms))]);
+  };
+  const dodgedIds = Array.isArray(ev.dodged) ? ev.dodged.filter((id) => id != null) : [];
   const evT = typeof performance !== "undefined" ? performance.now() : Date.now();
   const frozen = !!ev.frozen;
   const base = { id: ev.id, color: ev.color || null, evT, frozen };
@@ -1590,6 +1599,7 @@ export function diegoEventFx(ev, ctx = {}) {
       const soakedAt = (Array.isArray(ev.soaked) ? ev.soaked : []).map(posOf).filter(okT).map(ptOf);
       out.fx.push({ ...base, kind: "diegoOil", at: ptOf(ev.at), tiles: tilesOf(ev.tiles), soakedAt, dur: DIEGO_FX_DUR.diegoOil });
       for (const id of Array.isArray(ev.soaked) ? ev.soaked : []) ping(id, 90, posOf(id));
+      for (const id of dodgedIds) dodgeAt(id, 90);
       break;
     }
     case "explode": {
@@ -1602,6 +1612,7 @@ export function diegoEventFx(ev, ctx = {}) {
         quake(0, 9);
         for (const h of hitsAt) { ping(h.id, 60, h); out.defer.push({ id: h.id, ms: 80 }); }
       }
+      for (const id of dodgedIds) dodgeAt(id, 60);
       break;
     }
     case "ignite": {
@@ -1649,6 +1660,7 @@ export function diegoEventFx(ev, ctx = {}) {
       const hitMs = kind === "diegoKnife" ? TK.hit : TSH.hit;
       if (!frozen && e.hitAt) { ping(e.hitId, hitMs, e.hitAt); out.defer.push({ id: e.hitId, ms: hitMs + 20 }); }
       if (e.to || e.hitAt) out.look.push([e.hitAt || e.to, 0]);
+      if (ev.dodgeId != null) dodgeAt(ev.dodgeId, hitMs);
       break;
     }
     case "reload": if (okT(ev.at)) out.fx.push({ ...base, kind: "diegoReload", at: ptOf(ev.at), dur: RELOAD_MS }); break;
@@ -1705,6 +1717,7 @@ export function diegoEventFx(ev, ctx = {}) {
       if (G.steps) out.look.push([G.pts[G.steps], PL.wind + Math.round(G.dash * 0.5)]);
       out.shake.push(0);
       if (e.hitId != null) quake(G.H, 14);
+      if (ev.dodgeId != null) dodgeAt(ev.dodgeId, G.H);
       break;
     }
     case "horse": {

@@ -30,7 +30,6 @@ const attackPhase = require("./phases/attack");
 const lobby = require("./lobby");
 const shop = require("./shop");
 const Visibility = require("./visibility");
-const Zero = require("./zeroTime");
 const Ice = require("./ice");
 const Duo = require("./duo");
 const Soot = require("./soot");
@@ -167,7 +166,7 @@ function buildStateInner(viewerId) {
   // คัตซีนที่แทรกกลางช่วงจั่ว (ยังมีคนไม่กด "พอ") ยังห้ามเปิดแต้ม — คัตซีนหลังเปิดไพ่ทุกคนล็อกแล้ว
   const drawingCutscene = match.gameState === "CUTSCENE" && Duo.cardHolders().some((p) => !p.locked);
   const revealAll = !drawingCutscene && match.gameState !== "PLAYING" && match.gameState !== "LOBBY" && match.gameState !== "TEAM_MODE" && match.gameState !== "TEAM_SETUP";
-  const nightNow = dayNight.isNightRound(Zero.worldRound()); // เวลาโลก (ห่วงเวลาซีโร่หยุดไว้)
+  const nightNow = dayNight.isNightRound(match.roundNumber);
   const sm = require("./roadtrip").traveling() ? null : activeSkillMusic(); // Road Trip: ช่วงเดินทางไม่มีเพลงท่าไม้ตาย (สถานะค้างไว้แต่ไม่เล่น — กฎผู้ใช้ 2026-11-14)
   const viewer = match.players[viewerId];
   // ระบบคู่ (server/duo.js): ตัวที่ผู้เล่นคนนี้คุมอยู่ — แผงตัวเรา/ปุ่มสกิล/คาดการณ์ผลใช้ตัวนี้
@@ -198,11 +197,9 @@ function buildStateInner(viewerId) {
     roundNumber: match.roundNumber,
     deckEmpty: match.centralDeck.length === 0,
     cycle: nightNow ? "night" : "day", // กลางวัน/กลางคืน
-    bloodMoon: dayNight.forcedNightAt(Zero.worldRound()), // กลางคืนบังคับจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — client otoyaFx.js)
+    bloodMoon: dayNight.forcedNightAt(match.roundNumber), // กลางคืนบังคับจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — client otoyaFx.js)
     // การเดินทาง (ffa/duo/trio): ภูมิภาค + กลางวัน/กลางคืน + คำอธิบายผลสนาม + ฉากแผนที่ที่กำลังพักเกมรอ
     journey: Journey.publicInfo(engine, match.journeyScene),
-    // ห่วงเวลาซีโร่ (GRID_PLAN §8.2): ระดับ · ผนึก 4 มุม · ของฟื้นพลังชีวิต · ฉากที่กำลังพักเกมรอ — null = ไม่ได้อยู่
-    zero: Zero.publicInfo(),
     // หยุดเวลา (server/timeStop.js): ใครหยุดอยู่ — กระดานโทนซีเปีย · เลือด/สถานะของคนอื่นค้างค่าตอนเริ่มหยุด
     timeFreeze: TimeStop.frozen() ? { by: TimeStop.frozen().by } : null,
     clockUp: ClockUp.publicInfo(), // ช่วง Clock Up: สมาชิก (เวลา/การตี/Clock Over) + ชนกัน QTE กดรัว — client วาดเงาไล่ตาม + หน้าต่างกดรัว
@@ -317,8 +314,8 @@ function buildStateInner(viewerId) {
         teamId: p.teamId || null,
         teamConfirmed: !!p.teamConfirmed,
         // คูลดาวน์/ล็อกรายช่องของตัวละคร (โอเบรอน) — client ใช้ทำปุ่มเทา + ตัวเลขคูลดาวน์
-        skillLocks: zeroLocks(p, CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
-          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
+        skillLocks: CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
+          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined, // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         eosDiff: p.modeVote ? p.eosDiff || null : null, // ความยากที่โหวต (สนาม Eos)
@@ -395,7 +392,6 @@ function buildStateInner(viewerId) {
         sora: hook && hook.soraState ? hook.soraState(engine, p) : undefined, // โซระ: ร่าง / อาวุธ / นับเทิร์นฟื้นฟู
         hikaru: hook && hook.hikaruState ? hook.hikaruState(engine, p) : undefined, // ไรโด ฮิคารุ: ร่าง / ปุ่มเลือกร่าง / Brace / คูลดาวน์
         shadow: hook && hook.shadowState ? hook.shadowState(engine, p) : undefined, // เคท & เอมิลิโกะ: อาวุธ / ดาบเขม่า / อยู่ในม่านแดง
-        ohger: hook && hook.ohgerState ? hook.ohgerState(engine, p) : undefined, // คิงโอเจอร์: แกนดาบ (ร่าง / ขั้นที่กด / ปุ่มที่ไฟกระพริบ / ชาร์จ Finish) — characters/_ohger.js
         kira: hook && hook.kiraState ? hook.kiraState(engine, p) : undefined, // กิระ: ร่าง / นับเทิร์นร่างกิระ / อัฐิราชา
         otoya: CHAR_HOOKS.kurenai_otoya.unitMark(engine, p), // คุเรไน: สายดนตรี (ใครก็ได้) / ร่าง Dark Kiva / หลุมพราง / Wake Up 2 (เจ้าตัว)
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
@@ -426,7 +422,6 @@ function buildStateInner(viewerId) {
         remoteShop: shop.remoteShop(p) || undefined, // ซื้อจากร้านไหนก็ได้บนแผนที่ (กิลกาเมช Gate of Babylon)
         strikeZone: hook && hook.strikeZone ? hook.strikeZone(p) || undefined : undefined, // กรอบที่ตีปกติได้ { x0, y0, x1, y1 } (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room)
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
-        takuto: hook && hook.takutoState ? hook.takutoState(engine, p) : undefined, // ทาคุโตะ: ร่าง / ดาบ 2 เล่ม / ดาบแห่งการพิพากษา / พุ่ง / คูลดาวน์ — GRID_PLAN §7.16
         stageNoSkill: Fodlan.noSkill(p) || undefined, // Eos: อยู่ในรถ = ใช้สกิลไม่ได้ (ปุ่มสกิลเทา)
         carWalk: Fodlan.carWalk(p) || undefined, // Eos: ขับรถ — ถนน/พื้นเรียบเท่านั้น (Rules.reachable opts.carWalk)
         flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่โชโกโบะ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
@@ -493,11 +488,6 @@ function unseenPub(o, p) {
     shinra: o.shinra ? { ember: null, max: null, hero: 0, warm: 0, smolder: 0, latomCd: null } : undefined,
     actions: undefined,
   };
-}
-// ห่วงเวลาซีโร่: ท่าไม้ตายทุกตัวล็อก (ยกเว้นฮุค zeroImmune · ช่วงมิติพังทลาย) — ต่อท้ายล็อกของตัวละคร (ปุ่มเทา)
-function zeroLocks(p, locks) {
-  if (!Zero.ultLocked(p)) return locks;
-  return { ...(locks || {}), ultimate: { ...((locks && locks.ultimate) || {}), locked: true } };
 }
 function broadcastState() {
   Colony.normalize(); // Colony: พิกัด x ทุกคนกลับเข้าช่วง 0..15 (กระดานต่อวงรอบ)

@@ -57,15 +57,15 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: เอาฮา · พลังชีวิต 3 เกราะ 2 · มีแค่ท่าไม้ตาย 0 แต้ม', () => {
+test('ข้อมูล: เอาฮา · พลังชีวิต 6 เกราะ 4 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · มีแค่ท่าไม้ตาย 0 แต้ม', () => {
   const ch = CHAR_BY_ID.yuki_makoto;
   assert.equal(ch.difficulty, 'fun');
   assert.equal(ch.basic, null);
   assert.equal(ch.secondary, null);
   assert.equal(ch.ultimate.cost, 0);
   const { y } = setup([['y', 'yuki_makoto', 4, 7], ['a', 'dummy', 8, 7]]);
-  assert.equal(y.hp, 3);
-  assert.equal(y.armor, 2);
+  assert.equal(y.hp, 6);
+  assert.equal(y.armor, 4);
   const pub = view('y', 'y');
   assert.equal(pub.character.basic, null);
   assert.equal(pub.character.ultimate.name, 'เกิดใหม่เป็นประตู');

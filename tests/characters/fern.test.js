@@ -67,7 +67,7 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: กลาง · พลังชีวิต 5 เกราะ 2 · เดิน 3 · ตีแนวตรง [1, 3] · ไม่มีตีสวน · 2 / 3 / 0 Energy · Energy 10 เริ่มเต็ม', () => {
+test('ข้อมูล: กลาง · พลังชีวิต 8 เกราะ 4 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · เดิน 3 · ตีแนวตรง [1, 3] · ไม่มีตีสวน · 2 / 3 / 0 Energy · Energy 10 เริ่มเต็ม', () => {
   const ch = CHAR_BY_ID.fern;
   assert.equal(ch.name, 'เฟิร์น');
   assert.equal(ch.difficulty, 'medium');
@@ -82,8 +82,8 @@ test('ข้อมูล: กลาง · พลังชีวิต 5 เก�
     assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก|สวน/);
   }
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 9, 7]]);
-  assert.equal(P.F.hp, 5);
-  assert.equal(P.F.armor, 2);
+  assert.equal(P.F.hp, 8);
+  assert.equal(P.F.armor, 4);
   assert.equal(P.F.skillPoints, 10, 'เริ่มเกมเต็ม');
   assert.equal(engine.maxSkillOf(P.F), 10);
   assert.equal(action.lanes(P.F), true);
@@ -172,7 +172,7 @@ test('ผู้เชี่ยวชาญเวทมนต์พื้นฐ�
   const P = setup([['F', 'fern', 3, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 9, 7]]);
   engine.setActor('B');
   assert.equal(strikeNow('B', 'F'), true);
-  assert.equal(vit(P.F), 7, 'กันหมด');
+  assert.equal(vit(P.F), 12, 'กันหมด');
   const card = engine.lastAttack;
   assert.equal(card.dmg, 0, 'ฉากตีขึ้น 0');
   assert.ok(card.skills.some((s) => s.name === 'ผู้เชี่ยวชาญเวทมนต์พื้นฐาน' && s.side === 'def'));
@@ -181,19 +181,19 @@ test('ผู้เชี่ยวชาญเวทมนต์พื้นฐ�
   assert.equal(view('F', 'F').fern.shieldCd, 3);
   engine.setActor('B');
   strikeNow('B', 'F');
-  assert.equal(vit(P.F), 6, 'การโจมตีถัดไปโดน');
+  assert.equal(vit(P.F), 11, 'การโจมตีถัดไปโดน');
   engine.setRoundNumber(5); newCommand(); hitBy(P.C, P.F, 1);
   engine.setRoundNumber(6); newCommand(); hitBy(P.C, P.F, 1);
-  assert.equal(vit(P.F), 4, 'N+1 / N+2 ยังไม่พร้อม');
+  assert.equal(vit(P.F), 9, 'N+1 / N+2 ยังไม่พร้อม');
   engine.setRoundNumber(7);
   newCommand(); hitBy(P.C, P.F, 2); hitBy(P.C, P.F, 2);
-  assert.equal(vit(P.F), 4, 'N+3 กันทั้งคำสั่ง');
+  assert.equal(vit(P.F), 9, 'N+3 กันทั้งคำสั่ง');
   newCommand(); hitBy(P.C, P.F, 1);
-  assert.equal(vit(P.F), 3, 'คำสั่งถัดไปโดน');
+  assert.equal(vit(P.F), 8, 'คำสั่งถัดไปโดน');
   // ไม่มีผู้ลงมือ (ลุกไหม้/ผลต่อเทิร์น) = ไม่ใช้การกัน
   engine.setRoundNumber(10);
   newCommand(); engine.dealMixed(P.F, 1);
-  assert.equal(vit(P.F), 2);
+  assert.equal(vit(P.F), 7);
   assert.equal(view('F', 'F').fern.shieldCd, 0, 'ยังพร้อม');
 });
 
@@ -442,7 +442,7 @@ test('ซ่อนเร้นมานา: ถูกโจมตี (การ�
   strikeNow('B', 'F');
   assert.ok(P.F.fern.conceal, 'กันได้ = ไม่นับว่าถูกโจมตี');
   assert.equal(P.F.fern.stunPending, false);
-  assert.equal(vit(P.F), 7);
+  assert.equal(vit(P.F), 12);
   engine.setActor('B');
   strikeNow('B', 'F');
   assert.equal(P.F.fern.conceal, null, 'หลุด');

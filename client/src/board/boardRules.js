@@ -39,8 +39,8 @@ function wallBlocks(map, x, y, ny) {
   const lo = Math.min(y, ny);
   return map.walls.includes(lo) && !(map.doors || []).includes(wx(x));
 }
-// สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้) — ผนึกมิโกะของห่วงเวลาซีโร่ (GRID_PLAN §8.2)
-const UNBREAKABLE = new Set(["seal", "chasm", "breach"]); // breach = รอยรั่วของ Colony (server/colony.js) // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
+// สิ่งกีดขวางที่พังไม่ได้ (ตัวใหญ่เดิน/ขยายทับไม่ได้)
+const UNBREAKABLE = new Set(["chasm", "breach"]); // breach = รอยรั่วของ Colony (server/colony.js) // chasm = ช่องพังของเรียวกิ (GRID_PLAN §7.17) — ตัวใหญ่เดินพังไม่ได้
 
 // ---------- ช่องพิเศษ (GRID_PLAN §3.1 — แนว Fire Emblem) ----------
 //  ยืน/เดินผ่านได้ทุกชนิด (ต่างจากสิ่งกีดขวาง) · ไม่มีผลกับระยะตี/สกิล
@@ -232,25 +232,6 @@ const MAPS = {
   }),
 };
 
-// ---------- ห่วงเวลาซีโร่ (GRID_PLAN §8.2) ----------
-//  สนามเฉพาะ 14×14 ไม่มีสิ่งกีดขวางอื่นนอกจากผนึกมิโกะ 4 มุม (พังไม่ได้ด้วยการเดิน/ขยายร่าง — ตีได้อย่างเดียว ที่ server/zeroTime.js)
-//  area 8–11 = ระดับ 1–4 (ผนึกแตก 0–3 อัน) ผังเดียวกัน — ต่างกันแค่หน้าตาที่ client วาด (ยิ่งใกล้ปลดผนึกยิ่งมืด)
-//  ผนึก: 0 = มุมไกลซ้าย (เหนือ) · 1 = มุมไกลขวา (ตะวันออก) · 2 = มุมใกล้ขวา (ใต้) · 3 = มุมใกล้ซ้าย (ตะวันตก)
-const ZERO_AREA = 8;
-const ZERO_STAGES = 4;
-const ZERO_SEALS = [[0, 0], [13, 0], [13, 13], [0, 13]];
-const isZeroArea = (area) => Number(area) >= ZERO_AREA && Number(area) < ZERO_AREA + ZERO_STAGES;
-for (let i = 0; i < ZERO_STAGES; i++) {
-  MAPS[ZERO_AREA + i] = buildMap({
-    area: ZERO_AREA + i,
-    name: "ห่วงเวลาซีโร่",
-    terrain: { seal: ZERO_SEALS },
-    heal: [],
-    spawns: [[4, 1], [9, 1], [1, 6], [12, 7], [3, 12], [7, 12], [10, 12]],
-    shopSpots: [],
-  });
-}
-
 // ---------- Colony (GRID_PLAN §8.3) ----------
 //  ผิวด้านในของกระบอก คลี่เป็น 16 คอลัมน์ (ต่อวงรอบ) × 40 แถว · ปล้องละ 10 แถว (0–9 · 10–19 · 20–29 · ปล้องสุดท้าย 30–39)
 //  กำแพงกั้นปล้องอยู่ระหว่างแถว 9|10 · 19|20 · 29|30 ประตู 6 บาน (คอลัมน์ 0 · 4 · 8 · 12 · 16 · 20)
@@ -361,7 +342,7 @@ const FODLAN_AREA = 40;
 const FODLAN_STAGES = 5;
 const FODLAN_NAMES = ["แม่น้ำแอร์มิด", "เรเมียร์", "ชายฝั่งเดอร์ดริว", "เทือกเขาฟาร์กัส", "หลุมศพศักดิ์สิทธิ์"];
 //  require ต้องเขียนเป็นสตริงตรงๆ — scripts/gen-board-rules.js ฝังเนื้อไฟล์แทน require ตอนสร้าง client/src/board/boardRules.js
-const FODLAN_DEFS = [(() => { const module = { exports: {} }; const require = { main: null }; // ด่าน 1 ของโหมด Fodlan "แม่น้ำแอร์มิด" — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage1.js)
+const FODLAN_DEFS = [(() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ด่าน 1 ของโหมด Fodlan "แม่น้ำแอร์มิด" — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage1.js)
 //  ป่าธรรมดา + แม่น้ำใหญ่ไหลจากตะวันตกไปตะวันออก (กว้าง 3 ช่อง คดลงกลางแผนที่แล้วขึ้น) แบ่งกระดานเป็นฝั่งเหนือ/ใต้
 //  ข้ามแม่น้ำได้ 2 ทางเท่านั้น (ผู้ใช้ตัดสิน): เรือลำใหญ่ 2×3 (ของกลาง ขับไปตามแม่น้ำ) · น้ำแข็ง (Ice Spike) บนแม่น้ำ = สะพาน
 //  ผัง (x = 0..13 ซ้าย→ขวา · y = 0..13 เหนือ→ใต้):
@@ -410,7 +391,7 @@ module.exports = {
     { side: "s", tiles: [[3, 8], [4, 8], [5, 8]], lever: [2, 8], anchor: [3, 6] },
   ],
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }; // ด่าน 2 ของโหมด Fodlan — เรเมียร์ (ป่าหมอก) · ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ด่าน 2 ของโหมด Fodlan — เรเมียร์ (ป่าหมอก) · ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md)
 //  ป่าสนดำทึบในหมอก · ทางเดินดินคดเคี้ยวผ่านดงสน · หย่อมป่าทึบ (forest — ซ่อนตัว/เดิน 2 ก้าว) ตามทาง
 //  # = ต้นสนดำ (fd_pine) · o = หินตะไคร่ (fd_rock) · f = ป่าทึบ · . = พื้น
 //  S = จุดเกิด · $ = จุดร้านค้า · P = เสาเวทมืด (ตั้งตอนเข้าด่าน — server/fodlan/stage2.js) · C = กล่องเสบียงจุดแรก
@@ -450,7 +431,7 @@ module.exports = {
   PILLARS: at("P"),
   CRATES: at("C"),
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }; // ด่าน 3 ของโหมด Fodlan "ชายฝั่งเดอร์ดริว" — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage3.js)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ด่าน 3 ของโหมด Fodlan "ชายฝั่งเดอร์ดริว" — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage3.js)
 //  สมรภูมิใหญ่ริมหาดตอนพลบค่ำ: ทะเลตามขอบ y = 0 (+ แหลมน้ำแถว 1) · หาดทราย แถว 1–3 (พื้นธรรมดา — ทรายเป็นแค่ภาพ) · สนามรบด้านใน
 //   ที่กั้นไม้หนา (แนวละ 2 ช่อง) · กองไฟ 4 กอง · เครื่องยิงหิน 2 เครื่อง (ปีกซ้าย/ขวา) · หญ้าแห้ง 4 หย่อม (ติดไฟได้) · ธงทัพกลางสนาม
 //  ผัง (x = 0..13 ซ้าย→ขวา · y = 0..13 ทะเล→ใน):  ~ ทะเล  # ที่กั้น  F กองไฟ  C เครื่องยิงหิน  g หญ้าแห้ง  ! ธง  P จุดเกิด  $ จุดร้านค้า
@@ -506,7 +487,7 @@ module.exports = {
     fd_ash: { name: "เถ้าถ่าน", icon: "🌫️", desc: "ไหม้หมดแล้ว" },
   },
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }; // ด่าน 4 ของโหมด Fodlan — เทือกเขาฟาร์กัส (ข้อมูลล้วน · ดู server/fodlan/README.md)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ด่าน 4 ของโหมด Fodlan — เทือกเขาฟาร์กัส (ข้อมูลล้วน · ดู server/fodlan/README.md)
 //  ที่ราบบนเขาหิมะ: หน้าผาสูงตลอดขอบไกล (y = 0) · กองหิมะ 3 กองชิดหน้าผา (ตีแล้วหิมะถล่มลงมาตามแนว — server/fodlan/stage4.js)
 //  ต้นไม้แห้ง 4 ต้น (ตีแล้วได้ฟืน) · สน/หินหิมะกระจายตามขอบ · แอ่งน้ำแข็งใหญ่จุดเดียว 3×4 (ผู้ใช้สั่ง) มีหินน้ำแข็งก้อนเดียวกลางแอ่ง
 //   (ช่องน้ำแข็งทุกช่องจึงหยุดได้ — ทะเลสาบโล่งทั้งผืนช่องกลางจะเป็นแค่ทางไถลผ่าน)
@@ -546,7 +527,7 @@ module.exports = {
   },
   TERRAIN: {},
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }; // ด่าน 5 ของโหมด Fodlan — หลุมศพศักดิ์สิทธิ์ (area 44) · ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ด่าน 5 ของโหมด Fodlan — หลุมศพศักดิ์สิทธิ์ (area 44) · ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md)
 //  ห้องโถงหินยาวใต้อาราม: ขอบไกล (y = 0) = แท่นขั้นบันได + บัลลังก์ผู้ให้กำเนิด (2 ช่องกลาง) · ทางเดินกลาง x 4–9 ทอดยาวมาถึงทางเข้า (y = 13)
 //  บัลลังก์หินเรียงสองแถวขนาบทางเดิน (x 3 / 10 — หันเข้าทางเดิน) · เสาหินแถวนอก (x 1 / 12) · แท่นศิลาตรา 4 แท่นกลางทางเดิน
 //   y\x 0 1 2 3 4 5 6 7 8 9 10 11 12 13
@@ -596,7 +577,7 @@ const isFodlanArea = (area) => Number(area) >= FODLAN_AREA && Number(area) < FOD
 // ---------- Eos (GRID_PLAN §8.6) ----------
 //  area 45 = สนาม Eos แผนที่เดียว 32×32 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 6" — server/fodlan.js · กติกา server/fodlan/stage6.js)
 const EOS_AREA = FODLAN_AREA + FODLAN_STAGES;
-const EOS_DEF = (() => { const module = { exports: {} }; const require = { main: null }; // สนาม Eos (GRID_PLAN §8.6 — เดิมชื่อ Lucid) — ผังกระดาน 32×32 + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage6.js)
+const EOS_DEF = (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // สนาม Eos (GRID_PLAN §8.6 — เดิมชื่อ Lucid) — ผังกระดาน 32×32 + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage6.js)
 //  Eos ใช้ตัวคุมกลางของ Fodlan เป็น "ด่าน 6" ของโลก "eos" (server/fodlan.js) — ไม่หมุนด่าน แผนที่เดียวทั้งแมตช์
 //  ผังสร้างด้วย value noise ตามภูมิศาสตร์ Lucis ใน FFXV (ผู้ใช้สั่ง 2026-11-09 — ต้องเป็นสภาพแวดล้อมที่สมจริง ไม่ใช่บล็อกสี่เหลี่ยม)
 //   เหนือ = นครหลวง Insomnia (กำแพง ตึกหลายขนาด ไฟถนน) · ตะวันตก = Cleigne (ทะเลสาบ + คอกโชโกโบะริมทะเลสาบ) · กลาง-ตะวันออก = Duscae (ป่า + คอกโชโกโบะ Wiz)
@@ -769,7 +750,7 @@ const isEosArea = (area) => Number(area) === EOS_AREA;
 
 // ---------- Road Trip (GRID_PLAN §8.8 · .claude/plans/roadtrip-contract.md §6) ----------
 //  area 70 ถนน (ดักทาง) · 71 บนรถตู้ · 72–74 ปั๊ม 3 แบบ · 75 โมเต็ล — ข้อมูลล้วนใน server/roadtrip/maps.js (props/vanTiles/… server/roadtrip ใช้เอง)
-const RT_DEF = (() => { const module = { exports: {} }; const require = { main: null }; // ============================================================
+const RT_DEF = (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ============================================================
 //  แผนที่โหมด Road Trip (GRID_PLAN §8.8 · .claude/plans/roadtrip-contract.md §6) — ข้อมูลล้วน ไม่ require โมดูลอื่น
 //  ต้นแบบที่ผู้ใช้เห็นแล้ว: .claude/plans/road-trip-station-2d.html (ปั๊ม 24×16 แบบกระดานเอียง)
 //
@@ -1617,7 +1598,7 @@ function aoeTiles(map, x, y, radius, size = 1, square = false) {
   return out;
 }
 // สกิลแนว "ทิศทาง L×W": ยาว len ช่องไปทาง dir เริ่มจากช่องติดตัว กว้าง width ช่อง (กลางตรงแนวตัวเรา)
-//  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4 คุวากาตะ โอเจอร์: −2…+1)
+//  width คี่ = กลางตรงแนวตัวเรา (4×3 = ท่าไม้ตายมุยมิ) · คู่ = เยื้องไปทางลบของแกนขวางครึ่งช่อง (4×4: −2…+1)
 //  size = ตัวใหญ่ (x, y = มุมบนซ้าย): แนวออกจากกลางด้านหน้าของตัว (กิงกะ 3×3) — ขนาดคู่ปัดไปทางมุมบนซ้าย
 //  arc > 0 = ครึ่งวง 180° รัศมี arc ไปทางที่หัน รวมแถวข้างตัว (ข้าวหลามตัดครึ่งหน้า · ไม่สน len/width — ท่าไม้ตายออพติมัส ไพร์ม: arc 2 = 8 ช่อง)
 // แถบกว้าง width ยาวสุดแผนที่รอบช่อง (x, y): orient "h" = แนวนอน · "v" = แนวตั้ง · ชิดขอบแล้วเลื่อนเข้าให้กว้างครบเสมอ (Mahapralaya)
@@ -1876,7 +1857,7 @@ function normalizeMap(pub) {
 }
 
 export {
-  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE, ZERO_AREA, ZERO_STAGES, ZERO_SEALS, isZeroArea,
+  COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE,
   COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, RT_AREAS, isRoadtripArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,

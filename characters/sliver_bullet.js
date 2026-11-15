@@ -13,11 +13,11 @@
 //    คลิปครั้งแรกต่อเกม · ครั้งต่อไปการ์ดแจ้งเตือน + เสียง · ระหว่างล่องหน คลิป/การ์ด/เสียงเฉพาะตัวเอง + เพื่อนร่วมทีม
 //  ตีปกติ: ระยะ [1, 4] (เท่าระยะเดิน) ยิงจากที่ยืน — ฉากตีวาดลำแสงยาว SHOT_LEN ช่องไปทางเป้า (attackBeam)
 //  สกิลรอง Beam Magnum (4 แต้ม · ต้องมีแขน · เสียแขน · ปรากฏตัว) — แนว 8×1 ทะลุโดนศัตรูทุกคนในแนว
-//    ดาเมจ 4 แบบไอเทม (เหมือนกระสุน Nursedessei: เกราะรับก่อน · หลบหลีก/ช่องหลบใช้ไม่ได้ · ไม่บวกเปราะบาง) · ไม่จบตา (ตีปกติต่อได้)
+//    ดาเมจ 4 แบบไอเทม (เหมือนกระสุน Nursedessei: เกราะรับก่อน · ทอยหลบรายตัว (หลบพ้น = ไม่โดนอะไร · แม่นยำทะลุ) · ไม่บวกเปราะบาง) · ไม่จบตา (ตีปกติต่อได้)
 //    คลิปครั้งแรกต่อเกม · ลำแสงบนกระดาน (beamFx) + เสียงยิง + ดาเมจลง "หลังคลิปจบ" (มีคลิปก็จบด้วยเสียงยิง — ผู้ใช้สั่ง)
 //  ท่าไม้ตาย ผมจำเป็นต้องไปต่อ (6 แต้ม · ปรากฏตัว 2 เทิร์น): กล่องของลาพลัส 2×2 ตกลงช่องไหนก็ได้ทั้งสนาม (area tile place "list" —
 //    ช่องมุมบนซ้ายที่วางได้คิดใน skillArea) · กล่อง = ยูนิตที่ถูกเรียก (server/summon.js) ฝ่ายกลาง ตัวขนาด 2 · เลือด 2 เกราะ 1 ·
-//    ขวางทางทุกคน ศัตรูตีพังได้ · ทับใคร = ผลักออก (Board.pushOutTile) + ศัตรูเสีย 2 เกราะก่อน (เพื่อนแค่ถูกผลัก — แบบขยายร่าง Echo)
+//    ขวางทางทุกคน ศัตรูตีพังได้ · ทับใคร = ผลักออก (Board.pushOutTile) + ศัตรูเสีย 2 เกราะก่อน (ศัตรูทอยหลบได้ หลบพ้น = แค่ถูกผลัก · เพื่อนแค่ถูกผลัก — แบบขยายร่าง Echo)
 //    · ยืนติดกล่อง → ปุ่ม HUD "สวม" = เป็นบานาจถาวร (เลือดสูงสุด +2 ฟื้น 2 · เกราะสูงสุด +1 ฟื้น 2) · กล่องพัง = เรียกใหม่ได้ · นักบินตาย = กล่องหาย
 //  สกิลติดตัว ซุ่มโจมตี (ล่องหน — ระบบมองเห็นกลางอยู่ server/visibility.js)
 //    เงื่อนไข: ffa = ผู้เล่นที่ยังรอด (รวมตัวเอง) ≥ 3 · โหมดทีม = เพื่อนร่วมทีมที่ยังรอด ≥ 2 (duo ไม่เข้าเงื่อนไข)
@@ -31,7 +31,7 @@
 //  พลังชีวิต 7 · เกราะ 3 · เดิน 4 · ตีปกติระยะ 1 (ฉากตีดาบ BeamSaber แดง — attackHitFx "saberRed") · ไม่มีซุ่มโจมตี
 //  โล่ดูดซับ (พื้นฐาน 3 แต้ม): ความเสียหายทุกแบบเป็น 0 จนถึงต้นตาเดินถัดไปของตัวเอง (adjustIncomingDamage) + ฟื้นเลือดเท่าที่ดูดซับ
 //    รวมไม่เกิน 3 ต่อการกด · การสังหารทันทีไม่ผ่านท่อดาเมจ = กันไม่ได้ · หมดผลแล้วคูลดาวน์ 3 เทิร์น
-//  Beam Magnum (รอง 2 แต้ม · กระสุน 5 นัดต่อเกม): แนว 8×1 ความเสียหาย 3 ทุกศัตรูในแนว (เกราะก่อน · หลบไม่ได้) + พังสิ่งกีดขวางที่โดน
+//  Beam Magnum (รอง 2 แต้ม · กระสุน 5 นัดต่อเกม): แนว 8×1 ความเสียหาย 3 ทุกศัตรูในแนว (เกราะก่อน · ทอยหลบรายตัว · แม่นยำทะลุ) + พังสิ่งกีดขวางที่โดน
 //    (engine.breakObstacles — ร้านค้าไม่ใช่สิ่งกีดขวางของแผนที่ จึงไม่โดน) · ยิงแล้วต้องกดรีโหลด (ปุ่ม HUD 0 แต้ม) ในเทิร์นถัดไปก่อนยิงอีก
 //    · ระหว่างยูนิคอร์น: 4 แต้ม ไม่ใช้กระสุน ไม่ต้องรีโหลด · เสียงยิง Beam Magnum เดิม (ผู้ใช้สั่ง — สกิลนี้เท่านั้น)
 //  ยูนิคอร์น!!!! (ท่าไม้ตาย 6 แต้ม · 5 เทิร์น · คูลดาวน์ 5 เทิร์นหลังหมดผล): New Type Paradise — ผลของ NT-D ฟรี + โล่บินได้ 3 อัน
@@ -262,17 +262,19 @@ function dropBox(engine, p, at) {
       const to = Board.pushOutTile(engine.boardMap(), before, box, others, { selfId: o.id, blocked: engine.boardBlocked(o.id) });
       if (to) o.pos = { x: to.x, y: to.y };
       const enemy = !engine.sameTeam(p, o);
+      // ศัตรูทอยหลบก่อน (ทุกสกิลหลบได้ · แม่นยำทะลุ) — หลบพ้น = แค่ถูกผลักออก ไม่เสียเลือด
+      const dodge = enemy && engine.skillDodge(p, o, "กล่องของลาพลัส");
       let dealt = 0;
-      if (enemy) {
+      if (enemy && !dodge) {
         const vit = pool(o);
         o.wasAttacked = true;
         engine.dealMixed(o, BOX.dmg, false);
         if (o.alive && o.hp <= 0) engine.instantDeath(o);
         dealt = Math.max(0, vit - pool(o));
       }
-      engine.log(`📦 ${o.name} ถูกกล่องของลาพลัสทับ — ผลักออก${enemy ? ` -${dealt} (ลดเกราะก่อน)` : ""}`);
+      engine.log(`📦 ${o.name} ถูกกล่องของลาพลัสทับ — ผลักออก${enemy && !dodge ? ` -${dealt} (ลดเกราะก่อน)` : ""}`);
       if (!o.alive) { o.pos = null; if (!o.summon) engine.log(`💀 ${o.name} เลือดจริงหมด ตกรอบ!`); }
-      pushed.push({ id: o.id, from: before, to: o.pos ? tile(o.pos) : null, dmg: dealt });
+      pushed.push({ id: o.id, from: before, to: o.pos ? tile(o.pos) : null, dmg: dealt, ...(dodge ? { dodge: true } : {}) });
     }
   });
   b.pos = { x: at.x, y: at.y };
@@ -437,7 +439,7 @@ function guard(engine, f) {
   engine.broadcastState();
   return true;
 }
-// Beam Magnum ของบานาจ: ศัตรูทุกคนในแนว 3 (เกราะก่อน · หลบไม่ได้) + พังสิ่งกีดขวางในแนว
+// Beam Magnum ของบานาจ: ศัตรูทุกคนในแนว 3 (เกราะก่อน · ทอยหลบรายตัว · แม่นยำทะลุ) + พังสิ่งกีดขวางในแนว
 function banagherBeam(engine, p, targets, dir) {
   const s = st(p);
   const ult = !!s.unicorn;
@@ -455,6 +457,7 @@ function banagherBeam(engine, p, targets, dir) {
     for (const id of targets || []) {
       const t = engine.players[id];
       if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t)) continue;
+      if (engine.skillDodge(p, t, " Beam Magnum")) continue; // หลบพ้น = ไม่โดนอะไรเลย
       t.wasAttacked = true;
       const before = pool(t);
       engine.dealMixed(t, B.beamDmg);
@@ -670,6 +673,7 @@ module.exports = {
         for (const id of targets || []) {
           const t = engine.players[id];
           if (!t || !t.alive || t.id === p.id || engine.sameTeam(p, t) || id === s.box) continue; // กล่องของตัวเองไม่โดน
+          if (engine.skillDodge(p, t, " Beam Magnum")) continue; // หลบพ้น = ไม่โดนอะไรเลย
           t.wasAttacked = true;
           const before = pool(t);
           engine.dealMixed(t, BEAM_DMG);

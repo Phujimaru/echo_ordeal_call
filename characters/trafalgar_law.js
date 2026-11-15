@@ -723,9 +723,11 @@ module.exports = {
       if (!t.alive) return;
       t.wasAttacked = true;
       const at = t.pos ? { ...t.pos } : null;
-      const dmg = hurt(engine, p, t, SQUEEZE_DMG, "บีบหัวใจ");
+      // หลบได้ (ผู้ใช้ 2026-11-15 — ทุกการโจมตีต้องหลบได้ เว้นผู้ลงมือติดแม่นยำ) · หลบพ้นยังเสียครั้งบีบ
+      const dodge = engine.skillDodge(p, t, "บีบหัวใจ");
+      const dmg = dodge ? 0 : hurt(engine, p, t, SQUEEZE_DMG, "บีบหัวใจ");
       item.uses -= 1;
-      fx(engine, p, "squeezeHit", { targetId: t.id, to: at, dmg, kill: !t.alive });
+      fx(engine, p, "squeezeHit", { targetId: t.id, to: at, dmg, kill: !t.alive, dodge });
       if (item.uses <= 0 && (p.inventory || []).includes(item)) {
         removeHeart(engine, p, item, "used");
         engine.log(`🫀 หัวใจของ ${t.name} กลับคืนเจ้าของ`);

@@ -189,7 +189,7 @@ test('ไจโร 2 คน: B ถูก A ดึง/กระเด็น = ส
   tick(t, 2000);
   assert.deepEqual(P.B.pos, { x: 4, y: 8 }, 'ถูกดึง 4 ช่อง');
   assert.equal(P.B.gyro.golden, 0, 'ถูกดึงไม่นับ');
-  assert.equal(P.B.gyro.horseHp, 1, 'ม้ารับ 2 ก่อน');
+  assert.equal(P.B.gyro.horseHp, gyro.HORSE_HP - 2, 'ม้ารับ 2 ก่อน (ม้า 5 ผู้ใช้สั่ง 2026-11-14)');
   assert.equal(P.B.armor, armor0, 'เกราะยังไม่ลด');
   // กระเด็นจากท่าไม้ตายของ A
   P.A.gyro.empowered = true;
@@ -215,7 +215,7 @@ test('ไจโร 2 คน: A ตี B แล้ว B สวน — ใช้�
   assert.deepEqual(card.push, { from: { x: 2, y: 8 }, to: { x: 1, y: 8 }, collide: false, via: null }, 'ถูกผลัก 1 ช่อง ไม่ถอยซ้อน');
   assert.deepEqual(P.A.pos, { x: 1, y: 8 });
   assert.equal(vitOf(P.A), a0, 'สวนลงม้าของ A ก่อน · ผลักไม่เสียเพิ่ม');
-  assert.equal(P.A.gyro.horseHp, 2);
+  assert.equal(P.A.gyro.horseHp, gyro.HORSE_HP - 1); // ม้า 5 (ผู้ใช้สั่ง 2026-11-14) รับสวน 1
   tick(t, 6000);
   assert.deepEqual(P.B.pos, { x: 6, y: 8 }, 'แล้ว B ถูกลูกของ A ผลักหลังฉากสวน');
   // B ไม่มีลูกในมือ = สวนไม่ได้

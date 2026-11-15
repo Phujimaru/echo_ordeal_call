@@ -47,7 +47,7 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · ท่าไม้ตายกล่องของลาพลัส · ตีปกติระยะ 1–4 · Beam Magnum แนว 8×1 (สกิลโจมตี) · unique', () => {
+test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 (+3/+2 ค่าสถานะเพิ่มทุกตัว = 8/4) · ท่าไม้ตายกล่องของลาพลัส · ตีปกติระยะ 1–4 · Beam Magnum แนว 8×1 (สกิลโจมตี) · unique', () => {
   const ch = CHAR_BY_ID.sliver_bullet;
   assert.equal(ch.ultimate.cost, 6);
   assert.equal(ch.ultimate.area.kind, 'tile');
@@ -58,12 +58,12 @@ test('ข้อมูล: พลังชีวิต 5 · เกราะ 2 · 
   assert.equal(pilot.attackBeam({ characterId: 'sliver_bullet' }), ch.range[1], 'ลำแสงตีปกติยาวเท่าระยะตี');
   assert.match(ch.secondary.desc, /8×1/);
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
-  assert.equal(engine.maxHpOf(P.S), 5);
-  assert.equal(engine.maxArmorOf(P.S), 2);
-  assert.equal(P.S.hp, 5);
-  assert.equal(P.S.armor, 2);
+  assert.equal(engine.maxHpOf(P.S), 8);
+  assert.equal(engine.maxArmorOf(P.S), 4);
+  assert.equal(P.S.hp, 8);
+  assert.equal(P.S.armor, 4);
   assert.equal(P.S.sliver.arm, true, 'เริ่มเกมมีแขน');
-  assert.equal(engine.maxHpOf(P.B), 7, 'ตัวอื่นยังเท่าเดิม');
+  assert.equal(engine.maxHpOf(P.B), 10, 'ตัวอื่นยังเท่าเดิม');
 });
 
 test('ซุ่มโจมตี: ffa 3 คนขึ้นไป = เริ่มเกมล่องหน · ศัตรูได้ pos null และเล็ง/ตีไม่ได้ · ตัวเองเห็นแบบโปร่งแสง', () => {
@@ -168,7 +168,7 @@ test('ซุ่มโจมตี: โดนสกิลโจมตีแบบ
   engine.setActor('M');
   engine.useSkill('M', 'ultimate', [], { dir: 'right' });
   assert.equal(P.S.sliver.hidden, false, 'อยู่ในแนวคลื่นดาบ = ปรากฏตัว');
-  assert.ok(P.S.hp + P.S.armor < 7, 'โดนดาเมจจริง');
+  assert.ok(P.S.hp + P.S.armor < 8 + 4, 'โดนดาเมจจริง');
   assert.equal(P.S.sliver.revealUntil, 4);
   // เทิร์นหน้า โดนอีก = ไม่ต่อเวลา
   engine.setRoundNumber(4);
@@ -238,18 +238,19 @@ test('เปลี่ยนชิ้นส่วน: มีแขน 3 แต้
   assert.deepEqual(calls.sfx, [{ sound: 'sliver_reload', onlyFor: ['S'] }]);
 });
 
-test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · หลบไม่ได้) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
+test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · ทอยหลบรายตัว) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 9, 5], ['D', 'dummy', 10, 5]]);
   P.B.armor = 1; P.B.hp = 7;
-  P.C.statuses.evade = 1; P.C.statusAmt.evade = 100; // หลบหลีก 100% ก็หลบไม่ได้
+  P.C.statuses.evade = 1; P.C.statusAmt.evade = 100; // หลบหลีก 100% = หลบพ้น
   Math.random = () => 0;
   engine.setActor('S');
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(P.S.skillPoints, 4);
   assert.equal(P.B.armor, 0);
   assert.equal(P.B.hp, 4, 'เกราะ 1 + เลือด 3');
-  assert.equal(P.C.hp + P.C.armor, 10 - 4);
-  assert.equal(P.D.hp + P.D.armor, 10, 'ช่องที่ 9 นอกแนว');
+  assert.equal(P.C.hp + P.C.armor, 15, 'หลบพ้น = ไม่โดน');
+  assert.ok(!P.C.wasAttacked, 'หลบพ้น = ไม่มีผลโดนตี');
+  assert.equal(P.D.hp + P.D.armor, 15, 'ช่องที่ 9 นอกแนว');
   assert.equal(P.S.sliver.arm, false);
   assert.equal(P.S.sliver.hidden, false);
   assert.equal(P.S.skillUsedRound, true);
@@ -271,6 +272,16 @@ test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ด
   assert.equal(calls.fx.length, 2);
 });
 
+test('Beam Magnum: ผู้ยิงติดแม่นยำ = ทะลุหลบหลีก 100%', () => {
+  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  P.S.statuses.accurate = 1;
+  Math.random = () => 0;
+  engine.setActor('S');
+  engine.useSkill('S', 'secondary', [], { dir: 'right' });
+  assert.equal(P.B.hp + P.B.armor, 15 - 4);
+});
+
 test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · โหมดทีมไม่โดนเพื่อน · ไม่เลือกทิศ = กดไม่ได้', () => {
   let P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 3, 5], ['C', 'dummy', 12, 12]]);
   P.B.hp = 2; P.B.armor = 1;
@@ -283,8 +294,8 @@ test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · 
   P = setup([['S', 'sliver_bullet', 1, 5, 't1'], ['A', 'dummy', 3, 5, 't1'], ['B', 'dummy', 5, 5, 't2'], ['C', 'dummy', 12, 12, 't2']], 'duo');
   engine.setActor('S');
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
-  assert.equal(P.A.hp + P.A.armor, 10, 'เพื่อนไม่โดน');
-  assert.equal(P.B.hp + P.B.armor, 6);
+  assert.equal(P.A.hp + P.A.armor, 15, 'เพื่อนไม่โดน');
+  assert.equal(P.B.hp + P.B.armor, 11);
 });
 
 test('Beam Magnum: บันทึกดาเมจนับโล่ด้วย (ไม่ขึ้น -0)', () => {
@@ -312,7 +323,7 @@ test('ตีปกติ: ระยะ 1–4 ยิงจากที่ยื�
   assert.equal(engine.attackTarget('S', 'B'), true, 'ห่าง 4');
   engine.clearPhaseTimer();
   assert.equal(engine.lastAttack.byBeam, 4);
-  assert.ok(P.B.hp + P.B.armor < 10);
+  assert.ok(P.B.hp + P.B.armor < 15);
   const D = setup([['D', 'dummy', 1, 5], ['E', 'dummy', 2, 5]]);
   engine.setActor('D');
   assert.equal(engine.attackTarget('D', 'E'), true);

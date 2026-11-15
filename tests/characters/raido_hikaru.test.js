@@ -34,6 +34,9 @@ function setup(list, mode = 'ffa') {
 }
 const view = (viewerId, id) => engine.buildStateFor(viewerId).players.find((p) => p.id === id);
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
+// ค่าสถานะเพิ่มทุกตัวละคร +3 พลังชีวิต / +2 เกราะ (ผู้ใช้สั่ง 2026-11-14 · STAT_BONUS ใน server/combat.js)
+const HP = 7 + 3, ARMOR = 3 + 2;
+const FULL = 15; // เลือด+เกราะเต็มของ dummy (7+3 + 3+2)
 const form = (id, key) => engine.useSkill(id, 'basic', [], { form: key });
 const formCd = (key, id = 'H') => view(id, id).hikaru.forms.find((f) => f.key === key).cd;
 // จบเทิร์นแบบไม่ผ่านฉาก/การเดินทาง: ลดเทิร์นสถานะ (เหมือน endTurn) → ฮุคจบเทิร์น → ขึ้นเทิร์นใหม่ (ล้างค่าแสดงผลรอบ)
@@ -85,8 +88,8 @@ test('ข้อมูล: ระดับกลาง · เลือด 7 เ�
     assert.ok(TRANSFORMS[key] && TRANSFORMS[key].video, `คลิป ${key}`);
   }
   const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 8, 5]]);
-  assert.equal(P.H.hp, 7);
-  assert.equal(P.H.armor, 3);
+  assert.equal(P.H.hp, HP);
+  assert.equal(P.H.armor, ARMOR);
   assert.equal(P.H.hikaru.form, null);
   const v = view('H', 'H');
   assert.equal(v.hikaru.forms.length, 7, '6 ร่าง + คืนร่าง');
@@ -132,19 +135,19 @@ test('ทุกร่าง: เกราะสูงสุด +2 · เข้�
   P.H.armor = 1;
   engine.setActor('H');
   form('H', 'doragory');
-  assert.equal(engine.maxArmorOf(P.H), 3 + hk.FORM_ARMOR);
+  assert.equal(engine.maxArmorOf(P.H), ARMOR + hk.FORM_ARMOR);
   assert.equal(P.H.armor, 1 + hk.FORM_ARMOR_HEAL, 'ฟื้นเกราะ 2');
   assert.equal(view('H', 'H').hikaru.armorCd, hk.ARMOR_HEAL_CD);
   passTurn();
   engine.setActor('H');
   form('H', 'pandon');
   assert.equal(P.H.armor, 3, 'ยังไม่ครบ 5 เทิร์น = ไม่ฟื้นเกราะ');
-  P.H.armor = 5;
+  P.H.armor = ARMOR + hk.FORM_ARMOR;
   passTurn();
   engine.setActor('H');
   form('H', hk.NORMAL);
-  assert.equal(P.H.armor, 3, 'คืนร่าง = ตัดเกราะส่วนเกิน');
-  assert.equal(engine.maxArmorOf(P.H), 3);
+  assert.equal(P.H.armor, ARMOR, 'คืนร่าง = ตัดเกราะส่วนเกิน');
+  assert.equal(engine.maxArmorOf(P.H), ARMOR);
   engine.setRoundNumber(1 + hk.ARMOR_HEAL_CD);
   engine.setActor('H');
   P.H.armor = 1;
@@ -156,7 +159,7 @@ test('ทุกร่าง: เกราะลดเท่าไร ฟื้�
   const P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 8, 5]]);
   P.H.hp = 3;
   engine.dealMixed(P.H, 2);
-  assert.equal(P.H.armor, 1);
+  assert.equal(P.H.armor, ARMOR - 2);
   assert.equal(P.H.hp, 3, 'ร่างปกติไม่ฟื้น');
   engine.setActor('H');
   form('H', 'kemur');
@@ -173,7 +176,7 @@ test('ทุกร่าง: เกราะลดเท่าไร ฟื้�
 test('ร่าง UltraLive โดนตีปกติ 2: เลือดเต็ม = เกราะลด 2 เต็มๆ · เลือดไม่เต็ม = เกราะยังลด 2 แต่ฟื้นเลือดตามที่เกราะลด (ไม่ลดดาเมจ)', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   Math.random = () => 0.99;
-  for (const hp of [7, 6]) {
+  for (const hp of [HP, HP - 1]) {
     const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 6, 8]]);
     engine.setActor('H');
     form('H', 'thunder');
@@ -183,8 +186,8 @@ test('ร่าง UltraLive โดนตีปกติ 2: เลือดเ�
     engine.setActor('B');
     assert.equal(engine.attackTarget('B', 'H'), true);
     assert.equal(engine.lastAttack.dmg, 2);
-    assert.equal(P.H.armor, 3, 'เกราะลด 2');
-    assert.equal(P.H.hp, Math.min(7, hp + 2), 'ฟื้นเลือดเท่าที่เกราะลด (ไม่เกินสูงสุด)');
+    assert.equal(P.H.armor, ARMOR + hk.FORM_ARMOR - 2, 'เกราะลด 2');
+    assert.equal(P.H.hp, Math.min(HP, hp + 2), 'ฟื้นเลือดเท่าที่เกราะลด (ไม่เกินสูงสุด)');
     flush(t, 8000);
   }
 });
@@ -199,10 +202,10 @@ test('แบล็คคิง: ตีปกติแนวตรง 1×3 โด
   assert.equal(view('H', 'H').lane, true);
   assert.equal(engine.attackTarget('H', 'E'), false, 'เฉียง = นอกแนว');
   assert.equal(engine.attackTarget('H', 'C'), true, 'ห่าง 3 ในแนว');
-  assert.equal(vit(P.B), 9, 'คนหน้าในแนวโดนด้วย');
-  assert.equal(vit(P.C), 9);
-  assert.equal(vit(P.D), 10, 'เกินระยะ 3 ไม่โดน');
-  assert.equal(vit(P.E), 10);
+  assert.equal(vit(P.B), FULL - 1, 'คนหน้าในแนวโดนด้วย');
+  assert.equal(vit(P.C), FULL - 1);
+  assert.equal(vit(P.D), FULL, 'เกินระยะ 3 ไม่โดน');
+  assert.equal(vit(P.E), FULL);
   assert.deepEqual(engine.lastAttack.extra.map((e) => e.targetId), ['B']);
   assert.equal(engine.lastAttack.byLane.length, 3);
   assert.equal(engine.lastAttack.byStyle, 'hkBlack');
@@ -212,8 +215,8 @@ test('แบล็คคิง: ตีปกติแนวตรง 1×3 โด
   P.H.hikaru.form = 'blackking';
   engine.setActor('H');
   assert.equal(engine.attackTarget('H', 'C'), true);
-  assert.equal(vit(P.F), 10);
-  assert.equal(vit(P.C), 9);
+  assert.equal(vit(P.F), FULL);
+  assert.equal(vit(P.C), FULL - 1);
   flush(t, 8000);
 });
 
@@ -304,7 +307,7 @@ test('Ultraman Tiga: พลังโจมตี +1 · แม่นยำ · 3 �
   passTurn();
   assert.equal(P.H.hikaru.form, null, 'ครบ 3 เทิร์น คืนร่างเอง');
   assert.equal(P.H.statuses.accurate, undefined, 'ถอดแม่นยำ');
-  assert.equal(engine.maxArmorOf(P.H), 3);
+  assert.equal(engine.maxArmorOf(P.H), ARMOR);
   const r = engine.roundNumber;
   assert.equal(formCd('tiga'), hk.FORM_CD);
   engine.setActor('H');
@@ -431,10 +434,10 @@ test('กิงกะ: ตีแค่ช่องติดตัว · โด�
   engine.action.locked = true;
   assert.equal(engine.attackTarget('H', 'D'), false, 'ห่าง 2 ช่องตีไม่ได้');
   assert.equal(engine.attackTarget('H', 'B'), true);
-  assert.equal(vit(P.B), 8, 'กิงกะ +1');
-  assert.equal(vit(P.C), 8, 'ติดด้านเดียวกันโดนด้วย');
-  assert.equal(vit(P.D), 10);
-  assert.equal(vit(P.E), 10, 'คนละด้านไม่โดน');
+  assert.equal(vit(P.B), FULL - 2, 'กิงกะ +1');
+  assert.equal(vit(P.C), FULL - 2, 'ติดด้านเดียวกันโดนด้วย');
+  assert.equal(vit(P.D), FULL);
+  assert.equal(vit(P.E), FULL, 'คนละด้านไม่โดน');
   assert.equal(engine.lastAttack.byStyle, 'hkGinga');
   assert.equal(engine.lastAttack.byLane.length, 3);
   flush(t, 8000);
@@ -464,7 +467,7 @@ test('ร่าง UltraLive ตัว 3×3 (เดิน 3 · เดินพ�
   assert.equal(engine.sizeOf(P.H), 1, 'คืนร่าง = ตัวเล็ก');
 });
 
-test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · แนว 5×1 จากกลางด้านหน้าตัว · ดาเมจ 2 หลบไม่ได้ + ลุกไหม้ 2 · ไม่โดนเพื่อน · ลำแสงก่อนดาเมจ', (t) => {
+test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · แนว 5×1 จากกลางด้านหน้าตัว · ดาเมจ 2 + ลุกไหม้ 2 · หลบได้ · ไม่โดนเพื่อน · ลำแสงก่อนดาเมจ', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   let P = setup([['H', 'raido_hikaru', 1, 5], ['B', 'dummy', 3, 5]]);
   engine.setActor('H');
@@ -482,17 +485,45 @@ test('Ginga Cross Shoot: ร่างกิงกะเท่านั้น · 
   assert.equal(beam.payload.kind, 'cross');
   assert.deepEqual(beam.payload.tiles.map((c) => c.x), [3, 4, 5, 6, 7]);
   assert.ok(beam.payload.tiles.every((c) => c.y === 8), 'กลางด้านหน้าตัว');
-  assert.equal(vit(P.B), 10, 'ดาเมจลงหลังลำแสงวิ่งถึง');
+  assert.equal(vit(P.B), FULL, 'ดาเมจลงหลังลำแสงวิ่งถึง');
   flush(t, 5000);
-  assert.equal(vit(P.B), 10 - hk.BEAM_DMG, 'หลบไม่ได้');
-  assert.equal(P.B.statuses.hburn, hk.CROSS_BURN);
-  assert.equal(vit(P.C), 10 - hk.BEAM_DMG);
-  assert.equal(vit(P.F), 10, 'ไม่โดนเพื่อน');
-  assert.equal(vit(P.G), 10, 'เกินแนว 5 ไม่โดน');
+  assert.equal(vit(P.B), FULL, 'หลบหลีก 100% = หลบพ้น ไม่โดนดาเมจ');
+  assert.equal(P.B.statuses.hburn, undefined, 'หลบพ้น = ไม่ลุกไหม้');
+  assert.equal(vit(P.C), FULL - hk.BEAM_DMG);
+  assert.equal(P.C.statuses.hburn, hk.CROSS_BURN);
+  assert.equal(vit(P.F), FULL, 'ไม่โดนเพื่อน');
+  assert.equal(vit(P.G), FULL, 'เกินแนว 5 ไม่โดน');
   assert.equal(engine.gameState, 'ACTION', 'ไม่จบตา');
 });
 
-test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืน/ห่วงเวลาไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
+test('Ginga Cross Shoot: ผู้ใช้มีแม่นยำ = หลบหลีก 100% ก็โดน (ดาเมจ + ลุกไหม้)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['H', 'raido_hikaru', 0, 7], ['B', 'dummy', 5, 8]]);
+  P.H.hikaru.ginga = true; P.H.statuses.hikaruGinga = 3; P.H.boardSize = 3;
+  P.H.statuses.accurate = 2;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('H');
+  engine.useSkill('H', 'ultimate', [], { dir: 'right' });
+  flush(t, 5000);
+  assert.equal(vit(P.B), FULL - hk.BEAM_DMG, 'แม่นยำเจาะหลบหลีก');
+  assert.equal(P.B.statuses.hburn, hk.CROSS_BURN);
+});
+
+test('Strium Ray: หลบพ้น = ไม่โดนดาเมจ ไม่ลุกไหม้ ไม่ถูกผลัก', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['H', 'raido_hikaru', 0, 6], ['B', 'dummy', 3, 7]]);
+  P.H.hikaru.ginga = true; P.H.hikaru.strium = true; P.H.statuses.hikaruGinga = 3; P.H.boardSize = 3;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('H');
+  engine.useSkill('H', 'ultimate', [], { dir: 'right' });
+  flush(t, 6000);
+  assert.equal(vit(P.B), FULL);
+  assert.equal(P.B.statuses.hburn, undefined);
+  assert.deepEqual(P.B.pos, { x: 3, y: 7 }, 'ไม่ถูกผลัก');
+  assert.ok(!calls.fx.some((f) => f.event === 'hikaruPush'));
+});
+
+test('Strium Brace: จบเทิร์นในกิงกะกลางวันครบ 5 = สโตเรี่ยมทันที (กลางคืนไม่นับ) · กิงกะครั้งต่อไปเป็นสโตเรี่ยม · +2 และติดลุกไหม้', () => {
   const P = setup([['H', 'raido_hikaru', 1, 8], ['B', 'dummy', 12, 2]]);
   const s = P.H.hikaru;
   s.ginga = true; P.H.statuses.hikaruGinga = 99; P.H.boardSize = 3;
@@ -562,7 +593,7 @@ test('Strium Ray: 6 แต้ม · แนว 5×3 · ดาเมจ 2 + ลุ
   assert.equal(P.H.skillPoints, 8 - hk.RAY_COST);
   assert.deepEqual(calls.cut, ['hkStriumRay']);
   flush(t, 6000);
-  assert.equal(vit(P.B), 10 - hk.BEAM_DMG);
+  assert.equal(vit(P.B), FULL - hk.BEAM_DMG);
   assert.equal(P.B.statuses.hburn, hk.RAY_BURN);
   assert.deepEqual(P.B.pos, { x: 7, y: 7 }, 'ผลักไปสุดปลาย');
   assert.deepEqual(P.D.pos, { x: 7, y: 8 }, 'คนไกลสุดผลักก่อน');

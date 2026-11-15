@@ -51,11 +51,11 @@ function setup({ points = 8 } = {}) {
 }
 const use = (tier, form, extra = {}) => engine.useSkill("a", tier, extra.targets || [], { form, ...extra });
 
-test("ค่าพื้นฐาน: พลังชีวิต 7 · เกราะ 3 · เดิน 4 · ตีปกติปืนกลระยะ 1–3", () => {
+test("ค่าพื้นฐาน: พลังชีวิต 7 (+3 ค่าสถานะเพิ่มทุกตัว = 10) · เกราะ 3 · เดิน 4 · ตีปกติปืนกลระยะ 1–3", () => {
   const { p } = setup();
   assert.deepEqual(engine.rangeOf(p), [1, 3]);
-  assert.equal(engine.maxHpOf(p), 7);
-  assert.equal(p.hp, 7);
+  assert.equal(engine.maxHpOf(p), 10);
+  assert.equal(p.hp, 10);
   assert.equal(engine.baseMovOf(p), 4);
   assert.equal(kiri.attackStyle(p), "kiriSmg");
   assert.equal(kiri.attackSound(p), "kiri_smg");
@@ -107,7 +107,7 @@ test("กับดักระเบิด: ช่องศัตรูวาง
   assert.deepEqual(u.pos, { x: 4, y: 5 }, "เหยียบช่องแรกที่มีกับดัก หยุดตรงนั้น");
   assert.equal(u.hp, 4);
   assert.equal(t.hp, 4, "ศัตรูในวง 3×3 โดนด้วย");
-  assert.equal(p.hp, 7, "เจ้าของกับดักไม่โดน (ยืน 5,5 อยู่ในวง)");
+  assert.equal(p.hp, 10, "เจ้าของกับดักไม่โดน (ยืน 5,5 อยู่ในวง)");
   assert.equal(p.kiri.mines.length, 2);
 });
 
@@ -128,8 +128,8 @@ test("Time Alter Double: ความจุ −1 · Clock Up 2 ครั้ง �
   p.armor = 0;
   use("secondary", "double");
   assert.equal(p.skillPoints, 6);
-  assert.equal(engine.maxHpOf(p), 6);
-  assert.equal(p.hp, 6);
+  assert.equal(engine.maxHpOf(p), 9);
+  assert.equal(p.hp, 9);
   assert.deepEqual(clips, [kiri.CUT.double]);
   const m = engine.clockUp.memberOf(p);
   assert.equal(m.kind, "alter");
@@ -153,7 +153,7 @@ test("Time Alter Double: ความจุ −1 · Clock Up 2 ครั้ง �
 test("Square Accel: ความจุ −2 · 4 ครั้ง · ความจุต่ำสุด 1 แล้วยังใช้ได้เสียแค่แต้ม", () => {
   const { p } = setup({ points: 30 });
   use("secondary", "square");
-  assert.equal(engine.maxHpOf(p), 5);
+  assert.equal(engine.maxHpOf(p), 8);
   assert.equal(engine.clockUp.memberOf(p).max, 4);
   p.kiri.hpLost = 6;
   p.kiri.alter = null; p.kiri.alterReady = 0;
@@ -161,7 +161,7 @@ test("Square Accel: ความจุ −2 · 4 ครั้ง · ความ
   engine.setActor("a");
   const sp = p.skillPoints;
   use("secondary", "square");
-  assert.equal(engine.maxHpOf(p), 1);
+  assert.equal(engine.maxHpOf(p), 4); // ความจุของตัวละครต่ำสุด 1 + ค่าสถานะเพิ่ม 3
   assert.equal(p.skillPoints, sp - 2);
 });
 
@@ -172,7 +172,7 @@ test("Time Alter นอกตา: ปุ่ม 2 แบบ แทรกตาค
   assert.equal(st.canAlter, true);
   assert.equal(kiri.charAction(engine, p, "kiri:square"), true);
   assert.equal(p.skillPoints, 6);
-  assert.equal(engine.maxHpOf(p), 5);
+  assert.equal(engine.maxHpOf(p), 8);
   assert.equal(p.kiri.alter.kind, "square");
 });
 
@@ -270,22 +270,22 @@ test("อดีนาลีน: ความเสียหายจากศั
   const { p, t } = setup();
   p.armor = 0;
   engine.withEffectSource(t, () => engine.dealMixed(p, 2, true));
-  assert.equal(p.hp, 7);
+  assert.equal(p.hp, 10);
   assert.equal(p.kiri.pending.length, 1);
   const r = engine.roundNumber;
   engine.setRoundNumber(r + 1);
   engine.withEffectSource(t, () => engine.dealMixed(p, 1, true));
   kiri.onRoundStartTick(engine, p);
-  assert.equal(p.hp, 7, "ยังไม่ถึง");
+  assert.equal(p.hp, 10, "ยังไม่ถึง");
   engine.setRoundNumber(r + 2);
   kiri.onRoundStartTick(engine, p);
-  assert.equal(p.hp, 5, "ของเทิร์นแรกลง");
+  assert.equal(p.hp, 8, "ของเทิร์นแรกลง");
   engine.setRoundNumber(r + 3);
   kiri.onRoundStartTick(engine, p);
-  assert.equal(p.hp, 4, "ของเทิร์นที่สองลงแยก");
+  assert.equal(p.hp, 7, "ของเทิร์นที่สองลงแยก");
   // ไม่มีต้นตอ (ผลสนาม) = ลงทันที
   engine.withEffectSource(null, () => engine.dealMixed(p, 1, false));
-  assert.equal(p.hp, 3);
+  assert.equal(p.hp, 6);
 });
 
 test("การเอาตัวรอดขั้นสุดยอด: ความเสียหายถึงตาย 50% กันได้ + Double Accel ฟรีตาเดินถัดไป · 1 ครั้งต่อเกม", () => {
@@ -308,7 +308,7 @@ test("การเอาตัวรอดขั้นสุดยอด: คว
   kiri.onActorReady(engine, p);
   assert.equal(p.kiri.alter.kind, "double");
   assert.equal(p.kiri.alter.free, true);
-  assert.equal(engine.maxHpOf(p), 7, "ฟรี ไม่ลดความจุ");
+  assert.equal(engine.maxHpOf(p), 10, "ฟรี ไม่ลดความจุ");
   assert.equal(engine.clockUp.memberOf(p).max, 2);
 });
 
@@ -343,7 +343,7 @@ test("ปืนกล: ตีได้ไกล 3 ช่อง · 4 ช่อง
   engine.attackTarget("a", "b");
   engine.clearPhaseTimer();
   assert.equal(t.hp, 6);
-  assert.equal(p.hp, 7, "ตีปกติไม่มีตีสวน (GRID_PLAN §6)");
+  assert.equal(p.hp, 10, "ตีปกติไม่มีตีสวน (GRID_PLAN §6)");
   engine.setActor("a");
   t.pos = { x: 9, y: 5 };
   engine.attackTarget("a", "b");

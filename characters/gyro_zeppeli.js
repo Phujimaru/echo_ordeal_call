@@ -111,7 +111,9 @@ const K = Board.key;
 function fx(engine, p, kind, data) {
   engine.boardFx("gyroFx", { kind, id: p.id, color: engine.colorOf(p), ...data });
 }
-// ดาเมจจากลูก 1 ครั้ง (เกราะก่อน · ฆ่าได้ · ไม่หลบ) — ผู้เรียกห่อ withEffectSource(เจ้าของลูก) → ดาเมจที่ลงจริง
+// ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15): ลูกโดนศัตรูแต่ละครั้งทอยหลบ (engine.skillDodge · ผู้โจมตี = ไจโร · แม่นยำเจาะ) → true = หลบพ้น
+const evades = (engine, owner, t, reason) => !!t && t.alive && t.id !== owner.id && !engine.sameTeam(owner, t) && engine.skillDodge(owner, t, reason);
+// ดาเมจจากลูก 1 ครั้ง (เกราะก่อน · ฆ่าได้ · ผู้เรียกทอยหลบแล้ว — evades) — ผู้เรียกห่อ withEffectSource(เจ้าของลูก) → ดาเมจที่ลงจริง
 function ballHit(engine, owner, t, n, label) {
   if (!t || !t.alive || engine.sameTeam(owner, t)) return 0;
   const before = (t.hp || 0) + (t.armor || 0);
@@ -185,7 +187,7 @@ function oldestBall(p) {
 
 // ---------- กระเด็นถึงขอบ (การหมุนที่สมบูรณ์แบบ) ----------
 // วางแผนบนสำเนาตำแหน่ง (ไม่แตะเกม) → { path, to, smashKeys, jumps, shoves: [{ id, from, to, dir }] }
-//  ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = พังแล้วผ่าน · พังไม่ได้ (ผนึกมิโกะ/ร้านค้า/ร่าง) = ลอยข้าม
+//  ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = พังแล้วผ่าน · พังไม่ได้ (ช่องพัง/ร้านค้า/ร่าง) = ลอยข้าม
 //  คนขวาง = ดันออกข้างซ้าย/ขวา (ช่องว่างใกล้สุดฝั่งไหนก็ได้) · สองฝั่งไม่ว่าง = ดันนำหน้าไป (ดันต่อไม่ได้ = เป้าหยุด)
 //  ช่องที่หยุดยืนไม่ได้ (ลอยข้ามจนสุดขอบ) = ถอยกลับตามทางจนถึงช่องที่ยืนได้
 function planFlight(engine, t, dir) {
@@ -281,11 +283,15 @@ function breaker(engine, p, t, pend) {
   slides.push({ id: t.id, to: { ...plan.to }, dir, path: [from, ...plan.path.map(tile)] });
   engine.ice.forcedSlides(slides, p);
   // ผู้ใช้สั่ง 2026-10-20: ลูกแตะ → เอฟเฟกต์ก่อน → กระเด็นถึงขอบ → แล้วค่อยเสียดาเมจ (ดาเมจ/ตรึง/คนที่ถูกชน ลงตอนจบฉากกระเด็น)
+  //  เป้าหลักผ่านด่านหลบของตีปกติมาแล้ว (ไม่ทอยซ้ำ) · ศัตรูที่ถูกชนทอยหลบดาเมจชนทีละคน (ถูกดันออกข้างไปแล้วตามฉาก)
   const hit = plan.shoves.filter((m) => !engine.sameTeam(p, engine.players[m.id] || {})).map((m) => m.id);
   return {
     hold: (GYRO_FX.breakerBase + GYRO_FX.breakerPerTile * dist) / 1000,
     land: () => {
-      for (const id of hit) ballHit(engine, p, engine.players[id], SHOVE_DMG, `${t.name} กระเด็นชน`);
+      for (const id of hit) {
+        const u = engine.players[id];
+        if (!evades(engine, p, u, `${t.name} กระเด็นชน`)) ballHit(engine, p, u, SHOVE_DMG, `${t.name} กระเด็นชน`);
+      }
       if (dmg > 0) ballHit(engine, p, t, dmg, "การหมุนที่สมบูรณ์แบบ");
       if (t.alive && t.pos) root(engine, t);
     },
@@ -341,19 +347,24 @@ function secret(engine, p, targets, dirKey) {
   const v = Board.LINE_DIRS[dirKey];
   const tiles = engine.areaTiles(p, SECRET_AREA, dirKey).map(tile);
   const foes = (targets || []).map((id) => engine.players[id]).filter((t) => t && t.alive && t.pos && t.id !== p.id && !engine.sameTeam(p, t));
-  const hits = foes.map((t) => t.id);
+  // ทอยหลบตอนปล่อยลูก แยกขาไป/ขากลับ (ทุกสกิลหลบได้ — กฎผู้ใช้ 2026-11-15) · หลบพ้นทั้งสองขา = ไม่เสีย ไม่ถูกดึง (fx dodged)
+  const dodges = new Map(foes.map((t) => [t.id, { out: evades(engine, p, t, "วิชาลับไจโร (ขาไป)"), back: evades(engine, p, t, "วิชาลับไจโร (ขากลับ)") }]));
+  const struck = foes.filter((t) => { const d = dodges.get(t.id); return !d.out || !d.back; });
+  const hits = struck.map((t) => t.id);
+  const dodged = foes.filter((t) => !hits.includes(t.id)).map((t) => t.id);
   // ดาเมจลงทีละครั้งตามจังหวะลูก (ผู้ใช้สั่ง 2026-10-20): −1 ตอนลูกขาไปผ่าน · −1 ตอนลูกขากลับผ่าน (ช่องเดิมก่อนถูกดึง) → secretHit ขึ้นเลข
   const clock = secretClock(engine, p, tiles, v);
   const legs = [];
+  // ทุกขาของทุกคน (รวมคนที่หลบพ้นทั้งสองขา) ส่ง secretHit ตามจังหวะลูก — ขาที่หลบ = dodge (client ขึ้น "หลบ")
   for (const t of foes) {
-    const d = clock.d(t), at = { ...t.pos };
-    legs.push({ ms: clock.outT(d), t, at, leg: "out" }, { ms: clock.backT(d), t, at, leg: "back" });
+    const d = clock.d(t), at = { ...t.pos }, dg = dodges.get(t.id);
+    legs.push({ ms: clock.outT(d), t, at, leg: "out", dodge: dg.out }, { ms: clock.backT(d), t, at, leg: "back", dodge: dg.back });
   }
-  // ดึงเข้าหาไจโร 4 ช่อง — คนใกล้ก่อน · ติดอะไรหยุดตรงนั้น · ตัวใหญ่ไม่ถูกดึง
+  // ดึงเข้าหาไจโร 4 ช่อง — คนใกล้ก่อน · ติดอะไรหยุดตรงนั้น · ตัวใหญ่ไม่ถูกดึง · โดนอย่างน้อย 1 ขา
   const back = { x: -v[0], y: -v[1] };
   const pulls = [];
   const near = (t) => Board.dist(Board.boxOf(p), Board.boxOf(t));
-  for (const t of foes.filter((o) => o.alive && o.pos).sort((a, b) => near(a) - near(b))) {
+  for (const t of struck.filter((o) => o.alive && o.pos).sort((a, b) => near(a) - near(b))) {
     if (engine.sizeOf(t) > 1) continue;
     const from = { ...t.pos };
     let at = { ...from };
@@ -368,7 +379,9 @@ function secret(engine, p, targets, dirKey) {
     pulls.push({ id: t.id, from, to: { ...at } });
     engine.log(`🌀 ${t.name} ถูกดึงเข้าหา ${p.name}`);
   }
-  fx(engine, p, "secret", { from: { ...p.pos }, dir: dirKey, len: SECRET_AREA.len, tiles, hits, pulls });
+  // legDodge = ขาที่หลบพ้น [{ id, leg }] — client ไม่แฟลชโดนขานั้น
+  const legDodge = foes.flatMap((t) => ["out", "back"].filter((leg) => dodges.get(t.id)[leg]).map((leg) => ({ id: t.id, leg })));
+  fx(engine, p, "secret", { from: { ...p.pos }, dir: dirKey, len: SECRET_AREA.len, tiles, hits, dodged, legDodge, pulls });
   engine.sfx(SFX.throw);
   engine.sfx(SFX.spin);
   engine.sfx(SFX.secret);
@@ -382,6 +395,7 @@ function secret(engine, p, targets, dirKey) {
       for (const b of group) {
         if (b.sound) { engine.sfx(SFX.secretReturn); continue; }
         if (!b.t.alive) continue; // ตายตั้งแต่ขาไป = ขากลับไม่โดน
+        if (b.dodge) { fx(engine, p, "secretHit", { targetId: b.t.id, at: b.at, dmg: 0, leg: b.leg, dodge: true }); continue; }
         ballHit(engine, p, b.t, BALL_DMG, `${p.name} วิชาลับไจโร (${b.leg === "out" ? "ขาไป" : "ขากลับ"})`);
         fx(engine, p, "secretHit", { targetId: b.t.id, at: b.at, dmg: BALL_DMG, leg: b.leg });
       }
@@ -403,10 +417,11 @@ function recall(engine, p) {
   const own = Board.footprint(p.pos.x, p.pos.y, engine.sizeOf(p));
   const cells = path.filter((c) => !own.some((o) => o.x === c.x && o.y === c.y));
   const set = new Set(cells.map((c) => K(c.x, c.y)));
-  const hits = [];
+  const hits = [], dodged = [];
   for (const t of Object.values(engine.players)) {
     if (!t.alive || !t.pos || t.id === p.id || engine.sameTeam(p, t)) continue;
     if (!Board.footprint(t.pos.x, t.pos.y, engine.sizeOf(t)).some((c) => set.has(K(c.x, c.y)))) continue;
+    if (evades(engine, p, t, "กลับคืนเจ้าของ")) { dodged.push(t.id); continue; } // หลบพ้น = ไม่เสีย (ลูกยังกลับมือ ฟื้นตามเดิม)
     hits.push(t.id);
     ballHit(engine, p, t, BALL_DMG, `${p.name} กลับคืนเจ้าของ`);
   }
@@ -416,8 +431,8 @@ function recall(engine, p) {
     const healed = engine.healHp(p, RECALL_HEAL);
     if (healed > 0) { s.healed++; engine.log(`💚 ${p.name} ลูกเหล็กกลับมือ — ฟื้นพลังชีวิต +${healed}`); }
   }
-  engine.hitArea(p, [], hits); // คนในพุ่ม/ล่องหนที่โดน = โผล่ (ไม่ลงผนึก/หนามตามทาง)
-  fx(engine, p, "recall", { from: tile(ball), to: { ...p.pos }, path, hits });
+  engine.hitArea(p, [], [...hits, ...dodged]); // คนในพุ่ม/ล่องหนที่โดน = โผล่ (ไม่ลงผนึก/หนามตามทาง)
+  fx(engine, p, "recall", { from: tile(ball), to: { ...p.pos }, path, hits, dodged });
   engine.sfx(SFX.recall);
   engine.skillBeat(GYRO_FX.recall / 1000, () => {});
 }
@@ -537,7 +552,7 @@ module.exports = {
     if (PassiveSeal.sealed(attacker)) { settleBall(engine, attacker, target); return null; } // ลบสกิลติดตัว = ไม่ผลัก
     return () => { knockOne(engine, attacker, target, pend); };
   },
-  // ตีผนึกมิโกะ / หนามน้ำแข็ง: ใช้ลูกเหมือนตีคน (ลูกตกช่องนั้น) · ตีเสริมใส่ของ = เสริมหมดไปเฉยๆ
+  // ตีหนามน้ำแข็ง: ใช้ลูกเหมือนตีคน (ลูกตกช่องนั้น) · ตีเสริมใส่ของ = เสริมหมดไปเฉยๆ
   onStrikeObject(engine, p, at) {
     if (!isGyro(p) || !p.pos) return;
     const s = st(p);

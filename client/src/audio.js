@@ -6,24 +6,7 @@
 //    ของอีกคน) เพลงจะเริ่มใหม่จากต้น
 // ============================================================
 
-// ขบวนการจอมราชันคิงโอเจอร์ (characters/_ohger.js) — ตัดจากไฟล์ผู้ใช้ (.claude/plans/ohger-sfx.py · ปรับดังตาม LUFS)
-//  ohger_call_N = กดปุ่มสี · ohger_tf_wait_N_S = ลูประหว่างกดลำดับแปลงร่าง ขั้น S (เปลี่ยนตามจำนวนที่กด) · ohger_tf_done_N = ปิดท้ายแปลงร่าง (ครั้งที่ 2 ขึ้นไป)
-//  ohger_trigger / ohger_charge_loop (รอดึง) / ohger_pull_N_i / ohger_standby_loop (เลือกทิศ) / ohger_finish_call → ohger_finish_boom (ต่อคิว)
-//  ohger_atk_N = ตีปกติร่างสวมเกราะ
-//  N = 1 แดง · 2 น้ำเงิน · 3 เหลือง · 4 ม่วง · 5 ดำ
-const OHGER_SFX = (() => {
-  const keys = ["ohger_trigger", "ohger_charge_loop", "ohger_standby_loop", "ohger_finish_call", "ohger_finish_boom", "ohger_complete"];
-  for (let n = 1; n <= 5; n++) {
-    keys.push(`ohger_call_${n}`, `ohger_tf_wait_${n}`, `ohger_tf_done_${n}`, `ohger_atk_${n}`);
-    for (let i = 1; i <= 3; i++) keys.push(`ohger_pull_${n}_${i}`);
-    for (let i = 0; i <= 4; i++) keys.push(`ohger_tf_wait_${n}_${i}`); // ลูปแปลงร่างแต่ละขั้น (กดในลูปไปแล้ว i ปุ่ม)
-  }
-  for (let i = 0; i <= 2; i++) keys.push(`ohger_charge_loop_${i}`);
-  for (let n = 2; n <= 5; n++) keys.push(`ohger_press_${n}`); // กดปุ่มในลูปแปลงร่าง (2→3→4→5) // ลูปรอดึงคันโยกแต่ละขั้น (ดึงไปแล้ว i ครั้ง)
-  return Object.fromEntries(keys.map((k) => [k, `/characters/ohger/sfx/${k}.m4a`]));
-})();
 const FILES = {
-  ...OHGER_SFX,
   // (เสียงพากย์ฮาคุโนะ hakuno_v_m01–m21 / f01–f20 เติมท้ายตาราง — ดูใต้ FILES)
   main_home: "/theme_song/main_home_4.0.mp3",
   // ECHO 5.1 ORDEAL CALL: main5 = ตั้งแต่เปิดโปรแกรมจนเข้าห้องรอ · lobby5 = ห้องรอ → โหวตโหมด → ฉากเปิดตัว (จนเข้าด่าน)
@@ -560,26 +543,6 @@ const FILES = {
     "turn1", "turn2", "turn3", "turn4", "turn5", "strike1", "strike2", "strike3", "strike4", "strike5", "struck1", "struck2", "struck3",
     "tender1", "tender2", "tender3", "weapon1", "weapon2", "ult1", "ult2",
   ].map((k) => [`celine_v_${k}`, `/characters/celine/voice/celine_v_${k}.m4a`])),
-  // ซึนาชิ ทาคุโตะ (GRID_PLAN §7.16 · contract §5–6) — เสียงเรียกดาบ = ไฟล์ผู้ใช้ · ที่เหลือสังเคราะห์ numpy ล้วน (.claude/plans/takuto-sfx.py) ~-15 LUFS
-  //  ตีปกติ: จุดกระแทกอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · เหตุการณ์: จังหวะในไฟล์ตรงกับฉาก takutoFx.js (TAKUTO_T)
-  takuto_sword_emerald: "/characters/takuto/sfx/takuto_sword_emerald.mp3",   // เรียกดาบเอเมอรูด (เสียงพากย์ 9.3 วิ)
-  takuto_sword_sapphire: "/characters/takuto/sfx/takuto_sword_sapphire.mp3", // เรียกดาบแซฟไฟร์ (เสียงพากย์ 4.1 วิ)
-  takuto_atk_punch: "/characters/takuto/sfx/takuto_atk_punch.mp3",       // ตีปกติ: หมัดทาวเบิร์น
-  takuto_atk_emerald: "/characters/takuto/sfx/takuto_atk_emerald.mp3",   // ตีปกติ: ฟันเฉียงเขียว
-  takuto_atk_sapphire: "/characters/takuto/sfx/takuto_atk_sapphire.mp3", // ตีปกติ: กวาดฟันฟ้าทั้งด้าน
-  takuto_atk_dual: "/characters/takuto/sfx/takuto_atk_dual.mp3",         // ตีปกติ: ฟันคู่ไขว้
-  takuto_atk_judgment: "/characters/takuto/sfx/takuto_atk_judgment.mp3", // ตีปกติ: ดาบแห่งการพิพากษา (ปะทะ + เสาแสงทอง)
-  takuto_transform: "/characters/takuto/sfx/takuto_transform.mp3",       // แปลงร่างเสร็จ (ทาวเบิร์น)
-  takuto_merge: "/characters/takuto/sfx/takuto_merge.mp3",               // ดาบรวมร่าง (วาบที่ 0.9 วิ)
-  takuto_vanish: "/characters/takuto/sfx/takuto_vanish.mp3",             // ดาบแตก/หาย
-  takuto_heal: "/characters/takuto/sfx/takuto_heal.mp3",                 // ดาบเอเมอรูดดูดพลัง / ฟื้นเฟส 4
-  takuto_dash: "/characters/takuto/sfx/takuto_dash.mp3",                 // พุ่งต้นตาเดิน
-  takuto_flash: "/characters/takuto/sfx/takuto_flash.mp3",               // ดาบประกายแสง (ชาร์จ → พุ่ง 0.42 → ฟัน 0.76/0.91 → สลับ 1.26 → ปะทะ 1.52 วิ)
-  takuto_missile: "/characters/takuto/sfx/takuto_missile.mp3",           // ทาวววว มิสไซล์ (ชาร์จ → ยิง 1.15 → ถึงปลาย 1.7 วิ)
-  takuto_steal: "/characters/takuto/sfx/takuto_steal.mp3",               // ขโมยแต้มสกิล (ลูกแสงฟ้า)
-  takuto_blast: "/characters/takuto/sfx/takuto_blast.mp3",               // ฉันยังมองเห็นอยู่ (รวมแสง → ระเบิด 1.3 → ถึงขอบ 1.95 วิ)
-  // เพลงช่วงมิติพังทลาย (state.skillMusic "takuto_theme")
-  takuto_theme: "/characters/takuto/takuto_theme.m4a",
   // ผู้นำแห่งตระกูลเรียวกิ (GRID_PLAN §7.17 · contract §4) — ทุกไฟล์ปรับ ~-16 LUFS เบากว่าเสียงพากย์ (~-10.5) ให้เสียงพากย์ไม่จม (ผู้ใช้สั่ง) · สคริปต์ .claude/plans/ryougi-sfx.py
   //  ตีปกติ 2 ไฟล์ = เสียงจริงที่ผู้ใช้อนุมัติ (Mixkit ฟรี · ต้นฉบับ .claude/plans/ryougi-sfx-src/ — ตัดช่วงเงียบหัวไฟล์ด้วย RMS) · ที่เหลือสังเคราะห์ numpy ล้วน
   //  ตีปกติ: จุดปะทะอยู่ต้นไฟล์ (BoardStage เล่นตรงจังหวะปะทะ) · เหตุการณ์: จังหวะในไฟล์ตรงกับฉาก ryougiFx.js (RYOUGI_FX)
@@ -696,12 +659,6 @@ const FILES = {
   death_boom: "/effect_sound/death_boom.mp3", // ตกรอบบนกระดาน: ระเบิด (Mixkit ฟรี — Fire spell with explosion)
   notificate: "/effect_sound/notificate.mp3", // ฉากตาเดินของคนอื่น (ระบบกระดาน)
   notificate_mine: "/effect_sound/notificate_mine.mp3", // ฉากตาเดินของเรา (ระบบกระดาน)
-  // ห่วงเวลาซีโร่ (GRID_PLAN §8.2 · ผู้ใช้ส่งมา 2026-10-11): เพลงตามระดับ (1 ผนึกครบ … 4 เหลือผนึกเดียว) — ห้ามเพลงอื่นทับ · ฟ้าผ่าเฟส 4
-  zero_1: "/zero_time/phase1.mp3",
-  zero_2: "/zero_time/phase2.mp3",
-  zero_3: "/zero_time/phase3.mp3",
-  zero_4: "/zero_time/phase4.mp3",
-  zero_thunder: "/zero_time/thunder.mp3",
 };
 // เสียงพากย์ฮาคุโนะ (Moon Cell · ไฟล์ผู้ใช้ตัดตามช่วงเงียบ — ก่อน 1:46 ชาย หลังจากนั้นหญิง · .claude/plans/mooncell-voice-cut.py)
 for (const [side, n] of [["m", 21], ["f", 20]]) {
@@ -753,19 +710,12 @@ const LOUDNESS_GAIN = {
   "/theme_song/main_home_4.0.mp3": 0.69,
   "/theme_song/main5.0.mp3": 0.85, // Epic of Remnant (ผู้ใช้เปลี่ยน 2026-11-14) -12.6 LUFS
   "/theme_song/lobby5.0.mp3": 1, // Board Games (ผู้ใช้เปลี่ยน 2026-11-14) ต้นฉบับ -17.2 → ดันที่ไฟล์ loudnorm -14 LUFS
-  // ห่วงเวลาซีโร่ (วัด ffmpeg ebur128 · ไฟล์ดังมาก -8.7 ถึง -9.5 LUFS) — ลดลงให้อยู่ระดับเพลงพื้นหลัง ไม่กลบเสียงกด/เอฟเฟกต์ (ผู้ใช้สั่ง)
-  //  thunder.mp3 = -15.7 dBFS เบากว่าเป้าอยู่แล้ว (ไม่อยู่ในตาราง)
-  "/zero_time/phase1.mp3": 0.55,
-  "/zero_time/phase2.mp3": 0.56,
-  "/zero_time/phase3.mp3": 0.58,
-  "/zero_time/phase4.mp3": 0.6,
   "/characters/echo/echo_queen_theme.mp3": 0.65, // -10.2 LUFS (ffmpeg ebur128 ช่วง 20 วิแรก)
   // ยูนะ (ffmpeg ebur128 ช่วง 60 วิแรก) — Smile for You -14.8 / skill3.mp4 -13.9 อยู่ที่เป้าแล้ว
   "/characters/yuna/yuna_delete.mp3": 0.58, // -9.2 LUFS
   "/characters/yuna/yuna_longing.mp3": 0.63, // -10.0 LUFS
   "/characters/yuna/yuna_idol_intro.m4a": 0.52, // -8.3 LUFS
   "/characters/yuna/yuna_idol_loop.mp3": 0.52, // -8.4 LUFS
-  "/characters/takuto/takuto_theme.m4a": 0.5, // -8.0 LUFS (ffmpeg ebur128)
   "/characters/yuki_makoto/yuki_charge_theme.mp3": 0.6, // -9.6 LUFS → ~-14
   // Fodlan (ffmpeg ebur128 ทั้งไฟล์) — ผู้ใช้ขอให้ดังกว่าเพลงอื่น (2026-10-27): เป้า -11.3 LUFS (เพลงอื่น -14)
   //  เพลงปกติ 5 เพลงดันที่ตัวไฟล์ + limiter แล้ว (-11.3) · เพลงสภาพอากาศดังเกินเป้า ลดด้วยตารางนี้
@@ -864,7 +814,7 @@ export function masterGain() { return Math.pow(masterVolume, 1.6); }
 export function getMasterVolume() { return masterVolume; }
 
 // ---------- ระดับเสียงแยกช่อง (คูณต่อจาก master · จำใน localStorage "echo_vol_ch") ----------
-//  music = เพลง/เพลงประจำฉาก/ลูปเสียงแทนเพลง/เสียงบรรยากาศ Fodlan · sfx = เอฟเฟกต์ (รวมลูปคิงโอเจอร์)
+//  music = เพลง/เพลงประจำฉาก/ลูปเสียงแทนเพลง/เสียงบรรยากาศ Fodlan · sfx = เอฟเฟกต์
 //  voice = เสียงพากย์ (socket "sfx" ที่มี voice หรือไฟล์ใต้ /voice/) · video = เสียงในคลิปวีดีโอ
 export const VOLUME_CHANNELS = ["music", "sfx", "voice", "video"];
 const channelVolume = { music: 1, sfx: 1, voice: 1, video: 1 };
@@ -1149,7 +1099,7 @@ export function prewarmMusic(name) {
 // คืน element ที่เล่นอยู่ ให้ผู้เรียกหยุดเองได้ (เช่น เพลงประกอบคัตซีนที่ต้องหยุดตอนฉากจบ)
 //  opts.gain = คูณความดังเพิ่ม (เช่น เสียงร่ายที่ต้องอยู่ใต้เพลง) · ระหว่างเพลงเด่น (FEATURED_MUSIC) เอฟเฟกต์เบาลงเอง (ยกเว้นเสียงคลิก)
 // เสียงที่ต้องเล่นต่อคิว (ขึ้นต้นด้วยคีย์นี้ = คิวเดียวกัน): เสียงใหม่รอเสียงก่อนหน้าในคิวจบก่อน (คาซุมะ: รูดการ์ดหลายใบติดกัน)
-const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", ohger_finish_call: "ohger", ohger_finish_boom: "ohger", ohger_complete: "ohger_tf", ohger_tf_done_: "ohger_tf", inui_standby: "inui", inui_henshin2: "inui" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
+const SFX_QUEUED = { kazuma_card_: "kazuma", kazuma_lightning_: "kazuma", inui_standby: "inui", inui_henshin2: "inui" }; // คีย์ขึ้นต้น → คิว (การ์ด → ชื่อท่า เล่นต่อกัน)
 const sfxQueues = new Map(); // คิว -> { busy: element ที่เล่นอยู่ | null, waiting: [ชื่อ] }
 function playQueued(group, name, opts) {
   const q = sfxQueues.get(group) || { busy: null, waiting: [] };
@@ -1202,26 +1152,8 @@ function playSfxNow(name, opts) {
   activeSfx.set(a, base);
   a.play().then(() => { if (!activeSfx.has(a)) a.pause(); }).catch(() => {
     activeSfx.delete(a);
-    if (yieldSfx === a) endYield(a);
   });
-  if (LOOP_YIELD.test(name)) beginYield(a);
   return a;
-}
-// เสียงจังหวะเดียวที่ลูปต้องหลบ (คิงโอเจอร์: กดปุ่ม/ดึงคันโยก/ไก/ปิดท้ายแปลงร่าง/ปล่อยท่า — ผู้ใช้สั่ง ไม่ให้ดังซ้อนลูป)
-//  เริ่ม = หยุดลูปไว้ · จบ = ลูป (ตัวที่ตั้งไว้ล่าสุด — อาจเปลี่ยนขั้นระหว่างนั้น) เล่นต่อจากต้น
-const LOOP_YIELD = /^ohger_(call|press|pull|trigger|complete|tf_done|finish_call|finish_boom|atk)_?/;
-let yieldSfx = null;
-function beginYield(a) {
-  yieldSfx = a;
-  if (loopSfx && !loopSfx.paused) loopSfx.pause();
-  const done = () => endYield(a);
-  a.addEventListener("ended", done, { once: true });
-  a.addEventListener("error", done, { once: true });
-}
-function endYield(a) {
-  if (yieldSfx !== a) return;
-  yieldSfx = null;
-  if (loopSfx && loopSfx.paused) { try { loopSfx.currentTime = 0; } catch { /* ยังไม่มี metadata */ } loopSfx.play().catch(() => { /* ถูกขัด/ยังไม่มีการกด = ลองใหม่ตอนเสียงถัดไปจบ */ }); }
 }
 // playId: กันสั่งหยุด element ที่ถูกรีไซเคิลไปใช้กับเสียงอื่นแล้ว (ดู sfxPlayId)
 export function stopSfx(a, playId) {
@@ -1332,10 +1264,8 @@ export function installClickSound(root = typeof document !== "undefined" ? docum
 //  ระหว่างเล่น เพลงหลักจะถูกหรี่ลงเหลือ DUCK_LEVEL แทนการหยุด — ดูคอมเมนต์ที่ musicDuck
 const DUCK_LEVEL = 0.25;
 // ลูปเสียงเฉพาะกิจทำหน้าที่แทนเพลงประกอบ -> ใช้ระดับเดียวกับเพลง
-//  คิงโอเจอร์ (ohger_*): ลูปเป็นส่วนหนึ่งของเสียงกดดาบ → ระดับเสียงเอฟเฟกต์ ไม่ใช่ระดับเพลง (ผู้ใช้: ลูปเบาเกิน · ไฟล์ −16 LUFS เท่าเสียงกด)
 function loopVolume(name) {
-  const ohger = String(name).startsWith("ohger_");
-  return Math.min(1, (ohger ? SFX_BASE : MUSIC_BASE) * soundGain(name) * masterGain() * channelGain(ohger ? "sfx" : "music") * sfxDuck());
+  return Math.min(1, MUSIC_BASE * soundGain(name) * masterGain() * channelGain("music") * sfxDuck());
 }
 export function startLoopSfx(name) {
   if (!FILES[name]) return null;
@@ -1349,10 +1279,8 @@ export function startLoopSfx(name) {
   if (currentMusic) getMusic(currentMusic).volume = trackVolume(currentMusic);
   const release = () => { if (loopSfx === a) stopLoopSfx(); };
   a.addEventListener("error", release); // ไฟล์เสีย/โหลดไม่ได้จริง = ทิ้งลูป
-  if (yieldSfx && !yieldSfx.paused && !yieldSfx.ended) return a; // เสียงจังหวะเดียวยังเล่นอยู่ = เริ่มลูปตอนเสียงนั้นจบ (endYield)
-  // play() ถูกขัดด้วย pause (ลูปหลบเสียงกด — AbortError) ≠ ไฟล์เสีย → เก็บลูปไว้ เล่นต่อตอน endYield
-  //  ยังไม่มีการกดในหน้า (NotAllowedError): ลูปคิงโอเจอร์เก็บไว้ (เสียงกดถัดไปจบ = ลองใหม่) · ลูปอื่นปล่อยทิ้ง (เพลงกลับดังเต็ม)
-  const keep = (e) => !!e && (e.name === "AbortError" || (e.name === "NotAllowedError" && name.startsWith("ohger_")));
+  // play() ถูกขัดด้วย pause (AbortError) ≠ ไฟล์เสีย → เก็บลูปไว้ · ยังไม่มีการกดในหน้า (NotAllowedError) = ปล่อยทิ้ง (เพลงกลับดังเต็ม)
+  const keep = (e) => !!e && e.name === "AbortError";
   a.play().then(() => { if (loopSfx !== a) a.pause(); }).catch((e) => { if (!keep(e)) release(); });
   return a;
 }

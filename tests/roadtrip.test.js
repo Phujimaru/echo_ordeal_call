@@ -588,6 +588,7 @@ test('กรองข้อมูล: ทะเบียน/สี/ของแ�
   const van = rt().van;
   assert.equal(RT.command('p0', 'plate', { text: 'กข 1234<script>\u0000ABCDEFG' }), true);
   assert.ok([...van.plate].length <= Van.PLATE_MAX);
+  // eslint-disable-next-line no-control-regex -- ตรวจว่าไม่มีอักขระควบคุมเหลือ
   assert.ok(!/[<>\u0000]/.test(van.plate));
   assert.equal(RT.command('p0', 'plate', { text: 42 }), false);
   assert.equal(RT.command('p0', 'paint', { hex: 'red' }), false);

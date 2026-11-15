@@ -7,7 +7,6 @@ const sora = require('../../characters/sora_otosumi.js');
 const attack = require('../../server/phases/attack.js');
 const match = require('../../server/match.js');
 const Ice = require('../../server/ice.js');
-const Zero = require('../../server/zeroTime.js');
 const { CHAR_BY_ID } = require('../../characters.js');
 
 const realRandom = Math.random;
@@ -33,6 +32,8 @@ function setup(list, mode = 'ffa') {
 }
 const view = (viewerId, id) => engine.buildStateFor(viewerId).players.find((p) => p.id === id);
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
+// เลือด+เกราะเต็มของ dummy = 7+3 + ค่าสถานะเพิ่มทุกตัวละคร +3/+2 (ผู้ใช้สั่ง 2026-11-14 · STAT_BONUS ใน server/combat.js)
+const FULL = 15;
 // เข้าร่าง My-Th แบบไม่ผ่านปุ่ม (เทสต์ส่วนอื่น)
 const myth = (p, gun = false) => { p.sora.myth = true; p.sora.gun = gun; };
 // ไล่ตัวจับเวลา (จังหวะพักของสกิล / ฉากตี) ให้จบ — ใช้กับ t.mock.timers
@@ -195,7 +196,7 @@ test('ปืน: ระยะตี 1–3 · ลำแสงสีฟ้าย�
   assert.equal(engine.lastAttack.byHitFx, null);
   assert.equal(engine.lastAttack.crit, false);
   assert.deepEqual(P.B.pos, { x: 4, y: 5 }, 'ระหว่างฉากตียังไม่ขยับ');
-  assert.equal(vit(P.B), 9, 'ปืนไม่มีโบนัสมีด');
+  assert.equal(vit(P.B), FULL - 1, 'ปืนไม่มีโบนัสมีด');
   flush(t, 6000);
   assert.deepEqual(P.B.pos, { x: 2, y: 5 }, 'ดึงมาช่องติดตัว');
 });
@@ -207,7 +208,7 @@ test('ปืน: คริติคอล 20% ทำให้ตี 1 กลา�
   Math.random = () => 0.1;
   engine.setActor('S');
   engine.attackTarget('S', 'B');
-  assert.equal(vit(P.B), 8);
+  assert.equal(vit(P.B), FULL - 2);
   assert.equal(engine.lastAttack.dmg, 2);
   assert.equal(engine.lastAttack.crit, true);
   flush(t, 6000);
@@ -271,7 +272,7 @@ test('Mouse Separade: ชนศัตรูคนแรก → คลิปช�
   assert.deepEqual(calls.queue, ['soraUlt', 'soraHit']);
   assert.equal(P.B.armor, 0);
   assert.equal(P.B.hp, 5, 'เกราะ 1 + เลือด 2');
-  assert.equal(vit(P.C), 10, 'คนที่สองไม่โดน');
+  assert.equal(vit(P.C), FULL, 'คนที่สองไม่โดน');
   assert.deepEqual(P.S.pos, { x: 3, y: 5 }, 'เราไปยืนช่องเป้า');
   assert.deepEqual(P.B.pos, { x: 1, y: 5 }, 'เป้าไปช่องที่เราออกตัว');
   const dash = engine.buildStateFor('S').dash;
@@ -326,8 +327,8 @@ test('Mouse Separade: หลบพ้น = ทะลุไปชนคนถั�
   engine.setActor('S');
   engine.useSkill('S', 'ultimate', [], { dir: 'right' });
   flush(t, 6000);
-  assert.equal(vit(P.B), 10);
-  assert.equal(vit(P.C), 7);
+  assert.equal(vit(P.B), FULL);
+  assert.equal(vit(P.C), FULL - 3);
   assert.deepEqual(P.S.pos, { x: 4, y: 5 });
   assert.deepEqual(P.C.pos, { x: 1, y: 5 });
   assert.deepEqual(P.B.pos, { x: 2, y: 5 });
@@ -338,7 +339,7 @@ test('Mouse Separade: หลบพ้น = ทะลุไปชนคนถั�
   calls.queue = [];
   engine.useSkill('S', 'ultimate', [], { dir: 'right' });
   flush(t, 6000);
-  assert.equal(vit(P.A), 10);
+  assert.equal(vit(P.A), FULL);
   assert.deepEqual(P.S.pos, { x: 4, y: 5 });
   assert.deepEqual(calls.queue, ['soraUlt'], 'ไม่ชน = ไม่มีคลิปชน');
   // ไม่มีใคร = สุดแนว 4 ช่อง
@@ -383,7 +384,7 @@ function bigCharge(t, list, size, dir, prep) {
 }
 test(`Mouse Separade: ชนตัวใหญ่ 3×3 = ดาเมจ ${sora.ULT_DMG + sora.BIG_BONUS} · หยุดหน้าตัว ไม่สลับที่ · ผลักถอย ${sora.BIG_PUSH} ช่อง`, (t) => {
   const P = bigCharge(t, [['S', 'sora_otosumi', 1, 7], ['B', 'dummy', 3, 6], ['C', 'dummy', 12, 12]], 3, 'right'); // (3,6)–(5,8)
-  assert.equal(vit(P.B), 10 - 4);
+  assert.equal(vit(P.B), FULL - 4);
   assert.deepEqual(P.S.pos, { x: 2, y: 7 }, 'หยุดหน้าตัว');
   assert.deepEqual(P.B.pos, { x: 5, y: 6 }, 'ถอย 2 ช่องตามทิศพุ่ง');
   assert.equal(engine.buildStateFor('S').dash.swap, null);
@@ -393,7 +394,7 @@ test(`Mouse Separade: ชนตัวใหญ่ 3×3 = ดาเมจ ${sora.
 });
 test('Mouse Separade: ตัวใหญ่ถอยไปติดสิ่งกีดขวาง = หยุดตรงนั้น + ชน -1', (t) => {
   const P = bigCharge(t, [['S', 'sora_otosumi', 5, 5], ['B', 'dummy', 4, 6], ['C', 'dummy', 12, 12]], 2, 'down'); // (4,6)–(5,7)
-  assert.equal(vit(P.B), 10 - 4 - sora.CRASH_DMG);
+  assert.equal(vit(P.B), FULL - 4 - sora.CRASH_DMG);
   assert.deepEqual(P.B.pos, { x: 4, y: 7 }, 'ถอยได้ 1 ช่อง — ช่องถัดไปมีสิ่งกีดขวาง (4,9)');
   const ev = iceEvents();
   assert.deepEqual(ev.map((e) => e.kind), ['knock', 'knock', 'crash']);
@@ -403,8 +404,8 @@ test('Mouse Separade: ตัวใหญ่ถอยไปติดสิ่ง�
 test('Mouse Separade: ตัวใหญ่ถอยไปติดคน = ชน -1 (คนที่ขวางไม่โดน) · ติดขอบกระดาน = ชน -1 ฆ่าได้', (t) => {
   let P = bigCharge(t, [['S', 'sora_otosumi', 1, 8], ['B', 'dummy', 3, 7], ['C', 'dummy', 6, 7]], 2, 'right');
   assert.deepEqual(P.B.pos, { x: 4, y: 7 });
-  assert.equal(vit(P.B), 10 - 5);
-  assert.equal(vit(P.C), 10, 'คนที่ขวางไม่เสียเลือด');
+  assert.equal(vit(P.B), FULL - 5);
+  assert.equal(vit(P.C), FULL, 'คนที่ขวางไม่เสียเลือด');
   P = bigCharge(t, [['S', 'sora_otosumi', 10, 8], ['B', 'dummy', 12, 7], ['C', 'dummy', 1, 1]], 2, 'right', (Q) => { Q.B.hp = 5; Q.B.armor = 0; });
   assert.equal(P.B.alive, false, 'ดาเมจ 4 เหลือ 1 → ชนขอบ -1 ตกรอบ');
   assert.equal(P.B.pos, null);
@@ -439,7 +440,7 @@ test('Mouse Separade: พังสิ่งกีดขวางที่พุ�
   const map = engine.boardMap();
   const free = (x, y) => x >= 0 && !map.terrain[`${x},${y}`];
   const rock = Object.keys(map.terrain).map((k) => k.split(',').map(Number))
-    .find(([x, y]) => map.terrain[`${x},${y}`] !== 'seal' && free(x - 1, y) && free(x - 2, y) && !(x - 2 === 12 && y === 12));
+    .find(([x, y]) => free(x - 1, y) && free(x - 2, y) && !(x - 2 === 12 && y === 12));
   assert.ok(rock, 'มีสิ่งกีดขวางให้ทดสอบ');
   const [rx, ry] = rock;
   P = setup([['S', 'sora_otosumi', rx - 2, ry], ['B', 'dummy', 12, 12]]);
@@ -507,38 +508,29 @@ for (const gun of [false, true]) {
     assert.deepEqual(spikeLog(at), [`S โจมตีหนามน้ำแข็งด้วยสกิล -${sora.ULT_DMG}`]);
     assert.equal(Ice.spikeAt(2, 5), null, 'หนามที่พุ่งผ่านพัง');
     assert.deepEqual(Ice.spikeAt(5, 5), behind, 'หนามหลังเป้าไม่โดน');
-    assert.equal(vit(P.B), 10 - sora.ULT_DMG);
+    assert.equal(vit(P.B), FULL - sora.ULT_DMG);
   });
 }
 
-test(`Mouse Separade: ผนึกมิโกะที่หยุดหน้าผนึกโดน ${sora.ULT_DMG} (มีดไม่บวก) · ผนึกหลังจุดชนไม่โดน`, (t) => {
+test('Mouse Separade: สิ่งกีดขวางที่พังไม่ได้ (ช่องพัง) = หยุดหน้าช่องนั้น · ชนเป้าก่อนถึง = ชนเป้า', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
-  const ultLocked = Zero.ultLocked;
-  Zero.ultLocked = () => false; // ห่วงเวลาซีโร่ล็อกท่าไม้ตาย — ปลดเพื่อทดสอบช่องที่ลงผนึก
-  try {
-    Math.random = () => 0.99;
-    const run = (enemyAt) => {
-      const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
-      Zero.enter(); engine.clearPhaseTimer(); match.zeroScene.active = false;
-      P.S.pos = { x: 3, y: 0 }; P.C.pos = { x: 12, y: 12 };
-      P.B.pos = enemyAt || { x: 10, y: 10 };
-      myth(P.S);
-      engine.setActor('S');
-      engine.useSkill('S', 'ultimate', [], { dir: 'left' });
-      flush(t, 6000);
-      const s = match.zero.seals[0];
-      return { P, vit: s.hp + s.armor };
-    };
-    const full = Zero.SEAL_HP + Zero.SEAL_ARMOR;
-    let r = run(null);
-    assert.equal(r.vit, full - sora.ULT_DMG, 'ชนผนึก (ช่องที่หยุด)');
-    assert.deepEqual(r.P.S.pos, { x: 1, y: 0 }, 'หยุดหน้าผนึก');
-    r = run({ x: 1, y: 0 });
-    assert.equal(r.vit, full, 'ชนเป้าก่อนถึงผนึก = ผนึกไม่โดน');
-    assert.equal(vit(r.P.B), 10 - sora.ULT_DMG);
-  } finally {
-    Zero.ultLocked = ultLocked;
-  }
+  Math.random = () => 0.99;
+  const run = (enemyAt) => {
+    const P = setup([['S', 'sora_otosumi', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
+    engine.addChasm(['0,0']);
+    P.S.pos = { x: 3, y: 0 }; P.C.pos = { x: 12, y: 12 };
+    P.B.pos = enemyAt || { x: 10, y: 10 };
+    myth(P.S);
+    engine.setActor('S');
+    engine.useSkill('S', 'ultimate', [], { dir: 'left' });
+    flush(t, 6000);
+    return P;
+  };
+  let P = run(null);
+  assert.deepEqual(P.S.pos, { x: 1, y: 0 }, 'หยุดหน้าช่องพัง');
+  assert.ok((match.board.chasm || []).includes('0,0'), 'ช่องพังยังอยู่');
+  P = run({ x: 1, y: 0 });
+  assert.equal(vit(P.B), FULL - sora.ULT_DMG, 'ชนเป้าก่อนถึงช่องพัง');
 });
 
 test('Mouse Separade: คนล่องหนหลังจุดชนไม่ปรากฏตัว · คนล่องหนที่ถูกชนปรากฏตัว', (t) => {
@@ -550,7 +542,7 @@ test('Mouse Separade: คนล่องหนหลังจุดชนไม�
   engine.setActor('S');
   engine.useSkill('S', 'ultimate', [], { dir: 'right' });
   flush(t, 6000);
-  assert.equal(vit(P.B), 10 - sora.ULT_DMG);
+  assert.equal(vit(P.B), FULL - sora.ULT_DMG);
   assert.equal(P.V.sliver.hidden, true, 'อยู่หลังจุดชน = ไม่โดน');
   P = setup([['S', 'sora_otosumi', 1, 5], ['V', 'sliver_bullet', 3, 5], ['B', 'dummy', 12, 1], ['C', 'dummy', 12, 12]]);
   myth(P.S);
@@ -659,7 +651,7 @@ test('Fire Frame: Mouse Separade ชนแล้วติดลุกไหม�
   assert.equal(engine.buildStateFor('S').dash.fire, true, 'วงล้อสีไฟ');
   flush(t, 6000);
   assert.deepEqual(calls.queue, ['soraFireUlt', 'soraFireHit']);
-  assert.equal(vit(P.B), 10 - sora.ULT_DMG);
+  assert.equal(vit(P.B), FULL - sora.ULT_DMG);
   assert.equal(P.B.statuses.hburn, sora.FIRE_BURN);
   assert.equal(engine.buildStateFor('S').dash.fire, true, 'ระเบิดสีไฟ');
   // ครั้งที่สอง: ไม่มีคลิปเปิด แต่คลิปชนไฟยังเล่น

@@ -21,7 +21,6 @@ const lobby = require("../lobby");
 const shop = require("../shop");
 const timers = require("../timers");
 const view = require("../view");
-const Zero = require("../zeroTime");
 const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
@@ -69,7 +68,7 @@ function endTurn() {
 
   // จบเทิร์นรอบนั้น +1 — ช่วงกลางวันได้แต้มสกิลเพิ่มอีก +1 (ระบบกลางวัน/กลางคืน)
   //  การเดินทาง: โบนัสนี้มาจากภูมิภาคแทน (1 กลางวัน = จบเทิร์นเลขคู่ · 7 = ทุกเทิร์น) — Journey.skillBonus
-  const dayBonus = Zero.active() ? 0 : Journey.skillBonus(engine, dayNight.morningBonusActive(Zero.worldRound())); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
+  const dayBonus = Journey.skillBonus(engine, dayNight.morningBonusActive(match.roundNumber)); // patch 2.1.7: แจกเฉพาะเช้าที่ 2, 4, 6, ...
   //  ระบบคู่: แต้มใช้ร่วมกัน — ฟื้นครั้งเดียวต่อฝ่ายตามฮุค skillRegen (เคท & เอมิลิโกะ: 2)
   for (const p of Duo.cardHolders()) {
     const hook = CHAR_HOOKS[p.characterId];
@@ -87,8 +86,6 @@ function endTurn() {
   // การเดินทาง: ผลจบเทิร์นของภูมิภาค (ของฟรี / เสียเหรียญ / ความเสียหายจากสนาม / สตั้น / ผุพัง)
   //  อยู่หลังลูปลดเทิร์นสถานะ (สตั้น/ผุพังที่ติดตรงนี้จึงมีผลเต็มเทิร์นหน้า) และก่อนด่านกวาดคนตายด้านล่าง
   Journey.onEndTurn(engine);
-  // ห่วงเวลาซีโร่: บัฟเฟส (แต้มสกิล/เหรียญ) + ห่วงเวลากัดกินทุกคน −1
-  Zero.onEndTurn();
   // ฮุคจบเทิร์นของทุกตัวละคร (หลังลูปลดเทิร์น — สตั้นที่ติดตรงนี้จึงเต็มเทิร์นถัดไป)
   //  โอเบรอน: สตั้นจากจุดจบของความฝัน + สกิลติดตัวหน้าไหว้หลังหลอก · โซระ: เพื่อคุณหนู (ร่างโซระครบ 3 เทิร์น ฟื้น 2)
   //  ไรโด ฮิคารุ: Strium Brace · ร่าง UltraLive/กิงกะหมดเวลา (คืนร่าง + คูลดาวน์) · เคมูล่องหน
@@ -122,14 +119,10 @@ function endTurn() {
   // เล่นฉากที่ค้างคิว (ถ้ามี) ให้จบก่อน แล้วค่อยสรุปจบเกม/ขึ้นรอบถัดไป
   cutscene.runCutsceneQueue(() => colonyHoldThen(hold, holdStart, () => {
     if (gameOver()) return;
-    // ห่วงเวลาซีโร่: ช่วงมิติพังทลายครบเวลา (ทาคุโตะ) → กลับสนามเดิม + ฉากปลดผนึก → เทิร์นถัดไป
-    if (Zero.maybeFinishCollapse()) return;
     // การเดินทาง: ข้ามเข้าภูมิภาคใหม่ -> ฉากแผนที่ก่อนแจกไพ่เทิร์นแรกของภูมิภาค
     if (maybeJourneyAdvance()) return;
     // Fodlan: ครบ 6 เทิร์นของด่าน → สุ่มด่านถัดไป → ฉากเปลี่ยนแผนที่ก่อนแจกไพ่ (server/fodlan.js)
     if (Fodlan.maybeAdvance(fodlanAdvanceTimer)) return;
-    // ห่วงเวลาซีโร่: เทิร์นถัดไปเป็นกลางคืน (ตั้งแต่เทิร์น 10) สุ่ม 30% ครั้งเดียวต่อเกม
-    if (Zero.maybeEnter()) return;
     match.gameState = "TRANSITION";
     timers.startPhaseTimer(TRANSITION_TIME, draw.dealRound);
     view.broadcastState();
@@ -237,7 +230,7 @@ function recordCharStats(resultOf) {
 
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
 function maybeJourneyAdvance() {
-  if (Zero.active() || !Journey.active(engine) || !Journey.legEnds(Zero.worldRound(), match.legStart)) return false;
+  if (!Journey.active(engine) || !Journey.legEnds(match.roundNumber, match.legStart)) return false;
   const from = Journey.areaNow(engine);
   const to = Journey.pickNextArea(from);
   const route = [...match.journeyRoute]; // เส้นทางที่ผ่านมา (ถึงต้นทาง) — ฉากวาดค้างไว้บนโลก
@@ -286,7 +279,7 @@ function finishRebirth(scene, impact) {
   for (const o of Object.values(match.players)) if (!o.alive) o.pos = null; // คนตกรอบหายจากกระดาน
   if (gameOver()) return; // ศัตรูหมด = จบเกมทันที ไม่ต้องเปลี่ยนภูมิภาค
   const to = scene.area;
-  const world = Zero.worldRound();
+  const world = match.roundNumber;
   match.journeyArea = to;
   match.journeyRoute.push(to);
   action.placeOnBoard(to); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด (ยกร้านออก)

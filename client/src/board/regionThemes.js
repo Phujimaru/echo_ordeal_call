@@ -14,7 +14,6 @@
 // ============================================================
 import { LW, OX, P, PS, depthOf, gPoly, glow, rng, sceneSize, unprojectScene, viewAxes } from "./boardGeo";
 import { cactusShape, deadTreeShape, drawTree, pineShape, prism, SNOW_PINE, windmillSails } from "./boardProps";
-import { ZERO_THEMES } from "./zeroTheme";
 import { MOON_THEMES } from "./schoolTheme";
 import { fodlanThemes } from "./fodlan/index";
 import { roadtripThemes } from "./roadtrip/theme";
@@ -1010,8 +1009,6 @@ const T7 = {
 
 const THEMES = { 1: T1, 2: T2, 3: T3, 4: T4, 5: T5, 6: T6, 7: T7 };
 for (const a of Object.keys(THEMES)) THEMES[a].pal = PAL[a];
-// ห่วงเวลาซีโร่ (area 8–11 = ระดับ 1–4) — ธีมมีจานสีของตัวเอง (zeroTheme.js)
-Object.assign(THEMES, ZERO_THEMES);
 // Moon Cell (area 30 = ลานโรงเรียน + ซากุระ — schoolTheme.js)
 Object.assign(THEMES, MOON_THEMES);
 // Fodlan (area 40–44 = ด่าน I–V · GRID_PLAN §8.5) — ⚠️ ชั่วคราว: ยืมธีมภูมิภาคเดิมที่บรรยากาศใกล้กัน (ตรงกับแผนที่ชั่วคราวใน server/board.js)

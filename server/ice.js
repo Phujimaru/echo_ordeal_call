@@ -465,7 +465,7 @@ function bumpSpike(u, x, y, ctx) {
   return true;
 }
 // ท่าพุ่งของตัวละครหยุดเพราะหนามน้ำแข็งขวางช่องถัดไป (dir = { x, y } ทิศพุ่ง) → หนามทำงาน + ส่ง iceFx เอง
-//  ผู้เรียกตัดสินว่าพุ่งถูกขวางจริง (ไม่ใช่หยุดเพราะครบระยะ) · ต้นแบบ: Lightning Sonic/Four Card (คาซุมะ) · พุ่งของ Requiem (โจรุโน่) · Papiyon (คิงโอเจอร์)
+//  ผู้เรียกตัดสินว่าพุ่งถูกขวางจริง (ไม่ใช่หยุดเพราะครบระยะ) · ต้นแบบ: Lightning Sonic/Four Card (คาซุมะ) · พุ่งของ Requiem (โจรุโน่)
 function dashBump(u, dir) {
   if (!u || !u.alive || !u.pos || !dir) return false;
   const ctx = begin();
@@ -632,7 +632,7 @@ function revealPushed(u) {
   Visibility.onBump(null, u);
 }
 
-// ---------- ตีหนาม (ทุกคนตีได้ — เหมือนผนึกห่วงเวลาซีโร่) ----------
+// ---------- ตีหนาม (ทุกคนตีได้) ----------
 function spikeUnit(k) {
   const s = match.board.spikes[k];
   const pos = parseKey(k);

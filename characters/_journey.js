@@ -103,12 +103,10 @@ function pickNextArea(from) {
 // ภูมิภาค/ช่วงเวลาของเทิร์นปัจจุบัน — null = ไม่ได้อยู่ในโหมดที่มีการเดินทาง
 function current(engine) {
   if (!active(engine)) return null;
-  // ห่วงเวลาซีโร่: ผลภูมิภาค/กลางวันกลางคืนปิดทั้งหมด (server/zeroTime.js)
-  if (engine.zeroActive && engine.zeroActive()) return null;
   const round = worldRoundOf(engine);
   return { area: areaNow(engine), night: !!engine.isNightRound(round) };
 }
-// เวลาโลก (ห่วงเวลาซีโร่หยุดไว้) — engine จำลองในเทสต์ไม่มี worldRound = ใช้ roundNumber
+// เวลาโลก — engine จำลองในเทสต์ไม่มี worldRound = ใช้ roundNumber
 function worldRoundOf(engine) {
   return Number.isFinite(engine.worldRound) ? engine.worldRound : engine.roundNumber;
 }

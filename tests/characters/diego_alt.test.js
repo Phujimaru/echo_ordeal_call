@@ -68,18 +68,18 @@ function orderUpTo(t, ids, actorId) {
   while (engine.actorId !== actorId && engine.actorId) engine.finishActor();
 }
 
-test('ข้อมูล: ระดับยาก · พลังชีวิต 6 เกราะ 2 · เดิน 4 (ขี่ม้า 5) ตี [1, 2] · ปืนแนว 5×1 · เริ่มเกมขี่ม้า · สัญญาข้อมูล §7.12', () => {
+test('ข้อมูล: ระดับยาก · พลังชีวิต 9 เกราะ 2 (ขี่ม้า: +3 พลังชีวิต · เกราะ +2 ไปที่ม้า ผู้ใช้สั่ง 2026-11-14) · เดิน 4 (ขี่ม้า 5) ตี [1, 2] · ปืนแนว 5×1 · เริ่มเกมขี่ม้า · สัญญาข้อมูล §7.12', () => {
   const ch = CHAR_BY_ID.diego_alt;
   assert.equal(ch.difficulty, 'hard');
   assert.ok(!ch.unique, 'เลือกซ้ำได้');
   assert.deepEqual([ch.mov, ch.range], [4, [1, 2]]);
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 5, width: 1, hostile: true });
   const P = setup([['D', 'diego_alt', 2, 7], ['B', 'dummy', 9, 7]]);
-  assert.deepEqual([P.D.hp, P.D.armor], [6, 2]);
+  assert.deepEqual([P.D.hp, P.D.armor], [9, 2]);
   assert.equal(engine.movOf(P.D), 5);
   const d = view('D', 'D').diego;
   assert.deepEqual(Object.keys(d).sort(), ['ammo', 'ammoMax', 'cunning', 'cunningMax', 'firstAid', 'horseCd', 'horseHp', 'mounted', 'nets', 'reloadCd', 'shot', 'stopping', 'toolLeft', 'worldArmed', 'worldCd'].sort());
-  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 1, 0, true, 3]);
+  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 1, 0, true, 5]); // ม้า 5 = เดิม 3 + เกราะ 2 ของดิเอโก้
   assert.equal(view('B', 'D').diego.nets, undefined, 'ตาข่ายเห็นเฉพาะเจ้าของ');
   const choices = view('D', 'D').character.basic.choices;
   assert.deepEqual(choices.map((c) => c.key), ['oil', 'match', 'net', 'knife', 'aid']);
@@ -416,10 +416,10 @@ test('เป็นไปดั่งกลอุบาย: เฉพาะตา
   assert.equal(engine.actorId, 'D', 'ตาปกติของดิเอโก้ต่อ (ลำดับแรก)');
 });
 
-test('ม้าซิลเวอร์ บูลเล็ต: รับดาเมจก่อนเกราะ · ตาย = เรียกไม่ได้ 3 เทิร์น', () => {
+test('ม้าซิลเวอร์ บูลเล็ต: เลือด 5 รับดาเมจก่อนเกราะ · ตาย = เรียกไม่ได้ 3 เทิร์น', () => {
   const P = setup([['D', 'diego_alt', 2, 8], ['B', 'dummy', 9, 8]]);
-  engine.dealMixed(P.D, 3);
-  assert.deepEqual([P.D.hp, P.D.armor, P.D.diego.mounted], [6, 2, false]);
+  engine.dealMixed(P.D, 5);
+  assert.deepEqual([P.D.hp, P.D.armor, P.D.diego.mounted], [9, 2, false]);
   assert.equal(view('D', 'D').diego.horseCd, 3);
   assert.equal(engine.movOf(P.D), 4);
 });
@@ -461,4 +461,67 @@ test('เดอะเวิลด์ counter: ดาเมจที่ลงท�
   assert.deepEqual(P.S.pos, { x: 2, y: 8 }, 'ตำแหน่งย้อนกลับ');
   assert.equal(P.S.sora.ultReady, 0, 'คูลดาวน์ย้อน');
   assert.ok(fxOf('timeStop').some((f) => f.attackerId === 'S'));
+});
+
+// ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15) — หลบหลีก 100% = พ้นทุกครั้ง · แม่นยำของดิเอโก้ = โดนเสมอ
+const evade100 = (u) => { u.statuses.evade = 3; u.statusAmt.evade = 100; };
+test('หลบได้: มีด/ปืน/ระเบิด/ไม้ขีด/ชุ่มน้ำมัน — หลบหลีก 100% ไม่เสีย ไม่ติดผล (fx dodgeId/dodged) · แม่นยำโดนเสมอ', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['D', 'diego_alt', 2, 8], ['B', 'dummy', 4, 8], ['C', 'dummy', 12, 2]]);
+  engine.setActor('D');
+  evade100(P.B);
+  const b0 = vit(P.B);
+  tool('D', 'knife', { dir: 'right' });
+  flush(t, 2000);
+  engine.useSkill('D', 'secondary', [], { dir: 'right' });
+  flush(t, 2000);
+  assert.equal(vit(P.B), b0, 'มีด/ปืนหลบพ้น');
+  assert.deepEqual([fxOf('knife')[0].hitId, fxOf('knife')[0].dodgeId], [null, 'B']);
+  assert.deepEqual([fxOf('shot')[0].hitId, fxOf('shot')[0].dodgeId], [null, 'B']);
+  // ไม้ขีดใส่คน = ไม่ลุกไหม้ · ถังน้ำมัน = แอ่งเกิดแต่ไม่ชุ่ม · ระเบิด = ไม่เสีย ไม่ลุกไหม้ (กองไฟยังเกิด)
+  tool('D', 'match', { tile: { x: 4, y: 8 }, targets: ['B'] });
+  flush(t, 2000);
+  assert.ok(!(P.B.statuses.hburn > 0), 'ไม้ขีดหลบพ้น');
+  tool('D', 'oil', { tile: { x: 4, y: 8 } });
+  flush(t, 2000);
+  assert.ok(Object.keys(L().oil).length > 0, 'แอ่งน้ำมันยังเกิด');
+  assert.ok(!(P.B.statuses.oilSoaked > 0), 'ไม่ชุ่มน้ำมัน');
+  assert.deepEqual(fxOf('oil')[0].dodged, ['B']);
+  tool('D', 'match', { tile: { x: 3, y: 8 } });
+  flush(t, 3000);
+  assert.equal(vit(P.B), b0, 'ระเบิดหลบพ้น');
+  assert.ok(!(P.B.statuses.hburn > 0));
+  assert.deepEqual([fxOf('explode')[0].hits, fxOf('explode')[0].dodged], [[], ['B']]);
+  assert.ok(Object.keys(L().fire).length > 0, 'กองไฟยังเกิด');
+  // แม่นยำ = เจาะหลบ
+  P.D.statuses.accurate = 3;
+  P.D.diego.shotRound = 0;
+  engine.useSkill('D', 'secondary', [], { dir: 'right' });
+  flush(t, 2000);
+  assert.equal(b0 - vit(P.B), 1, 'แม่นยำ — ปืนโดน');
+  assert.equal(fxOf('shot')[1].hitId, 'B');
+});
+
+test('หลบได้: เป็นไปดั่งกลอุบาย — หลบพ้น = ไม่เสีย/ไม่เลือดไหล/ไม่กระเด็น · ดิเอโก้หยุดหน้าเป้า · ไม่มีคลิป final', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['D', 'diego_alt', 1, 8], ['B', 'dummy', 4, 8], ['C', 'dummy', 12, 2]]);
+  engine.setActor('D');
+  engine.timeStop.queueExtra('D', 'normal');
+  engine.beginOrder();
+  engine.turnOrder.splice(0, engine.turnOrder.length, 'D', 'B', 'C');
+  flush(t, 6600 + 3000);
+  assert.equal(engine.action.extra, 'normal');
+  evade100(P.B);
+  const b0 = vit(P.B);
+  calls.cut = [];
+  P.D.diego.mounted = true;
+  engine.useSkill('D', 'ultimate', [], { dir: 'right' });
+  assert.deepEqual(calls.cut, ['diegoPlotIntro'], 'คลิป intro ทุกครั้ง');
+  flush(t, 4000);
+  assert.ok(!calls.cut.includes('diegoPlotFinal'), 'หลบพ้น = ไม่มีคลิป final');
+  assert.equal(vit(P.B), b0);
+  assert.ok(!(P.B.statuses.hbleed > 0));
+  assert.deepEqual(P.B.pos, { x: 4, y: 8 }, 'ไม่กระเด็น');
+  assert.deepEqual(P.D.pos, { x: 3, y: 8 }, 'หยุดหน้าเป้า');
+  assert.deepEqual([fxOf('plot')[0].hitId, fxOf('plot')[0].dodgeId], [null, 'B']);
 });

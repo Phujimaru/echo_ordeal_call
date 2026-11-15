@@ -90,14 +90,14 @@ test.before(() => {
 });
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
 
-test('ข้อมูลตัวละคร: พิเศษ · unique · 7/3 · นอก Room ตีไม่ได้', () => {
+test('ข้อมูลตัวละคร: พิเศษ · unique · 10/5 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · นอก Room ตีไม่ได้', () => {
   const ch = CHAR_BY_ID.trafalgar_law;
   assert.equal(ch.difficulty, 'special');
   assert.equal(ch.unique, true);
   assert.deepEqual(ch.range, [1, 0]);
   const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 1]]);
-  assert.equal(engine.maxHpOf(P.L), 7);
-  assert.equal(engine.maxArmorOf(P.L), 3);
+  assert.equal(engine.maxHpOf(P.L), 10);
+  assert.equal(engine.maxArmorOf(P.L), 5);
   assert.equal(engine.attackTarget('L', 'E'), false); // ยังไม่มี Room
 });
 
@@ -369,6 +369,28 @@ test('Mess: หัวใจเข้ากระเป๋า · บีบ = ค�
   }
   assert.equal(P.E.hp, 4); // 6 = เกราะ 3 + เลือด 3
   assert.equal(P.L.inventory.some((it) => it.type === 'lawHeart'), false);
+});
+
+test('บีบหัวใจ: หลบได้ (หลบหลีก 100% = ไม่เสีย แต่เสียครั้งบีบ) · ลอว์ติดแม่นยำ = โดน (ผู้ใช้ 2026-11-15)', () => {
+  noRoll();
+  const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 1]]);
+  room('5');
+  ult('mess');
+  strike('E');
+  const heart = P.L.inventory.find((it) => it.type === 'lawHeart');
+  assert.ok(heart);
+  const vit0 = P.E.hp + P.E.armor;
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100;
+  drain(() => engine.useInventoryItem('L', heart.uid));
+  assert.equal(P.E.hp + P.E.armor, vit0, 'หลบพ้น');
+  assert.equal(heart.uses, 2, 'หลบพ้นยังเสียครั้งบีบ');
+  engine.setRoundNumber(engine.roundNumber + 1);
+  H().onRoundStartTick(engine, P.L);
+  engine.setActor('L');
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100;
+  P.L.statuses.accurate = 1;
+  drain(() => engine.useInventoryItem('L', heart.uid));
+  assert.equal(P.E.hp + P.E.armor, vit0 - 2, 'แม่นยำทะลุหลบ');
 });
 
 test('ตายใน Room เหลือศพ · Counter Shock ฟื้นพลังชีวิต 1 · 3 ครั้งต่อเกม', () => {

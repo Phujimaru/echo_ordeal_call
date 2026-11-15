@@ -335,28 +335,6 @@
 .hud-moon-boss[data-alive="false"] img { filter: grayscale(1) brightness(0.45); }
 .hud-moon-boss b { position: absolute; inset: 0; display: grid; place-items: center; font: 700 15px/1 "Chakra Petch", sans-serif; color: #fff; text-shadow: 0 0 6px #000; }
 @media (prefers-reduced-motion: reduce) { .hud-moon-left b { animation: none !important; } }
-/* ห่วงเวลาซีโร่: แทนป้ายภูมิภาค (กดไม่ได้) · นาฬิกาทรายแทนกลางวัน/คืน */
-.hud-top[data-zero="true"] { border-color: rgba(255, 150, 210, 0.5); background: linear-gradient(100deg, rgba(40, 12, 40, 0.9), rgba(12, 28, 58, 0.88) 70%); }
-.hud-zero-hg { display: grid; place-items: center; animation: hudZeroHg 6s ease-in-out infinite; }
-.hud-zero-hg svg { width: 24px; height: 24px; }
-@keyframes hudZeroHg { 0%, 42% { transform: rotate(0deg); } 50%, 92% { transform: rotate(180deg); } 100% { transform: rotate(360deg); } }
-.hud-top-zero { cursor: default; }
-.hud-zero-gem { background: linear-gradient(135deg, #ffd6ee, #ff7ac8 55%, #9b2f6e); box-shadow: 0 0 12px rgba(255, 122, 200, 0.55); }
-.hud-zero-gem > span { font-size: 13px; color: #3a0b26; }
-.hud-top-zero .hud-top-sub { color: #ffb3dc; }
-.hud-zero-info { display: flex; flex-direction: column; gap: 5px; }
-.hud-zero-seals { display: flex; gap: 6px; padding-left: 2px; }
-.hud-zero-seals i { width: 9px; height: 9px; transform: rotate(45deg); background: rgba(255, 255, 255, 0.15); }
-.hud-zero-seals i[data-on="true"] { background: #ff7ac8; box-shadow: 0 0 6px rgba(255, 122, 200, 0.8); }
-.hud-zero-buffs { display: flex; align-items: center; gap: 9px; }
-.hud-zero-buffs > span { display: inline-flex; align-items: center; gap: 3px; }
-.hud-zero-buffs svg { width: 14px; height: 14px; flex: none; }
-.hud-zero-buffs b { font: 600 12px/1 "Chakra Petch", sans-serif; color: #fff; }
-.hud-zero-lock { opacity: 0.85; }
-.hud-zero-left svg { width: 16px; height: 16px; }
-.hud-zero-left b { font-size: 15px; color: #ff9ab0; text-shadow: 0 0 6px rgba(255,60,90,.8); }
-.hud-top-zero[data-collapse="true"] .hud-zero-gem { filter: saturate(.35) brightness(.8); }
-@media (prefers-reduced-motion: reduce) { .hud-zero-hg { animation: none; } }
 
 /* ---------- ลิ้นชักสถานะ (ชิดขอบซ้ายจอ เหนือแผงผู้เล่น) ---------- */
 .hud-drawer-zone {
@@ -1156,14 +1134,14 @@
 /* ช่องว่างของแถบทรัพยากร (Cells) บนพื้นขาว — เดิมขาวจางบนขาว มองไม่เห็น */
 .hud-dock { --hud-cell-off: rgba(28,63,110,.14); }
 /* กล่องกระจกทั่วไป + แผงตัวละคร + แถบทรัพยากร */
-.hud-dock .hud-glass, .hud-top:not([data-zero="true"]):not([data-colony="boom"]) {
+.hud-dock .hud-glass, .hud-top:not([data-colony="boom"]) {
   background: var(--ocw-lattice), var(--ocw-paper);
   border-color: var(--ocw-line);
   color: var(--ocw-ink);
   box-shadow: 0 6px 16px rgba(28,63,110,.22);
 }
 .hud-top-k, .hud-top-sub { color: var(--ocw-mute); }
-.hud-top:not([data-zero="true"]):not([data-colony="boom"]) .hud-top-region { color: var(--ocw-ink); }
+.hud-top:not([data-colony="boom"]) .hud-top-region { color: var(--ocw-ink); }
 /* แผงลิ้นชักสถานะ (ซ้าย) บนพื้นขาว */
 .hud-drawer-panel .hud-st-title, .hud-drawer-panel .hud-row-btn { color: var(--ocw-ink); }
 .hud-drawer-panel .hud-row-desc { color: var(--ocw-mute); }

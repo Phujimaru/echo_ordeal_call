@@ -29,6 +29,8 @@ function setup(list, mode = 'ffa') {
   return engine.players;
 }
 const vit = (p) => (p.hp || 0) + (p.armor || 0);
+// ค่าสถานะเพิ่มทุกตัวละคร +3 พลังชีวิต / +2 เกราะ (ผู้ใช้สั่ง 2026-11-14 · STAT_BONUS ใน server/combat.js)
+const FULL = 15; // เลือด+เกราะเต็มของ dummy (7+3 + 3+2)
 const lay = (tiles) => tiles.forEach(([x, y]) => Ice.layIce(x, y, null));
 const terrainAt = (x, y) => engine.boardMap().terrain[`${x},${y}`];
 const fxEvents = () => calls.fx.filter((f) => f.event === 'iceFx').flatMap((f) => f.payload.events);
@@ -62,8 +64,8 @@ test('ข้อมูล: ระดับยาก · เลือด 8 เก�
   assert.equal(ch.secondary.area.range, 8);
   assert.deepEqual(ch.ultimate.area, { kind: 'self' });
   const P = setup([['I', 'ice_spike', 3, 5], ['B', 'dummy', 4, 5]]);
-  assert.equal(P.I.hp, 8);
-  assert.equal(P.I.armor, 2);
+  assert.equal(P.I.hp, 8 + 3);
+  assert.equal(P.I.armor, 2 + 2);
   engine.setActor('I');
   assert.equal(engine.attackTarget('I', 'B'), false, 'ยืนติดก็ตีปกติไม่ได้');
   const st = engine.buildStateFor('I');
@@ -127,13 +129,42 @@ test('ติดตัว 2: ไถลชนศัตรู = เสียหา�
   assert.equal(ev.find((e) => e.kind === 'hit').max, true);
 });
 
+test('ติดตัว 2: ไถลชนหลบได้ — หลบพ้น = ไม่เสียหาย ไม่กระเด็น (เหตุการณ์ hit ติด dodge · ยังจบตา) · Ice Spike มีแม่นยำ = โดน', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 5, 5]]);
+  lay([[2, 5], [3, 5], [4, 5]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  const b0 = vit(P.B);
+  engine.setActor('I');
+  assert.equal(engine.moveTo('I', 4, 5), true);
+  assert.deepEqual(P.I.pos, { x: 4, y: 5 });
+  assert.equal(vit(P.B), b0, 'หลบพ้น ไม่เสียหาย');
+  assert.deepEqual(P.B.pos, { x: 5, y: 5 }, 'หลบพ้น ไม่กระเด็น');
+  const ev = fxEvents();
+  assert.equal(ev.find((e) => e.kind === 'hit').dodge, true);
+  assert.ok(!ev.some((e) => e.kind === 'knock'));
+  assert.equal(engine.gameState, 'ATTACKING', 'ยังนับเป็นการโจมตี');
+  engine.clearPhaseTimer();
+  // แม่นยำเจาะหลบหลีก
+  calls.fx = [];
+  P = setup([['I', 'ice_spike', 1, 5], ['B', 'dummy', 5, 5]]);
+  lay([[2, 5], [3, 5], [4, 5]]);
+  P.I.statuses.accurate = 2;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('I');
+  assert.equal(engine.moveTo('I', 4, 5), true);
+  assert.equal(vit(P.B), FULL - 3, 'แม่นยำ = โดนเต็ม');
+  assert.deepEqual(P.B.pos, { x: 6, y: 5 }, 'กระเด็น 1 ช่อง');
+  assert.ok(!fxEvents().find((e) => e.kind === 'hit').dodge);
+});
+
 test('คนอื่นไถลชนศัตรู = เป้ากระเด็น 1 ช่องไม่เสียเลือด · กระเด็นลงน้ำแข็ง = ไถลต่อ · ชนเพื่อนร่วมทีม = หยุดเฉยๆ', () => {
   const P = setup([['A', 'dummy', 1, 5], ['C', 'dummy', 5, 5], ['I', 'ice_spike', 1, 9]]);
   lay([[2, 5], [3, 5], [4, 5], [7, 5], [8, 5], [9, 5]]);
   engine.setActor('A');
   engine.moveTo('A', 4, 5);
   assert.deepEqual(P.A.pos, { x: 4, y: 5 });
-  assert.equal(vit(P.C), 7 + 3, 'ไม่เสียเลือด');
+  assert.equal(vit(P.C), FULL, 'ไม่เสียเลือด');
   // C กระเด็นไป (6,5) พื้น — ไม่ไถล
   assert.deepEqual(P.C.pos, { x: 6, y: 5 });
   assert.notEqual(engine.gameState, 'ATTACKING', 'ไม่ใช่การโจมตี');
@@ -211,7 +242,7 @@ test('ไถลชนหนาม: เสียเท่า Lv (เกราะ�
   engine.setActor('A');
   engine.moveTo('A', 3, 5);
   assert.deepEqual(P.A.pos, { x: 3, y: 5 });
-  assert.equal(vit(P.A), 10 - 2);
+  assert.equal(vit(P.A), FULL - 2);
   assert.equal(P.A.statuses.slow, 1 + 1, 'เชื่องช้า 1 เทิร์น (กำลังเดิน +1)');
   assert.equal(terrainAt(4, 5), 'icespike1');
   // ของตัวเอง
@@ -323,8 +354,8 @@ test('Ice Spike สองคน: ไถลชนหนามของอีก�
   engine.setActor('I');
   engine.moveTo('I', 3, 5);
   assert.deepEqual(P.I.pos, { x: 3, y: 5 });
-  assert.equal(vit(P.I), 10 - 1, 'เสียเท่า Lv (เกราะก่อน)');
-  assert.equal(P.I.armor, 1);
+  assert.equal(vit(P.I), (8 + 3) + (2 + 2) - 1, 'เสียเท่า Lv (เกราะก่อน)');
+  assert.equal(P.I.armor, 2 + 2 - 1);
   assert.ok(!(P.I.statuses.slow > 0), 'Ice Spike ไม่ติดเชื่องช้า (ติดตัว 4)');
   assert.equal(P.I.skillPoints, 1 + 1, 'ไถล 2 ช่อง +1 เท่านั้น');
   assert.equal(terrainAt(4, 5), undefined, 'Lv1 แตก');
@@ -457,7 +488,7 @@ test('ตัวใหญ่ 2×2 เหยียบหนาม: หนามแ
   assert.deepEqual(P.E.pos, { x: 4, y: 7 }, 'เดินต่อไม่หยุดที่หนาม');
   assert.equal(terrainAt(3, 7), undefined);
   assert.equal(terrainAt(4, 8), undefined);
-  assert.equal(vit(P.E), 10 - 1 - 2, 'Lv2 = 1 · Lv3 = 2');
+  assert.equal(vit(P.E), FULL - 1 - 2, 'Lv2 = 1 · Lv3 = 2');
   assert.equal(P.E.statuses.slow, 1 + 1, 'เชื่องช้า 1 เทิร์น (กำลังเดิน +1)');
   const kinds = fxEvents().map((e) => e.kind);
   assert.deepEqual(kinds, ['walk', 'trample', 'slow', 'walk', 'trample', 'slow', 'walk']);

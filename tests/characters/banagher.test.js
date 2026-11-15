@@ -46,12 +46,12 @@ test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { engine.clearPhaseTimer(); });
 
 // ---------- โหมด ----------
-test('โหมดผู้กอบกู้เริ่มเป็นบานาจ ลิงซ์: พลังชีวิต 7 · เกราะ 3 · ตีระยะ 1 · ชื่อ/สกิลติดตัวของร่าง · ไม่ล่องหน', () => {
+test('โหมดผู้กอบกู้เริ่มเป็นบานาจ ลิงซ์: พลังชีวิต 7 · เกราะ 3 (+3/+2 ค่าสถานะเพิ่มทุกตัว = 10/5) · ตีระยะ 1 · ชื่อ/สกิลติดตัวของร่าง · ไม่ล่องหน', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5, 'savior'], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(P.S.sliver.form, 'banagher');
-  assert.equal(engine.maxHpOf(P.S), 7);
-  assert.equal(engine.maxArmorOf(P.S), 3);
-  assert.equal(P.S.hp, 7);
+  assert.equal(engine.maxHpOf(P.S), 10);
+  assert.equal(engine.maxArmorOf(P.S), 5);
+  assert.equal(P.S.hp, 10);
   assert.deepEqual(action.rangeOf(P.S), [1, 1]);
   assert.equal(action.baseMovOf(P.S), 4);
   assert.equal(pilot.stealthed(P.S), false, 'บานาจไม่มีซุ่มโจมตี');
@@ -66,7 +66,7 @@ test('โหมดผู้กอบกู้เริ่มเป็นบา�
 test('โหมดสายลับ (ค่าเริ่มต้น) = นักบินเดิม', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(P.S.sliver.form, 'pilot');
-  assert.equal(engine.maxHpOf(P.S), 5);
+  assert.equal(engine.maxHpOf(P.S), 8);
   assert.equal(view('S', 'S').character.ultimate.name, 'ผมจำเป็นต้องไปต่อ');
 });
 
@@ -103,7 +103,7 @@ test('กล่องของลาพลัส: ตก 2×2 · ศัตรู
   assert.equal(wearBtn().disabled, false);
   pilot.charAction(engine, P.S, 'wear');
   assert.equal(P.S.sliver.form, 'banagher');
-  assert.equal(engine.maxHpOf(P.S), 7);
+  assert.equal(engine.maxHpOf(P.S), 10);
   assert.equal(P.S.hp, 5, 'ฟื้น 2 (ไม่เต็ม)');
   assert.equal(P.S.armor, 2, 'ฟื้นเกราะ 2');
   assert.ok(!box.alive, 'กล่องหายเมื่อสวม');
@@ -125,6 +125,30 @@ test('กล่องพังแล้วเรียกใหม่ได้ �
   assert.ok(!box.alive, 'นักบินตาย = กล่องหาย');
 });
 
+test('กล่องของลาพลัส: ศัตรูหลบหลีก 100% = หลบพ้น (ยังถูกผลักออก · ไม่เสียเลือด · fx dodge) · ผู้ใช้ติดแม่นยำ = โดน', () => {
+  let P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 6, 5], ['C', 'dummy', 12, 12]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  let before = P.B.hp + P.B.armor;
+  engine.setActor('S');
+  engine.useSkill('S', 'ultimate', [], { tile: { x: 5, y: 5 } });
+  let box = Object.values(engine.players).find((u) => pilot.isBox(u) && u.alive);
+  assert.ok(!Board.covers(Board.boxOf(box), P.B.pos.x, P.B.pos.y), 'หลบพ้นก็ยังถูกผลักออก');
+  assert.equal(P.B.hp + P.B.armor, before, 'หลบพ้น = ไม่เสียเลือด');
+  const drop = calls.fx.find((f) => f.payload && f.payload.pushed);
+  assert.ok(drop, 'fx กล่องตก');
+  assert.deepEqual(drop.payload.pushed.map((h) => [h.id, h.dmg, !!h.dodge]), [['B', 0, true]]);
+  // ติดแม่นยำ = ทะลุหลบหลีก
+  P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 6, 5], ['C', 'dummy', 12, 12]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  P.S.statuses.accurate = 1;
+  before = P.B.hp + P.B.armor;
+  engine.setActor('S');
+  engine.useSkill('S', 'ultimate', [], { tile: { x: 5, y: 5 } });
+  box = Object.values(engine.players).find((u) => pilot.isBox(u) && u.alive);
+  assert.ok(!Board.covers(Board.boxOf(box), P.B.pos.x, P.B.pos.y));
+  assert.equal(before - (P.B.hp + P.B.armor), 2);
+});
+
 // ---------- โล่ดูดซับ ----------
 test('โล่ดูดซับ: ดาเมจเป็น 0 + ฟื้นสูงสุด 3 · หมดผลต้นตาเดินถัดไป · คูลดาวน์ 3 เทิร์น · คลิปครั้งแรกที่ถูกโจมตี', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5, 'savior'], ['B', 'dummy', 2, 5], ['C', 'dummy', 9, 5]]);
@@ -134,7 +158,7 @@ test('โล่ดูดซับ: ดาเมจเป็น 0 + ฟื้น�
   assert.ok(P.S.sliver.absorb);
   assert.equal(calls.queue.length, 0, 'กดเฉยๆ ยังไม่มีคลิป');
   engine.withEffectSource(P.B, () => engine.dealMixed(P.S, 2));
-  assert.equal(P.S.armor, 3, 'เกราะไม่ลด');
+  assert.equal(P.S.armor, 5, 'เกราะไม่ลด');
   assert.equal(P.S.hp, 4, 'ฟื้นตามดาเมจ');
   assert.deepEqual(calls.queue, [pilot.CUT.absorb]);
   engine.withEffectSource(P.B, () => engine.dealDirect(P.S, 5));
@@ -176,6 +200,22 @@ test('Beam Magnum (บานาจ): 2 แต้ม · ศัตรูทุก�
   // กระสุนหมด = ยิงไม่ได้
   P.S.sliver.ammo = 0;
   assert.equal(pilot.canUseSkill(engine, P.S, 'secondary'), false);
+});
+test('Beam Magnum (บานาจ): ศัตรูหลบหลีก 100% = หลบพ้น ไม่โดน · ผู้ยิงติดแม่นยำ = ทะลุหลบ', () => {
+  let P = setup([['S', 'sliver_bullet', 4, 7, 'savior'], ['B', 'dummy', 4, 6], ['C', 'dummy', 4, 2]]);
+  P.B.armor = 0; P.B.hp = 7; P.C.armor = 0; P.C.hp = 7;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  engine.setActor('S');
+  engine.useSkill('S', 'secondary', [], { dir: 'up' });
+  assert.equal(P.B.hp, 7, 'หลบพ้น');
+  assert.equal(P.C.hp, 4, 'คนอื่นในแนวยังโดน');
+  P = setup([['S', 'sliver_bullet', 4, 7, 'savior'], ['B', 'dummy', 4, 6], ['C', 'dummy', 12, 12]]);
+  P.B.armor = 0; P.B.hp = 7;
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  P.S.statuses.accurate = 1;
+  engine.setActor('S');
+  engine.useSkill('S', 'secondary', [], { dir: 'up' });
+  assert.equal(P.B.hp, 4, 'แม่นยำทะลุหลบหลีก');
 });
 
 // ---------- NT-D ----------

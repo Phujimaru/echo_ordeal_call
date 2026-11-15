@@ -1099,6 +1099,15 @@ export function gyroEventFx(ev, ctx = {}) {
   const idAt = (p) => (okT(p) && typeof ctx.idAt === "function" ? ctx.idAt(p) : null);
   const ping = (id, ms, at) => { if (id != null) out.fx.push({ kind: "gyroPing", x: at ? at.x : 0, y: at ? at.y : 0, hitIds: [id], hitDelay: Math.max(0, Math.round(ms)), dur: Math.round(ms) + PING_MS }); };
   const base = { id: ev.id, color: ev.color || null };
+  // หลบพ้น (ทุกสกิลหลบได้): ขึ้น "หลบ" ตอนลูกถึงตัว แบบเดียวกับ Ice Spike · ไม่แฟลชโดน
+  const dodgeFloat = (at, dy = 0) => ({ kind: "float", x: at.x, y: at.y + dy, text: "หลบ", color: "#d8f2ff", size: 24, z: 1.5 });
+  const dodgeAt = (id, ms) => {
+    const p = posOf(id);
+    if (!okT(p)) return;
+    const n = sizeOf(id), at = { x: p.x + (n - 1) / 2, y: p.y + (n - 1) / 2 }, t = Math.max(0, Math.round(ms));
+    out.later.push([t, [dodgeFloat(at)]]);
+    out.look.push([at, t]);
+  };
   switch (ev.kind) {
     case "throw": {
       if (!okT(ev.from) || !okT(ev.to)) break;
@@ -1114,6 +1123,10 @@ export function gyroEventFx(ev, ctx = {}) {
       const G = recallGeo(e);
       e.hitsAt = (Array.isArray(ev.hits) ? ev.hits : []).map((id) => { const p = posOf(id); return okT(p) ? { id, x: p.x, y: p.y, ms: Math.round(G.timeAt(polyNear(G, p.x + 0.5, p.y + 0.5))) } : null; }).filter(Boolean);
       for (const h of e.hitsAt) ping(h.id, h.ms, h);
+      for (const id of Array.isArray(ev.dodged) ? ev.dodged : []) {
+        const p = posOf(id);
+        if (okT(p)) dodgeAt(id, G.timeAt(polyNear(G, p.x + 0.5, p.y + 0.5)));
+      }
       out.fx.push(e);
       out.look.push([e.from, 0], [e.to, 300]);
       break;
@@ -1122,13 +1135,17 @@ export function gyroEventFx(ev, ctx = {}) {
       if (!okT(ev.from)) break;
       const e = { ...base, kind: "gyroSecret", from: ptOf(ev.from), dir: ev.dir, len: ev.len, tiles: Array.isArray(ev.tiles) ? ev.tiles.filter(okT).map(ptOf) : [], pulls: Array.isArray(ev.pulls) ? ev.pulls : [], dur: GYRO_FX_DUR.gyroSecret };
       const G = secretGeo(e);
+      const legDodge = Array.isArray(ev.legDodge) ? ev.legDodge : [];
+      const dodgedLeg = (id, leg) => legDodge.some((q) => q && q.id === id && q.leg === leg);
       e.hitsAt = [];
       for (const id of Array.isArray(ev.hits) ? ev.hits : []) {
         const p = posOf(id);
         if (!okT(p)) continue;
         const n = sizeOf(id), d = (p.x + n / 2 - G.A[0]) * G.v[0] + (p.y + n / 2 - G.A[1]) * G.v[1];
         const pl = G.pulls.find((q) => q.id === id), back = pl ? pl.from : p;
-        e.hitsAt.push({ id, x: p.x, y: p.y, ms: Math.round(G.outT(d)) }, { id, x: back.x, y: back.y, ms: Math.round(G.backT(d)) });
+        // ขาที่หลบพ้น (legDodge) ไม่แฟลชโดน — "หลบ" ขึ้นจาก secretHit ตอนลูกผ่าน
+        if (!dodgedLeg(id, "out")) e.hitsAt.push({ id, x: p.x, y: p.y, ms: Math.round(G.outT(d)) });
+        if (!dodgedLeg(id, "back")) e.hitsAt.push({ id, x: back.x, y: back.y, ms: Math.round(G.backT(d)) });
       }
       for (const h of e.hitsAt) ping(h.id, h.ms, h);
       for (const p of G.pulls) out.busy.push({ id: p.id, ms: GYRO_FX.secret + HOLD });
@@ -1143,6 +1160,7 @@ export function gyroEventFx(ev, ctx = {}) {
     case "secretHit": {
       if (!okT(ev.at)) break;
       const dmg = Math.max(0, Number(ev.dmg) | 0);
+      if (ev.dodge) { out.fx.push(dodgeFloat(ev.at, ev.leg === "back" ? -0.35 : 0)); out.look.push([ptOf(ev.at), 0]); break; }
       if (dmg > 0) out.fx.push({ kind: "float", x: ev.at.x, y: ev.at.y - (ev.leg === "back" ? 0.35 : 0), text: `-${dmg}`, size: 28, z: 1.5 });
       break;
     }

@@ -20,18 +20,11 @@ const diego_alt = require("./diego_alt"); // ดิเอโก้ แบรน�
 const fern = require("./fern"); // เฟิร์น — ระดับกลาง (Zoltraak แนวตรง / Energy 10 / ครั้งที่ 6 ทะลุเกราะ + รีเซ็ทคูลดาวน์ / ท่าไม้ตายซ่อนเร้นมานา)
 const funny_valentine = require("./funny_valentine"); // ฟันนี่ วาเลนไทน์ — พิเศษ · unique (หลบสายตา ชั้นมิติ / ปืน / กระดานคู่ขนาน · ร่างแยก · ตัวที่เหมือนกัน — server/dimension.js + server/summon.js)
 const celine = require("./celine"); // องค์หญิงดอกไม้ เซลิน — พิเศษ (คฑา 4 แบบ / อาวุธ 6 แบบ / พุ่มดอกไม้ server/flora.js / ราชาดอกไม้)
-const takuto = require("./takuto"); // ซึนาชิ ทาคุโตะ — พิเศษ · unique (ร่างคน/ทาวเบิร์น 3×3 · ดาบ 2 เล่ม · ห่วงเวลาซีโร่ + ช่วงมิติพังทลาย — server/zeroTime.js)
 const ryougi = require("./ryougi"); // ผู้นำแห่งตระกูลเรียวกิ — มหันตภัย · unique (ฟันแนว 2 ช่อง / เนตรมณะ / ตัดผลสกิล server/sever.js / ช่องพัง terrain "chasm")
 const emiya_shirou = require("./emiya_shirou"); // เอมิยะ ชิโร่ — ยาก (Trace On อาวุธ 5 แบบ / สกิลรองตามอาวุธ / Unlimited Blade Works)
 const kensaki_kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ — ยาก (ร่างมนุษย์/Blade / Blay Rouzer การ์ด 9 ใบ / Rouze ท่า Lightning)
 const trafalgar_law = require("./trafalgar_law"); // ทราฟาก้า ลอว์ — พิเศษ · unique (Room / ศัลแพทย์ 4 แบบ / Gamma Knife · Mess / Counter Shock)
 const yuki_makoto = require("./yuki_makoto"); // ยูกิ มาโคโตะ — เอาฮา (ไม่ตาย · เกิดใหม่เป็นประตู นับ 3 เทิร์น ระเบิดทั้งแผนที่ จบเกม)
-// ขบวนการจอมราชันคิงโอเจอร์ — ง่าย 5 ตัวแยกกัน (แกนดาบ Ohger Calibur / Ohger Finish ตามร่าง / จอมราชัน — characters/_ohger.js)
-const gira_ohger = require("./gira_ohger");
-const yanma_ohger = require("./yanma_ohger");
-const himeno_ohger = require("./himeno_ohger");
-const rita_ohger = require("./rita_ohger");
-const kaguragi_ohger = require("./kaguragi_ohger");
 const old_truck = require("./old_truck"); // รถบรรทุกเก่า → รถบรรทุก ⇄ ออพติมัส ไพร์ม — ปานกลาง (3 ร่าง · ผู้พิทักษ์ตีสวน · คลื่นครึ่งวง)
 const arjuna = require("./arjuna"); // มหาเทพอรชุน — พิเศษ (จุติ · โบนัสตามชนิดดีบัฟ · แถบ 4 ช่องผ่าโลกทั้งแมพ)
 const roland = require("./roland"); // โรลันด์ Black Silence — ยาก · unique (การ์ดอาวุธ 9 แบบ · Emotion · Furioso)
@@ -70,17 +63,11 @@ const CHARACTER_MODULES = [
   fern,
   funny_valentine,
   celine,
-  takuto,
   ryougi,
   emiya_shirou,
   kensaki_kazuma,
   trafalgar_law,
   yuki_makoto,
-  gira_ohger,
-  yanma_ohger,
-  himeno_ohger,
-  rita_ohger,
-  kaguragi_ohger,
   old_truck,
   giorno_giovanna,
   arjuna,

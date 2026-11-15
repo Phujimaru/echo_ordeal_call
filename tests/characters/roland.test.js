@@ -49,8 +49,8 @@ test.afterEach(() => { engine.clearPhaseTimer(); Math.random = realRandom; });
 
 test("ค่าพื้นฐานและการ์ดเริ่มเกม", () => {
   const { r } = setup();
-  assert.strictEqual(engine.maxHpOf(r), 6);
-  assert.strictEqual(engine.maxArmorOf(r), 4);
+  assert.strictEqual(engine.maxHpOf(r), 9);
+  assert.strictEqual(engine.maxArmorOf(r), 6);
   assert.strictEqual(engine.maxSkillOf(r), 5);
   r.roland.started = false; r.roland.hand = [];
   roland.onRoundStartTick(engine, r);
@@ -290,16 +290,16 @@ test("Emotion skill: หัก Emotion · บัฟ 3 เทิร์น · ค�
   s.emotion = 3;
   engine.useSkill(R, "secondary", [], { form: "urging" });
   assert.strictEqual(s.emotion, 2);
-  assert.strictEqual(engine.maxHpOf(r), 7);
+  assert.strictEqual(engine.maxHpOf(r), 10);
   assert.strictEqual(r.statuses.rolandUrging, 3);
   r.skillUsedRound = false;
   engine.useSkill(R, "secondary", [], { form: "lies" });
   assert.strictEqual(s.ego, "urging");
   r.statuses.rolandUrging = 0;
-  r.hp = 7;
+  r.hp = 10;
   roland.onEndTurn(engine);
   assert.strictEqual(s.ego, null);
-  assert.strictEqual(r.hp, 6);
+  assert.strictEqual(r.hp, 9);
 });
 
 test("Fervent Beats: พลังโจมตี +3 ใช้กับการ์ด · อมตะ · หมดลงตาย", () => {

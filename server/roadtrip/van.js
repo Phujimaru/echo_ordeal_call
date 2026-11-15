@@ -26,7 +26,7 @@ const PLATE_MAX = 9;
 // ทะเบียน: อักษรไทย/ละติน/ตัวเลข/ช่องว่าง/ขีด ไม่เกิน 9 ตัว (ตัดอักขระควบคุมและอย่างอื่นทิ้ง)
 function cleanPlate(text) {
   if (typeof text !== "string") return null;
-  const s = text.normalize("NFC").replace(/[^฀-๿A-Za-z0-9 \-]/g, "").replace(/\s+/g, " ").trim();
+  const s = text.normalize("NFC").replace(/[^฀-๿A-Za-z0-9 -]/g, "").replace(/\s+/g, " ").trim();
   return [...s].slice(0, PLATE_MAX).join("").trim();
 }
 function cleanHex(hex) { return typeof hex === "string" && HEX_RE.test(hex) ? hex.toLowerCase() : null; }

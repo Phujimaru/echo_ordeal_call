@@ -15,11 +15,7 @@ import Game from "../Game";
 import { socket } from "../../socket";
 import { playSfx } from "../../audio";
 import { measureHud } from "./hudMeasure";
-import { SCENARIOS, buildMockState as buildBase, simulateEmit, nextTurn } from "./mockBoardState";
-import { OHGER_PREVIEW, applyOhger, simOhger } from "./ohgerPreview";
-
-// oh=<id> = ตัวเราเป็นคิงโอเจอร์ (กดแกนดาบได้ในหน้า — ohgerPreview.js)
-const buildMockState = (o) => (o.oh ? applyOhger(buildBase(o), o.oh) : buildBase(o));
+import { SCENARIOS, buildMockState, simulateEmit, nextTurn } from "./mockBoardState";
 
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII"];
 
@@ -40,7 +36,6 @@ function readOpts() {
     duo: q.get("duo") === "1",
     corpse: q.get("corpse") === "1",
     masked: q.get("masked") === "1",
-    oh: q.get("oh") || "",
   };
 }
 // เขียนค่ากลับลง URL (คง hud=1&game=1 และพารามิเตอร์อื่นที่ไม่ใช่ของแถบนี้ไว้)
@@ -54,7 +49,6 @@ function writeOpts(o) {
   set("team", o.team ? "1" : "");
   set("shop", o.shopNear ? "1" : "");
   set("duo", o.duo ? "1" : "");
-  set("oh", o.oh || "");
   history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
 }
 
@@ -62,8 +56,6 @@ export default function GamePreview() {
   const showBar = new URLSearchParams(location.search).get("bar") !== "0";
   const [opts, setOpts] = useState(readOpts);
   const [state, setState] = useState(() => buildMockState(opts));
-  const stateRef = useRef(state);
-  useEffect(() => { stateRef.current = state; }, [state]);
   const [seq, setSeq] = useState(0); // เปลี่ยน = สร้างฉากใหม่ (กดฉากเดิมซ้ำก็เล่นอนิเมชันใหม่)
   const [remount, setRemount] = useState(0);
   const [open, setOpen] = useState(true);
@@ -85,9 +77,6 @@ export default function GamePreview() {
     const orig = socket.emit;
     socket.emit = function previewEmit(ev, payload) {
       console.info("[GamePreview] socket.emit", ev, payload);
-      // คิงโอเจอร์: คิดผลจาก state ล่าสุดนอก updater (StrictMode เรียก updater 2 รอบ = เสียงซ้ำ) แล้วเล่นเสียงครั้งเดียว
-      const oh = simOhger(stateRef.current, ev, payload);
-      if (oh) { stateRef.current = oh.state; setState(oh.state); oh.sfx.forEach((k) => playSfx(k)); return socket; }
       setState((prev) => {
         const r = simulateEmit(prev, ev, payload);
         return r ? r.state : prev;
@@ -152,13 +141,6 @@ export default function GamePreview() {
               <Toggle label="ทีม (duo)" on={opts.team} set={(v) => pick({ team: v })} />
               <Toggle label="ร้านติดเรา" on={opts.shopNear} set={(v) => pick({ shopNear: v })} />
               <Toggle label="เคท & เอมิลิโกะ" on={opts.duo} set={(v) => pick({ duo: v })} />
-              <label style={ROW}>
-                คิงโอเจอร์
-                <select value={opts.oh} onChange={(e) => pick({ oh: e.target.value, scn: e.target.value ? "my" : opts.scn })} style={SELECT}>
-                  <option value="">-</option>
-                  {OHGER_PREVIEW.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </label>
               <Toggle label="lowQ" on={opts.lowQ} set={(v) => setOpts((o) => ({ ...o, lowQ: v }))} />
               {/* ระบบธาตุ (GRID_PLAN §8.7): เล่นเอฟเฟกต์ + เสียงของแต่ละปฏิกิริยา/ระเบิดธาตุ ที่ฟ้าใส (9,7) */}
               <div style={{ ...ROW, marginTop: 6 }}>ธาตุ</div>

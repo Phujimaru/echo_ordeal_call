@@ -3,7 +3,6 @@
 //  คอมโพเนนต์ในไฟล์นี้วาดอย่างเดียว — เงื่อนไขกดได้/ไม่ได้ทั้งหมดส่งมาจาก GameBoard (Game.jsx) ผ่าน props
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PERMANENT_STATUS_KEYS } from "../../data/permanentStatus";
-import { ZeroIcon } from "../../board/BoardScenes";
 import VanStatus from "../../roadtrip/VanStatus";
 import "./hud.css";
 
@@ -609,63 +608,16 @@ function MoonChip({ moon, round, players }) {
     </div>
   );
 }
-// ห่วงเวลาซีโร่ (zero.active): แทนป้ายภูมิภาค — ผนึก 4 อัน (ชมพู = ยังอยู่) · บัฟสะสม · ท่าไม้ตายล็อก · กดไม่ได้
-//  ช่วงมิติพังทลาย (zero.collapse — ทาคุโตะ): นาฬิกาทราย + เทิร์นที่เหลือแทนบัฟ (ท่าไม้ตายไม่ล็อก)
-function ZeroChip({ zero }) {
-  const seals = Array.isArray(zero.seals) ? [...zero.seals].sort((a, b) => a.i - b.i) : [];
-  const bp = zero.buffPhase || 0;
-  const col = zero.collapse && Number.isFinite(Number(zero.collapse.left)) ? zero.collapse : null;
-  if (col) {
-    return (
-      <div className="hud-top-region hud-top-zero" data-collapse="true">
-        <span className="hud-top-gem hud-zero-gem"><span>0</span></span>
-        <span className="hud-top-text">
-          <span className="hud-top-name">ห่วงเวลาซีโร่</span>
-          <span className="hud-top-sub">เฟส {zero.stage}</span>
-        </span>
-        <span className="hud-zero-info">
-          <span className="hud-zero-seals">
-            {seals.map((s) => <i key={s.i} data-on="false" />)}
-          </span>
-          <span className="hud-zero-buffs">
-            <span className="hud-zero-left"><ZeroIcon name="hourglass" /><b>{Math.max(0, col.left | 0)}</b></span>
-          </span>
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className="hud-top-region hud-top-zero">
-      <span className="hud-top-gem hud-zero-gem"><span>0</span></span>
-      <span className="hud-top-text">
-        <span className="hud-top-name">ห่วงเวลาซีโร่</span>
-        <span className="hud-top-sub">เฟส {zero.stage}</span>
-      </span>
-      <span className="hud-zero-info">
-        <span className="hud-zero-seals">
-          {seals.map((s) => <i key={s.i} data-on={s.broken ? "false" : "true"} />)}
-        </span>
-        <span className="hud-zero-buffs">
-          {bp >= 1 && <span><ZeroIcon name="skill" /><b>+1</b></span>}
-          {bp >= 2 && <span><ZeroIcon name="coin" /><b>+1</b></span>}
-          {zero.atk > 0 && <span><ZeroIcon name="sword" /><b>+{zero.atk}</b></span>}
-          <span className="hud-zero-lock"><ZeroIcon name="lock" /></span>
-        </span>
-      </span>
-    </div>
-  );
-}
 // Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
 const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲" };
 // Road Trip (state.roadtrip — GRID_PLAN §8.8): แทนป้ายภูมิภาค — ภูมิภาค/รอบวน · กม. · HP รถ · น้ำมัน (+ รอบที่รอด/ประตูท้ายตอนสู้บนรถ) — roadtrip/VanStatus.jsx
 //  roadtrip = { rt: state.roadtrip, myTurn } · กลางวัน/กลางคืนตาม rt.night (ไม่ใช่ cycle ของเกมเดิม)
-export function HudTopBar({ night, round, timer, journey, onJourney, zero, colony, moon, roadtrip, players, zoom = 1 }) {
-  const zeroOn = !!(zero && zero.active);
-  if (round == null && !journey && !zeroOn && !colony && !moon && !roadtrip) return null;
+export function HudTopBar({ night, round, timer, journey, onJourney, colony, moon, roadtrip, players, zoom = 1 }) {
+  if (round == null && !journey && !colony && !moon && !roadtrip) return null;
   const nightNow = roadtrip ? !!roadtrip.rt.night : night;
   return (
-    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-zero={zeroOn ? "true" : "false"} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined} data-roadtrip={roadtrip ? "true" : undefined}>
-      <span className="hud-top-cycle" title={zeroOn ? undefined : nightNow ? "กลางคืน" : "กลางวัน"}>{zeroOn ? <span className="hud-zero-hg"><ZeroIcon name="hourglass" /></span> : nightNow ? <MoonIcon /> : <SunIcon />}</span>
+    <div className="hud-top hud-glass" style={{ "--hud-k": zoom }} data-colony={colony ? (colony.countdown != null ? "boom" : "seal") : undefined} data-roadtrip={roadtrip ? "true" : undefined}>
+      <span className="hud-top-cycle" title={nightNow ? "กลางคืน" : "กลางวัน"}>{nightNow ? <MoonIcon /> : <SunIcon />}</span>
       {round != null && (
         <>
           <span className="hud-top-round"><span className="hud-top-k">รอบที่</span><span className="hud-top-n">{round}</span></span>
@@ -676,11 +628,6 @@ export function HudTopBar({ night, round, timer, journey, onJourney, zero, colon
         <>
           <span className="hud-top-div" aria-hidden="true" />
           <VanStatus rt={roadtrip.rt} myTurn={!!roadtrip.myTurn} />
-        </>
-      ) : zeroOn ? (
-        <>
-          {round != null && <span className="hud-top-div" aria-hidden="true" />}
-          <ZeroChip zero={zero} />
         </>
       ) : colony ? (
         <>

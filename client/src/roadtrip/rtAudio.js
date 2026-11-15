@@ -101,7 +101,7 @@ const FX_SFX = {
   claw: "claw", gacha: "gacha", arcade: "arcade", fish: "splash", ferris: "ferris_creak", spicy: "sizzle", karaoke: "crowd_cheer",
   win: "victory", victory: "victory", rear: "rear_doors", seat: "van_door", alert: "alert", boss: "boss_alarm", km: "km_tick",
   // แคมป์ (camp.js) + กล่องรถ — ใช้ไฟล์เดิมทั้งหมด (ผู้ใช้สั่ง 2026-11-14 ไม่โหลดใหม่)
-  fish: "splash", chop: "wrench", mallow: "sizzle", stars: "coin", sunrise: "victory",
+  chop: "wrench", mallow: "sizzle", stars: "coin", sunrise: "victory",
   campVote: "event_sting", campVoteEnd: "fork_chime", cook: "sizzle", cookDone: "shop_chime", campAct: "crowd_cheer", campJoin: "coin", campActEnd: "crowd_cheer", feast: "crowd_cheer", stash: "sliding_door",
 };
 // กิจกรรมที่จุดพัก (fx act { kind }) → เสียงตามชนิดวัตถุ (QA 2026-11-14 — เดิมหา "act" ไม่เจอ = เงียบทุกกิจกรรม)

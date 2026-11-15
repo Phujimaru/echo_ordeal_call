@@ -112,7 +112,7 @@ test('อัตราผสาน: เลือกการ์ดครบ 5 ใ
   P.K.armor = 1;
   engine.useSkill('K', 'basic', [], { form: 'evolution' });
   assert.equal(P.K.kazuma.king, true);
-  assert.equal(P.K.hp, kz.maxHp(P.K), 'ฟื้นพลังชีวิตเต็ม');
+  assert.equal(P.K.hp, engine.maxHpOf(P.K), 'ฟื้นพลังชีวิตเต็ม (รวมค่าเพิ่ม +3 ผู้ใช้สั่ง 2026-11-14)');
   assert.equal(P.K.armor, 1, 'เกราะส่วนต่างไม่ฟื้น');
   assert.equal(kz.maxArmor(P.K), kz.ARMOR + 3, 'เพดานเกราะเพิ่ม');
   assert.ok(calls.cut.includes('kazumaKing'));

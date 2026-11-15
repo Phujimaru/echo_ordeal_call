@@ -6,7 +6,7 @@
 >
 > **ระบบกระดานเดินได้ (แบบ Fire Emblem)** — กติกาที่ผู้ใช้ตัดสินอยู่ที่ [GRID_PLAN.md](GRID_PLAN.md) · ลงครบแล้ว:
 > กระดาน + ช่องพิเศษ `server/board.js` · วงจรเทิร์น ORDER/ACTION `server/phases/action.js` (§2–§3) · ระยะสกิล (`area`) ·
-> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง (§9) · หน้าจอกระดานฝั่ง client (§17) · ห่วงเวลาซีโร่ (§18) · **Overload Force ถอดออกแล้ว — ห้ามมี**
+> ร้านค้าบนแผนที่ + กระเป๋า 5 ช่อง (§9) · หน้าจอกระดานฝั่ง client (§17) · **Overload Force ถอดออกแล้ว — ห้ามมี**
 
 ---
 
@@ -41,7 +41,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `app.js` | Express + HTTP + Socket.IO (`app`, `server`, `io`), redirect ไฟล์สื่อไป R2 |
 | `mediaDirs.js` | รายชื่อโฟลเดอร์สื่อบน R2 (ใช้ร่วมกับ `app.js` และ `desktop/` ที่แคชไฟล์ในเครื่อง) |
 | `constants.js` | ค่าคงที่ทั้งหมด (`CARD_TIME`, `MAX_HP`, ราคาร้านค้า `SHOP_*`, `CYCLE_TURNS`, `JOURNEY_*_SECONDS`, `TRANSFORMS` ฯลฯ) |
-| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `shopPos`, `journeyScene`, `zero`/`zeroUsed`/`zeroFrozen`/`zeroScene` (§18) … |
+| `match.js` | **สถานะของแมตช์** (เดิมเป็น `let` ระดับไฟล์): `players`, `gameState`, `gameMode`, `roundNumber`, `timeLeft`, `centralDeck`, `lastLog`, `cutsceneQueue`, `shopItems`, `shopPos`, `journeyScene` … |
 | `engine.js` | `engine` object |
 | `lobby.js` | สี/ตำแหน่ง/จองที่นั่ง, โหวตโหมด (`modeOptionsFor`, `voteGameMode`), จัดทีม, `checkLobbyReady`, `startSoloTest`, `startMatch`, `backToLobby`, `relayLobbyEmote`, `remainingTeamWinInfo` |
 | `timers.js` | `startPhaseTimer`/`clearPhaseTimer`, `cardPhaseSeconds` (= `CARD_TIME` เสมอ) |
@@ -55,7 +55,6 @@ tests/                           node --test (ไม่มี dep เพิ่�
 | `qte.js` | QTE กลาง (`startQte`, `qteKey`, `qteTimeout`, `finishQte`, `qtePending`, `sweepQte`) |
 | `dayNight.js` | `isNightRound`, `morningBonusActive` |
 | `ice.js` | **น้ำแข็ง/หนามน้ำแข็ง/ไถล/ผลัก/เชื่องช้า** (§19 · Ice Spike + น้ำแข็งภูมิภาค VI): ชั้นที่สร้างระหว่างเกม (`layIce`/`undoLay`, `placeSpike`/`raiseSpike`/`lowerSpike`/`damageSpike`, `overlayOf`, `publicInfo`), `resolveEntry` (ไถล+ชน), `pushUnit`, `applySlow`, ตีหนาม (`attackSpike`, `hitSpikesInArea`), ระเบิดสะสมดาเมจ (`noteHurt`/`flushBursts`), หนามทั้งสนาม +1 Lv (`raiseAllSpikes`), `onEndTurn` |
-| `zeroTime.js` | **ห่วงเวลาซีโร่** (§18): `maybeEnter`/`enter`, `onRoundStart`/`onEndTurn`, `worldRound` (เวลาโลก), `attackBonus`, `ultLocked`, ผนึก (`sealIndexOf`, `canHitSeal`, `attackSeal`, `hitSealsInArea`, `hasPendingBreak`/`runPendingBreak`), `collectPickup`, `publicInfo`, `reset` |
 | `dimension.js` | **ชั้นมิติ** (§26): `layerOf`, `same`, `ghost`, `enter`, `leave` (กลับกระดานหลัก → ช่องว่างใกล้สุด), `resetAll`, `refLayer`, `blocks` (ต้นตอคนละชั้น), `membersOf` |
 | `summon.js` | **ยูนิตที่ถูกเรียก** (§26): `spawn`, `remove`, `removeAll`, `sweep`, `ofOwner`, `controlledOf`, `onDeath`, `CONTROL_SECONDS` |
 | `moonCell.js` | **โหมด Moon Cell — Raid Boss** (§34): `start`, `preRound` (ฟื้นคืนชีพ/คำสาป), `bossOrder`, `startAi`/`planTurn` (AI), `onUnitDeath`, `outcome` (ชนะ/แพ้), `publicInfo` |
@@ -84,7 +83,7 @@ tests/                           node --test (ไม่มี dep เพิ่�
 
 ```
 LOBBY → TEAM_MODE → CUTSCENE (ฉากเปิดแมตช์ + การเดินทางเริ่ม) → PLAYING (จั่ว/พอ)
-      → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค / ฉากเข้าห่วงเวลาซีโร่)
+      → ORDER (ลำดับเดิน) → ACTION ⇄ ATTACKING / CUTSCENE (ตาเดินทีละคน) → TRANSITION (หรือ CUTSCENE ฉากเปลี่ยนภูมิภาค)
       → (วน PLAYING) → GAMEOVER → LOBBY
 ```
 
@@ -94,7 +93,7 @@ LOBBY → TEAM_MODE → CUTSCENE (ฉากเปิดแมตช์ + กา�
 | `TEAM_MODE` | โหวตโหมด ffa / duo / trio (ปุ่มเทาเมื่อจำนวนคนไม่ผ่าน `validGameMode`) · โหวตครบและมีอันดับหนึ่งเดี่ยว → `startTeamSetup` (ffa เข้า `startMatch` ทันที) · `modeBackToLobby` ถอยกลับห้องรอ | – |
 | `TEAM_SETUP` | ไม่ใช้แล้ว (2026-11-02) — duo/trio สุ่มทีมเอง (`randomTeams`) แล้ว `startMatch()` ทันที · โค้ดหน้าเลือกทีมยังอยู่ | – |
 | `PLAYING` | เฟสจั่วไพ่ — **จั่ว/พอ เท่านั้น** (สกิล/ไอเทม/ร้านค้าย้ายไปตาเดิน) | `cardPhaseSeconds()` = `CARD_TIME` 60s |
-| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ฉากโลกแตกของ Echo `REBIRTH_SECONDS` 18 (ในตาเดินของ Echo — จบฉากแล้ว `finishActor`) · ห่วงเวลาซีโร่ `match.zeroScene` (เข้า 8.5 · ผนึกแตก 3.6 · ปลดผนึก 5 — §18) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
+| `CUTSCENE` | เล่นวีดีโอในคิว (พัก state เดิมไว้) **หรือ** พักเกมให้ client เล่นฉากที่ไม่มีคลิป (`cutsceneInfo = null`): ฉากเปิดแมตช์ `gameIntroHoldSeconds() + JOURNEY_START_SECONDS` · ฉากเปลี่ยนภูมิภาค `JOURNEY_ADVANCE_SECONDS` · ฉากโลกแตกของ Echo `REBIRTH_SECONDS` 18 (ในตาเดินของ Echo — จบฉากแล้ว `finishActor`) | ตาม `seconds` ของแต่ละคลิป/ฉาก |
 | `ORDER` | เปิดแต้มแล้วเรียงลำดับเดิน (`match.turnOrder`) · คนแรกได้เหรียญ +1 | `ORDER_TIME` 6.5s (`ORDER_TIME_MS` 6500) → `nextActor` |
 | `ACTION` | ตาเดินของ `match.actorId`: เดิน 1 ครั้ง (ย้อนได้) · สกิล/ไอเทม/ซื้อของ (ทำแล้วเดินไม่ได้อีก) · โจมตีหรือ "รอ" = จบตา | `ACTION_TIME` 60s → `finishActor` |
 | `ATTACKING` | ฉากตี/ตีสวน/ถอย ของคนที่กำลังเดิน (`state.attack` = `lastAttack` มี `counter`/`push`) แล้ว `runCutsceneQueue(finishActor)` | `ATTACKFX_TIME` 3s (+2 มีป้ายสกิล · +2 มีตีสวน) |
@@ -109,12 +108,12 @@ LOBBY → TEAM_MODE → CUTSCENE (ฉากเปิดแมตช์ + กา�
 ## 3. วงจร 1 รอบ (call chain ที่ต้องจำ)
 
 ```
-dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++ (ห่วงเวลาซีโร่: zeroFrozen++ ด้วย), สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
+dealRound()            phases/draw.js    เริ่มรอบ: roundNumber++, สับเด็คใหม่, ล้าง cutsceneQueue/lastLog/roundSkills,
                                          shop.maybeMoveShop(): ร้านตั้ง/ย้ายจุดทุก 6 เทิร์น (ไม่งั้น refreshShopForJourney) — ข้ามระหว่างห่วงเวลา
                                          ลูปต่อผู้เล่น: ภาษีกลางคืน → broadcastHook("onRoundStartTick") (ทุกตัวละครตาม CHAR_HOOKS.MODULES) → oblada/energy → ฟื้นเกราะ (ห่วงเวลา = ไม่ฟื้น)
                                          → awaken/passive roundStart → tickBurn/tickBleed/tickPoison/tickShock → แจกไพ่ใบแรก
                                          → หลับไหล → tickMend → สตั้น
-                                         หลังลูป: Zero.onRoundStart() (ของฟื้นพลังชีวิต · ฟ้าผ่าเฟส 4) → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
+                                         หลังลูป → PLAYING (+ เล่นคิวคัตซีนถ้ามี)
    ↓ (ผู้เล่นกด)
 hit(id)                phases/draw.js    จั่ว 1 ใบ (เช็ค nodraw/เพดานแต้ม/โชคลาภ/สภาพชา) → checkAllLocked()
 lock(id)               phases/draw.js    "เปิดไพ่" = พร้อม — ยิง applyLockColorTriggers() ก่อนล็อก
@@ -131,11 +130,10 @@ moveTo / undoMove      phases/action.js  BFS ใน board.js (เดิน movOf
 useSkill / useInventoryItem / buyShopItem   ทำแล้ว lockMove(p) = เดินไม่ได้อีก
 attackTarget(id,t)     phases/action.js  เป้าในระยะ rangeOf(p) → attack.boardAttack(): strike → (เป้ารอด+ตีถึง) ตีสวน
                                          → pushback ถอย 1 ช่อง/ชน −1 → ATTACKING → runCutsceneQueue(finishActor)
-                                         · เป้า "seal:N" = Zero.attackSeal() (ฉากตี → ฉากผนึกแตก/ปลดผนึก → finishActor)
-waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → tileEndEffect → Zero.collectPickup → nextActor()
-endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, chargeBatteries, Journey.onEndTurn, Zero.onEndTurn, broadcastHook("onEndTurn"),
+waitAction / หมดเวลา    phases/action.js  finishActor(): จุดฟื้นฟู +1 → tileEndEffect → nextActor()
+endTurn()              phases/endTurn.js ลดเทิร์นสถานะทั้งหมด, แต้มสกิล+เหรียญ, chargeBatteries, Journey.onEndTurn, broadcastHook("onEndTurn"),
                                          กวาดคนเลือดหมด (หายจากกระดาน) → runCutsceneQueue → gameOver() / maybeJourneyAdvance()
-                                         (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่) / Zero.maybeEnter() (ฉากเข้า → dealRound)
+                                         (เปลี่ยนภูมิภาค = placeOnBoard แผนที่ใหม่)
                                          / TRANSITION → dealRound()
 ```
 
@@ -260,7 +258,7 @@ cost = min(SKILL_COST_MAX /* 8 */,
   - **ใช้แล้วจบตาเดินทันที** หลังคลื่นดาบลง (ฮุค `endsTurn` — เนิฟ 2026-10-19 กันคอมโบประชิด คลื่นดาบ + ตีปกติในตาเดียว)
   - ผล "ศัตรูไพ่แตก" ถูกตัดแล้ว → คลื่นดาบแนว 4×3 (GRID_PLAN §7.3) ลงผลหลังวีดีโอผ่าน `engine.skillStrike` ·
     พลังโจมตีของคลื่น +3 (`WAVE_ATK_BONUS` — ฐาน 1 + 3 = 4) แยกจากโบนัสตีปกติ (`damageBonus` อ่าน `p.muimiWave` ที่ `swordWave` ตั้ง)
-    · หนามน้ำแข็ง/ผนึกมิโกะในแนว (`Ice.hitSpikesInArea`/`Zero.hitSealsInArea` ที่ `useSkill` ต่อคิวหลังคลื่น) โดน **เท่าผู้เล่นในแนว** (ผู้ใช้สั่ง "ให้แรงเท่าตีคน")
+    · หนามน้ำแข็งในแนว (`Ice.hitSpikesInArea` ที่ `useSkill` ต่อคิวหลังคลื่น) โดน **เท่าผู้เล่นในแนว** (ผู้ใช้สั่ง "ให้แรงเท่าตีคน")
       ทั้งคลื่นท่าไม้ตาย (รวมกรณีหลบหมด) และคลื่นของดาบสนิม — `p.muimiWave` อยู่จนชุดผลหลังคลิปจบ (ล้างด้วย microtask)
       หลังลูปฟันคนใช้กับเป้าที่ไม่ใช่ผู้เล่นเท่านั้น (ค่าประเมิน `attackPowerAgainst` ใส่ผู้เล่นไม่โดนลากตาม)
   - ระหว่างดาบสะบั้น: ตีปกติพลังโจมตี +1 (`TOWER_ATK_BONUS` ผ่าน `damageBonus`) · ตีโดนฟื้นเลือด 2 และ **ยืดสถานะ +1 เทิร์น** (สกิลติดตัว "ใจที่ไม่ยอมแพ้") ·
@@ -286,16 +284,16 @@ cost = min(SKILL_COST_MAX /* 8 */,
 - Mouse Separade = ฉากต่อเนื่องหลายจังหวะ: `deferAfterCutscene` (หลังคลิป) → `engine.setDash` + `engine.skillBeat` (พักตาเดินเฟส `ATTACKING` ให้กระดานเล่นวงล้อ/พุ่ง) → `queueCutscene("soraHit")` + `deferAfterCutscene` → ดาเมจ/สลับที่ + `setDash` (ระเบิด) + `skillBeat` → ชนตัวใหญ่ = `shove` ผลักถอย 2 ช่อง (เหตุการณ์ iceFx `knock` + `crash` { id, x, y, dmg, kill } — เลขดาเมจตอนกระแทก) · เป้าตกรอบ/หายไประหว่างคลิปชน = โซระหยุดที่ปลายทางพุ่ง (ช่องหน้าเป้า · ไม่ว่าง = ที่เดิม — `settleAtStop`)
   · ตัวเดินฉาก `cutscene.runSkillFlow` (คลิปที่คิว → ผลหลังคลิป → จังหวะพัก วนจนหมด แล้วกลับตาเดินด้วยเวลาที่เหลือ) — เรียกจาก `pausePlayingForCutscene` และท้าย `useSkill`
   · หลบได้ผ่าน `engine.skillDodge` (ตัวเดียวกับ `skillStrike`) · ช่องตามแนว `engine.chargeTiles` · พังของ `engine.breakObstacles` · ช่องว่าง `engine.tileFree`
-  · ผลของสกิลโจมตีพื้นที่เฉพาะช่องที่พุ่งผ่านจริง + ช่องที่ชน (ผู้ใช้ตัดสิน): ฮุค `ownsAreaHit` → `useSkill` ข้าม `exposeBush`/`onAreaHit`/`hitSealsInArea`/`hitSpikesInArea` ของทั้งแนว · โซระเรียก `skills.hitArea(p, tiles, ids)` เองในจังหวะพุ่ง (ก่อนพังของ) · ระหว่างนั้น `attackBaseOverride` = `ULT_DMG` และ `damageBonus` = 0 → ผนึก/หนามโดน 3 (ไม่มีโบนัสมีด)
+  · ผลของสกิลโจมตีพื้นที่เฉพาะช่องที่พุ่งผ่านจริง + ช่องที่ชน (ผู้ใช้ตัดสิน): ฮุค `ownsAreaHit` → `useSkill` ข้าม `exposeBush`/`onAreaHit`/`hitSpikesInArea` ของทั้งแนว · โซระเรียก `skills.hitArea(p, tiles, ids)` เองในจังหวะพุ่ง (ก่อนพังของ) · ระหว่างนั้น `attackBaseOverride` = `ULT_DMG` และ `damageBonus` = 0 → หนามโดน 3 (ไม่มีโบนัสมีด)
 
 **ไรโด ฮิคารุ (`raido_hikaru` · กลาง)** — `characters/raido_hikaru.js` (กติกาเต็มหัวไฟล์) · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.8 · เทสต์ [tests/characters/raido_hikaru.test.js](tests/characters/raido_hikaru.test.js)
 - สถานะอยู่ `p.hikaru` (`form` ร่าง UltraLive · `formRound` · `armorReady`/`gingaReady` เลขรอบที่ใช้ได้อีก · `formReady` { ร่าง: เลขรอบ } คูลดาวน์รายร่าง · เวลาร่างที่เหลือ = สถานะ `hikaruForm` (3) · `accUntil` แม่นยำเดิมก่อนเข้า Tiga · `ginga` · `strium` · `brace` · `kemurCalm`/`kemurSnap`/`hidden` ล่องหนร่างเคมู · `logCut`/`logRound`) — ล้างใน `resetCombat`
 - จุดเสียบเจาะจง: `resetCombat` · `onEndTurn` (`endTurn` ต่อจากโซระ: Brace → ร่าง UltraLive หมด → กิงกะหมด → นับเคมู) · `onRoundStartTick` (`dealRound` — กิงกะที่ขยายตัวไม่สำเร็จลองใหม่) · `buildStateFor` ส่ง `hikaru: hikaruState(...)` (ร่าง · `formLeft` · ปุ่ม 7 ร่าง `{ key, name, img, locked, cd }` · Brace · `armorCd` — คูลดาวน์กิงกะส่งทาง `skillLocks.secondary.cd`)
 - ข้อมูลรายร่างอยู่ตาราง `FORMS` (`range` · `lane` · `atk` · `onHit { status, turns, label, name }`) — ฮุค `range` / `attackLane` / `damageBonus` / `onStrikeLanded` อ่านจากตาราง ไม่มี if รายร่าง
 - UltraLive ส่ง `useSkill { tier: "basic", form }` (`socket.js` ส่ง `form` ต่อใน opts · `canUseSkill` ได้ `opts` เป็นพารามิเตอร์ที่ 5) · client เปิดตัวเลือกร่าง `client/src/screens/hud/HikaruForms.jsx`
-- ตีปกติแนวตรง (ฮุค `attackLane` → `true` = แนวยาวตามระยะ (แบล็คคิง) · `"face"` = ช่องติดตัวทั้งด้าน (กิงกะ)): `action.lanes` / `canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf(..., face)` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · `zeroTime.canHitSeal` รองรับ · client ได้ `lane` (true/"face"/false)
+- ตีปกติแนวตรง (ฮุค `attackLane` → `true` = แนวยาวตามระยะ (แบล็คคิง) · `"face"` = ช่องติดตัวทั้งด้าน (กิงกะ)): `action.lanes` / `canStrike` / `laneVictims` · `board.laneSets` / `laneTiles` / `laneOf(..., face)` · `attack.boardAttack` ตีทุกศัตรูในแนว (`card.extra` · `card.byLane`) · ตีสวนได้แค่เป้าหลัก · client ได้ `lane` (true/"face"/false)
 - ร่าง UltraLive ทุกร่างและกิงกะเป็นตัว 3×3 (`engine.resizeUnit` หลังคลิป · คืนร่าง/ร่างหมดเวลา = 1×1)
-- ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(BEAM_SECONDS = 1.9)` → ดาเมจ 2 (`dealMixed` · หลบไม่ได้ · กรองเป้าตอนลำแสงถึง) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat(PUSH_SECONDS = 0.9)` · จังหวะต้องไม่สั้นกว่า `HK_BEAM.reach` / `HK_PUSH_MS` ใน `hikaruFx.js`
+- ท่าไม้ตาย: `deferAfterCutscene` → `boardFx("hikaruBeam", { kind, from, size, dir, len, width, tiles })` → `skillBeat(BEAM_SECONDS = 1.9)` → ดาเมจ 2 (`skillDodge` ก่อน — หลบพ้น = ไม่โดนดาเมจ/ลุกไหม้/ผลัก · `dealMixed` · กรองเป้าตอนลำแสงถึง) + `applyBurn` · Strium Ray ผลัก → `boardFx("hikaruPush", { moves })` + `skillBeat(PUSH_SECONDS = 0.9)` · จังหวะต้องไม่สั้นกว่า `HK_BEAM.reach` / `HK_PUSH_MS` ใน `hikaruFx.js`
 - เอฟเฟกต์บนกระดานทั้งหมดอยู่ `client/src/board/hikaruFx.js` (ท่าตีตามร่าง `hk*` รวมเข้า `STYLE_MS`/`STYLE_HIT_P` ของ `boardDraw.js` · ปะทะ `hkHit` + `hitIds` · ลำแสง `hkCross`/`hkStriumRay`) · ตัวใหญ่ไม่มีรูป 4 ทิศ = หมากหกเหลี่ยมขยาย (`drawAnyUnit` → `drawUnit` `u.k`)
 
 **โอเบรอน (ฤดูร้อน) (`oberon_summer` · กลาง)** — `characters/oberon_summer.js` (กติกาเต็มอยู่หัวไฟล์) · เทสต์ [tests/characters/oberon_summer.test.js](tests/characters/oberon_summer.test.js)
@@ -354,7 +352,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 > ⚠️ **กติกาการมอบผลให้ผู้เล่นคนอื่นตอนต้นเทิร์น** — `tickBurn()`/`tickBleed()`/`tickPoison()`/`tickShock()` และการแจกไพ่ใบแรก
 > ถูกเรียก **ในลูปต่อผู้เล่นของ `dealRound()`** ดังนั้นฮุคต้นเทิร์นที่แจกผล **ให้ผู้เล่นคนอื่น** ห้ามทำในลูปนั้น:
 > คนที่ลูปยังวนไม่ถึงจะโดนผลในเทิร์นเดียวกัน ส่วนคนที่วนผ่านไปแล้วต้องรอเทิร์นถัดไป = **ผลไม่เท่ากันตามลำดับที่นั่ง**
-> ให้จองไว้แล้วลงผลหลังลูปจบ (เช่นแบบ `Zero.onRoundStart()` ที่ `dealRound` เรียกหลังลูป — ตอนนี้ไม่มีฮุคตัวละครหลังลูป ต้องเพิ่มจุดเรียกเอง)
+> ให้จองไว้แล้วลงผลหลังลูปจบ (ตอนนี้ไม่มีฮุคตัวละครหลังลูปของ `dealRound` ต้องเพิ่มจุดเรียกเอง)
 > — ฮุคในลูป (`onRoundStartTick` เช่นนกจาบยามเช้าของโอเบรอน) ลงผลกับ **ตัวผู้เล่นคนนั้นเอง** เท่านั้น
 > · ถ้าฮุคใช้ `withEffectSource` อยู่ ต้องเก็บผู้มอบไว้แล้วคืน source ตอนลงผลด้วย ไม่งั้น `friendlyEffectBlocked` ในโหมดทีมจะไม่ทำงาน
 
@@ -387,7 +385,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 
 ## 8. คัตซีน / แปลงร่าง
 
-- **เสียงฝั่ง client:** `audioPolicy.js` กำหนดลำดับคัตซีน/เสียงพากย์ → เพลงห่วงเวลาซีโร่ (§18) → เพลงสกิล → เพลงช่วงโจมตี (`battle_phase`) → เพลงภูมิภาค ของทุกโหมด
+- **เสียงฝั่ง client:** `audioPolicy.js` กำหนดลำดับคัตซีน/เสียงพากย์ → เพลงสกิล → เพลงช่วงโจมตี (`battle_phase`) → เพลงภูมิภาค ของทุกโหมด
   คัตซีนที่ถูกซ่อนจากผู้ชมไม่หยุดเพลงของผู้ชมคนนั้น · โหมดประหยัดเล่นเพลงต่อได้เมื่อข้ามวิดีโอ
   `playCutsceneVideo()` พักเพลงด้วย `suspendMusic()` จนกว่าจะออกจากคลิป และคืนเสียงหลัง autoplay บังคับปิดเสียงเมื่อผู้เล่นคลิก/กดแป้นพิมพ์
   เสียงพากย์ประกาศร่างต้องหยุดเมื่อออกจากฉาก · เสียงจบเทิร์นติดตามจาก PLAYING ผ่านคัตซีนถึง SUMMARY และเสียงโจมตีนับตาม `attack.id`
@@ -429,7 +427,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   - **ทุกการได้รับเหรียญต้องผ่าน `addGold(p, n)`** (`server/shop.js`, เปิดให้ hook ผ่าน `engine.addGold`) — จุดเดียวที่บังคับเพดานรายบุคคล
     · คืน **จำนวนที่เข้ากระเป๋าจริง** หลังตัดตามเพดาน · การเสียเหรียญ (ซื้อของ / วังวนน้ำ) หัก `p.gold` ตรง
 - **ร้านค้าบนแผนที่** (GRID_PLAN §8.1) — ร้านเดียว: ร้านค้ามายา **ของครบทุกชนิด ชนิดละ 1 ช่อง ไม่ซ้ำ** (`shopCatalog()` → `openShop()` · ผู้ใช้สั่ง 2026-11-08) ตั้งที่ `match.shopPos`
-  - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (6) นับจาก `shopOpenedRound` (เวลาโลก — ห่วงเวลาซีโร่ไม่นับ)
+  - `dealRound` → `maybeMoveShop()`: ยังไม่มีที่ตั้ง (เริ่มเกม / `placeOnBoard` เปลี่ยนภูมิภาคยกร้านออก) หรือครบ `SHOP_INTERVAL_TURNS` (6) นับจาก `shopOpenedRound`
     · ก่อกำเนิดใหม่ของ Echo เรียก `relocateShop()` ทันทีกลางเทิร์น (`shopOpenedRound` = เทิร์นนั้น → นับ 6 เทิร์นใหม่ ตรงกับภูมิภาคใหม่)
     → `relocateShop()` สุ่มจุดจาก `map.shopSpots` (`board.pickShopSpot`: ไม่ซ้ำจุดเดิม · ข้ามจุดที่มีคนยืน) + สุ่มจำนวนต่อช่องใหม่ · เทิร์น 1, 7, 13, 19 … (ตรงกับจังหวะเปลี่ยนภูมิภาค 7, 13, 19 … พอดี — ทั้งคู่ 6 เทิร์น)
   - ร้านกินช่อง: `action.boardBlocked()` ส่งให้ `reachable` (เดิน) และ `pushback` (ถอยชนร้าน = ชน −1)
@@ -479,8 +477,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   กฎเดิมยังอยู่ในโค้ดเป็นค่า fallback เมื่อ `Journey.active()` เป็น false (ตอนนี้ไม่มีโหมดไหนเข้าทางนั้น):
   กลางวัน = จบเทิร์นแต้มสกิล +1 เฉพาะเช้าที่ 2, 4, 6, … (`morningBonusActive`) · กลางคืน = สุ่ม basic/secondary ของแต่ละคนแพงขึ้น +1 (`p.nightTaxTier`)
 - **เกราะฟื้น +1 ทุกเทิร์นเลขคู่** เหมือนกันทั้งวัน/คืน (บล็อกโดย `decay`) — ภูมิภาค 5-7 ฟื้นทุกเทิร์น (`Journey.armorRegenDue`)
-- **ห่วงเวลาซีโร่หยุดกลางวัน/กลางคืน** (§18): วัน/คืน · ภูมิภาค · ร้านค้า อ่าน **เวลาโลก** `Zero.worldRound()` / `engine.worldRound` (= `roundNumber − zeroFrozen`) ไม่ใช่ `roundNumber` ·
-  ระหว่างอยู่ข้างในไม่มีผลวัน/คืนเลย (`Journey.current()` = null · ไม่มีภาษีกลางคืน/แต้มเช้า/แบนเนอร์)
+- **เวลาโลก** `engine.worldRound` = `roundNumber` (ตัวละครอ่านวัน/คืนผ่าน `engine.isNightRound(engine.worldRound)`)
 - `cycleShift` = ตัวเลื่อนวงจรทั้งเกม (`engine.setCycleShift` ใช้ในเทสต์) — ถ้าจะเลื่อนวงจร **ต้องคำนวณใหม่ตรงๆ ห้ามบวกสะสม** (บวกคงที่ทำให้เกิดวันแทรกกลางคืนสั้นๆ)
   · ก่อกำเนิดใหม่ของ Echo ตั้ง `cycleShift = เวลาโลก − 1` (เทิร์นที่ใช้ท่า = กลางวันแรก) · รีเซ็ตเป็น 0 ใน `startMatch()`/`backToLobby()`
 
@@ -492,7 +489,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
   **ลำดับสุ่ม (ผู้ใช้สั่ง 2026-10-09)**: เทิร์น 1–6 = ภูมิภาค I เสมอ (ฐาน) · ทุกครั้งที่ข้าม `Journey.pickNextArea(from)` สุ่มจาก II–VII ไม่ซ้ำภูมิภาคที่อยู่ (ไม่กลับ I · ไม่มีภูมิภาคถาวร)
   state: `match.journeyArea` (ภูมิภาคปัจจุบัน — อ่านผ่าน `Journey.areaNow(engine)` / `engine.journeyArea`) + `match.journeyRoute` (ที่ผ่านมาตามลำดับ) · ตั้งใน `startMatch()`/`backToLobby()` · ข้ามใน `maybeJourneyAdvance()` เมื่อ `Journey.legEnds(round, match.legStart)`
   **`match.legStart`** (`engine.legStart` · ค่าเริ่ม 1 · รีเซ็ตใน `startMatch()`/`backToLobby()`) = เวลาโลกที่ภูมิภาคปัจจุบันเริ่มนับ — `legEnds(round, legStart)` = `(round − legStart + 1) % AREA_TURNS === 0` ·
-  `turnInArea(round, legStart)` → `publicInfo.turnsLeft` (HUD) · ทุกตัวนับเป็น **เวลาโลก** (`Zero.worldRound()`) · ข้ามภูมิภาคปกติไม่ต้องแตะ legStart (นับ modulo ต่อเนื่อง)
+  `turnInArea(round, legStart)` → `publicInfo.turnsLeft` (HUD) · นับจาก `roundNumber` · ข้ามภูมิภาคปกติไม่ต้องแตะ legStart (นับ modulo ต่อเนื่อง)
   · **ก่อกำเนิดใหม่ (ท่าไม้ตาย Echo)** เริ่มภูมิภาคใหม่กลางเทิร์น: `legStart = เวลาโลก` + `cycleShift = เวลาโลก − 1` + `relocateShop()` → เทิร์นที่ใช้ = เทิร์นที่ 1 (กลางวัน) อยู่ครบ 6 เทิร์น ·
     ใช้ในเทิร์นที่เคยเป็นเทิร์นสุดท้าย (6, 12, …) ไม่ข้ามภูมิภาคซ้ำตอนจบเทิร์น (legEnds นับจาก legStart ใหม่แล้ว)
   เทสต์ตั้งภูมิภาคเองด้วย `engine.setJourneyArea(n)` (เลขเทิร์นไม่บอกภูมิภาคแล้ว)
@@ -622,7 +619,7 @@ module.exports = {
   onStrikeLanded(engine, attacker, target, { counter }) { return []; }, // ตีปกติลง (รวมทุกคนในแนว) → ชื่อป้ายในฉากตี (ฮิคารุ: ติดสถานะตามร่าง)
   attackStyle(p, dist) { return null; },                         // ท่าตีบนกระดาน → การ์ดฉากตี byStyle (Echo: echo/hair/rock · ฮิคารุ: hk*)
   skillArea(p, tier, area) { return area; },                     // พื้นที่สกิลตามสถานะ (useSkill + ปุ่มใช้ตัวเดียวกัน)
-  ownsAreaHit(p, tier, opts) { return false; },                  // true = useSkill ไม่ลงผลพื้นที่ hostile ทั้งแนว (พุ่มหญ้า/ล่องหน/ผนึก/หนาม) — ตัวละครเรียก skills.hitArea(p, tiles, ids) เองกับช่องที่โดนจริง (โซระ ท่าไม้ตาย)
+  ownsAreaHit(p, tier, opts) { return false; },                  // true = useSkill ไม่ลงผลพื้นที่ hostile ทั้งแนว (พุ่มหญ้า/ล่องหน/หนาม) — ตัวละครเรียก skills.hitArea(p, tiles, ids) เองกับช่องที่โดนจริง (โซระ ท่าไม้ตาย)
   keepsMove(engine, p, tier) { return false; },                  // true = ใช้สกิลนี้แล้วยังเดินได้ (ไม่ lockMove — Ice Spike ก่อนเดิน)
   onActorStart(engine, p) {},                                    // ต้นตาเดินของ p (nextActor — ก่อนเช็คสตั้น · ท่าที่ "ออกผลตาเดินถัดไป")
   afterWalk(engine, p, tiles, ctx) { return []; },               // หลังเดิน/ไถล (tiles = ทุกช่องที่ผ่านจากจุดเริ่มตา — เรียกใหม่ทุกครั้งที่เดิน/ก้าว หลังถอดผลเดิมแล้ว) → บันทึกไว้ย้อน (Ice.layIce) · ctx = เหตุการณ์ iceFx
@@ -651,7 +648,7 @@ module.exports = {
   onStrikeResolved(engine, attacker, target, res, { counter }) {}, // หลังตีปกติ/ตีสวน 1 ครั้ง (attack.boardAttack / counterAndPush — เป้ายังอยู่ช่องเดิม)
   counterPush(engine, counterer, attacker, res) { return null; }, // ผู้สวนกำหนดการถอยของผู้ตีเอง → { push } (null = ถอยปกติ ชน −1)
   afterCounterPush(engine, counterer, attacker, res) {},        // หลังผลัก/ถอยของการสวน (ขยับหรือไม่ก็ตาม) — ไจโร: ลูกตกช่องที่ผู้ตีถูกผลักไป
-  onStrikeObject(engine, p, at) {},                  // ตีปกติใส่ผนึกมิโกะ/หนามน้ำแข็ง (action.attackTarget) ก่อนลงผล
+  onStrikeObject(engine, p, at) {},                  // ตีปกติใส่หนามน้ำแข็ง (action.attackTarget) ก่อนลงผล
   onActorEnd(engine, p) {},                          // ตาเดินของ p จบจริง (finishActor — หลังเดินต่อ ก่อนผลของช่อง)
   hudActions(engine, p) { return undefined; },       // ปุ่มพิเศษบน HUD [{ key, icon, name, on, cd, disabled }] → state.players[].actions (เจ้าตัวเห็น)
   charAction(engine, p, key) { return false; },      // กดปุ่มพิเศษ (socket charAction { key }) — เช็คตาเดิน + บรอดแคสต์เอง
@@ -662,7 +659,7 @@ module.exports = {
   onEndTurn(engine) {},                    // endTurn() หลังลูปลดเทิร์นสถานะ
   onDeath(engine, p) {},                   // combat.instantDeath() — มีคนตกรอบ (p = คนที่ตาย · pos ยังไม่ถูกล้าง)
   onKill(engine, killer, victim) {},       // instantDeath → เฉพาะโมดูลของผู้สังหาร (match.effectSourceId)
-  onBoardPlaced(engine) {},                // action.placeOnBoard — แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค/ห่วงเวลาซีโร่) · ไจโร: ลูกบนพื้นกลับมือ
+  onBoardPlaced(engine) {},                // action.placeOnBoard — แผนที่ใหม่ (เริ่มเกม/เปลี่ยนภูมิภาค) · ไจโร: ลูกบนพื้นกลับมือ
   //  ฮุคที่โยน error ถูก log (console.error ชื่อตัวละคร + ชื่อฮุค) แล้วข้าม — แมตช์ไม่ค้าง
 };
 ```
@@ -711,7 +708,7 @@ npm test    # node --test "tests/**/*.test.js"
 - อยากเทสต์ฟังก์ชันใหม่ใน server/ ต้องเพิ่มเข้า `module.exports` ท้าย `server.js` ก่อน (เช่น `resolveRound: summary.resolveRound`) หรือเปิดผ่าน `engine.*`
 - เทสต์ที่ค้นข้อความในโค้ดฝั่ง server ใช้ `serverSource()` จาก `tests/serverSource.js` (อ่าน server.js + server/ ทั้งหมด)
 - กระดาน: `board` · `action` · `turn-order` · `skill-area` · `terrain` · `board-rules-sync` (client = server)
-- ระบบกลางที่มีเทสต์แยก: `char-stats` · `kick` · `rematch` · `spectator` · `journey` · `zeroTime` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
+- ระบบกลางที่มีเทสต์แยก: `char-stats` · `kick` · `rematch` · `spectator` · `journey` · `shop` / `shop-board` · `spellburden` · `team-friendly-fire` / `team-reveal` / `support-team-targets` · `audio-policy` / `audio-volume` · `sceneQueue` / `phaseSceneTiming`
 
 ---
 
@@ -738,7 +735,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **เครื่องมือ dev**: `?autoplay=<characterId>` (เข้าห้องที่นั่ง 1 → พร้อม → โหวต ffa) คู่กับ `node scripts/dev-bots.js [จำนวน]` (บอทเดินเข้าหาแล้วตี) ·
   `?hud=1&game=1&scn=playing|order|my|moved|other|attack|collide|region` (state จำลอง `screens/hud/mockBoardState.js`) ·
   `?board=1` (ตัววาดล้วน) · `window.__echoState` = state ล่าสุด (dev)
-- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=13` เริ่มแมตช์ที่เทิร์นนั้น (เกิน 6 = สุ่มภูมิภาค II–VII เหมือนเกมจริง) · `ECHO_DEV_START_AREA=3` บังคับภูมิภาคเริ่ม · `ECHO_DEV_RICH=1` เหรียญเต็มเพดาน (100) + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน · `ECHO_DEV_ZERO=1` ห่วงเวลาซีโร่เกิดแน่นอนที่กลางคืนแรก (§18) ·
+- env เฉพาะ dev (ไม่ตั้ง = เกมปกติ · เทสต์ `dev-start-round`): `ECHO_DEV_START_ROUND=13` เริ่มแมตช์ที่เทิร์นนั้น (เกิน 6 = สุ่มภูมิภาค II–VII เหมือนเกมจริง) · `ECHO_DEV_START_AREA=3` บังคับภูมิภาคเริ่ม · `ECHO_DEV_RICH=1` เหรียญเต็มเพดาน (100) + แต้มสกิลเต็ม · `ECHO_DEV_ACTION_TIME=600` ยืดเวลาตาเดิน ·
   `ECHO_SERVER_PORT` = พอร์ต server ที่ vite proxy ไปหา (ค่าเริ่ม 3000) · บอท: `node scripts/dev-bots.js [จำนวน] [url] [ffa|duo|trio]` (เดินแบบ FE · สุ่มใช้สกิล/ไอเทม/ซื้อของ)
 - **กระดาน 14×14 ทุกภูมิภาค** (ผู้ใช้ตัดสิน 2026-10-09) · กล้องจัดกลาง/ย่อจาก `map.cols×rows` เอง
 - ซูม: `BoardCanvas` prop `zoom` 0|1 (มุมใกล้ ×1.6) + `onZoomChange` (ล้อเมาส์) + `focus` {x,y} (เลื่อนกล้องไปหา ถ้าอยู่นอกจอ) · โหมดใกล้: ลากเมาส์/ปุ่มขวา/ลูกศรเลื่อนดู · ปุ่ม ＋/－ ใน BoardStage · จำใน localStorage `echo.boardZoom` · ป้ายร้าน "🏪 N" วาดในแคนวาส (`shopLabel`) · dev: `?board=1&sq=1`, `window.__boardFocus(x,y)`
@@ -746,46 +743,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 ---
 
-## 18. ห่วงเวลาซีโร่ (Zero Time)
-
-โมดูล [server/zeroTime.js](server/zeroTime.js) · กติกาที่ผู้ใช้ตัดสิน: [GRID_PLAN.md](GRID_PLAN.md) §8.2 · เทสต์ [tests/zeroTime.test.js](tests/zeroTime.test.js) ·
-client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js` · ฉาก `client/src/board/zeroScene.js`
-- **ปิดอยู่** (ปิด 2026-10-12 · เปิด 5.6.12 · ปิด 2026-10-15 · เปิด 5.6.24 ที่ 5% · **ผู้ใช้สั่งปิดอีก 2026-10-22**): `ZERO_ENABLED = false` → `maybeEnter` คืน false เสมอ (ยกเว้น `ECHO_DEV_ZERO=1`) · ห้ามเปิดเองโดยไม่ได้รับคำสั่ง
-  · เทสต์ที่จบเทิร์น 9+ ด้วย Math.random จริงอาจสุ่มติด — ปิด `Zero.ZERO_ENABLED` ในเทสต์นั้น (ดู echo.test.js ก่อกำเนิดใหม่) · ฮุคตัวละคร/ช่วงมิติพังทลาย ดู §28
-- **เกิด** (`maybeEnter` — ท้าย `endTurn` หลัง `gameOver()`/`maybeJourneyAdvance()`): เทิร์นถัดไปของ **เวลาโลก** เป็นกลางคืนและ ≥ `ZERO_START_ROUND` 10
-  → ทอย `Zero.chance()` = `ZERO_CHANCE` 5% + ฮุค `zeroChanceBonus` (ทาคุโตะ +45) · **ครั้งเดียวต่อเกม** (`match.zeroUsed`) · `reset()` ใน `startMatch`/`backToLobby`
-  · dev: `ECHO_DEV_ZERO=1` = เกิดแน่นอนตั้งแต่กลางคืนแรก (จบเทิร์น 3)
-- **เข้า** (`enter`): เก็บ `saved` { board, shopPos, positions } → `placeOnBoard(ZERO_AREA)` สุ่มจุดเกิดบนสนามเฉพาะ (ร้านถูกยกออก) → ฉาก `enter` → `dealRound()`
-- **เวลาโลก vs `roundNumber`**: `worldRound = roundNumber − zeroFrozen` (`Zero.worldRound()` / `engine.worldRound`) — `dealRound` บวก `zeroFrozen` ทุกเทิร์นที่อยู่ข้างใน
-  · ใช้เวลาโลก: กลางวัน/กลางคืน (`dealRound`, `endTurn` แต้มเช้า, `buildStateFor` `cycle`) · ภูมิภาค (`legEnds` ใน `maybeJourneyAdvance`, `Journey.current`/`skillBonus`/`publicInfo`) ·
-    ร้านค้า (`shopDue`/`relocateShop`/`shopTurnsLeft`) · การทอยเกิด
-  · **คงใช้ `roundNumber`**: สถานะ/คูลดาวน์ทั้งหมด (คูลดาวน์ท่าไม้ตาย/สกิลของตัวละคร, ปรากฏตัวของนักบิน, คำสาป ฯลฯ) — นับต่อตามปกติระหว่างอยู่ข้างใน
-- **state ใน `match.js`**: `zero` { saved, seals[{x,y,hp,armor,broken}], pickups[{x,y}], pending[{i,by}], enteredRound, bolt } (null = ไม่ได้อยู่) ·
-  `zeroUsed` · `zeroFrozen` · `zeroScene` { seq, active, mode, stage, seal, breakerId }
-  → client ได้ `state.zero` (`publicInfo`): { active, stage, buffPhase, seals[{i,x,y,hp,armor,maxHp,maxArmor,broken}], pickups, atk, scene } ·
-  ฉากปลดผนึก = { active: false, scene } · `skillLocks.ultimate.locked` = true ทุกตัว (`zeroLocks` ใน `view.js`)
-- **ข้างใน**: ผลภูมิภาค/วัน-คืนปิด (`Journey.current()` = null) · ร้านปิด (`maybeMoveShop` ข้าม · `shopPos` null) · **ท่าไม้ตายล็อก** (`useSkill` → `ultLocked`) ·
-  **เกราะไม่ฟื้น** (`dealRound`) · จบเทิร์นทุกคนเสีย `DRAIN` 1 (`onEndTurn` → `fieldHit`: ลดเกราะก่อน · ตายได้ · `_statusDamage`)
-- **เฟส** = ผนึกแตก + 1 (`stage()` 1–4 · บัฟทุกคน สะสม): 1 แต้มสกิล +1/เทิร์น · 2 เหรียญ +1/เทิร์น (`onEndTurn`) ·
-  3 พลังโจมตี +1 · 4 (เหลือผนึกเดียว) +2 (`attackBonus` → `computeAttackBase` `zeroAtkFx` ungated + ป้ายสกิลในฉากตี)
-  · เฟส 4: ต้นเทิร์น (`onRoundStart` — หลังสถานะต้นเทิร์น) ฟ้าผ่า `BOLT_COUNT` 3 ช่องสุ่ม เสีย `BOLT_DMG` 2 → `engine.boardFx("zeroBolt", {tiles, hits})`
-- **ของฟื้นพลังชีวิต**: `onRoundStart` เกิด 1 ชิ้นบนช่องว่าง (ไม่เกิน `PICKUP_MAX` 4) · จบตาบนช่อง = เก็บ +`PICKUP_HEAL` 2 (`finishActor` → `collectPickup` · ตัวใหญ่ช่องไหนก็ได้)
-- **ผนึกมิโกะ** 4 มุม (`Board.ZERO_SEALS` [0,0] [13,0] [13,13] [0,13] = เหนือ/ตะวันออก/ใต้/ตะวันตก) พลังชีวิต `SEAL_HP` 3 เกราะ `SEAL_ARMOR` 2 · ลดเกราะก่อน · ไม่หลบ ไม่สวน
-  · สนาม `ZERO_AREA` 8–11 ใน `server/board.js` (ผังเดียวกัน — ระดับ 1–4 ต่างแค่หน้าตาฝั่ง client) · terrain `seal` อยู่ใน `UNBREAKABLE`:
-    ตัวใหญ่เดิน/ขยายทับไม่ได้ (`bigFits`/`growPlan`/`breakObstacles` ข้าม) · แตกแล้วแท่นยังเป็นสิ่งกีดขวาง
-  · ตีปกติ: `attackTarget(id, "seal:N")` → `canHitSeal` (ระยะ `rangeOf`) → `attackSeal` (ท่อพลังโจมตีเดียวกับตีคน ใช้เสริมพลัง) → ATTACKING → `runPendingBreak(finishActor)`
-  · สกิลโจมตีพื้นที่ (`area.hostile` aoe/line): `useSkill` เก็บ `action.areaTiles` แล้ว `hitSealsInArea` หลังผลสกิล (deferred) — ดาเมจ = พลังโจมตีไม่รวมเสริมพลัง
-    → แตก = `runPendingBreak` แล้วกลับ ACTION ด้วยเวลาที่เหลือ (ขั้นต่ำ 3 วิ) · สกิลมีคลิป: `pausePlayingForCutscene` เล่นฉากผนึกก่อนกลับเฟสเดิม
-- **ฉาก** (`playScene`: CUTSCENE + `cutsceneInfo = null` แบบฉากเดินทาง) — server พักรอ `ENTER_SECONDS` 8.5 · `BREAK_SECONDS` 3.6 · `RELEASE_SECONDS` 5
-  (ต้องตรงความยาวฉากฝั่ง client) · `enter` ลำแสง → คลื่น → โซ่ → ผนึก · `break` ผนึกแตก + `match.board.area` = `ZERO_AREA + stage − 1` · `release` มิติแตกกลับสนามเดิม
-- **ปลดผนึก** (`release` — อันสุดท้ายแตก): คืน `board`/`shopPos` · `match.zero = null` (บัฟหมด) · วางทุกคนที่ตำแหน่งเดิม (ไม่ว่าง → ช่องว่างใกล้สุด `spotNear` ·
-  ตัวใหญ่วางไม่ได้ = หดเหลือ 1 ช่อง) · ทุกคนเสีย `RELEASE_DMG` 2 ยกเว้นคนทุบอันสุดท้าย · ปลดกลางเทิร์น = คนที่เหลือเดินต่อบนสนามเดิม
-  คนทุบเดินต่อไม่ได้ (`action.locked`) · เวลาโลกเดินต่อจากที่หยุด (เข้าตอนจบเทิร์น 9 → ออกมาเทิร์นถัดไปเป็นเทิร์น 10 กลางคืน)
-- **เพลง** (`client/src/audioPolicy.js`): `state.zero.active` = `zero_<stage>` (1–4) **ชนะเพลงสกิล/ท่าไม้ตาย** (ผู้ใช้สั่ง — วีดีโอคัตซีนยังพักเพลงตามปกติ) · ฉากปลดผนึกกลับเพลงภูมิภาค ·
-  ไฟล์ `/zero_time/phase1..4.mp3` + `thunder.mp3` (`zero_thunder` — ฟ้าผ่า) อยู่ R2 (`mediaDirs.js` `zero_time`) ·
-  `LOUDNESS_GAIN` phase1 0.55 · phase2 0.56 · phase3 0.58 · phase4 0.6 (ไฟล์ดัง −8.7 ถึง −9.5 LUFS — ลดให้ไม่กลบเสียงกด/เอฟเฟกต์) · thunder ไม่ลด
-
----
+## 18. (ว่าง — ห่วงเวลาซีโร่ถูกลบออกจากเกม 2026-11-15)
 
 ## 19. น้ำแข็ง / หนามน้ำแข็ง / ไถล (`server/ice.js` — Ice Spike · GRID_PLAN §7.9)
 
@@ -839,14 +797,14 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   - `Duo.sideKey(p)` = id เจ้าของ → `combat.sameTeam` / `lobby.isAlly` = true เสมอ · จบเกมนับต่อฝ่าย (`Duo.sideCount`) · `Duo.cardHolders()` = ผู้ถือไพ่ที่ยังอยู่ (ใช้แทน alivePlayers ในช่วงจั่ว/เปิดไพ่/ลำดับเดิน/แต้มและเหรียญจบเทิร์น)
   - ตาเดิน `match.duo = { ownerId, acts, done }` · `Duo.switchTo(u)` (เก็บ action ของตัวเดิม · เดินแล้ว = `action.rebaseMove` เริ่มใหม่จากช่องที่ยืน `movLeft` = ระยะที่เหลือ · หมด = locked) · `finishActor` → ตัวถัดไปของฝ่าย (`Duo.nextUnit`) ด้วยเวลาที่เหลือ (`match.actionLeft` — `timers.clearPhaseTimer` จดไว้) · หมดเวลา = `action.actionTimeUp` (ทุกที่ที่ตั้งตัวจับเวลาตาเดินต้องใช้ตัวนี้ ไม่ใช่ finishActor)
   - socket คำสั่งตาเดิน (`onUnitEvent`) ส่งไปตัวที่คุม `Duo.controlledId` · state ได้ `controlId`, `duo`, `players[].duoOf/duoWith/corpse`
-  - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`) · ห่วงเวลาซีโร่: `enter` จำร่าง (`Duo.saveCorpses`) → `release` คืนช่องเดิม (`Duo.restoreCorpses`) ก่อนวางคน แล้ว `Duo.placeCorpses(free, true)` ให้ร่างที่ล้มข้างในลงข้างอีกตัว
+  - ร่าง: `instantDeath` → `Duo.onDeath` จำ `p.corpse` · `action.boardBlocked()` รวมร่าง + `hopTiles()` ให้ `Board.reachable` เดินข้ามได้ (`opts.hop`)
   - การมองเห็นของฝ่ายคู่ = รวมกัน (ตัวไหนเห็นก็เห็น — `Visibility.hiddenFrom` — แผนที่/หมอก) · แต่การเล็ง/ตี/ยิง ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` = ม่านแดงนับจากตาของตัวนั้นเอง (ถูกขังในม่าน = เล็งคนนอกไม่ได้แม้อีกตัวอยู่ข้างนอก)
-  - ตายต้นเทิร์นหลังแจกไพ่ (ฟ้าผ่าซีโร่ / ม่านแดง — `instantDeath` ล็อกเพราะยังไม่ PLAYING): `draw.reopenFallenOwners` เปิดให้เจ้าของที่อีกตัวยังรอดจั่วต่อ
+  - ตายต้นเทิร์นหลังแจกไพ่ (ม่านแดง — `instantDeath` ล็อกเพราะยังไม่ PLAYING): `draw.reopenFallenOwners` เปิดให้เจ้าของที่อีกตัวยังรอดจั่วต่อ
   - สตั้น/หลับไหล: ตัวที่ติดถูกข้ามตา (`action.nextActor` · `Duo.canSwitchTo/nextUnit` เช็ค `stuck`) · ยังมีตัวที่ขยับได้ = จั่วปกติ ·
     ทุกตัวที่ยังอยู่ติดหมด (ติดทั้งคู่ / ล้ม + ติด) = ไม่ได้จั่ว (`draw.lockStuckSides` — หลัง `reopenFallenOwners`)
 - **เดินต่อหลังจบตา (canto)**: ฮุค `cantoMov(engine, p)` → ตี/รอแล้วได้ `match.action.canto` (เดิน/ย้อน/รอเท่านั้น · `action.canAct(p, { move: true })`) · ฮุค `cantoSkill(p, tier)` = สกิลที่กดได้ระหว่างนั้น
 - **ปุ่มหลายตัวเลือก**: `skillPub` คืน `choices: [{ key, name, img, cost, area, active, desc, locked?, left? }]` (`desc` **บังคับทุกตัวเลือก** (กฎผู้ใช้ 2026-10-19) = ชี้เมาส์ค้าง · `left` = ใช้ได้อีกกี่ครั้ง → 🔋N บนการ์ด) → client ส่ง `useSkill { form: key }` · `skillCost / skillArea / keepsMove / skipsTurnQuota / ignoresTurnQuota / silentFlash / skillSound` ได้ `opts` เป็นอาร์กิวเมนต์สุดท้าย
-- **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง/ผนึก) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
+- **หลังตีปกติจบ**: ฮุค `afterStrike(engine, p)` — `action.attackTarget` เรียกก่อนจบตาทุกแบบ (ตีคน/หนามน้ำแข็ง) · เอมิลิโกะ: เครื่องดูดฝุ่นหัก 1 ครั้ง (`st.vacuumLeft` 5 ต่อเกม · ท่าไม้ตายก็หัก 1 · หมด = กลับไปถือไม้ถูพื้น เลือกใหม่ไม่ได้)
 - **ห้ามตีปกติในตานี้**: `action.lockStrike(p)` = `locked` + `match.action.noStrike` (ตีไม่ได้ · ไม่ได้เดินต่อหลังจบตา · ยังใช้สกิล/รอ/สลับตัวได้) → state `action.noStrike` (client ซ่อนช่องตี/ปุ่มโจมตี) · ขนมปังของเอมิลิโกะ (กินเอง/ป้อนเคท)
 - **ดาเมจตายตัวของตีปกติ**: ฮุค `fixedStrikeDamage(engine, attacker, target)` → ไม่รับบัฟฝั่งผู้ตี/คริ (หน้าคาดการณ์ใช้ค่านี้)
 - **ไถลชน**: ฮุค `slideStrikes(engine, p)` = ลงดาเมจตอนนี้ไหม · `slideStrike` คืน `{ attack: false }` (ไม่จบตา) / `{ knock: false }` (ไม่กระเด็น)
@@ -881,12 +839,12 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 ## 22. เก็บศพ / ท่าชาร์จข้ามเทิร์น (เกรย์ — `characters/gray.js` · ผู้ใช้ส่งสเปก 2026-10-19)
 - **เก็บศพด้วยการตีปกติ**: client ส่ง `attack { targetId: "corpse:<playerId>" }` → `action.attackTarget` เรียกฮุค `canReapCorpse` (ระยะ/เงื่อนไขเป็นของตัวละคร) แล้ว `reapCorpse` (ตั้ง `dead.corpse = null` เอง) → `action.locked` + `didAttackRound` → เฟส `ATTACKING` ตามวินาทีที่คืน → `finishActor` (จบตาแบบตีปกติ · `lockStrike` = เก็บไม่ได้)
   · ศพที่ถูกเก็บ = สกิลฟื้นจากศพ (ยูนะ/เคท) หาไม่เจอ · ร่างระบบคู่ที่อีกตัวรอด กลับมาข้างตัวที่รอดตอนเปลี่ยนภูมิภาค (`Duo.placeCorpses` เดิม)
-  · client (`BoardStage.jsx`): `me.gray.reaper` = ศพเป็นเป้าตีปกติแบบเดียวกับหนาม/ผนึก (ระยะ [1, 1] เสมอ)
+  · client (`BoardStage.jsx`): `me.gray.reaper` = ศพเป็นเป้าตีปกติแบบเดียวกับหนาม (ระยะ [1, 1] เสมอ)
 - **ท่าที่ยิงตาเดินถัดๆ ไป**: กดแล้วเก็บสถานะชาร์จไว้ (เกรย์ `p.gray.charge { dir, cast, fire }`) · ฮุค `onActorReady` ของเทิร์นที่ต้องยิงคิวคลิป (`queueCutscene`) + ผลหลังคลิป (`deferAfterCutscene` → `skillBeat`) แล้วเรียก `engine.pausePlayingForCutscene()` → เล่นจบกลับเข้าตาเดินด้วยเวลาที่เหลือ
   · ผลระหว่างชาร์จ: ฮุค `onEndTurn` (เกรย์: จบเทิร์นที่กด ตรึงศัตรูที่ยังอยู่ในแนวจนถึงตอนยิง — ลงหลังลูปลดเทิร์นสถานะ จึงติดเต็มเทิร์นถัดไป)
   · ระหว่างชาร์จ: ฮุค `mov` = 0 · `range` = `[1, 0]` · `canUseSkill` = false · ไอเทม/จั่วไพ่ได้
   · ถูกข้ามตา (สตั้น/หลับ) ในเทิร์นที่ต้องยิง = `onEndTurn` เลื่อนไปเทิร์นหน้า · ตาย = ยกเลิก (`onDeath`)
-  · ผลพื้นที่ (โผล่จากพุ่ม/หนาม/ผนึก) ลงตอนยิง: ฮุค `ownsAreaHit` + `engine.hitArea(p, tiles, ids)`
+  · ผลพื้นที่ (โผล่จากพุ่ม/หนาม) ลงตอนยิง: ฮุค `ownsAreaHit` + `engine.hitArea(p, tiles, ids)`
 - **อาวุธสุ่มต่อการตี**: `strikeCard` เรียก `attackStyle` ก่อน `attackSound` — สุ่มอาวุธใน `attackStyle` แล้วให้เสียงอ่านอาวุธที่ได้ (เกรย์: ค้อน/เคียว · ระยะ 2 = ธนู)
 
 ---
@@ -894,19 +852,19 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **เสียงพากย์ตามเหตุการณ์** (`server/voice.js` — ระบบกลาง): ฮุค `voiceLines(p)` → `{ turn, strike, struck, basic, secondary, ultimate: [คีย์เสียง…] }` (คีย์ใน `client/src/audio.js` FILES)
   · `turn` = ถึงตาเดิน (`nextActor` — ตาที่ถูกข้ามไม่ดัง) · `strike` = ตีปกติ/ตีสวน (`attack.strike` รวมพลาด) · `struck` = โดนตีแล้วไม่หลบ · tier = ใช้สกิลสำเร็จ (`skills.useSkill` หลังลงผล)
   · หลายคีย์ = สุ่ม 1 ทุกครั้ง (คีย์เดียว/ไม่มีฮุค = ไม่แตะ `Math.random`) · ส่ง `sfx { sound, voice: playerId }` (`engine.sfx(sound, onlyFor, extra)`) → client ตัดประโยคเก่าของคนเดียวกันก่อนพูดใหม่ (Game.jsx `onSfx`)
-- **ทรัพยากรที่ตีปกติต้องใช้**: ฮุค `range` คืน `[1, 0]` เมื่อหมด (ไม่มีช่องที่ตีถึง → ตีสวนก็ไม่ได้) · ใช้ทรัพยากรใน `onStrikeResolved` (ตีคน/ตีสวน) + `onStrikeObject` (ตีผนึก/หนาม)
+- **ทรัพยากรที่ตีปกติต้องใช้**: ฮุค `range` คืน `[1, 0]` เมื่อหมด (ไม่มีช่องที่ตีถึง → ตีสวนก็ไม่ได้) · ใช้ทรัพยากรใน `onStrikeResolved` (ตีคน/ตีสวน) + `onStrikeObject` (ตีหนาม)
 - **วัตถุบนกระดานที่เป็นของผู้เล่น** (ลูกเหล็ก): เก็บที่ตัวผู้เล่น (`p.gyro.balls [{ x, y, seq }]`) ไม่ใช่ตารางกลางรายช่อง — หลายคนตกช่องเดียวกันได้ · ไม่ขวางทาง · ตาย (`onDeath`) / เปลี่ยนแผนที่ (`onBoardPlaced`) ล้างเฉพาะของคนนั้น · state `players[].gyro` (ผู้ชมที่มองไม่เห็นเจ้าของยังเห็นลูก)
 - **ชั้นเลือดรับดาเมจก่อนเกราะ**: ฮุค `absorbDamage(engine, p)` → true = รับ 1 หน่วย (`combat.layerAbsorb` — หลังโล่ ก่อนเกราะ ใน `dealMixed`/`dealArmorOnly`/`damageSoft` · `dealDirect` ข้าม) · ไจโร: ม้าเลือด 3 ตาย = ลงม้า + เรียกไม่ได้ 3 เทิร์น
 - **ตีสวนแล้วผลักแทนถอย**: ฮุค `counterPush` ของผู้สวน → `{ push }` = ผู้ตีขยับ `Board.pushback` 1 ช่องเมื่อ push (ชน = ไม่ขยับ ไม่เสียเพิ่ม · `card.push = null`) — ไม่ถอยซ้อน · ผลักเป้าหลังฉากตี = `afterBoardAttack` → `engine.ice.pushUnit` (iceFx `knock` · ลงน้ำแข็งไถลต่อ)
   · ลูกตกช่องที่เป้าถูกผลักไป: ตีเอง = ทำนายช่องผลักตอน `onStrikeResolved` (`knockLand` → throw `land`) แล้ว `settleBall` ย้ายไปช่องจริงหลังผลัก/ไถล · ตีสวน = รอฮุค `afterCounterPush` แล้วค่อยส่ง throw (`land` = ช่องหลังผลัก)
 - **เส้นทแยงแบบแตะทุกช่อง**: `touchLine(a, b)` (ลูกวิ่งกลับ) — เส้นผ่านมุมพอดี = ได้ทั้งสองช่องข้างมุม · รวมปลายทั้งสอง
-- **กระเด็นถึงขอบ** (`planFlight` — วางแผนบนสำเนาตำแหน่ง ไม่แตะเกม จึงใช้คิดดาเมจล่วงหน้าใน `fixedStrikeDamage` / หน้าต่างคาดการณ์ได้): ทิศ 1 ใน 8 (`dir8`) · ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = `engine.breakObstacles` · พังไม่ได้ (ผนึก/ร้านค้า/ร่าง) = ลอยข้าม (`jumps`)
+- **กระเด็นถึงขอบ** (`planFlight` — วางแผนบนสำเนาตำแหน่ง ไม่แตะเกม จึงใช้คิดดาเมจล่วงหน้าใน `fixedStrikeDamage` / หน้าต่างคาดการณ์ได้): ทิศ 1 ใน 8 (`dir8`) · ช่องถัดไปนอกกระดาน = หยุด · สิ่งกีดขวางพังได้ = `engine.breakObstacles` · พังไม่ได้ (ช่องพัง/ร้านค้า/ร่าง) = ลอยข้าม (`jumps`)
   · คนขวาง = ดันออกข้างตั้งฉากกับทิศ (ช่องว่างใกล้สุด) · สองข้างไม่ว่าง = ดันนำหน้า (ดันต่อไม่ได้ = เป้าหยุด) · ช่องสุดท้ายยืนไม่ได้ = ถอยกลับตามทาง · ลงน้ำแข็ง = `Ice.forcedSlides`
   · พักฉากหลังฉากตี: ฟังก์ชันจาก `afterBoardAttack` คืน `{ hold, land }` (hold = 800 + 110 ms/ช่อง) → `boardAttack` ค้าง ATTACKING แล้วเรียก `land()` (ดาเมจตามช่องที่กระเด็น + ตรึง + คนที่ถูกชน −1) ก่อนจบตา
   · ตอนลูกแตะ: `fixedStrikeDamage(..., ctx)` คืน 0 (ctx.estimate = หน้าคาดการณ์ → ดาเมจจริงที่จะได้) · ฮุค `deferStrikeDamage(p)` → การ์ดฉากตี `byDeferDmg` = client ไม่ขึ้นเลขตอนปะทะ
 - **ปุ่มพิเศษบน HUD** (ไม่ใช่ช่องสกิล): ฮุค `hudActions` → `players[].actions` (เจ้าตัวเห็น) → `HudCommand extra` · กด = socket `charAction { key }` → ฮุค `charAction` (เช็คตาเดิน + บรอดแคสต์เอง · ไม่ล็อกการเดิน ไม่กินโควตา)
 - **นับเดินตรงจาก afterWalk**: บันทึกย้อน `{ undo: fn }` (`Ice.undoLay` เรียก fn · `walkUndoPatch` ข้ามบันทึกที่ไม่มี `k`) — ฮุคถูกเรียกใหม่ทุกครั้งด้วยเส้นทางเต็มหลังย้อนผลเดิม จึงคิดจากค่าก่อนเดินได้เสมอ
-- **ดาเมจตามจังหวะเอฟเฟกต์** (วิชาลับไจโร): จับเวลาที่ลูกผ่านแต่ละคนด้วยสูตรเดียวกับ client (`SEC_T` = `SC` ใน gyroFx.js) แล้วเรียง `engine.skillBeat` เป็นช่วงต่อกัน (เวลาเท่ากันรวมเป็นจังหวะเดียว — `startPhaseTimer(0)` = รอ 1 วิ ห้ามส่ง 0) · ลงดาเมจแล้วส่ง `secretHit` ให้ client ขึ้นเลข
+- **ดาเมจตามจังหวะเอฟเฟกต์** (วิชาลับไจโร): จับเวลาที่ลูกผ่านแต่ละคนด้วยสูตรเดียวกับ client (`SEC_T` = `SC` ใน gyroFx.js) แล้วเรียง `engine.skillBeat` เป็นช่วงต่อกัน (เวลาเท่ากันรวมเป็นจังหวะเดียว — `startPhaseTimer(0)` = รอ 1 วิ ห้ามส่ง 0) · ลงดาเมจแล้วส่ง `secretHit` ให้ client ขึ้นเลข · ทอยหลบ (`engine.skillDodge`) แยกขาไป/ขากลับตอนปล่อยลูก — ขาที่หลบพ้นส่ง `secretHit { dmg: 0, dodge: true }` · หลบทั้งสองขา = ไม่ถูกดึง (`secret.dodged`) · ลูกเหล็กทุกแบบหลบได้ (กลับคืนเจ้าของ `recall.dodged` · ดันคนขวางตอนกระเด็น)
 - **จบตาเดินของตัวเอง**: ฮุค `onActorEnd(engine, p)` (`finishActor` — หลังเดินต่อ ก่อนผลของช่อง) · ไจโร: เสริมท่าไม้ตายที่ไม่ได้ตีหมดลง
 - เอฟเฟกต์: `engine.boardFx("gyroFx", { kind, id, color, … })` ตามสัญญา §7.11 (`horse` ใช้ `mode`) · server ลงผลทันทีตอนส่ง แล้วพักฉากตาม `GYRO_FX` ผ่าน `engine.skillBeat` — client ค้างภาพเอง (`client/src/board/gyroFx.js`)
 
@@ -932,17 +890,17 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 
 ## 25. แต้มสกิลเฉพาะตัว / ตีทะลุเกราะ / ตีเพิ่มในตาเดิน / กันการโจมตีทั้งก้อน / ล่องหนที่คนใกล้เห็น (เฟิร์น — `characters/fern.js` · GRID_PLAN §7.14)
 
-- **กันการฟื้นแต้มสกิล**: ฮุค `blocksSkillGain(p, src)` → true = `combat.addSkill` ไม่เพิ่ม (src: `"item"` / `"card"` / `"passive"` / `"journey"` / ไม่ระบุ = จบเทิร์น·โบนัสกลางวัน·ซีโร่·ยูนะ) · `combat.skillGainBlocked(p, src)` ใช้ที่เงินคืนทะเลทราย (`skills.js`) · ฟื้นของตัวเองส่ง src เฉพาะ (เฟิร์น `"fern"`)
+- **กันการฟื้นแต้มสกิล**: ฮุค `blocksSkillGain(p, src)` → true = `combat.addSkill` ไม่เพิ่ม (src: `"item"` / `"card"` / `"passive"` / `"journey"` / ไม่ระบุ = จบเทิร์น·โบนัสกลางวัน·ยูนะ) · `combat.skillGainBlocked(p, src)` ใช้ที่เงินคืนทะเลทราย (`skills.js`) · ฟื้นของตัวเองส่ง src เฉพาะ (เฟิร์น `"fern"`)
 - **ราคาฟรีจริง**: ฮุค `skillFree(p, tier, opts)` → true = `skillCostOf` คืน 0 ก่อนคิดภาษีกลางคืน/การเดินทาง/ภาระเวท (เฟิร์น: ซ่อนเร้นมานา เข้า/ยกเลิก)
 - **ตีปกติทะลุเกราะ**: ฮุคของผู้ตี `strikePierces(engine, attacker, target)` → true = `attack.strike` ลงดาเมจด้วย `dealDirect` (ข้ามเกราะ/ชั้นม้า · โล่ยังกัน) แทน `dealMixed` · ถามทุกเป้า (เป้าหลัก + คนในแนว) · บันทึกขึ้น "(ทะลุเกราะ)"
-- **ผลหลังฉากตีปกติ 1 ครั้ง**: ฮุค `afterStrike(engine, p)` ใน `done` ของ `strikeTarget` — ครั้งเดียวต่อการตี ทุกเป้า (คน/ผนึก/หนาม/ศพ) ก่อน `extraStrike`/จบตา
+- **ผลหลังฉากตีปกติ 1 ครั้ง**: ฮุค `afterStrike(engine, p)` ใน `done` ของ `strikeTarget` — ครั้งเดียวต่อการตี ทุกเป้า (คน/หนาม/ศพ) ก่อน `extraStrike`/จบตา
 - **ตีเพิ่มในตาเดิน**: ฮุค `extraStrike(engine, p)` → true (ฮุคหักครั้งที่ตุนไว้เอง) = ตีปกติจบแล้วกลับเข้าตาเดิน (`action.resumeAction` — เวลาที่เหลือ · เดินยังล็อก) แทน `finishActor` · เรียกใน `done` ของ `strikeTarget` หลัง `afterStrike`
 - **ถูกโจมตี / กันทั้งก้อน**: ฮุคของเป้า `onAttacked(engine, p, attacker, kind)` (`combat.notifyAttacked`) ถูกเรียกที่ `strike()` ก่อนทอยหลบ ("strike" — รวมตีสวน/หลบพ้น) · `skillDodge` ("skill") · `adjustIncomingDamage` เมื่อศัตรูทำให้เสียหาย ("damage") — ถูกเรียกซ้ำได้ในการโจมตีเดียว ฮุคต้องแยกเอง
   - `blocksAttack(engine, p, attacker)` → `{ name, img }` = การโจมตีนี้เป็น 0 (`adjustIncomingDamage` คืน 0 · ฉากตีขึ้นเลข 0 + ป้ายฝั่งป้องกัน · `skillStrike` คืน `{ blocked: true }`)
   - **การโจมตีครั้งเดียวกัน** = ผู้โจมตี + เทิร์น + คนที่กำลังเดิน + `engine.commandSeq` (`match.commandSeq` เพิ่มทุกคำสั่งผู้เล่นใน `TimeStop.guard` · ผลที่ลงทีหลังในฉากได้เลขเดิม · ต้นเทิร์น/ต้นตาเดินแยกด้วยคนที่กำลังเดิน)
 - **ล่องหนที่คนใกล้เห็น**: ฮุคของเป้า `seenBy(engine, viewer, target)` → true = ข้ามเช็ค `stealthed` ใน `hiddenFromOne` (พุ่มหญ้า/ม่านแดงยังบัง)
   · viewer ที่ส่งให้ฮุคคือ **ช่องที่มอง** (`Visibility.eyeOf`): ยังเดินต่อได้ = ร่างเงาที่ `pos` เป็นช่องเริ่มตา (`action.eye || action.from`) · ล็อกการเดิน/ไม่ใช่ตาตัวเอง = ตัวจริง — ใช้กับ `summon.sight` และพุ่มผืนเดียวกันด้วย (ผู้ใช้สั่ง 2026-10-24 — กันเดินวนหาคนล่องหน)
-- **ลงมือแล้วปรากฏตัว แยกชนิด**: `Visibility.onHostileAct(p, how)` → ฮุค `onReveal(engine, p, "act", how)` — how = `"strike"` ตีปกติ (คน/ผนึก/หนาม) · `"slide"` ไถลชน · `"item"` ใช้ไอเทมใส่คนอื่น (นกหวีด) — เฟิร์นออกจากซ่อนเร้นมานาทุกแบบยกเว้น `"item"` (ก่อนลงผล)
+- **ลงมือแล้วปรากฏตัว แยกชนิด**: `Visibility.onHostileAct(p, how)` → ฮุค `onReveal(engine, p, "act", how)` — how = `"strike"` ตีปกติ (คน/หนาม) · `"slide"` ไถลชน · `"item"` ใช้ไอเทมใส่คนอื่น (นกหวีด) — เฟิร์นออกจากซ่อนเร้นมานาทุกแบบยกเว้น `"item"` (ก่อนลงผล)
 - `engine.hiddenFrom(viewer, t)` / `engine.hiddenFromUnit(p, t)` = การมองเห็นจาก `server/visibility.js` · `engine.commandSeq`
 - เฟิร์น — ค่าที่ลงโค้ด: Energy 10 เริ่มเต็ม · Zoltraak 2 Energy ต่อการตี (`onStrikeResolved` เป้าหลักครั้งเดียว · `onStrikeObject`) ดาเมจฐาน 2 · นับการตี (`afterStrike`) ครบ 5 → ครั้งที่ 6 ไม่เสีย Energy (`range` ไม่ปิดแม้ Energy < 2) + `strikePierces` + จบฉากตีรีเซ็ทคูลดาวน์ทั้งหมด (ร่าย/เพิ่มระยะ/ซ่อนเร้น รวมคูลดาวน์เริ่มเกม/การกัน) แล้วนับ 0 · การกัน: กันเทิร์น N → พร้อม N+3 · ร่ายต่อเนื่อง N → N+2 (`extraStrike`) · เพิ่มระยะ N → N+2 (`range` → `[1, 6]` จนกว่าจะตี · ค้างอยู่กดซ้ำไม่ได้)
   · ซ่อนเร้นมานา: เริ่มเกมพร้อมที่เทิร์นแรก + 4 (ตั้งใน `onRoundStartTick` เทิร์นแรก — `roundNumber` เริ่มที่ `startRound` ปกติ 1 → เทิร์น 5) · เข้า +4 · ต้นเทิร์น +2 · ฟื้นพลังชีวิต 1 ต้นเทิร์น N+2, N+4 … · เดิน/จั่ว/ไอเทมได้ · ไม่กินโควตา (`skipsTurnQuota` · ยกเลิก `ignoresTurnQuota`) · ไม่ล็อกเดิน (`keepsMove`) · ออก (ยกเลิก/ตี/ใช้สกิลอื่น/ถูกโจมตีที่ไม่ถูกกัน) N → พร้อม N+4 · ถูกโจมตี = สตั้นเต็มเทิร์นถัดไป (`onEndTurn` → `applyBuff` ไม่ทอยต้าน)
@@ -967,7 +925,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **ฮุคหลังจบตา** — broadcast `afterActorEnd(engine, p)` → วินาที (ค่ามากสุดของทุกโมดูล): `finishActor` หลังผลของช่อง ก่อนไปตัว/คนถัดไป (ทุกตัวของระบบคู่) · > 0 = ค้าง ATTACKING แล้วเรียก `finishActor` ซ้ำ — `match.action.endDone` กันผลจบตา (canto / outro / `onActorEnd` / ขี่ / ช่อง) ลงซ้ำ · ฮุคลงผลเองทันทีแล้วส่ง fx
 - **ฮุคดาเมจจริง** — broadcast `onDamageDealt(engine, ต้นตอ, เป้า)`: ทุกหน่วยที่เป้าเสียพลังชีวิต/เกราะ/เลือดชั่วคราวจริง (`combat.tookDamage` · ต้นตอ ≠ เป้า) · แยก "การโจมตี 1 ครั้ง" ด้วย `engine.cmdSeq` (`match.cmdSeq` +1 ต่อคำสั่งของผู้เล่นชั้นนอกสุด — `TimeStop.guard`)
 - **target รูปเฉพาะ**: `area: { kind: "target", cells: [[dx, dy], …] }` = เป้าต้องทับช่องตามรูปนับจากช่องผู้ใช้ (แทน `range` — ใส่ `range` ไว้เป็นป้าย) · view ส่ง `cells` ต่อ (client ไฮไลต์)
-- วาเลนไทน์: หลบสายตา = มิติ ghost + `stealthed` + `untouchable` · กระดานคู่ขนาน = มิติไม่ ghost (ศัตรูในแนว + ตัวเอง) · ตัวที่เหมือนกัน = ยูนิตไม่คุม (`characterId: "valentine_double"` ไม่มีฮุค · หน้าตาเป้าผ่าน `summon.look` → view ใช้ชื่อ/รูป/สีเป้า) วิ่ง+ชนใน `afterActorEnd` (ต้นตอ = ตัวเหมือน ชั้นเดียวกับเป้า) · ร่างแยก = ยูนิตคุมได้ `characterId` เดียวกับตัวจริง (ฮุคแยก `isVal` / `isValUnit`) · ธงชาติ = `boardPublic` → `state.board.valentine.flags`
+- วาเลนไทน์: หลบสายตา = มิติ ghost + `stealthed` + `untouchable` · กระดานคู่ขนาน = มิติไม่ ghost (ศัตรูในแนว + ตัวเอง) · ตัวที่เหมือนกัน = ยูนิตไม่คุม (`characterId: "valentine_double"` ไม่มีฮุค · หน้าตาเป้าผ่าน `summon.look` → view ใช้ชื่อ/รูป/สีเป้า) วิ่ง+ชนใน `afterActorEnd` (ต้นตอ = ตัวเหมือน ชั้นเดียวกับเป้า · ชนทอยหลบ `skillDodge(วาเลนไทน์, เป้า)` — หลบ = ไม่เสียหาย ตัวเหมือนยังสลาย · 2026-11-15) · ร่างแยก = ยูนิตคุมได้ `characterId` เดียวกับตัวจริง (ฮุคแยก `isVal` / `isValUnit`) · ธงชาติ = `boardPublic` → `state.board.valentine.flags`
 - เอฟเฟกต์ `engine.boardFx("valentineFx", { kind, id, … })` + `engine.skillBeat` ตาม `VAL_FX` (client `valentineFx.js`) · เสียง `val_*` / เสียงพากย์ `val_v_*` (GRID_PLAN §7.13)
 
 ## 27. พุ่มดอกไม้มีอายุ / กำแพงตีแตก / เดินตามดอกไม้ / คริ ×3 / หลบเฉพาะตัว / คลิปก่อนฉากตี / เลือกหลายเป้า (เซลิน — `characters/celine.js` · `server/flora.js` · GRID_PLAN §7.15 · สัญญาข้อมูล `.claude/plans/celine-contract.md`)
@@ -986,23 +944,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **area ใหม่**: `target` + `count: N` = เลือก N คนต่างกัน (ทุกคนผ่านกติกาเดียวกัน — `targetOk`) · `tile` + `rect: [w, h]` = สี่เหลี่ยมกลางช่องที่เลือก (`tileArea`) · socket `useSkill` รับ `orient: "h" | "v"` → `opts.orient` (`skillArea` เลือก rect ตามแนว)
 - เอฟเฟกต์ `engine.boardFx("celineFx", { kind, id, color, … })` (client `celineFx.js`) · เสียง `celine_*` / เสียงพากย์ `celine_v_*` · ตีปกติ `attackStyle` = `celineDagger|Dragon|Great|Fire|Wind|Thunder`
 
-## 28. ตัวละครที่ผูกกับห่วงเวลาซีโร่ / ช่วงมิติพังทลาย / ปุ่ม HUD เลือกช่อง (ทาคุโตะ — `characters/takuto.js` · `server/zeroTime.js` · GRID_PLAN §7.16 · สัญญาข้อมูล `.claude/plans/takuto-contract.md`)
-- **ฮุคห่วงเวลาซีโร่** (`server/zeroTime.js` วนทุกโมดูล): `zeroChanceBonus(engine)` → % บวกโอกาสเกิด (`Zero.chance()` = `ZERO_CHANCE` + ผลรวม · เพดาน 100) ·
-  `zeroImmune(p)` → true = ไม่โดนกัดกิน (`onEndTurn`) / ฟ้าผ่า (`lightning`) / ล็อกท่าไม้ตาย (`ultLocked(p)` — `useSkill` + `zeroLocks(p, …)` ใน view.js) / แรงปลดผนึก (`releaseBlast`) ·
-  `zeroCollapseTurns(engine)` → เทิร์น (มากสุดของทุกโมดูล) > 0 = ผนึกอันสุดท้ายแตกแล้วเข้า **ช่วงมิติพังทลาย** แทน `restoreBoard` ทันที ·
-  broadcast `onZeroStage(engine, stage)` หลังฉากผนึกแตก (`runPendingBreak`) · `onZeroCollapse(engine)` ตอนเข้าช่วงพังทลาย — คลิป/ผลหลังคลิปที่ฮุคคิวไว้เล่นต่อจากฉากผ่าน `cutscene.runSkillFlow` (`afterScene`)
-- **ช่วงมิติพังทลาย** (`match.zero.collapse = { total, endRound, seq, done }` · `Zero.collapsing()` / `engine.zeroCollapsing()`): `active()` ยัง true (สนามซีโร่ · ร้าน/ภูมิภาค/เวลาโลกหยุด) ·
-  `stage()` 4 · `attackBonus` null · `onRoundStart` ไม่มีของ/ฟ้าผ่า · `onEndTurn` ไม่มีบัฟ/กัดกิน — `roundNumber >= endRound` = `done` ·
-  `endTurn` (หลังคิวคัตซีน ก่อนการเดินทาง) → `Zero.maybeFinishCollapse()` → `restoreBoard` + ฉาก `release` → `dealRound` ·
-  `publicInfo().collapse = { left, total, seq }` (client: ไม่เล่นเพลง zero_N · สนามพังทลายตาม left/total) · แรงปลดผนึกลงตอนผนึกแตก (`releaseBlast`)
+## 28. ปุ่ม HUD เลือกช่อง (เดิมของทาคุโตะ — ตัวละครและห่วงเวลาซีโร่ถูกลบ 2026-11-15)
 - **ปุ่ม HUD เลือกช่อง**: `hudActions` คืน `tiles: [{ x, y }]` = client เข้าโหมดเลือกช่องก่อนส่ง → socket `charAction { key, tile }` → ฮุค `charAction(engine, p, key, { tile })` (ไม่มี tiles = ส่งทันทีแบบเดิม)
-- **ทาคุโตะ**: สถานะ `p.takuto` { form human|tauburn, judgment, dash, dashRound, seen2/seen4, awakened, secReady, ultReady, tallySeq/tally } · ดาบเป็นสถานะ `takutoEmerald` / `takutoSapphire` (5 เทิร์น)
-  · แปลงร่าง = `onRoundStartTick` ตัวแรกที่ `engine.zeroActive()` → คิวคลิป + `deferAfterCutscene(resizeUnit 3)` (dealRound เล่นคิว → `runSkillFlow`) · ขยายไม่สำเร็จ = ลองใหม่ทุกต้นเทิร์น
-  · พุ่งต้นตาเดิน: `dashTiles` (ตรง 4 ทิศ 1–3 ช่อง ทั้งตัวต้องว่าง — สิ่งกีดขวาง/ร้าน/ร่าง/คนที่มองเห็น) → ย้าย `p.pos` + ตั้ง `action.from` ใหม่ (ยังเดินได้) · ชนคนที่มองไม่เห็น = หยุดก่อน
-  · เอเมอรูด: นับดาเมจจริงด้วย `onDamageDealt` แยกครั้งด้วย `engine.cmdSeq` → ฟื้นใน `afterBoardAttack` (หลังฉากตี) · แซฟไฟร์: `attackLane` "face" · ดาบแห่งการพิพากษา: `range` [1, 4] + `fixedStrikeDamage` 4 + `preAttackClip` + `afterStrike` ทิ้งดาบ
-  · สลับตำแหน่งตัวใหญ่: `spotNear` ใน takuto.js (มุมบนซ้ายใกล้ที่ต้องการที่สุด · ไม่พังของ) — `Board.placeBig` ใช้ไม่ได้เพราะวัดระยะจากกล่อง (ทุกกล่องที่ครอบจุดได้ 0)
-  · ท่าไม้ตายเปลี่ยนตามช่วง: `skillPub` (ชื่อ/รูป/คำอธิบาย + `flash`) · `skillArea` line 8×1 ↔ aoe `"mov"` · เพลงช่วงพังทลาย `skillMusic` → `takuto_theme`
-- เอฟเฟกต์ `engine.boardFx("takutoFx", { kind, id, color, at, size, … })` (client `takutoFx.js`) · ตีปกติ `attackStyle` = `takutoPunch|Emerald|Sapphire|Dual|Judgment` · เสียง `takuto_*`
 
 ## 29. ตัดผลสกิล / ช่องพัง / ร้านค้าถูกพัง / สังหารทันทีรวมโอกาส / ผลก่อนการตีลง (เรียวกิ — `characters/ryougi.js` · `server/sever.js` · GRID_PLAN §7.17 · สัญญาข้อมูล `.claude/plans/ryougi-contract.md`)
 - **ตัดผลสกิล** (`server/sever.js` · `engine.sever` / `engine.severStamp`): ฮุคตัวละคร `severables(engine, p)` → `[{ key, label, at, cancel() }]` = ผลสกิลของตัวเองที่ทำงานอยู่ (ท่าไม้ตาย/สถานะจากสกิล · ร่างแปลง · ท่าที่รอ trigger · ท่าชาร์จ · โหมดเปิด/ปิด)
@@ -1014,7 +957,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   เป็นสิ่งกีดขวางทุกกติกา (เดิน/ยืน/ถูกผลักเข้า/วาร์ปลง/ตั้งร้าน `pickShopSpot`) แต่ไม่บังการตี · อยู่ใน `Board.UNBREAKABLE` (ตัวใหญ่เดินพังไม่ได้) · `placeOnBoard` ล้าง = เปลี่ยนภูมิภาคแล้วหาย
 - **ร้านค้าถูกพัง**: `engine.razeShop()` → `shopPos` null + `match.shopRazed` → `shopDue` ไม่ตั้งใหม่จนครบรอบย้ายร้านตามปกติ (`relocateShop` / `placeOnBoard` ล้างธง)
 - **เรียวกิ**: สถานะ `p.ryougi` { eyesReady, mendReady, ultReady, eyesAt, bloomAt, mindSeq } · สถานะ `ryougiMind` (รากฐานจิต — ใช้แล้วหมดใน `afterStrike` ด้วย `mindSeq === engine.cmdSeq`) · `ryougiBloom` (หลังท่าไม้ตาย: `damageBonus` +1 · ฉากตี `ryougiLeap` · `attackFxExtra` 0.5)
-  · ตีปกติ `range` [1, 2] + `attackLane` + ฮุค `laneLen` 2 (เล็งได้ห่าง 1–2 · ฟันแนว 2 ช่องหน้าตัว · `Board.laneOf(…, len)` · state `players[].laneLen`) · ท่าไม้ตาย: `skillBeat` 1.2 วิ (พุ่ง) → ดาเมจ/ขโมยแต้ม/สังหาร 5% → `breakObstacles` + `razeShop` + `addChasm` → ลงช่องท้าย → ผลักออกข้าง (`pushOut` — ว่างสองข้างสุ่ม · ไม่ว่าง = ช่องว่างใกล้สุด · ศพย้าย `p.corpse`) → `Ice.forcedSlides` (via) → `skillBeat` 1.1 วิ → บัฟ
+  · ตีปกติ `range` [1, 2] + `attackLane` + ฮุค `laneLen` 2 (เล็งได้ห่าง 1–2 · ฟันแนว 2 ช่องหน้าตัว · `Board.laneOf(…, len)` · state `players[].laneLen`) · ท่าไม้ตาย: `skillBeat` 1.2 วิ (พุ่ง) → ทอยหลบทีละคน (`engine.skillDodge` · หลบพ้น = ข้ามทั้งหมด · `crumble.dodged`) → ดาเมจ/ขโมยแต้ม/สังหาร 5% → `breakObstacles` + `razeShop` + `addChasm` → ลงช่องท้าย → ผลักออกข้าง (`pushOut` — ว่างสองข้างสุ่ม · ไม่ว่าง = ช่องว่างใกล้สุด · ศพย้าย `p.corpse`) → `Ice.forcedSlides` (via) → `skillBeat` 1.1 วิ → บัฟ
   · กองเลือด `match.board.ryougiBlood` → `boardPublic` `ryougi.blood` · ผู้ถูกสังหาร `p.ryougiSlain` (state `players[].ryougiSlain`) · เพลง `skillMusic` `ryougi_eyes` / `ryougi_bloom` (เปิดใหม่กว่าชนะ)
 - เอฟเฟกต์ `engine.boardFx("ryougiFx", { kind, id, color, at, size, … })` (client `ryougiFx.js`) · ตีปกติ `attackStyle` = `ryougiSlash|ryougiLeap` · เสียง `ryougi_*` / เสียงพากย์ `ryougi_v_*`
 
@@ -1050,7 +993,7 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
 - **สายจูง** (ฮุค `walkLeash(p)` → `{ x, y, r }`): ปลายทางเดินต้องห่างจุดนั้นไม่เกิน r (`planWalk`) · client ตัดระยะเดินด้วย `players[].leash` (ส่งเฉพาะเจ้าของ)
 - **ล่อเป้า**: `p.taunt = { ids, until }` (ตั้งโดยตัวละคร) → `action.tauntOf(p)` = Set ตัวล่อที่ยังอยู่จนจบเทิร์น until · `tauntAllows` ใช้ใน `canStrike` (ตีปกติ) + `targetOk` (สกิล target) — เพื่อน/ตัวเองไม่ถูกบังคับ ·
   state `players[].taunt` (id ตัวล่อ) → client กรองเป้าใน `planFor` / โหมดเลือกเป้า (`tauntOk`) · engine `tauntOf`
-- **พุ่งหลังเดิน**: `engine.rebaseMove(p)` = ตาเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (ก่อนย้าย `p.pos` เอง) · พุ่งก่อนเดิน = ตั้ง `engine.action.from` เป็นช่องใหม่ (แบบทาคุโตะ) · แอนิเมชัน `engine.setDash({ id, path })`
+- **พุ่งหลังเดิน**: `engine.rebaseMove(p)` = ตาเริ่มใหม่จากช่องที่ยืนด้วยระยะที่เหลือ (ก่อนย้าย `p.pos` เอง) · พุ่งก่อนเดิน = ตั้ง `engine.action.from` เป็นช่องใหม่ · แอนิเมชัน `engine.setDash({ id, path })`
 - **สกิลเลือกช่องจากรายการของ server**: `area { kind: "tile", place: "list", foot, tiles }` (tiles คิดใน `skillArea` ทุกครั้งที่ส่ง state) — client ใช้โหมด list เดียวกับปุ่ม HUD ที่มี tiles
 - **ยูนิตที่ถูกเรียกขนาดใหญ่**: ตั้ง `boardSize` หลัง `engine.summon.spawn` (กล่องของลาพลัส 2×2 · ฝ่ายกลาง = ขวางทางทุกคน) · ตายแล้วฮุค `onSummonDeath` ของเจ้าของ
 - **ฉากตีดาบสี**: `attackHitFx(p)` → `"saberRed"` = ฟันไขว้แบบมีดโซระ (`mythSlashFx` tone red) · เสียงตีตรงจังหวะปะทะ
@@ -1137,16 +1080,8 @@ client: ธีม/ผนึก/ฟ้าผ่า `client/src/board/zeroTheme.js
   `engine.setYukiBoom({ by, x, y, size })` → `state.yukiBoom { seq, … }` (ค้างถึง GAMEOVER) · `engine.holdEndTurn(sec, onStart)` = endTurn พักเฟส CUTSCENE (ไม่มีคลิป) ทางเดียวกับฉาก Colony ก่อนสรุปผล · `onStart` ทำตอนเริ่มพัก (หลังคลิปที่คิวไว้ในจบเทิร์นเล่นจบ) — เรียกได้จากฮุค `onEndTurn`
 - client: `client/src/board/yukiFx.js` — จอมืด + ออร่ารวมตัวระหว่างนับถอยหลัง (`players[].yuki { left, at }`) · ฉากระเบิดเต็มจอ 14 วิ (`state.yukiBoom` · เสียง `yuki_boom` ระเบิดที่ 2.6 วิ · เงียบเพลงอื่นทั้งหมด)
 
-## 38. แกนดาบ HUD เฉพาะตัว / ลำดับกดตายตัว / ลูปเสียงตามขั้น / แนวกว้างคู่ (คิงโอเจอร์ — `characters/_ohger.js` · GRID_PLAN §7.22)
-- **5 ตัวจากโรงงานเดียว**: `makeOhger(def)` คืนโมดูลต่อ id (`gira_ohger` … `kaguragi_ohger`) · ฮุคทุกตัวเช็ค `p.characterId === ID` เอง (broadcast)
-- **ปุ่มบนแกนดาบ = socket `charAction` คีย์ `ohger:b1…b5 / ohger:trigger / ohger:revert`** (ไม่ผ่าน useSkill) · client `client/src/screens/hud/OhgerSword.jsx` (โมเดล GLB `/characters/ohger/ohger_caliber.glb` — raycast ชิ้นจริง) วาดกลาง HUD แทนช่องพื้นฐาน/รอง
-  - แปลงร่าง: ครบลูป → `engine.useSkill(id, "basic")` พร้อมธงภายใน `s.ready` (กด useSkill basic ตรงๆ ไม่ผ่าน `canUseSkill`) · กดผิด → `engine.finishActor()` (จบตาเดิน)
-  - Finish: `charge` → `standby` (ฮุค `mov` → 0) → client เข้าโหมดเลือกทิศเอง (`pickReq.kind "ohger"` ใน Game.jsx) → `useSkill secondary { dir }` · ออกจากโหมด = ส่ง `ohger:trigger` (ยกเลิก)
-- **state `players[].ohger`** (`ohgerState`): `own · armored · phase · step · pulls · next (ปุ่มที่ไฟกระพริบ) · canTransform · canFinish · canRevert`
-- **ลูปเสียงตามขั้น** — client เล่นเอง (`startLoopSfx`/`stopLoopSfx` ใน audio.js) ตาม `phase` ของคนที่กำลังเดิน: `ohger_tf_wait_N` / `ohger_charge_loop` / `ohger_standby_loop` · เสียงจังหวะเดียวมาจาก server `engine.sfx` · เสียงท่าโจมตีต่อคิวหลังป้ายสกิล (`SFX_QUEUED` กลุ่ม `ohger`)
-- **แนวกว้างคู่**: `Board.lineTiles` รับ width คู่ได้แล้ว (เยื้องไปทางลบของแกนขวาง: 4 = −2…+1) — client `boardRules.js` สร้างใหม่ด้วย `node scripts/gen-board-rules.js`
-- เอฟเฟกต์บนกระดาน: socket `ohgerFx { kind (slash/dash/needle/wave), form, color, from, tiles, dir, target? }` → `client/src/board/ohgerFx.js`
-- เสียงทั้งหมดตัดจากไฟล์ผู้ใช้ด้วย `.claude/plans/ohger-sfx.py` (−16 LUFS จังหวะเดียว · −18 LUFS ลูป) · รายการช่วงที่ตัด `.claude/plans/ohger-sfx.json`
+## 38. แนวกว้างคู่ (เดิมของคิงโอเจอร์ — ตัวละครทั้ง 5 ถูกลบ 2026-11-15)
+- **แนวกว้างคู่**: `Board.lineTiles` รับ width คู่ได้ (เยื้องไปทางลบของแกนขวาง: 4 = −2…+1) — client `boardRules.js` สร้างใหม่ด้วย `node scripts/gen-board-rules.js`
 
 ## 39. นกหวีดอัญเชิญมนต์อสูรเทพ — ช่องพิเศษที่ 6 ของกระเป๋า (`server/whistle.js` · ผู้ใช้ส่งสเปก 2026-11-03)
 - ทุกคนมี (ไม่ใช่ของใน `p.inventory` · ไม่กินช่อง · ทิ้ง/ให้/แลกไม่ได้) · ยูนิตที่ถูกเรียกไม่มี · ระบบคู่ใช้คูลดาวน์ร่วม (`whistleReady` อยู่ใน `Duo` SHARED)

@@ -92,11 +92,11 @@ test.after(() => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
 });
 
-test('ค่าสถานะ Eos: พลังชีวิต 5 · เกราะ 3 · เดินฐาน 4 +2 = 6 · Energy 10 ไม่ฟื้นเอง · เพิ่มระยะ 2 Energy · Echo สวมร่างได้ค่าสถานะของเฟิร์น', () => {
+test('ค่าสถานะ Eos: พลังชีวิต 8 · เกราะ 5 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · เดินฐาน 4 +2 = 6 · Energy 10 ไม่ฟื้นเอง · เพิ่มระยะ 2 Energy · Echo สวมร่างได้ค่าสถานะของเฟิร์น', () => {
   const { F } = setup();
-  assert.equal(combat.maxHpOf(F), 5);
-  assert.equal(combat.maxArmorOf(F), 3);
-  assert.equal(F.armor, 3, 'เริ่มเกมเกราะเต็ม 3');
+  assert.equal(combat.maxHpOf(F), 8);
+  assert.equal(combat.maxArmorOf(F), 5);
+  assert.equal(F.armor, 5, 'เริ่มเกมเกราะเต็ม 5');
   assert.equal(action.baseMovOf(F), 4);
   assert.equal(action.movOf(F), 6, 'โบนัส Eos +2 เต็ม (ข้ามเพดาน 5)');
   assert.equal(F.skillPoints, 10);
@@ -117,7 +117,7 @@ test('ค่าสถานะ Eos: พลังชีวิต 5 · เกร�
   assert.equal(combat.maxArmorOf(E), combat.maxArmorOf(F), 'เกราะสูงสุดของเฟิร์นใน Eos');
   // นอก Eos = ค่าเดิม
   match.world = 'earth';
-  assert.equal(combat.maxArmorOf(F), 2);
+  assert.equal(combat.maxArmorOf(F), 4);
   assert.equal(action.baseMovOf(F), 3);
   assert.equal(fern.skillCost(F, 'secondary', 3), 3);
   assert.equal(fern.attackLane(F), true);
