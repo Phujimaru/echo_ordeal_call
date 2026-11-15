@@ -78,6 +78,17 @@ test("Master ใน Eos PVE: ลงจากฟ้า · Slam/Knockdown โด�
   S6.actMonsters(ctx, st);
   assert.equal(mh4 - (m.hp + (m.armor || 0)), 8, "มอน 4 ตัว × 2 = 8");
   for (const r of ring) { r.alive = false; r.pos = null; }
+  // ลูกน้องอยู่ใกล้มอน = มอนสู้ลูกน้องก่อน ไม่เดินผ่านไปหาผู้เล่นที่แยกกลุ่ม (ผู้ใช้ 2026-11-16 "เดินผ่านไปตีคนอื่น")
+  m.pos = { x: 25, y: 25 }; a.pos = { x: 13, y: 9 }; a.hp = 2; a.armor = 0; // ผู้เล่นเลือดน้อย = มอนปกติเลือกฆ่าก่อน
+  const g = M.summonWave(engine, m)[0] || Object.values(match.players).find((u) => u.summon && u.summon.ai && u.alive);
+  g.pos = { x: 13, y: 15 }; g.hp = 5; g.armor = 0;
+  const mob3 = S6.spawnMob(ctx, st, "daemon", { x: 13, y: 12 }, { hp: 9, armor: 0, atk: 2, mov: 4, gold: 2 }, { look: 1, tier: 1 });
+  mob3.summon.born = 0;
+  const ga = a.hp, gh = g.hp;
+  S6.actMonsters(ctx, st);
+  assert.ok(g.hp < gh, "มอนตีลูกน้อง");
+  assert.equal(a.hp, ga, "ไม่เดินผ่านไปตีผู้เล่น");
+  mob3.alive = false; mob3.pos = null;
   // ตาย → ฟื้นเฟส 2
   engine.withEffectSource(mon, () => { combat.dealMixed(m, 9999); if (m.hp <= 0) combat.instantDeath(m); });
   match.roundNumber = 6; combat.broadcastHook("onRoundDealt", engine);

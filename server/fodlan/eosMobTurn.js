@@ -130,9 +130,12 @@ function actMonstersRaw(ctx, s) {
       // ทหารเหล็กเล็งเสาก่อน (มีเสาที่ยึดแล้ว = ไปหาเสา เว้นแต่มีคนติดตัวอยู่แล้ว)
       if (type === "magitek" && pillars.length && !all.some((p) => manhattan(p.pos, m.pos) === 1)) targets = [];
     }
+    // ตัวอัญเชิญที่ AI คุมของผู้เล่น (ลูกน้อง Master) เข้ามาใกล้ = มอนหันมาสู้ตัวนั้นก่อน ไม่เดินผ่านไปหาคนอื่น (ผู้ใช้ 2026-11-16)
+    const guards = type === "beast" ? [] : all.filter((p) => p.summon && p.summon.ai && footOf(ctx, p).some((t) => manhattan(t, m.pos) <= mov + 1));
+    if (guards.length) { targets = guards; pillars = []; }
     let r = { to: null, path: null, target: null, pillar: null };
     if ((type === "daemon" || type === "magitek") && MBS.fallBack(ctx, s, HH.H(), m, all, mov, acc)) continue; // บาดเจ็บหนัก = ถอยไปหาปีศาจหมอ
-    const raidPl = plan.get(m.id);
+    const raidPl = guards.length ? null : plan.get(m.id);
     if (raidPl) { // หน่วยบุก: ตรงไปเสา (หรือป้อมปืนของเสา) · ตีเฉพาะคนที่ติดตัว/ยืนเฝ้าเสา
       const tg = all.filter((p) => manhattan(p.pos, m.pos) <= 1 || manhattan(p.pos, raidPl) <= MAI.RAID.guardR);
       r = MAI.stepMob(ctx, s, m, tg, [raidPl, ...MAI.plTurrets(ctx, raidPl)], mov);
@@ -155,7 +158,7 @@ function actMonstersRaw(ctx, s) {
         if (g) { held = true; if (g.to) r = { to: g.to, path: g.path, target: null, pillar: null }; }
       }
     }
-    if (!held && !raidPl && (type === "daemon" || type === "magitek") && sm.trait !== "boss") { r = MBS.coordinate(ctx, s, HH.H(), m, r, all, mov); if (r.held) held = true; } // รุมเป้าเดียว · ล้อม · รอฝูงก่อนเข้าวงตี
+    if (!held && !raidPl && !guards.length && (type === "daemon" || type === "magitek") && sm.trait !== "boss") { r = MBS.coordinate(ctx, s, HH.H(), m, r, all, mov); if (r.held) held = true; } // รุมเป้าเดียว · ล้อม · รอฝูงก่อนเข้าวงตี
     if (held) { /* รอในวงรวมพล / ยืนล้อมเมือง */ } else if (type !== "beast" && !r.to && !r.target && !r.pillar && !r.wall) { const w = MAI.roamMob(ctx, s, m, mov); if (w) r = { ...w, target: null, pillar: null }; }
     else if (r.to || r.target || r.pillar) sm.roam = null;
     if (!r.to && !r.target && !r.pillar && !r.wall) { if (SPN.lightBound(m)) { const z = MAI.townEdge(ctx, s, m); if (z) sieges.push(MAI.siegeLight(ctx, s, m, z)); } continue; }
