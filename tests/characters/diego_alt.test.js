@@ -68,18 +68,18 @@ function orderUpTo(t, ids, actorId) {
   while (engine.actorId !== actorId && engine.actorId) engine.finishActor();
 }
 
-test('ข้อมูล: ระดับยาก · พลังชีวิต 6 เกราะ 2 · เดิน 4 (ขี่ม้า 5) ตี [1, 2] · ปืนแนว 5×1 · เริ่มเกมขี่ม้า · สัญญาข้อมูล §7.12', () => {
+test('ข้อมูล: ระดับยาก · พลังชีวิต 9 เกราะ 2 (ขี่ม้า: +3 พลังชีวิต · เกราะ +2 ไปที่ม้า ผู้ใช้สั่ง 2026-11-14) · เดิน 4 (ขี่ม้า 5) ตี [1, 2] · ปืนแนว 5×1 · เริ่มเกมขี่ม้า · สัญญาข้อมูล §7.12', () => {
   const ch = CHAR_BY_ID.diego_alt;
   assert.equal(ch.difficulty, 'hard');
   assert.ok(!ch.unique, 'เลือกซ้ำได้');
   assert.deepEqual([ch.mov, ch.range], [4, [1, 2]]);
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 5, width: 1, hostile: true });
   const P = setup([['D', 'diego_alt', 2, 7], ['B', 'dummy', 9, 7]]);
-  assert.deepEqual([P.D.hp, P.D.armor], [6, 2]);
+  assert.deepEqual([P.D.hp, P.D.armor], [9, 2]);
   assert.equal(engine.movOf(P.D), 5);
   const d = view('D', 'D').diego;
   assert.deepEqual(Object.keys(d).sort(), ['ammo', 'ammoMax', 'cunning', 'cunningMax', 'firstAid', 'horseCd', 'horseHp', 'mounted', 'nets', 'reloadCd', 'shot', 'stopping', 'toolLeft', 'worldArmed', 'worldCd'].sort());
-  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 1, 0, true, 3]);
+  assert.deepEqual([d.ammo, d.firstAid, d.toolLeft, d.cunning, d.mounted, d.horseHp], [4, 2, 1, 0, true, 5]); // ม้า 5 = เดิม 3 + เกราะ 2 ของดิเอโก้
   assert.equal(view('B', 'D').diego.nets, undefined, 'ตาข่ายเห็นเฉพาะเจ้าของ');
   const choices = view('D', 'D').character.basic.choices;
   assert.deepEqual(choices.map((c) => c.key), ['oil', 'match', 'net', 'knife', 'aid']);
@@ -416,10 +416,10 @@ test('เป็นไปดั่งกลอุบาย: เฉพาะตา
   assert.equal(engine.actorId, 'D', 'ตาปกติของดิเอโก้ต่อ (ลำดับแรก)');
 });
 
-test('ม้าซิลเวอร์ บูลเล็ต: รับดาเมจก่อนเกราะ · ตาย = เรียกไม่ได้ 3 เทิร์น', () => {
+test('ม้าซิลเวอร์ บูลเล็ต: เลือด 5 รับดาเมจก่อนเกราะ · ตาย = เรียกไม่ได้ 3 เทิร์น', () => {
   const P = setup([['D', 'diego_alt', 2, 8], ['B', 'dummy', 9, 8]]);
-  engine.dealMixed(P.D, 3);
-  assert.deepEqual([P.D.hp, P.D.armor, P.D.diego.mounted], [6, 2, false]);
+  engine.dealMixed(P.D, 5);
+  assert.deepEqual([P.D.hp, P.D.armor, P.D.diego.mounted], [9, 2, false]);
   assert.equal(view('D', 'D').diego.horseCd, 3);
   assert.equal(engine.movOf(P.D), 4);
 });

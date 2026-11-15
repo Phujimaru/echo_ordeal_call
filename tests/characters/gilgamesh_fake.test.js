@@ -57,7 +57,7 @@ test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); });
 const gilFx = (kind) => calls.fx.filter((f) => f.event === 'gilFx' && f.payload.kind === kind).map((f) => f.payload);
 
-test('ข้อมูล: มหันตภัย · unique · ชาย · 0/0/0 แต้ม · Enuma Elish แนว 14×5 · HP 8 · เริ่ม 100 เหรียญ · กระเป๋า 50', () => {
+test('ข้อมูล: มหันตภัย · unique · ชาย · 0/0/0 แต้ม · Enuma Elish แนว 14×5 · HP 11 (รวมค่าเพิ่ม +3 ผู้ใช้สั่ง 2026-11-14) · เริ่ม 100 เหรียญ · กระเป๋า 50', () => {
   const ch = CHAR_BY_ID.gilgamesh_fake;
   assert.equal(ch.difficulty, 'calamity');
   assert.equal(ch.unique, true);
@@ -65,7 +65,7 @@ test('ข้อมูล: มหันตภัย · unique · ชาย · 0/0
   assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [0, 0, 0]);
   assert.deepEqual(ch.ultimate.area, { kind: 'line', len: 14, width: 5, hostile: true });
   const P = setup([['G', 'gilgamesh_fake', 3, 7], ['B', 'dummy', 8, 7]]);
-  assert.equal(P.G.hp, 8);
+  assert.equal(P.G.hp, 11);
   assert.equal(P.G.gold, 100);
   assert.equal(engine.goldCapOf(P.G), 999);
   assert.equal(engine.goldCapOf(P.B), 100);

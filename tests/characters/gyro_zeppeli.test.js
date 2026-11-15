@@ -62,7 +62,7 @@ function orderUpTo(t, ids, actorId) {
   while (engine.actorId !== actorId && engine.actorId) engine.finishActor();
 }
 
-test('ข้อมูล: ระดับยาก · พลังชีวิต 6 เกราะ 2 · เดิน 4 ตี [1, 4] · 0 / 4 / 6 แต้ม · วิชาลับแนว 8×1 · เริ่มเกมขี่ม้า ลูก 2 ลูก', () => {
+test('ข้อมูล: ระดับยาก · พลังชีวิต 9 เกราะ 2 (ขี่ม้า: +3 พลังชีวิต · เกราะ +2 ไปที่ม้า ผู้ใช้สั่ง 2026-11-14) · เดิน 4 ตี [1, 4] · 0 / 4 / 6 แต้ม · วิชาลับแนว 8×1 · เริ่มเกมขี่ม้า ลูก 2 ลูก', () => {
   const ch = CHAR_BY_ID.gyro_zeppeli;
   assert.equal(ch.name, 'ไจโร เซปเปลี่');
   assert.equal(ch.difficulty, 'hard');
@@ -74,12 +74,12 @@ test('ข้อมูล: ระดับยาก · พลังชีวิ�
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 8, width: 1, hostile: true });
   assert.deepEqual(ch.ultimate.area, { kind: 'self' });
   const P = setup([['G', 'gyro_zeppeli', 2, 7], ['B', 'dummy', 9, 7]]);
-  assert.deepEqual([P.G.hp, P.G.armor], [6, 2]);
+  assert.deepEqual([P.G.hp, P.G.armor], [9, 2]);
   assert.equal(engine.movOf(P.G), 5, 'ขี่ม้า เดิน 5');
   assert.deepEqual(engine.rangeOf(P.G), [1, 5]);
   const g = view('B', 'G').gyro;
   assert.deepEqual(Object.keys(g).sort(), ['balls', 'empowered', 'golden', 'hand', 'horseCd', 'horseHp', 'mounted', 'ultCd'].sort(), 'สัญญาข้อมูล §7.11');
-  assert.deepEqual(g, { balls: [], hand: 2, golden: 0, mounted: true, horseHp: 3, horseCd: 0, empowered: false, ultCd: 0 });
+  assert.deepEqual(g, { balls: [], hand: 2, golden: 0, mounted: true, horseHp: 5, horseCd: 0, empowered: false, ultCd: 0 });
 });
 
 test('ตีปกติ: ใช้ลูก 1 ลูก ลูกตกช่องที่เป้าถูกผลักไป · ส่ง throw · ตีโดนผลักเป้า 1 ช่องหลังฉากตี · เสียงพากย์ตอนตี/โดนตี', (t) => {
@@ -403,13 +403,13 @@ test('การหมุนทองคำ: ขี่ม้าเดิน = + �
   assert.equal(P.G.gyro.golden, 30, 'สูงสุด 30');
 });
 
-test('ม้าวาลคิรี: เลือด 3 รับก่อนเกราะ · ทะลุเกราะ = ทะลุม้า · ม้าตาย = ลงม้า เรียกไม่ได้ 3 เทิร์น แล้วกลับมาเต็ม 3', () => {
+test('ม้าวาลคิรี: เลือด 5 (เดิม 3 + เกราะ 2 ของไจโร ผู้ใช้สั่ง 2026-11-14) รับก่อนเกราะ · ทะลุเกราะ = ทะลุม้า · ม้าตาย = ลงม้า เรียกไม่ได้ 3 เทิร์น แล้วกลับมาเต็ม 5', () => {
   const P = setup([['G', 'gyro_zeppeli', 2, 7], ['B', 'dummy', 12, 12]]);
   engine.dealMixed(P.G, 2);
-  assert.deepEqual([P.G.gyro.horseHp, P.G.armor, P.G.hp], [1, 2, 6]);
+  assert.deepEqual([P.G.gyro.horseHp, P.G.armor, P.G.hp], [3, 2, 9]);
   engine.dealDirect(P.G, 1);
-  assert.deepEqual([P.G.gyro.horseHp, P.G.hp], [1, 5], 'ทะลุเกราะไม่โดนม้า');
-  engine.dealMixed(P.G, 2);
+  assert.deepEqual([P.G.gyro.horseHp, P.G.hp], [3, 8], 'ทะลุเกราะไม่โดนม้า');
+  engine.dealMixed(P.G, 4);
   assert.deepEqual([P.G.gyro.horseHp, P.G.armor], [0, 1]);
   assert.equal(P.G.gyro.mounted, false);
   assert.equal(fxOf('horse').at(-1).mode, 'die');
@@ -423,7 +423,7 @@ test('ม้าวาลคิรี: เลือด 3 รับก่อนเ
   assert.equal(view('B', 'G').gyro.horseCd, 1);
   engine.setRoundNumber(5);
   assert.equal(gyro.charAction(engine, P.G, 'horse'), true);
-  assert.deepEqual([P.G.gyro.mounted, P.G.gyro.horseHp], [true, 3]);
+  assert.deepEqual([P.G.gyro.mounted, P.G.gyro.horseHp], [true, 5]);
 });
 
 test('ปุ่มขึ้น/ลงม้า: ตาเดินของตัวเองเท่านั้น · ไม่ล็อกการเดิน · ระยะเดินปรับทันที · เลือดม้าเท่าที่เหลือ · เห็นเฉพาะเจ้าตัว', () => {

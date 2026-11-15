@@ -74,7 +74,7 @@ test('ข้อมูล: เลือกได้แค่เคท (ชื่�
   assert.deepEqual(CHAR_BY_ID.emiliko.ultimate.area, { kind: 'line', len: 4, width: 3, hostile: true });
 });
 
-test('เริ่มแมตช์: ได้ตัวที่สองข้างกัน · เลือด 3 เกราะ 2 ต่อตัว · แต้มสกิล/เหรียญ/กระเป๋าใช้ร่วมกัน (สูงสุด 16)', () => {
+test('เริ่มแมตช์: ได้ตัวที่สองข้างกัน · เลือด 5 เกราะ 4 ต่อตัว (รวมค่าเพิ่ม +2/+2 ผู้ใช้สั่ง 2026-11-14) · แต้มสกิล/เหรียญ/กระเป๋าใช้ร่วมกัน (สูงสุด 16)', () => {
   for (const id of Object.keys(engine.players)) delete engine.players[id];
   engine.players.K = blank('K', 'kate', 1);
   engine.players.B = blank('B', 'dummy', 2);
@@ -86,7 +86,7 @@ test('เริ่มแมตช์: ได้ตัวที่สองข้
   assert.equal(M.characterId, 'emiliko');
   assert.equal(M.duoOf, 'K');
   assert.equal(K.duoWith, E);
-  assert.deepEqual([K.hp, K.armor, M.hp, M.armor], [3, 2, 3, 2]);
+  assert.deepEqual([K.hp, K.armor, M.hp, M.armor], [5, 4, 5, 4]);
   assert.equal(Math.abs(K.pos.x - M.pos.x) + Math.abs(K.pos.y - M.pos.y), 1, 'เกิดติดกัน');
   K.skillPoints = 5;
   assert.equal(M.skillPoints, 5);
@@ -277,7 +277,7 @@ test('เอมิลิโกะตีเคทไม่ได้ · ศัต�
   engine.setActor('B');
   assert.equal(engine.attackTarget('B', E), true);
   engine.clearPhaseTimer();
-  assert.ok(P[E].hp + P[E].armor < 5);
+  assert.ok(P[E].hp + P[E].armor < 9); // เต็ม 5 + 4 (รวมค่าเพิ่ม +2/+2)
 });
 
 // ---------- อาวุธ / สกิล ----------

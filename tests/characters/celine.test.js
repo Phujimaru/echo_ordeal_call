@@ -69,7 +69,7 @@ test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.clearPhaseTimer(); match.cutsceneQueue.length = 0; });
 const fxOf = (kind) => calls.fx.filter((f) => f.event === 'celineFx' && f.payload.kind === kind).map((f) => f.payload);
 
-test('ข้อมูล: พิเศษ · พลังชีวิต 7 เกราะ 3 · เดิน 4 · ดาบเล็กประชิด · ราคา 0/6 · คำอธิบายไม่มีจังหวะไพ่', () => {
+test('ข้อมูล: พิเศษ · พลังชีวิต 10 เกราะ 5 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · เดิน 4 · ดาบเล็กประชิด · ราคา 0/6 · คำอธิบายไม่มีจังหวะไพ่', () => {
   const ch = CHAR_BY_ID.celine;
   assert.equal(ch.name, 'องค์หญิงดอกไม้ เซลิน');
   assert.equal(ch.difficulty, 'special');
@@ -77,8 +77,8 @@ test('ข้อมูล: พิเศษ · พลังชีวิต 7 เ�
   assert.deepEqual([ch.secondary.cost, ch.ultimate.cost], [0, 6]);
   for (const t of ['basic', 'secondary', 'ultimate']) assert.doesNotMatch(ch[t].desc, /ก่อนเปิดไพ่|ไพ่แตก/);
   const P = setup([['C', 'celine', 3, 7], ['B', 'dummy', 9, 7]]);
-  assert.equal(P.C.hp, 7);
-  assert.equal(P.C.armor, 3);
+  assert.equal(P.C.hp, 10);
+  assert.equal(P.C.armor, 5);
   assert.equal(P.C.celine.weapon, 'dagger');
   assert.deepEqual(action.rangeOf(P.C), [1, 1]);
   const v = view('C', 'C');

@@ -38,11 +38,11 @@ function actAs(p) {
 }
 const pub = (p) => view.buildStateFor(p.id).players.find((q) => q.id === p.id);
 
-test('ค่าพื้นฐาน: พลังชีวิต 7 เกราะ 3 · เดิน 4 ตีประชิด · ไม่มีสกิลรอง/ท่าไม้ตาย', () => {
+test('ค่าพื้นฐาน: พลังชีวิต 10 เกราะ 5 (รวมค่าเพิ่ม +3/+2 ผู้ใช้สั่ง 2026-11-14) · เดิน 4 ตีประชิด · ไม่มีสกิลรอง/ท่าไม้ตาย', () => {
   const P = setup([['E', 'echo', 1, 5], ['B', 'muimi', 8, 5]]);
   const E = P.E;
-  assert.equal(engine.maxHpOf(E), 7);
-  assert.equal(engine.maxArmorOf(E), 3);
+  assert.equal(engine.maxHpOf(E), 10);
+  assert.equal(engine.maxArmorOf(E), 5);
   assert.equal(engine.baseMovOf(E), 4);
   assert.deepEqual(engine.rangeOf(E), [1, 1]);
   assert.equal(CHAR_BY_ID.echo.secondary, undefined);

@@ -43,13 +43,13 @@ test.before(() => {
 test.beforeEach(() => { Math.random = () => 0.99; pending = null; });
 test.afterEach(() => { Math.random = realRandom; engine.clearPhaseTimer(); });
 
-test('ข้อมูลตัวละคร: เลือด 9 เกราะ 0 ระยะ 1–2 กลาง unique', () => {
+test('ข้อมูลตัวละคร: เลือด 14 เกราะ 0 (ไม่มีเกราะ = พลังชีวิต +5 ผู้ใช้สั่ง 2026-11-14) ระยะ 1–2 กลาง unique', () => {
   const ch = CHAR_BY_ID.dio_brando;
   assert.equal(ch.difficulty, 'medium');
   assert.equal(ch.unique, true);
   assert.deepEqual(ch.range, [1, 2]);
   const [p] = setup([['d', 'dio_brando', 3, 7]]);
-  assert.equal(p.hp, 9);
+  assert.equal(p.hp, 14);
   assert.equal(p.armor, 0);
   assert.equal(p.dio.meter, 0);
 });
