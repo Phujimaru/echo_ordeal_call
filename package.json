@@ -1,7 +1,7 @@
 {
-  "name": "blackjack-online",
+  "name": "echo-game",
   "version": "1.0.0",
-  "description": "เกม Blackjack ออนไลน์ เล่นหลายคนพร้อมกัน (ไม่มีเจ้ามือ)",
+  "description": "ECHO — เกมกระดานวางแผนออนไลน์หลายคน (เซิร์ฟเวอร์ + engine)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
