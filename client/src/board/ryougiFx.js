@@ -1373,6 +1373,13 @@ export function ryougiEventFx(ev, ctx = {}) {
       out.busy.push({ id: ev.id, ms: RYOUGI_FX_DUR.ryougiCrumble + 150 });
       if (land) out.look.push([mid(land, size), 0]);
       if (!ev.step) out.shake.push(RYOUGI_FX.crumbleCut + 60, RYOUGI_FX.crumbleCut + (ev.step || RYOUGI_FX.crumbleStep) * Math.max(0, tiles.length - 1) + 120);
+      // หลบพ้น (ทุกสกิลหลบได้ — ev.dodged): ขึ้น "หลบ" ที่ช่องก่อนถูกผลัก แบบเดียวกับ Ice Spike
+      for (const id of Array.isArray(ev.dodged) ? ev.dodged : []) {
+        const pu = pushes.find((q) => q.id === id), p = pu ? pu.from : posOf(id);
+        if (!p) continue;
+        const n = sizeOf(id), c = { x: p.x + (n - 1) / 2, y: p.y + (n - 1) / 2 };
+        out.fx.push({ kind: "float", x: c.x, y: c.y, text: "หลบ", color: "#d8f2ff", size: 24, z: 1.5 });
+      }
       break;
     }
     case "kill": {

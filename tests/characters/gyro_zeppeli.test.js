@@ -513,7 +513,8 @@ test('หลบได้: วิชาลับไจโร — หลบทั�
   assert.deepEqual(P.B.pos, { x: 6, y: 8 }, 'หลบพ้น = ไม่ถูกดึง');
   const s = fxOf('secret')[0];
   assert.deepEqual([s.hits, s.dodged, s.pulls.map((m) => m.id)], [['C'], ['B'], ['C']]);
-  assert.ok(!fxOf('secretHit').some((h) => h.targetId === 'B'), 'หลบทั้งสองขา = ไม่มีเลขขึ้น');
+  assert.deepEqual(fxOf('secretHit').filter((h) => h.targetId === 'B').map((h) => [h.leg, h.dmg, h.dodge]), [['out', 0, true], ['back', 0, true]], 'หลบทั้งสองขา = ขึ้น "หลบ" ทั้งสองขา');
+  assert.deepEqual(s.legDodge, [{ id: 'B', leg: 'out' }, { id: 'B', leg: 'back' }]);
   // แม่นยำ = โดนครบสองขา + ถูกดึง
   calls.fx = [];
   P.G.statuses.accurate = 3;

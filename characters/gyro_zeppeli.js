@@ -355,7 +355,8 @@ function secret(engine, p, targets, dirKey) {
   // ดาเมจลงทีละครั้งตามจังหวะลูก (ผู้ใช้สั่ง 2026-10-20): −1 ตอนลูกขาไปผ่าน · −1 ตอนลูกขากลับผ่าน (ช่องเดิมก่อนถูกดึง) → secretHit ขึ้นเลข
   const clock = secretClock(engine, p, tiles, v);
   const legs = [];
-  for (const t of struck) {
+  // ทุกขาของทุกคน (รวมคนที่หลบพ้นทั้งสองขา) ส่ง secretHit ตามจังหวะลูก — ขาที่หลบ = dodge (client ขึ้น "หลบ")
+  for (const t of foes) {
     const d = clock.d(t), at = { ...t.pos }, dg = dodges.get(t.id);
     legs.push({ ms: clock.outT(d), t, at, leg: "out", dodge: dg.out }, { ms: clock.backT(d), t, at, leg: "back", dodge: dg.back });
   }
@@ -378,7 +379,9 @@ function secret(engine, p, targets, dirKey) {
     pulls.push({ id: t.id, from, to: { ...at } });
     engine.log(`🌀 ${t.name} ถูกดึงเข้าหา ${p.name}`);
   }
-  fx(engine, p, "secret", { from: { ...p.pos }, dir: dirKey, len: SECRET_AREA.len, tiles, hits, dodged, pulls });
+  // legDodge = ขาที่หลบพ้น [{ id, leg }] — client ไม่แฟลชโดนขานั้น
+  const legDodge = foes.flatMap((t) => ["out", "back"].filter((leg) => dodges.get(t.id)[leg]).map((leg) => ({ id: t.id, leg })));
+  fx(engine, p, "secret", { from: { ...p.pos }, dir: dirKey, len: SECRET_AREA.len, tiles, hits, dodged, legDodge, pulls });
   engine.sfx(SFX.throw);
   engine.sfx(SFX.spin);
   engine.sfx(SFX.secret);
