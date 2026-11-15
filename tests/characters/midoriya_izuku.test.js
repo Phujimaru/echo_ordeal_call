@@ -82,15 +82,15 @@ test("กรวย: แถว i กว้าง 2i−1 จากช่องต�
   assert.deepEqual(tiles, ["7,6", "8,5", "8,6", "8,7", "9,4", "9,5", "9,6", "9,7", "9,8"].sort());
 });
 
-test("Smash: ไม่ใช้แต้ม · คนแรกเสียหาย 5 · ศัตรูอื่นในกรวยเสียหาย 2 (ครึ่ง ปัดลง ไม่รับบัฟ) · ผลักไปสุดระยะ 5 · ตัวเองเสียหาย 5 (เกราะก่อน)", () => {
+test("Smash: ไม่ใช้แต้ม · ทุกคนในกรวยเสียหาย 5 (+บัฟพลังโจมตี) · ผลักไปสุดระยะ 5 · ตัวเองเสียหาย 5 (เกราะก่อน)", () => {
   const { p, t, u } = setup();
   u.pos = { x: 9, y: 7 };
-  engine.applyBuff(p, "might", 1, 3); // บัฟพลังโจมตี: คนแรกได้ · แรงปะทะไม่ได้
+  engine.applyBuff(p, "might", 1, 3); // บัฟพลังโจมตี: ทุกคนที่โดนได้
   smash("smash");
   assert.equal(p.skillPoints, 8);
   runBeats();
   assert.equal(t.hp, 44, "5 + บัฟ 1");
-  assert.equal(u.hp, 48, "แรงปะทะตายตัว 2");
+  assert.equal(u.hp, 44, "ทุกคนในแนวโดนเต็ม");
   assert.deepEqual(t.pos, { x: 11, y: 6 }, "ผลักไปแถว 5");
   assert.deepEqual(u.pos, { x: 11, y: 7 });
   assert.equal(p.armor, 0);
@@ -158,13 +158,13 @@ test("Smash (ปาของ): ต้องมีไอเทม (เลือ�
   assert.equal(p.armor, 3);
 });
 
-test("1,000,000%: คนแรก 10 · ศัตรูอื่น 5 · ตัวเอง 14 (เลือดเต็มรอด) · เลือดไม่พอ = ตาย", () => {
+test("1,000,000%: ทุกคน 10 · ตัวเอง 14 (เลือดเต็มรอด) · เลือดไม่พอ = ตาย", () => {
   let { p, t, u } = setup();
   u.pos = { x: 12, y: 3 }; // แถว 6
   smash("million");
   runBeats();
   assert.equal(t.hp, 40);
-  assert.equal(u.hp, 45);
+  assert.equal(u.hp, 40);
   assert.deepEqual(u.pos, { x: 13, y: 3 });
   assert.ok(p.alive);
   assert.equal(p.hp, 1);
@@ -182,7 +182,7 @@ test("PVE: ดาเมจ 2 เท่า (1,000,000% = 40) · ดาเมจ�
   smash("million");
   runBeats();
   assert.equal(t.hp, 10);
-  assert.equal(u.hp, 30, "แรงปะทะครึ่งหนึ่งของ 40");
+  assert.equal(u.hp, 10, "ทุกคนโดน 40");
   assert.equal(p.hp, 1);
   ({ p, t } = setup({ mode: "eos" }));
   smash("delaware");
