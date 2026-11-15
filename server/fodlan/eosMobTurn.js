@@ -35,13 +35,19 @@ function mobAtkOf(ctx, m) {
   if (type === "nest" || type === "gold" || sm.trait === "healer") return 0;
   return Math.max(0, Math.min(fairCap(m), (sm.atk | 0) + (type === "beast" ? 0 : LM.rage(ctx).atk)));
 }
+// ไม่ติดกติกากันรุม: ฮุคตัวละคร noMobFair(p) (Master บอส 2×2 — ผู้ใช้ 2026-11-16 "มาติดตัวแต่ไม่ตี") = มอนทุกตัวที่ติดตัวตีได้ ดาเมจไม่มีเพดาน
+function noFair(p) {
+  const h = p && require("../../characters/index")[p.characterId];
+  return !!(h && typeof h.noMobFair === "function" && h.noMobFair(p));
+}
 function engageOk(s, m, p) {
+  if (noFair(p)) return true;
   const by = s.fight && s.fight.by[p.id];
   return !by || by[m.id] != null || Object.keys(by).length < FAIR.engage;
 }
 // ดาเมจจากมอนใส่ผู้เล่นในช่วงมอน (ฮุค incoming) → จำนวนที่ลงได้
 function fairHit(s, p, n, src) {
-  if (!s.fight || !(n > 0)) return n;
+  if (!s.fight || !(n > 0) || noFair(p)) return n;
   const by = (s.fight.by[p.id] ||= {});
   if (by[src.id] == null && Object.keys(by).length >= FAIR.engage) return 0; // ตัวที่ 3 (วงที่เตือนไว้ ฯลฯ)
   const out = Math.max(0, Math.min(n, fairCap(src) - (by[src.id] || 0)));
@@ -166,6 +172,11 @@ function actMonstersRaw(ctx, s) {
     }
     const atk = Math.max(1, (sm.atk | 0) + LM.rage(ctx).atk + (type === "magitek" && stormOn(ctx) ? PKS.WEATHER_MOB.stormMagitekAtk : 0) + (type === "beast" ? SKY.beastMod(s).atk : 0)); // จันทร์เต็มดวง = สัตว์ยักษ์ตี +1 // ฝนฟ้าคะนอง = ทหารเหล็กลัดวงจร ตี −1
     // สัตว์ยักษ์ตีทุกคนที่ติดตัว (ล่อมาชนคนอื่นได้) · อื่นๆ ตีเป้าตัวเดียว · ไม่มีคนติด = ตีเสา
+    // เป้าที่เลือกไว้ไปไม่ถึง แต่จบตาติดตัวคนอื่น (เช่น Master ตัว 2×2 ขวางทางไปหาตัวอัญเชิญ) = ตีคนที่ติดตัว (ผู้ใช้ 2026-11-16 "มาติดตัวแต่ไม่ตี")
+    if (type !== "beast" && !r.target && !r.pillar && !r.wall && m.pos) {
+      const adj = all.filter((p) => p.alive && p.pos && footOf(ctx, p).some((t) => manhattan(t, m.pos) === 1));
+      if (adj.length) r.target = adj.sort((a, b) => ((a.hp || 0) + (a.armor || 0)) - ((b.hp || 0) + (b.armor || 0)))[0];
+    }
     const victims = type === "beast" ? all.filter((p) => footOf(ctx, p).some((t) => manhattan(t, m.pos) === 1)) : r.target ? [r.target] : [];
     for (const v of victims) {
       if (!v.alive) continue;

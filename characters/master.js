@@ -367,6 +367,7 @@ module.exports = {
   // ไม่จั่วไพ่ · เดินท้ายสุดเสมอ
   noCards(p) { return isMe(p); },
   orderLast(p) { return isMe(p); },
+  noMobFair(p) { return isMe(p); }, // Eos: ไม่ติดกติกากันรุมของช่วงมอน (server/fodlan/eosMobTurn.js)
 
   // ---------- ลงจากฟ้า: ซ่อนตัวตั้งแต่วางกระดาน ----------
   onBoardPlaced(engine) {
