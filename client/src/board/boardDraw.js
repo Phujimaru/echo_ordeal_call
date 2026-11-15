@@ -66,6 +66,7 @@ import { REDUCED, setCamera } from "./boardCamera";
 import { DEATH_BOOM_MS, SMASH_MS, STYLE_MS, burstFx, deathBoomFx, echoFx, floatText, hairFx, rockFx, slashFx, smashFx } from "./boardFxBasic";
 import { BEAM_T, beamFx, quakeFx } from "./boardFxBeam";
 import { SL_LIFE, SORA_T, boomFx, darkWaveFx, dashFx, mythSlashFx, wheelAt, wheelFx } from "./boardFxSora";
+import { SORA_FRAME_FX_DUR, drawSoraShell, isSoraFrameFx, soraFrameFx } from "./soraFrameFx";
 import { drawHighlights } from "./boardHighlights";
 import { COLONY_FLOOR, GROW_MS, UNIT_FRAME, drawAnyUnit, emoteFx, growFx, teamPingFx, unitHex } from "./boardUnits";
 
@@ -86,7 +87,7 @@ export { SORA_T, dashDur, DARK_T, prepareDarkWave } from "./boardFxSora";
 export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
-  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
+  mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...SORA_FRAME_FX_DUR, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
   ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...MIDORIYA_FX_DUR, ...MASTER_FX_DUR, ...ELEM_FX_DUR,
 };
 
@@ -391,6 +392,13 @@ export function drawFrame(g, st, now) {
     const h = Math.max(1, e.size | 0) / 2, [wx, wy] = wheelAt(e, now - e.t0, lowQ || REDUCED), d = depthOf(wx + h, wy + h);
     items.push({ d: d - 0.003, f: () => wheelFx(g, e, now, lowQ, false) }, { d: d + 0.003, f: () => wheelFx(g, e, now, lowQ, true) });
   }
+  // กระดองเต่า (โซระ Tutle Frame): ครอบคน = โดมรอบตำแหน่งที่วาดของคนนั้น (ตามตอนถูกดัน) วาดทับหมาก · วางบนพื้น = กระดองที่ช่อง
+  if (Array.isArray(st.soraShells)) for (const sh of st.soraShells) {
+    const u = sh.on ? units.find((x) => x.id === sh.on) : null;
+    if (sh.on && !u) continue;
+    const n = u ? Math.max(1, u.size | 0) : 1, x = u ? u.rx + (u.ox || 0) : sh.x, y = u ? u.ry + (u.oy || 0) : sh.y;
+    items.push({ d: depthOf(x + n / 2, y + n / 2) + (u ? 0.004 : -0.002), f: () => drawSoraShell(g, { x, y, size: n, on: sh.on }, now, lowQ) });
+  }
   // เคท: ปีกเขม่า (ฉากบิน + ปีกค้างในม่านแดง u.wings) วาดหลังหมากของตัวเอง
   for (const e of fx) {
     const d = isShadowFx(e.kind) ? shadowBackDepth(e, now) : null;
@@ -531,6 +539,7 @@ export function drawFrame(g, st, now) {
     else if (e.kind === "mythSlash") mythSlashFx(g, e, now, lowQ);
     else if (e.kind === "soraDash") dashFx(g, e, now, lowQ);
     else if (e.kind === "soraBoom") boomFx(g, e, now, lowQ);
+    else if (isSoraFrameFx(e.kind)) soraFrameFx(g, e, now, lowQ);
     else if (e.kind === "grow") growFx(g, e, now);
     else if (e.kind === "smash") smashFx(g, e, now);
     else if (e.kind === "echo") echoFx(g, e, now);

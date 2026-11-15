@@ -43,7 +43,7 @@ export const REACTION_BY_KEY = Object.fromEntries(REACTIONS.map((r) => [r.key, r
 const ALL_ICE = ["ice"];
 export const SKILL_ELEMENTS = {
   ice_spike: { passive: ALL_ICE, passive2: ALL_ICE, passive3: ALL_ICE, basic: ALL_ICE, secondary: ALL_ICE, ultimate: ALL_ICE },
-  sora_otosumi: { basic: ["fire"], ultimate: ["fire"] }, // Fire Frame (แปลงร่าง) · Mouse Separade ในร่าง Fire Frame
+  sora_otosumi: { basic: ["fire", "wind", "water"], secondary: ["water"], ultimate: ["fire", "wind", "water"] }, // แปลงร่าง: Fire ไฟ / Eagle ลม / Orca น้ำ · Orca Echo · Separade ตามร่าง
   raido_hikaru: { passive: ["fire"], basic: ["bolt", "fire"], ultimate: ["fire"] }, // สโตเรี่ยม · ดารัมเบีย/คิงแพนด้อน · Cross Shoot
   emiliko: { secondary: ["water"] }, // ไม้ถูพื้น · แจกันใส่น้ำ
   celine: { basic: ["ice"], secondary: ["fire", "wind", "bolt"] }, // คฑาการกีดกัน · เวทย์ไฟ/ลม/ไฟฟ้า

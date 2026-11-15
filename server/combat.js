@@ -411,7 +411,9 @@ function notifyAttacked(p, attacker, kind) {
 //  ท่อดาเมจคืน 0 · ฉากตีปกติ/skillStrike ขึ้นเลข 0 + ป้ายชื่อฝั่งป้องกัน
 function attackBlocked(p, attacker) {
   if (!p || !attacker || attacker.id === p.id || sameTeam(attacker, p)) return null;
-  return runHook(CHAR_HOOKS[p.characterId], "blocksAttack", engine, p, attacker) || null;
+  return runHook(CHAR_HOOKS[p.characterId], "blocksAttack", engine, p, attacker)
+    || firstHook("shieldsFrom", engine, p, attacker) // ผลที่คนอื่นให้ (ฮุค broadcast shieldsFrom(engine, p, attacker) — กระดองเต่าของโซระ: ผู้โยนตีได้คนเดียว)
+    || null;
 }
 // ดาเมจทะลุเกราะ: ข้ามเกราะหลัก
 function dealDirect(p, n, isNormalAttack) {

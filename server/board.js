@@ -511,6 +511,11 @@ function isIce(map, x, y) {
   const info = TERRAIN_INFO[specialAt(map, x, y)];
   return !!(info && info.slide);
 }
+// ไถลสำหรับผู้เดินคนนี้: opts.swim = ว่ายบนพื้นเปียก ไม่ไถล (โซระ Orca Frame) — น้ำแข็งยังไถล
+function slickFor(map, x, y, opts) {
+  if (!isIce(map, x, y)) return false;
+  return !(opts && opts.swim && specialAt(map, x, y) === "wet");
+}
 // ไถลจากช่องน้ำแข็ง (x, y) ที่เพิ่งเข้ามา ไปทาง (dx, dy) จนสุดแนวน้ำแข็ง — หยุดบนช่องน้ำแข็งช่องสุดท้าย
 //  ช่องน้ำแข็งถัดไปไม่ว่าง (คน/ร้านค้า) = หยุดก่อน · ทแยงได้ (ผลักทแยง)
 //  คืน { x, y (ช่องที่หยุด), tiles (ช่องน้ำแข็งที่ผ่านรวมช่องแรก — ยาว = ระยะไถล), hit } · hit = ของที่ช่องถัดจากช่องที่หยุด:
@@ -580,7 +585,7 @@ function reachable(map, unit, mov, units, opts = {}) {
         const nd = cur.d + stepCost(map, nx, ny, opts);
         if (nd > mov) continue;
         const node = { x: nx, y: ny, d: nd, prev: cur };
-        if (isIce(map, nx, ny)) {
+        if (slickFor(map, nx, ny, opts)) {
           if (other) continue; // เพื่อนยืนบนน้ำแข็ง = เข้าไม่ได้
           const s = slideLine(map, nx, ny, dx, dy, units, unit.id, blocked);
           let end = node;
@@ -712,11 +717,11 @@ function trailCost(map, unit, trail, units, opts = {}) {
       d += st.cost;
       continue;
     }
-    if (i > 1 && (specialAt(map, a.x, a.y) === "quicksand" || isIce(map, a.x, a.y))) return Infinity;
+    if (i > 1 && (specialAt(map, a.x, a.y) === "quicksand" || slickFor(map, a.x, a.y, opts))) return Infinity;
     const hopped = !!(hop && hop.has(key(t.x, t.y)));
     if (hopped ? last : isObstacle(map, t.x, t.y, blocked)) return Infinity;
     const o = unitAt(units, t.x, t.y);
-    if (o && o.id !== unit.id && (last || !isAlly(unit, o) || isIce(map, t.x, t.y))) return Infinity;
+    if (o && o.id !== unit.id && (last || !isAlly(unit, o) || slickFor(map, t.x, t.y, opts))) return Infinity;
     d += stepCost(map, t.x, t.y, opts);
   }
   return d;
@@ -736,7 +741,7 @@ function stepPath(map, unit, mov, units, trail, to, opts = {}) {
   const ext = [...tr.map((t) => ({ x: t.x, y: t.y })), { x: to.x, y: to.y }];
   if (trailCost(map, unit, ext, units, opts) <= mov) return ext;
   const reach = reachable(map, unit, mov, units, opts);
-  if (!opts.ghost && sizeOf(unit) <= 1 && isIce(map, to.x, to.y)) {
+  if (!opts.ghost && sizeOf(unit) <= 1 && slickFor(map, to.x, to.y, opts)) {
     const at = reach.get(key(cur.x, cur.y));
     if (!at || at.slide) return null;
     const via = [...pathTo(reach, cur.x, cur.y), { x: to.x, y: to.y }];
@@ -1131,7 +1136,7 @@ module.exports = {
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
-  specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slideLine,
+  specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slickFor, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
   tilesInRange, aoeTiles, bandTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,

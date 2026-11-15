@@ -62,6 +62,17 @@ module.exports = function buildTransforms() {
     soraFire:      { img: sora.IMG.fire,   video: sora.VIDEO.fire,      title: "Fire Frame",        label: "แปลงร่าง", seconds: 18, music: null, afterReveal: false },
     soraFireUlt:   { img: sora.IMG.fire,   video: sora.VIDEO.fireUlt,   title: "Mouse Separade",    label: "ปล่อยท่าไม้ตาย", seconds: 12, music: null, afterReveal: false },
     soraFireHit:   { img: sora.IMG.fire,   video: sora.VIDEO.fireHit,   title: "Mouse Separade",    label: "พุ่งชน", seconds: 11, music: null, afterReveal: false, noIntro: true },
+    // Eagle / Tutle / Orca Frame (ผู้ใช้สั่ง 2026-11-15): แปลงร่าง/คลิปเปิดท่าไม้ตาย = ครั้งแรกต่อเกม · คลิปชน + Orca Echo = ทุกครั้ง
+    soraEagle:     { img: sora.IMG.eagle,    video: sora.VIDEO.eagle,    title: "Eagle Frame",    label: "แปลงร่าง", seconds: 21, music: null, afterReveal: false },
+    soraEagleUlt:  { img: sora.IMG.eagleUlt, video: sora.VIDEO.eagleUlt, title: "Eagle Separade", label: "ปล่อยท่าไม้ตาย", seconds: 5, music: null, afterReveal: false },
+    soraEagleHit:  { img: sora.IMG.eagleUlt, video: sora.VIDEO.eagleHit, title: "Eagle Separade", label: "พุ่งชน", seconds: 7, music: null, afterReveal: false, noIntro: true },
+    soraTutle:     { img: sora.IMG.tutle,    video: sora.VIDEO.tutle,    title: "Tutle Frame",    label: "แปลงร่าง", seconds: 20, music: null, afterReveal: false },
+    soraTutleUlt:  { img: sora.IMG.tutleUlt, video: sora.VIDEO.tutleUlt, title: "Tutle Separade", label: "ปล่อยท่าไม้ตาย", seconds: 12, music: null, afterReveal: false },
+    soraTutleHit:  { img: sora.IMG.tutleUlt, video: sora.VIDEO.tutleHit, title: "Tutle Separade", label: "โจมตี", seconds: 16, music: null, afterReveal: false, noIntro: true },
+    soraOrca:      { img: sora.IMG.orca,     video: sora.VIDEO.orca,     title: "Orca Frame",     label: "แปลงร่าง", seconds: 18, music: null, afterReveal: false },
+    soraOrcaUlt:   { img: sora.IMG.orcaUlt,  video: sora.VIDEO.orcaUlt,  title: "Orca Separade",  label: "ปล่อยท่าไม้ตาย", seconds: 3, music: null, afterReveal: false },
+    soraOrcaHit:   { img: sora.IMG.orcaUlt,  video: sora.VIDEO.orcaHit,  title: "Orca Separade",  label: "พุ่งชน", seconds: 15, music: null, afterReveal: false, noIntro: true },
+    soraOrcaEcho:  { img: sora.IMG.orcaEcho, video: sora.VIDEO.orcaEcho, title: "Orca Echo",      label: "สกิลรอง", seconds: 6, music: null, afterReveal: false, noIntro: true },
     // ดิเอโก้ แบรนโด (โลกคู่ขนาน) — เป็นไปดั่งกลอุบาย: intro ทุกครั้งก่อนพุ่ง · final ทุกครั้งที่ชน (ผู้ใช้สั่ง 2026-10-20) · ความยาวจริง 1.17 / 5.43 วิ
     dioBlood6: { img: dio.IMG.base, video: dio.VIDEO.blood6, title: "ดิโอ", label: "BloodStack 6", seconds: 8, music: null, afterReveal: false, noIntro: true },
     dioLastStand: { img: dio.IMG.base, video: dio.VIDEO.last, title: "Last Stand", label: "Last Stand", seconds: 7, music: null, afterReveal: false, noIntro: true },

@@ -72,6 +72,9 @@ function hiddenFromOne(viewer, target) {
   if (require("./fodlan").hides(eyeOf(viewer), target)) return true;
   // เห็นทะลุทุกอย่างบนกระดานหลัก (summon.trueSight — ฮาคุโนะของ Moon Cell server/moonCell.js): ล่องหน · พุ่มหญ้า · ม่านแดง (ชั้นมิติยังบังตามด้านบน)
   if (viewer.summon && viewer.summon.trueSight) return false;
+  // ฮุคของผู้มอง trueSight(engine, viewer) → true = เห็นทะลุล่องหน/พุ่มหญ้า/ม่านแดง ช่วงนั้น (โซระ Orca Echo — เห็นคนเดียว)
+  const vHook = hookOf(viewer);
+  if (vHook && vHook.trueSight && vHook.trueSight(engine, viewer)) return false;
   // สายตาระยะใกล้ของยูนิตที่ถูกเรียก (summon.sight — ร่างแยกของวาเลนไทน์ 2 ช่อง): เห็นคนล่องหน/ในพุ่ม/ในม่านที่อยู่ใกล้เป็นคนปกติ (ผู้ใช้สั่ง 2026-10-21)
   //  การมองในระยะทุกแบบ (สายตานี้ · seenBy · พุ่มผืนเดียวกัน) นับจากช่องที่มอง (eyeOf) — ยังเดินต่อได้ = ช่องเริ่มตา
   const eye = eyeOf(viewer);

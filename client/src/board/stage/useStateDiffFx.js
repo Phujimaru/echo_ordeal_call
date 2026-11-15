@@ -113,14 +113,20 @@ export default function useStateDiffFx(ctx) {
         anims.push({ kind: "wheel", id, at: s0, ms: SORA_T.wheel, dir, lunge: pts.length <= 1, seq: ++fxSeq.current });
         if (pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, holdEnd: end, dashSeq: d.seq, seq: ++fxSeq.current });
         pushFx([
-          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, spin: SORA_T.wheel, path: pts, step: SORA_T.step, dur: SORA_T.wheel + Math.max(0, pts.length - 1) * SORA_T.step + 160, fire: !!d.fire },
-          ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step), fire: !!d.fire }] : []),
+          { kind: "soraWheel", x: s0.x, y: s0.y, size, dir, spin: SORA_T.wheel, path: pts, step: SORA_T.step, dur: SORA_T.wheel + Math.max(0, pts.length - 1) * SORA_T.step + 160, fire: !!d.fire, frame: d.frame || null },
+          ...(pts.length > 1 ? [{ kind: "soraDash", path: pts, step: SORA_T.step, delay: SORA_T.wheel, size, dur: SORA_T.wheel + dashDur(pts, SORA_T.step), fire: !!d.fire, frame: d.frame || null }] : []),
         ]);
         if (dir.x || dir.y) setFaces((f) => ({ ...f, [id]: { x: Math.sign(dir.x), y: Math.sign(dir.y) } }));
         look(s0);
-        playSfx("sora_squeak");
-        playSfx("sora_wheel"); // ยาวเท่าช่วงปั่นจักร (SORA_T.wheel)
-        later(SORA_T.wheel, () => { look(end); playSfx("sora_dash"); if (!lowQ) setShake((n) => n + 1); });
+        // เสียงชาร์จ/พุ่งตามร่าง: Eagle = ลมหมุน + เหยี่ยวร้อง · Orca = น้ำวน + สาดน้ำ · อื่นๆ = หนูร้อง + ปั่นจักร
+        const sfx = d.frame === "eagle" ? ["sora_eagle_wind", "sora_eagle_dash"] : d.frame === "orca" ? ["sora_orca_spin", "sora_orca_dash"] : null;
+        if (sfx) playSfx(sfx[0]);
+        else { playSfx("sora_squeak"); playSfx("sora_wheel"); } // ยาวเท่าช่วงปั่นจักร (SORA_T.wheel)
+        later(SORA_T.wheel, () => { look(end); playSfx(sfx ? sfx[1] : "sora_dash"); if (!lowQ) setShake((n) => n + 1); });
+      } else if (s0 && d.quiet) {
+        // จบท่าโดยไม่มีระเบิด (Eagle/Orca หยุดหน้าเป้า · เป้าหายระหว่างคลิป · วาร์ปไปกระดอง): ปล่อยตัวที่ค้างไว้ · วาร์ป = ข้ามแอนิเมชันเลื่อน
+        dashSkip.current[id] = end;
+        if (d.style !== "soraWarp" && pts.length > 1) anims.push({ kind: "move", id, path: pts, stepMs: SORA_T.step, seq: ++fxSeq.current });
       } else if (s0) {
         // เฟสชน (หลังวิดีโอ): โซระเข้าช่องเป้า · เป้าถูกเหวี่ยงไปช่องเริ่ม (swap) · ระเบิดฟ้าที่ช่องเป้า
         const moveMs = pts.length > 1 ? (pts.length - 1) * SORA_T.step : 0;
