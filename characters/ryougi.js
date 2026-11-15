@@ -11,7 +11,8 @@
 //    การโจมตีครั้งถัดไป (ตีปกติ/ท่าไม้ตาย) ศัตรูทุกคนที่โดน: ลบบัฟล่าสุด 1 (stripLatestBuff) + ตัดผลสกิลล่าสุด 1 (server/sever.js)
 //    ลงผลก่อนดาเมจ/สังหาร (ฮุค beforeStrikeHit) — ท่าที่รอ trigger (เดอะเวิลด์ counter) จึงถูกตัดก่อนทำงาน · ถูกหลบหมด = บัฟยังอยู่
 //  ดับสิ้นซะ (ท่าไม้ตาย · 6 · คูลดาวน์ 2 · เดินต่อไม่ได้แต่ไม่จบตา): พุ่งแนว 8×1 ไปลงช่องท้ายสุดที่ยืนได้
-//    ศัตรูในแนว: ขโมยแต้ม 2 (ขาด = ดาเมจเพิ่ม) + ดาเมจ 3 (เกราะก่อน · ฆ่าได้ · ไม่หลบ) + ทอยสังหาร 5% ทีละคน
+//    ศัตรูในแนว: ทอยหลบทีละคน (engine.skillDodge · แม่นยำเจาะ — กฎผู้ใช้ 2026-11-15 ทุกสกิลหลบได้)
+//      ไม่หลบ = ขโมยแต้ม 2 (ขาด = ดาเมจเพิ่ม) + ดาเมจ 3 (เกราะก่อน · ฆ่าได้) + ทอยสังหาร 5% · หลบพ้น = ไม่ถูกขโมย ไม่เสีย ไม่ติดรากฐานจิต (ยังถูกผลักออกข้างตามพื้นที่พัง)
 //    ทุกช่องที่พุ่งผ่าน (ยกเว้นช่องที่ลง) → ช่องพัง terrain "chasm" (engine.addChasm) จนเปลี่ยนภูมิภาค · สิ่งกีดขวาง/หนาม/ร้านค้าในแนวพัง
 //    ทุกคน (รวมเพื่อน · ศพ) ที่อยู่บนแนว/ช่องที่ลง ถูกผลักออกข้าง (ว่างทั้งสองข้าง = สุ่ม · ไม่ว่าง = ปลิวไปที่ยืนได้ใกล้จุดเดิมที่สุด)
 //  mystical eye of death perception (ติดตัว): ตีปกติ + สกิลโจมตีสังหารทันที 5% (เนตรมณะเปิดอยู่ = 25% ทั้งตีปกติและท่าไม้ตาย) · หลังท่าไม้ตาย 3 เทิร์น (นับเทิร์นที่กด)
@@ -20,7 +21,7 @@
 //      · ไม่บวกพลังโจมตีหลังท่าไม้ตาย · ปล่อยท่าไม้ตายระหว่างติด = ไม่ได้พลังโจมตี/ต้านสถานะ (ต้านสถานะที่ติดไปแล้วอยู่ต่อ)
 //  ถูกเรียวกิสังหารทันที = ฉากร่างแยกสองซีก → กองเลือดบนพื้น (board.ryougi.blood · ภาพเฉย ไม่ขวางทาง · อยู่จนเปลี่ยนภูมิภาค)
 //
-//  Claude ตัดสินเอง (บันทึกใน GRID_PLAN §7.17): ท่าไม้ตายไม่หลบ · ช่องลงที่พังอยู่แล้ว
+//  Claude ตัดสินเอง (บันทึกใน GRID_PLAN §7.17): ช่องลงที่พังอยู่แล้ว
 //    = ถอยมาช่องยืนได้ที่ใกล้สุดในแนว (ไม่มีเลย = อยู่ที่เดิม) · ทอยสังหารก่อนดาเมจ (สังหารแล้วไม่ต้องลงดาเมจ)
 // ============================================================
 const Board = require("../server/board");
@@ -262,11 +263,13 @@ function ultimate(engine, p, dir, ids) {
   engine.sfx("ryougi_dash");
   engine.skillBeat(DASH_SECONDS, () => {
     if (!p.alive) return;
-    // ศัตรูในแนว: รากฐานจิต → ขโมยแต้ม → ทอยสังหาร 5% → ดาเมจ
+    // ศัตรูในแนว: ทอยหลบ → รากฐานจิต → ขโมยแต้ม → ทอยสังหาร 5% → ดาเมจ (หลบพ้น = ข้ามทั้งหมด · ไม่นับลดคูลดาวน์เนตรมณะ)
     const line = new Set(plan.tiles.map((t) => key(t.x, t.y)));
     const onLine = (t) => t.pos && Board.footprint(t.pos.x, t.pos.y, engine.sizeOf(t)).some((c) => line.has(key(c.x, c.y)));
     let mindUsed = false, struck = 0;
+    const dodged = [];
     for (const t of enemiesOf(engine, p, ids).filter(onLine)) {
+      if (engine.skillDodge(p, t, "ดับสิ้นซะ")) { t.wasAttacked = true; dodged.push(t.id); continue; }
       struck += 1;
       if (mindOn(p)) { applyMind(engine, p, t); mindUsed = true; }
       const take = Math.min(ULT_STEAL, Math.max(0, t.skillPoints || 0));
@@ -301,7 +304,7 @@ function ultimate(engine, p, dir, ids) {
     const pushes = pushOut(engine, p, plan, zone);
     fx(engine, p, "crumble", {
       dir, land: { ...p.pos }, tiles: fresh.map((k) => { const [x, y] = k.split(",").map(Number); return { x, y }; }),
-      pushes, razed: razed.map((r) => ({ x: r.x, y: r.y, kind: r.kind })), shop: shopHit,
+      pushes, razed: razed.map((r) => ({ x: r.x, y: r.y, kind: r.kind })), shop: shopHit, dodged,
     });
     engine.sfx("ryougi_crumble");
     engine.log(`🗡️ ${p.name} ดับสิ้นซะ — พื้น ${fresh.length} ช่องพังทลาย${pushes.length ? ` · ผลัก ${pushes.length} คนออกข้าง` : ""}`);

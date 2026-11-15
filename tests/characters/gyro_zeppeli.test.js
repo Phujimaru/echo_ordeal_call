@@ -476,3 +476,65 @@ test('เสียงพากย์: ถึงตาเดินของไจ
   orderUpTo(t, ['G', 'B'], 'G');
   assert.equal(calls.sfx.find((c) => c.voice === 'G').s, 'gyro_v_start_1');
 });
+
+// ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15) — ลูกโดนศัตรูแต่ละครั้งทอยหลบ (ผู้โจมตี = ไจโร) · แม่นยำของไจโร = โดนเสมอ
+const evade100 = (u) => { u.statuses.evade = 3; u.statusAmt.evade = 100; };
+test('หลบได้: กลับคืนเจ้าของ — หลบหลีก 100% ไม่เสีย (recall.dodged) · ยังฟื้นตามเดิม · แม่นยำโดน', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gyro_zeppeli', 2, 7], ['B', 'dummy', 4, 5], ['C', 'dummy', 3, 6]]);
+  P.G.gyro.balls = [{ x: 5, y: 4, seq: 1 }];
+  P.G.hp = 2;
+  evade100(P.B);
+  engine.setActor('G');
+  const b0 = vit(P.B), c0 = vit(P.C);
+  engine.useSkill('G', 'basic', []);
+  assert.deepEqual([vit(P.B), vit(P.C)], [b0, c0 - 1], 'B หลบพ้น · C โดน');
+  assert.equal(P.G.hp, 3, 'ฟื้นตามเดิม');
+  const r = fxOf('recall')[0];
+  assert.deepEqual([r.hits, r.dodged], [['C'], ['B']]);
+  flush(t, 1000);
+  P.G.statuses.accurate = 3;
+  P.G.gyro.balls = [{ x: 5, y: 4, seq: 2 }];
+  engine.useSkill('G', 'basic', []);
+  flush(t, 1000);
+  assert.equal(vit(P.B), b0 - 1, 'แม่นยำ — โดน');
+});
+
+test('หลบได้: วิชาลับไจโร — หลบทั้งสองขา = ไม่เสีย ไม่ถูกดึง (secretHit dodge) · แม่นยำโดนครบ', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gyro_zeppeli', 2, 8], ['B', 'dummy', 6, 8], ['C', 'dummy', 9, 8]]);
+  engine.setActor('G');
+  evade100(P.B);
+  P.G.gyro.golden = 10;
+  const b0 = vit(P.B), c0 = vit(P.C);
+  engine.useSkill('G', 'secondary', [], { dir: 'right' });
+  flush(t, 3000);
+  assert.deepEqual([vit(P.B), vit(P.C)], [b0, c0 - 2]);
+  assert.deepEqual(P.B.pos, { x: 6, y: 8 }, 'หลบพ้น = ไม่ถูกดึง');
+  const s = fxOf('secret')[0];
+  assert.deepEqual([s.hits, s.dodged, s.pulls.map((m) => m.id)], [['C'], ['B'], ['C']]);
+  assert.ok(!fxOf('secretHit').some((h) => h.targetId === 'B'), 'หลบทั้งสองขา = ไม่มีเลขขึ้น');
+  // แม่นยำ = โดนครบสองขา + ถูกดึง
+  calls.fx = [];
+  P.G.statuses.accurate = 3;
+  P.G.skillUsedRound = false; P.G.skillPoints = 8; P.G.gyro.golden = 10;
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { dir: 'right' });
+  flush(t, 3000);
+  assert.equal(vit(P.B), b0 - 2, 'แม่นยำ — โดนทั้งขาไป/ขากลับ');
+  assert.notDeepEqual(P.B.pos, { x: 6, y: 8 }, 'ถูกดึง');
+});
+
+test('หลบได้: การหมุนที่สมบูรณ์แบบ — ศัตรูที่ถูกดันออกข้างหลบดาเมจชนได้ (เป้าหลักไม่ทอยซ้ำ)', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gyro_zeppeli', 0, 9], ['B', 'dummy', 2, 9], ['C', 'dummy', 6, 9], ['D', 'dummy', 12, 2]]);
+  P.G.gyro.empowered = true;
+  orderUpTo(t, ['B', 'G', 'D'], 'G');
+  evade100(P.C);
+  const b0 = vit(P.B), c0 = vit(P.C);
+  engine.attackTarget('G', 'B');
+  flush(t, 6000);
+  assert.equal(fxOf('breaker')[0].shoves[0].id, 'C', 'C ยังถูกดันออกข้าง');
+  assert.equal(vit(P.C), c0, 'หลบดาเมจชนพ้น');
+  assert.ok(vit(P.B) < b0, 'เป้าหลักโดนตามตีปกติ');
+});

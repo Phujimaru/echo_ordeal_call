@@ -155,7 +155,11 @@ function addCunning(engine, p, n) {
   s.cunning = Math.min(CUNNING_MAX, s.cunning + n);
   if (s.cunning > before && p.pos) fx(engine, p, "cunning", { at: { ...p.pos }, gain: s.cunning - before });
 }
-// ดาเมจเครื่องมือ 1 ครั้ง (เกราะก่อน · ฆ่าได้ · ไม่หลบ) → ที่ลงจริง · ผู้เรียกอยู่ในนามดิเอโก้ (effectSource)
+// ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15) — ทอยหลบศัตรู 1 ครั้งต่อการโดน (engine.skillDodge · แม่นยำของดิเอโก้เจาะ) → true = หลบพ้น
+//  หลบพ้น = ไม่มีดาเมจ + ไม่ติดผลที่ลงตัวคน (ลุกไหม้/ชุ่มน้ำมัน/เลือดไหล/กระเด็น) · ของบนพื้น (แอ่งน้ำมัน/กองไฟ) ยังลงตามเดิม
+//  self = ดิเอโก้โดนของตัวเอง (ลบสกิลติดตัว) ไม่ทอย
+const evades = (engine, p, t, reason) => foe(engine, p, t) && engine.skillDodge(p, t, reason);
+// ดาเมจเครื่องมือ 1 ครั้ง (เกราะก่อน · ฆ่าได้ · ผู้เรียกทอยหลบแล้ว — evades) → ที่ลงจริง · ผู้เรียกอยู่ในนามดิเอโก้ (effectSource)
 // self = ดิเอโก้โดนของตัวเอง (ลบสกิลติดตัว — selfHit)
 function hurt(engine, p, t, n, label, self = false) {
   if (!foe(engine, p, t) && !(self && t && t.alive && t.id === p.id)) return 0;
@@ -211,12 +215,14 @@ const netted = (t) => ((t && t.statuses && t.statuses.diegoNet) || 0) > 0;
 const selfHit = (p, t) => !!t && t.id === p.id && t.alive && PassiveSeal.sealed(p);
 
 // ระเบิด: ทุกคนในชุดช่อง (ไม่นับผู้จุด/เพื่อนร่วมทีม) −2 + ลุกไหม้ → ช่องทั้งหมดเป็นกองไฟ (นับเวลาใหม่) · คืนรายชื่อที่โดน
+//  ศัตรูทอยหลบทีละคน — หลบพ้น = ไม่เสีย ไม่ลุกไหม้ (fx dodged) · กองไฟยังเกิดบนช่อง
 function explode(engine, p, tiles, at) {
   const L = layers(engine);
-  const hits = [];
+  const hits = [], dodged = [];
   for (const t of unitsOn(engine, tiles)) {
     const self = selfHit(p, t);
     if (!foe(engine, p, t) && !self) continue;
+    if (!self && evades(engine, p, t, "ระเบิดน้ำมัน")) { dodged.push(t.id); continue; }
     hits.push(t.id);
     const burn = netted(t) ? NET_BURN : BURN;
     engine.withElement("fire", () => hurt(engine, p, t, EXPLODE_DMG, `${p.name} ระเบิดน้ำมัน`, self)); // ธาตุไฟ 🔥 (GRID_PLAN §8.7.1)
@@ -229,8 +235,8 @@ function explode(engine, p, tiles, at) {
     delete L.ash[k];
     L.fire[k] = { owner: p.id, until };
   }
-  engine.hitArea(p, tiles, hits);
-  fx(engine, p, "explode", { at: tile(at), tiles: tiles.map(tile), hits, frozen: stopping(p) });
+  engine.hitArea(p, tiles, [...hits, ...dodged]);
+  fx(engine, p, "explode", { at: tile(at), tiles: tiles.map(tile), hits, dodged, frozen: stopping(p) });
   engine.sfx(SFX.explode);
   engine.log(`💥 ${p.name} จุดระเบิดน้ำมัน ${tiles.length} ช่อง — กองไฟ ${FIRE_TURNS} เทิร์น`);
   addCunning(engine, p, 1);
@@ -251,13 +257,14 @@ function throwOil(engine, p, at) {
     delete L.ash[k];
     L.oil[k] = { owner: p.id };
   }
-  const soaked = [];
+  const soaked = [], dodged = [];
   for (const t of unitsOn(engine, tiles)) {
     if (!foe(engine, p, t)) continue;
+    if (evades(engine, p, t, "ถังน้ำมัน")) { dodged.push(t.id); continue; } // หลบพ้น = ไม่ชุ่มน้ำมัน (แอ่งยังอยู่ใต้เท้า)
     if (engine.applyDebuff(t, "oilSoaked", 1, turnsFor(engine, t, OIL_SOAK_TURNS))) soaked.push(t.id);
   }
   engine.hitArea(p, tiles, unitsOn(engine, tiles).map((u) => u.id));
-  fx(engine, p, "oil", { at: tile(at), tiles: tiles.map(tile), soaked });
+  fx(engine, p, "oil", { at: tile(at), tiles: tiles.map(tile), soaked, dodged });
   engine.sfx(SFX.splash);
   engine.log(`🛢️ ${p.name} โยนถังน้ำมัน${soaked.length ? ` — ${soaked.map((id) => engine.players[id].name).join(", ")} ชุ่มน้ำมัน` : ""}`);
   if (soaked.length) addCunning(engine, p, 1);
@@ -288,6 +295,10 @@ function throwMatch(engine, p, at, targets) {
   if (blast.length) {
     explode(engine, p, blast, at);
     return secs + DIEGO_FX.explode / 1000;
+  }
+  if (t && evades(engine, p, t, "ไม้ขีดไฟ")) {
+    engine.hitArea(p, [at], [t.id]); // หลบพ้น = ไม่ลุกไหม้ ไม่ติดธาตุ (ไม่มีฉากติดไฟ — ฉากโยนเล่นไปแล้ว)
+    return secs;
   }
   if (t) {
     const burn = netted(t) ? NET_BURN : BURN;
@@ -322,11 +333,13 @@ function lineShot(engine, p, dir, len) {
   }
   return { hit: null, end: tiles.length ? tile(tiles[tiles.length - 1]) : { ...p.pos }, tiles };
 }
+// ศัตรูคนแรกในแนวหลบพ้น = มีด/กระสุนพลาด (ไม่ทะลุไปคนถัดไป) · fx: hitId null + dodgeId
 function knife(engine, p, dir) {
   const { hit, end, tiles } = lineShot(engine, p, dir, KNIFE.len);
-  if (hit) hurt(engine, p, hit, KNIFE.dmg, `${p.name} มีด`);
+  const dodge = !!hit && evades(engine, p, hit, "มีด");
+  if (hit && !dodge) hurt(engine, p, hit, KNIFE.dmg, `${p.name} มีด`);
   engine.hitArea(p, tiles, hit ? [hit.id] : []);
-  fx(engine, p, "knife", { from: { ...p.pos }, dir, to: end, hitId: hit ? hit.id : null, frozen: stopping(p) });
+  fx(engine, p, "knife", { from: { ...p.pos }, dir, to: end, hitId: hit && !dodge ? hit.id : null, dodgeId: dodge ? hit.id : null, frozen: stopping(p) });
   engine.sfx(SFX.knife);
   if (!hit) engine.log(`🗡️ ${p.name} ขว้างมีด — ไม่โดนใคร`);
   return DIEGO_FX.knife / 1000;
@@ -434,9 +447,10 @@ function shoot(engine, p, dir) {
   if (!s.stopping) s.shotRound = engine.roundNumber;
   spendAmmo(engine, p, 1);
   const { hit, end, tiles } = lineShot(engine, p, dir, GUN.len);
-  if (hit) hurt(engine, p, hit, GUN.dmg, `${p.name} ปืนลูกโม่`);
+  const dodge = !!hit && evades(engine, p, hit, "ปืนลูกโม่");
+  if (hit && !dodge) hurt(engine, p, hit, GUN.dmg, `${p.name} ปืนลูกโม่`);
   engine.hitArea(p, tiles, hit ? [hit.id] : []);
-  fx(engine, p, "shot", { from: { ...p.pos }, dir, to: end, hitId: hit ? hit.id : null, frozen: s.stopping });
+  fx(engine, p, "shot", { from: { ...p.pos }, dir, to: end, hitId: hit && !dodge ? hit.id : null, dodgeId: dodge ? hit.id : null, frozen: s.stopping });
   engine.sfx(SFX.shot);
   if (!hit) engine.log(`🔫 ${p.name} ยิงปืนลูกโม่ — ไม่โดนใคร`);
   engine.skillBeat(DIEGO_FX.shot / 1000, () => {});
@@ -485,10 +499,14 @@ function planPlot(engine, p, dir) {
   }
   return { path, hit: null, at: null };
 }
+//  ศัตรูที่ชนหลบพ้น = ไม่มีดาเมจ/เลือดไหล/กระเด็น · ดิเอโก้หยุดหน้าเป้า · ไม่มีเสียงชน/คลิป final (fx hitId null + dodgeId)
 function plot(engine, p, dir) {
   if (!p.alive || !p.pos) return;
   const v = Board.LINE_DIRS[dir];
-  const { path, hit, at } = planPlot(engine, p, dir);
+  const plan = planPlot(engine, p, dir);
+  const { path, at } = plan;
+  const dodge = !!plan.hit && evades(engine, p, plan.hit, "เป็นไปดั่งกลอุบาย");
+  const hit = dodge ? null : plan.hit;
   let push = null;
   if (hit) {
     hurt(engine, p, hit, PLOT.dmg, `${p.name} เป็นไปดั่งกลอุบาย`);
@@ -513,10 +531,10 @@ function plot(engine, p, dir) {
     p.pos = { ...land };
   } else {
     p.pos = { ...path[path.length - 1] };
-    engine.log(`🐎 ${p.name} พุ่งไปสุดทาง — ไม่ชนใคร`);
+    if (!dodge) engine.log(`🐎 ${p.name} พุ่งไปสุดทาง — ไม่ชนใคร`);
   }
-  engine.hitArea(p, path, hit ? [hit.id] : []);
-  fx(engine, p, "plot", { from: { ...path[0] }, dir, path, hitId: hit ? hit.id : null, push });
+  engine.hitArea(p, path, plan.hit ? [plan.hit.id] : []);
+  fx(engine, p, "plot", { from: { ...path[0] }, dir, path, hitId: hit ? hit.id : null, dodgeId: dodge ? plan.hit.id : null, push });
   engine.sfx(SFX.gallop);
   engine.skillBeat((DIEGO_FX.plotBase + DIEGO_FX.plotPerTile * path.length) / 1000, () => {
     if (!hit) return;
