@@ -26,6 +26,7 @@ const gio = require("./giorno_giovanna"); // โจรุโน่: คลิป
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
+const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
@@ -204,6 +205,11 @@ module.exports = function buildTransforms() {
     // คุซาคาเบะ ชินระ (GRID_PLAN §7.32) — ความยาวจริง 9.1 / 15.5 วิ
     [shinra.CUT.warm]: { img: shinra.IMG.warm, video: shinra.VIDEO.warm, title: "อุ่นเครื่องพอแล้ว", label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
     [shinra.CUT.latom]: { img: shinra.IMG.latom, video: shinra.VIDEO.latom, title: "ลาทัม", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
+    [midoriya.CUT.smash]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.smash, title: midoriya.FORMS.smash.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.smash, music: null, afterReveal: false },
+    [midoriya.CUT.throw]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.throw, title: midoriya.FORMS.throw.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.throw, music: null, afterReveal: false },
+    [midoriya.CUT.detroit]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.detroit, title: midoriya.FORMS.detroit.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.detroit, music: null, afterReveal: false },
+    [midoriya.CUT.delaware]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.delaware, title: midoriya.FORMS.delaware.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.delaware, music: null, afterReveal: false },
+    [midoriya.CUT.million]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.million, title: midoriya.FORMS.million.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.million, music: null, afterReveal: false },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

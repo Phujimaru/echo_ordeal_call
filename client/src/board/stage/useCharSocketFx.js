@@ -184,7 +184,11 @@ export default function useCharSocketFx(ctx) {
       if (!kind) return;
       const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
       pushFx([{ kind, x: at.x, y: at.y, tiles, dir: ev.dir, form: ev.form, cowl: !!ev.cowl, n: ev.n, ...(kind === "midoriyaSmash" ? { dur: smashDur(ev.form) } : {}) }]);
-      if (kind === "midoriyaSmash" && ev.form === "million" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), MIDORIYA_T.million + 200));
+      // พายุลม: จอสั่นต่อเนื่องหลังจังหวะปะทะ (1,000,000% หนักและนานสุด)
+      if (kind === "midoriyaSmash" && !lowQ) {
+        const big = ev.form === "million", beat = big ? MIDORIYA_T.million : MIDORIYA_T.smash;
+        for (const d of big ? [0, 120, 260, 420, 620, 900, 1250] : [0, 150, 350]) timers.current.push(setTimeout(() => setShake((n) => n + 1), beat + d));
+      }
     };
     socket.on("midoriyaFx", onMidoriya);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ

@@ -34,6 +34,14 @@ const IMG = {
   cowl: `${DIR}/skill2.webp`,
 };
 const FX = "midoriyaFx";
+// คลิป (ไฟล์จากผู้ใช้ 2026-11-15 · บีบ crf 23): 1,000,000% = ครั้งแรกของแมตช์ · อีก 4 แบบ = ทุกครั้ง (ผู้ใช้สั่ง)
+//  กฎผู้ใช้: action ที่ขึ้นวีดีโอ ห้ามมีเสียงเอฟเฟกต์ตัดหน้า/ซ้อน — ผลบนกระดานลงหลังคลิป
+const VIDEO = { smash: `${DIR}/smash.mp4`, throw: `${DIR}/throw.mp4`, detroit: `${DIR}/detroit.mp4`, delaware: `${DIR}/delaware.mp4`, million: `${DIR}/million.mp4` };
+const CUT = { smash: "midoriyaSmash", throw: "midoriyaThrow", detroit: "midoriyaDetroit", delaware: "midoriyaDelaware", million: "midoriyaMillion" };
+const CLIP_SEC = { smash: 6.6, throw: 5.6, detroit: 7.3, delaware: 6.4, million: 24.3 };
+const CLIP_ONCE = new Set(["million"]);
+// เสียง (client/src/audio.js): สังเคราะห์ .claude/plans/midoriya-sfx.py · million = ตัดจากคลิปของผู้ใช้ (เล่นเฉพาะครั้งที่ไม่มีคลิป)
+const SFX = { punch: "midoriya_punch", punchCowl: "midoriya_punch_cowl", cowl: "midoriya_cowl", recoil: "midoriya_recoil", million: "midoriya_million" };
 const PASSIVE = "One for All";
 const COWL_NAME = "Full Cowl";
 
@@ -49,7 +57,7 @@ const SMASH_CD = 2;
 const COWL = { sp: 6, turns: 5, cd: 3, cut: 2, cutPve: 3, resist: 3, cleanse: 2, mend: 1 };
 const MEND_MULT = 2;
 // จังหวะฉาก (วินาที) — client MIDORIYA_T ต้องตรงกัน (ms)
-const T = { smash: 0.55, million: 0.9 };
+const T = { smash: 0.55, million: 1.6 };
 const BOUND = new Set(["kebread", "giornoArrow", "lawHeart"]); // ไอเทมประจำตัวละครอื่น — ปาไม่ได้
 
 const isMe = (p) => !!p && p.characterId === ID && !p.summon;
@@ -154,8 +162,24 @@ function castSmash(engine, p, key, item, targets, dir) {
   // คนแรก = ใกล้สุดตามแนว · เท่ากัน = ใกล้แนวกลาง · เท่ากันอีก = id
   const ranked = foes.map((t) => ({ t, ...rowOf(engine, p, t, v) })).sort((a, b) => a.along - b.along || a.side - b.side || (a.t.id < b.t.id ? -1 : 1));
   const recoil = recoilOf(p, f);
-  fx(engine, p, "smash", { form: key, dir, tiles, item: item ? { type: item.type } : null, cowl: cowlOn(p) });
   engine.log(`💥 ${p.name} ${f.name}${item ? ` — ปา${itemName(item)}` : ""}`);
+  // คลิป → ผลบนกระดาน (เอฟเฟกต์ + จังหวะพัก + ดาเมจ) หลังคลิปจบ
+  if (!p.cutsceneShown) p.cutsceneShown = {};
+  const clip = !(CLIP_ONCE.has(key) && p.cutsceneShown[CUT[key]]);
+  const land = () => {
+    if (!clip && key === "million") engine.sfx(SFX.million); // ไม่มีคลิป = เสียงไคลแมกซ์จากคลิปแทน
+    landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v, area);
+  };
+  if (clip) {
+    p.cutsceneShown[CUT[key]] = true;
+    engine.queueCutscene(p, CUT[key]);
+    engine.deferAfterCutscene(land);
+  } else land();
+  return item ? ` · ${itemName(item)}` : "";
+}
+function landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v, area) {
+  if (!p.alive || !p.pos) return;
+  fx(engine, p, "smash", { form: key, dir, tiles, item: item ? { type: item.type } : null, cowl: cowlOn(p) });
   const beat = key === "million" ? T.million : T.smash;
   engine.skillBeat(beat, () => {
     if (!p.alive || !p.pos) return;
@@ -187,10 +211,10 @@ function castSmash(engine, p, key, item, targets, dir) {
     const lost = selfHurt(engine, p, recoil);
     if (lost > 0 || recoil > 0) {
       fx(engine, p, "recoil", { form: key, n: lost, dead: !p.alive });
+      if (lost > 0) engine.sfx(SFX.recoil); // หลังคลิปจบแล้วเสมอ (ไม่ซ้อนวีดีโอ)
       engine.log(`🩸 ${p.name} ร่างกายรับแรง ${f.name} — เสียหาย ${recoil}`);
     }
   });
-  return item ? ` · ${itemName(item)}` : "";
 }
 
 function castCowl(engine, p) {
@@ -227,7 +251,7 @@ function smashDesc(p, key, item) {
 
 module.exports = {
   id: ID,
-  IMG, FX, FORMS, ORDER, SMASH_CD, COWL, MEND_MULT, T, PASSIVE, COWL_NAME,
+  IMG, FX, SFX, VIDEO, CUT, CLIP_SEC, FORMS, ORDER, SMASH_CD, COWL, MEND_MULT, T, PASSIVE, COWL_NAME,
   isMe, cowlOn, parseForm, recoilOf, dmgOf, splashOf,
 
   resetCombat(p) {
@@ -243,6 +267,8 @@ module.exports = {
     boltTag(engine, attacker, target);
     return [];
   },
+  attackSound(p) { return isMe(p) ? (cowlOn(p) ? SFX.punchCowl : SFX.punch) : undefined; },
+  skillSound(p, tier) { return isMe(p) && tier === "secondary" ? SFX.cowl : null; }, // Smash: เสียงมากับคลิป (ห้ามเสียงเอฟเฟกต์ซ้อน)
   attackStyle(p) { return isMe(p) ? (cowlOn(p) ? "midoriyaPunchCowl" : "midoriyaPunch") : null; },
 
   // ---------- ปุ่มสกิล ----------

@@ -3,7 +3,8 @@
 //  คอนโซล: window.__midoriyaFx(kind) = เล่นชุดเดียวกับปุ่ม (punch / cowlPunch / smash / throw / detroit / delaware / million / recoil / cowl / aura)
 import { useEffect } from "react";
 import * as Rules from "./boardRules";
-import { smashDur } from "./midoriyaFx";
+import { MIDORIYA_T, smashDur } from "./midoriyaFx";
+import { playSfx } from "../audio";
 
 const CUR = { units: [] };
 const btn = { font: "500 13px Kanit, sans-serif", color: "#fff", cursor: "pointer", padding: "4px 9px", border: "1px solid #5fe39a", background: "rgba(10,90,50,.95)" };
@@ -12,7 +13,7 @@ const AREA = {
   delaware: { len: 7, width: 3 }, million: { len: 7, width: 1, cone: true },
 };
 
-export default function MidoriyaFxDev({ units, setUnits, pushFx, setFocus, map }) {
+export default function MidoriyaFxDev({ units, setUnits, pushFx, setFocus, map, setShake }) {
   useEffect(() => { CUR.units = units; });
   const me = () => { const u = CUR.units.find((x) => x.id === "me"); return { x: u.x, y: u.y }; };
   const foe = () => {
@@ -24,14 +25,17 @@ export default function MidoriyaFxDev({ units, setUnits, pushFx, setFocus, map }
     const a = me(), ar = AREA[form];
     const tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", ar.len, ar.width, 1, 0, !!ar.cone) : [];
     pushFx([{ kind: "midoriyaSmash", x: a.x, y: a.y, dir: "right", form, cowl, tiles, dur: smashDur(form) }]);
+    if (form === "million") playSfx("midoriya_million"); // เกมจริง: เฉพาะครั้งที่ไม่มีคลิป · แบบอื่นเสียงมากับคลิป
+    const big = form === "million", beat = big ? MIDORIYA_T.million : MIDORIYA_T.smash;
+    for (const d of big ? [0, 120, 260, 420, 620, 900, 1250] : [0, 150, 350]) setTimeout(() => setShake && setShake((n) => n + 1), beat + d);
     setFocus({ x: a.x + 3, y: a.y });
   };
   const play = {
-    punch: () => { const a = me(), b = foe(); pushFx([{ kind: "midoriyaPunch", x: a.x, y: a.y, to: b, size: 1, toSize: 1 }]); setFocus(b); },
-    cowlPunch: () => { const a = me(), b = foe(); pushFx([{ kind: "midoriyaPunchCowl", x: a.x, y: a.y, to: b, size: 1, toSize: 1 }]); setFocus(b); },
+    punch: () => { const a = me(), b = foe(); pushFx([{ kind: "midoriyaPunch", x: a.x, y: a.y, to: b, size: 1, toSize: 1 }]); playSfx("midoriya_punch"); setFocus(b); },
+    cowlPunch: () => { const a = me(), b = foe(); pushFx([{ kind: "midoriyaPunchCowl", x: a.x, y: a.y, to: b, size: 1, toSize: 1 }]); playSfx("midoriya_punch_cowl"); setFocus(b); },
     smash: () => smash("smash"), throw: () => smash("throw"), detroit: () => smash("detroit", true), delaware: () => smash("delaware"), million: () => smash("million"),
-    recoil: () => { const a = me(); pushFx([{ kind: "midoriyaRecoil", x: a.x, y: a.y, n: 14 }]); setFocus(a); },
-    cowl: () => { const a = me(); pushFx([{ kind: "midoriyaCowl", x: a.x, y: a.y }]); setFocus(a); },
+    recoil: () => { const a = me(); pushFx([{ kind: "midoriyaRecoil", x: a.x, y: a.y, n: 14 }]); playSfx("midoriya_recoil"); setFocus(a); },
+    cowl: () => { const a = me(); pushFx([{ kind: "midoriyaCowl", x: a.x, y: a.y }]); playSfx("midoriya_cowl"); setFocus(a); },
     aura: () => setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, aura: u.aura === "midoriyaCowl" ? null : "midoriyaCowl" } : u))),
   };
   useEffect(() => {
