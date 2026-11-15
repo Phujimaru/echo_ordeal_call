@@ -69,7 +69,7 @@ test('Ice Spike: ทุกดาเมจที่ Ice Spike เป็นต้�
   assert.equal(Element.auraOf(P.t), 'ice');
   P = setup('roland');
   CHAR_HOOKS.roland.resetCombat(P.a);
-  P.a.roland.ego = 'kiss'; P.a.statuses.rolandKiss = 2;
+  P.a.roland.egos.kiss = 1; P.a.statuses.rolandKiss = 1;
   combat.withEffectSource(P.a, () => combat.dealMixed(P.t, 1));
   assert.equal(Element.auraOf(P.t), 'ice');
 });

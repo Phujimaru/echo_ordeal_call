@@ -20,6 +20,7 @@ import { StatRow, VitalExtras } from "./hud/StatRow";
 import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
+import { RolandEgo } from "./hud/RolandHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
@@ -1209,6 +1210,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {me?.dio && !hudAway && !rtTravel && <DioGauge dio={me.dio} />}
       {/* คุซาคาเบะ ชินระ: แถบเปลวเพลง */}
       {me?.shinra && !hudAway && !rtTravel && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
+      {/* โรลันด์: แถบ EGO Page — Emotion + บัฟที่เลือกแล้ว (×ซ้อน) */}
+      {me?.roland && !hudAway && !rtTravel && <RolandEgo roland={me.roland} lowQ={lowQ} />}
       {me?.dio && !rtTravel && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={rtTravel ? null : me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
