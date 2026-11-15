@@ -331,3 +331,17 @@ test("ฟื้นเป็นเฟส 2: +25 แม้ติดไร้ทา
   assert.equal(m.master.phase, 2);
   assert.equal(m.hp, 26);
 });
+
+test("ตีปกติ: กวาดแถวหน้าตัวกว้าง 4 โดนทุกคนในแถว · เป้าห่าง 2 ช่องตรงหน้า (นอกแถว) ตีไม่ได้", () => {
+  const { m, b, c, d } = setup();
+  const A = action;
+  // Master (6,6) 2×2 · แถวหน้าซ้าย = x 5, y 5–8
+  b.pos = { x: 5, y: 5 }; c.pos = { x: 5, y: 8 }; d.pos = { x: 4, y: 6 };
+  match.gameState = "ACTION"; match.actorId = "m"; match.action = { locked: false, moved: true, canto: false, from: { ...m.pos } }; m.didAttackRound = false;
+  assert.equal(A.canStrike(m, d), false, "ห่าง 2 ตรงหน้า = นอกแถว");
+  assert.ok(A.canStrike(m, b));
+  const hb = b.hp, hc = c.hp;
+  assert.ok(A.attackTarget("m", "b"));
+  runBeats();
+  assert.ok(b.hp < hb && c.hp < hc, "โดนทั้งแถว");
+});

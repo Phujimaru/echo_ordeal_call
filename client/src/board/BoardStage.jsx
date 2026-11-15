@@ -303,7 +303,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     // ตีโดนทุกศัตรูในระยะรอบตัว (me.strikeArea — ยังไม่มีตัวไหนใช้): เล็งแบบระยะปกติ · ไฮไลต์ทุกช่องในระยะ
     const area = !foe.isCorpse && !!me.strikeArea;
     const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
-    const hits = (n) => domeOk(n) && hits0(n);
+    // ตีเป็นกรอบ (me.strikeRect): เป้าต้องอยู่ในกรอบจากช่องที่ยืน (server canStrike คัดแบบเดียวกัน)
+    const rectOk = (n) => laneOn || ring || foe.isCorpse || !Array.isArray(me.strikeRect) || !!Rules.rectToward(map, n.x, n.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]);
+    const hits = (n) => domeOk(n) && hits0(n) && rectOk(n);
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
     if (!best) {

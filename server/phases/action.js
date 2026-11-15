@@ -354,6 +354,9 @@ function canStrike(p, target) {
   if (zoneHook && zoneHook.strikeAllows && !zoneHook.strikeAllows(p, target)) return false;
   if (Fodlan.shields(p, target)) return false; // สนาม Eos: โดมกำแพงเวท (server/fodlan/stage6.js)
   if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
+  // ตีเป็นกรอบ: เป้าต้องอยู่ในกรอบ (Master กว้าง 4 ลึก 1 — เป้าห่าง 2 ช่องตรงหน้า = กรอบไม่ครอบ จะโดนคนเดียว · ผู้ใช้ 2026-11-16 "ต้องโดนทุกคนในแนว")
+  const rect = strikeRect(p);
+  if (rect && !Board.rectToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), rect[0], rect[1])) return false;
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
 }
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }

@@ -215,6 +215,8 @@ export const ARMS = {
 //  slam: กระโดดเงื้อ → ฟาด (ต้องตรงกับ slamFx/twinSwords) · stab: แทงรัว (ตีปกติ) · sweep: เหวี่ยงกวาด (Knockdown)
 //  raise: ชูดาบสองมือ → ชี้ลงตอนฟ้าผ่า (Smite) · roar: กางแขนคำราม (อัญเชิญ) · land: ชูตอนตก → ฟาดตอนกระแทก · revive: ชูดาบค้าง
 const ARM_KEYS = {
+  // slash: เงื้อดาบขึ้น → ฟันลงกวาดครั้งเดียว (ตีปกติ — ผู้ใช้ 2026-11-16 "การโจมตีปกติจะเป็นการฟัน")
+  slash: [[[0, 0], [0.3, 1.5], [0.48, -0.95], [0.75, -0.95], [1, 0]], [[0, 0], [0.3, 0.9], [0.5, -0.6], [0.75, -0.6], [1, 0]]],
   slam: [[[0, 0], [0.62, "up"], [0.78, "down"], [0.9, "down"], [1, 0]], [[0, 0], [0.62, "up"], [0.78, "down"], [0.9, "down"], [1, 0]]],
   stab: [[[0, 0], [0.14, 0.35], [0.26, -0.25], [0.38, 0.3], [0.5, -0.3], [0.62, 0.25], [0.74, -0.2], [1, 0]],
     [[0, 0], [0.2, -0.2], [0.32, 0.3], [0.44, -0.25], [0.56, 0.3], [0.68, -0.15], [1, 0]]],
@@ -287,7 +289,7 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const pose = poseOf(u.id, now);
   if (pose) {
     const q = pose.q, d = pose.dir || [0, 0];
-    if (pose.kind === "lunge" || pose.kind === "stab" || pose.kind === "sweep") { const k = q < 0.25 ? -q / 0.25 * 0.15 : q < 0.45 ? -0.15 + (q - 0.25) / 0.2 * 0.6 : 0.45 * (1 - (q - 0.45) / 0.55); dx = d[0] * k; dy = d[1] * k; }
+    if (pose.kind === "lunge" || pose.kind === "stab" || pose.kind === "slash" || pose.kind === "sweep") { const k = q < 0.25 ? -q / 0.25 * 0.15 : q < 0.45 ? -0.15 + (q - 0.25) / 0.2 * 0.6 : 0.45 * (1 - (q - 0.45) / 0.55); dx = d[0] * k; dy = d[1] * k; }
     else if (pose.kind === "slam") {
       // กระโดดสูง (เอนหลังเงื้อดาบ) → พุ่งลงพร้อมโน้มตัวไปข้างหน้าฟาดดาบ → ยุบตัวตอนกระแทก
       const up = q < 0.62 ? Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) * 1.6 : Math.max(0, 1.6 * (1 - easeIn((q - 0.62) / 0.16)));
@@ -364,7 +366,7 @@ export function masterFx(g, e, now, lowQ) {
         if (e.by && !e._posed && e.to) {
           e._posed = true;
           const ddx = e.to.x - e.x, ddy = e.to.y - e.y;
-          masterPose(e.by, "stab", Math.abs(ddx) >= Math.abs(ddy) ? (ddx >= 0 ? "right" : "left") : (ddy >= 0 ? "down" : "up"), dur);
+          masterPose(e.by, "slash", Math.abs(ddx) >= Math.abs(ddy) ? (ddx >= 0 ? "right" : "left") : (ddy >= 0 ? "down" : "up"), dur);
         }
         strikeFx(g, e, p, seed, lowQ);
       }
@@ -698,7 +700,7 @@ function riseFx(g, e, p, seed) {
 }
 
 // ---------- ท่าตีปกติ ----------
-//  masterSlash: เข็มดาบแทงรัว 4 เส้น เข้าแถวหน้าตัว (กว้าง 4) + รอยฟันโค้งตอนปะทะ · เฟส 2 = ทอง
+//  masterSlash: ฟันกวาดโค้งพาดแถวหน้าตัว (กว้าง 4) + รอยฟันตอนปะทะ · เฟส 2 = ทอง
 //  ตัวอัญเชิญ: undead กัด (เขี้ยวเขียว) · blessed ฟาดเหนือหัว (โค้งทอง) · raider/crusader ยิงกระสุน (ส้ม/ทอง)
 function strikeFx(g, e, p, seed, lowQ) {
   const from = { x: e.x, y: e.y, n: Math.max(1, e.size | 0) }, to = e.to ? { x: e.to.x, y: e.to.y, n: Math.max(1, e.toSize | 0) } : null;
@@ -707,17 +709,29 @@ function strikeFx(g, e, p, seed, lowQ) {
   const H = MASTER_HIT_P[e.kind] || 0.45;
   if (e.kind === "masterSlash" || e.kind === "masterSlash2") {
     const C = palOf(e.kind === "masterSlash2" ? 2 : 1);
-    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, sx = -uy, sy = ux;
-    for (let i = 0; i < 4; i++) {
-      const t0 = 0.12 + i * 0.07, q = (p - t0) / 0.22;
-      if (q < 0 || q > 1) continue;
-      const off = (i - 1.5) * 0.55, reach = Math.sin(q * Math.PI) * (L - 0.2);
-      const [x0, y0] = P(ax + ux * from.n * 0.4 + sx * off * 0.5, ay + uy * from.n * 0.4 + sy * off * 0.5, 0.9);
-      const [x1, y1] = P(ax + ux * (from.n * 0.4 + reach) + sx * off, ay + uy * (from.n * 0.4 + reach) + sy * off, 0.75);
-      add(g, () => {
-        g.strokeStyle = rgba(C.neon, 0.6); g.lineWidth = 5; g.lineCap = "round"; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-        g.strokeStyle = rgba(C.core, 0.95); g.lineWidth = 1.8; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
-        glow(g, x1, y1, 10, C.neon, 0.8, WHITE);
+    // ฟันกวาด: รอยดาบโค้งพาดแถวหน้าตัว (กว้าง 4) จากข้างหนึ่งไปอีกข้าง ตอนแขนฟันลง
+    const dx = bx - ax, dy = by - ay, horiz = Math.abs(dx) >= Math.abs(dy);
+    const fx = horiz ? Math.sign(dx) : 0, fy = horiz ? 0 : Math.sign(dy), sx = -fy, sy = fx;
+    const rowC = { x: ax + fx * (from.n / 2 + 0.5), y: ay + fy * (from.n / 2 + 0.5) }, half = from.n / 2 + 1;
+    const t0 = 0.3, t1 = H + 0.05, q = clamp01((p - t0) / (t1 - t0)), fade = p < t1 ? 1 : clamp01(1 - (p - t1) / 0.4);
+    if (p >= t0 && fade > 0) {
+      const N = 18, pts = [];
+      for (let i = 0; i <= N; i++) {
+        const u = i / N;
+        if (u > q) break;
+        const w = -half + u * 2 * half, bulge = Math.sin(u * Math.PI) * 0.45;
+        const [x, y] = P(rowC.x + sx * w + fx * bulge, rowC.y + sy * w + fy * bulge, 0.75 + Math.sin(u * Math.PI) * 0.25);
+        pts.push([x, y, u]);
+      }
+      if (pts.length > 1) add(g, () => {
+        g.lineCap = "round"; g.lineJoin = "round";
+        for (const [lw, col, al] of [[14, C.neon, 0.35], [7, C.neon, 0.75], [2.4, C.core, 0.95]]) {
+          g.strokeStyle = rgba(col, al * fade); g.lineWidth = lw; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+          for (const [x, y] of pts.slice(1)) g.lineTo(x, y);
+          g.stroke();
+        }
+        const [hx, hy] = pts[pts.length - 1];
+        if (p < t1) glow(g, hx, hy, 16, C.neon, 0.9, WHITE);
       });
     }
     const hq = (p - H) / (1 - H);
