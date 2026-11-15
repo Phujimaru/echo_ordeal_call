@@ -210,12 +210,19 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const boss = !m.summon;
   const ph = boss ? (m.phase === 2 ? 2 : 1) : (m.summon === "blessed" || m.summon === "crusader" ? 2 : 1);
   const t = REDUCED ? 0 : now;
-  let z = Math.max(0, liftZ), dx = 0, dy = 0, rot = 0, sq = 1, flash = 0;
+  let z = Math.max(0, liftZ), dx = 0, dy = 0, rot = 0, sq = 1, flash = 0, lean = 0;
   const pose = poseOf(u.id, now);
   if (pose) {
     const q = pose.q, d = pose.dir || [0, 0];
     if (pose.kind === "lunge") { const k = q < 0.25 ? -q / 0.25 * 0.15 : q < 0.45 ? -0.15 + (q - 0.25) / 0.2 * 0.6 : 0.45 * (1 - (q - 0.45) / 0.55); dx = d[0] * k; dy = d[1] * k; }
-    else if (pose.kind === "slam") { const up = q < 0.7 ? Math.sin(clamp01(q / 0.7) * Math.PI * 0.5) * 1.1 : Math.max(0, 1.1 * (1 - (q - 0.7) / 0.08)); z += up; if (q > 0.78 && q < 0.92) sq = 1 - 0.18 * Math.sin((q - 0.78) / 0.14 * Math.PI); flash = env(q, 0.76, 0.8, 0.85, 0.95); }
+    else if (pose.kind === "slam") {
+      // กระโดดสูง (เอนหลังเงื้อดาบ) → พุ่งลงพร้อมโน้มตัวไปข้างหน้าฟาดดาบ → ยุบตัวตอนกระแทก
+      const up = q < 0.62 ? Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) * 1.6 : Math.max(0, 1.6 * (1 - easeIn((q - 0.62) / 0.16)));
+      z += up;
+      lean = q < 0.62 ? -0.18 * Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) : q < 0.78 ? -0.18 + 0.46 * easeIn((q - 0.62) / 0.16) : 0.28 * (1 - clamp01((q - 0.86) / 0.14));
+      if (q > 0.78 && q < 0.92) sq = 1 - 0.2 * Math.sin((q - 0.78) / 0.14 * Math.PI);
+      flash = env(q, 0.76, 0.79, 0.84, 0.95);
+    }
     else if (pose.kind === "raise") { z += Math.sin(Math.min(1, q * 1.6) * Math.PI * 0.5) * 0.45 * (q < 0.85 ? 1 : (1 - q) / 0.15); flash = env(q, 0.2, 0.35, 0.7, 0.9) * 0.6; }
     else if (pose.kind === "roar") { dx = (hash(t / 30) - 0.5) * 0.06; sq = 1 + 0.06 * Math.sin(q * Math.PI); flash = env(q, 0, 0.1, 0.5, 0.8) * 0.5; }
     else if (pose.kind === "land") { z += q < 0.42 ? (1 - easeIn(q / 0.42)) * 14 : 0; if (q >= 0.42 && q < 0.55) sq = 1 - 0.22 * Math.sin((q - 0.42) / 0.13 * Math.PI); flash = env(q, 0.4, 0.43, 0.5, 0.65); }
@@ -240,6 +247,7 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const foot = by; // เท้ายืนกลางกล่อง n×n
   g.translate(bx, foot);
   if (m.down) rot = -0.5;
+  rot += lean * (tr.face > 0 ? 1 : -1); // โน้มไปทางที่หัน (ภาพเดิมหันซ้าย)
   g.rotate(rot);
   // ภาพต้นฉบับหันซ้าย (ดาบชี้ซ้าย) — เดินไปทางขวา = กลับด้าน
   g.scale(tr.face > 0 ? -1 : 1, 1 + breathe);
@@ -449,10 +457,10 @@ function slamFx(g, e, ms, seed, lowQ) {
   const hit = T * 0.8;
   const tiles = (e.tiles || []).filter((t) => t && Number.isFinite(t.x));
   const v = DIRS[e.dir] || [0, 0];
-  // ชาร์จ: ดาบเรืองขึ้น (ก่อนทุบ)
+  // ดาบคู่: เงื้อเหนือหัวตอนกระโดด → ฟาดลงพื้นหน้าตัวตรงจังหวะกระแทก → ปักค้างแล้วจาง
+  twinSwords(g, wx, wy, n, v, ms, hit, C, seed, lowQ);
   if (ms < hit) {
-    const q = ms / hit, [x, y, s] = P(wx, wy, 1.4 + q * 1.2);
-    add(g, () => glow(g, x, y, s * n * (0.4 + q * 0.6), C.neon, 0.4 + q * 0.5, WHITE));
+    const q = ms / hit;
     for (const t of tiles) { gEllipse(g, t.x + 0.5, t.y + 0.5, 0.42, 0.01, 18); g.fillStyle = rgba(C.neon, 0.12 * q); g.fill(); }
     return;
   }
@@ -477,6 +485,51 @@ function slamFx(g, e, ms, seed, lowQ) {
       const [x0, y0, s0] = P(tx, ty, 1.2), [x1, y1] = P(tx + (hash(seed + d) - 0.5), ty + (hash(seed + d * 2) - 0.5), 0.1);
       bolt(g, x0, y0, x1, y1, seed + d + ((ms / 70) | 0), s0 * 0.2, 1.8, 0.9, C.spark);
     }
+  }
+}
+
+// ดาบพลังงาน 2 เล่ม (มือซ้าย/ขวา) — มุม th จากแนวตั้ง: −0.6 (เงื้อไปข้างหลัง) → 2.05 (ปลายจิกพื้นหน้าตัว)
+//  ตำแหน่งตามเวลา: ms < hit·0.62 เงื้อขึ้นช้าๆ · hit·0.62 → hit ฟาดลงเร่ง (easeIn) · หลัง hit ปักค้าง 260ms แล้วจาง
+//  ความสูงมือตามท่ากระโดดของตัว (masterPose slam — ต้องตรงกับ drawMasterUnit)
+function twinSwords(g, wx, wy, n, v, ms, hit, C, seed, lowQ) {
+  const T = hit / 0.78; // ความยาวท่าของตัว (pose ms)
+  const q = ms / T;
+  const up = q < 0.62 ? Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) * 1.6 : Math.max(0, 1.6 * (1 - easeIn((q - 0.62) / 0.16)));
+  const raise = hit * 0.62;
+  const th = ms < raise ? -0.6 * easeOut(ms / raise) : ms < hit ? -0.6 + 2.65 * easeIn((ms - raise) / (hit - raise)) : 2.05;
+  const fade = ms < hit ? Math.min(1, ms / 150) : 1 - clamp01((ms - hit - 260) / 380);
+  if (fade <= 0) return;
+  const L = 0.95 + n * 0.75, hz = up + 0.55 * n;
+  const side = [-v[1], v[0]];
+  const trail = ms > raise && ms < hit + 120;
+  for (const k of [-1, 1]) {
+    const px = wx + v[0] * n * 0.15 + side[0] * k * 0.42 * n, py = wy + v[1] * n * 0.15 + side[1] * k * 0.42 * n;
+    const tipAt = (a) => {
+      const fwd = Math.sin(a) * L, z = hz + Math.cos(a) * L;
+      return [px + v[0] * fwd, py + v[1] * fwd, Math.max(0, z)];
+    };
+    const [hx, hy, hzz] = [px, py, hz];
+    const [tx, ty, tz] = tipAt(th);
+    const A = P(hx, hy, hzz), B = P(tx, ty, tz);
+    add(g, () => {
+      // เงาการฟาด (ส่วนโค้งที่ปลายดาบกวาดผ่าน)
+      if (trail) {
+        g.beginPath();
+        for (let i = 0; i <= 10; i++) { const a = th - 0.9 + (i / 10) * 0.9, [x, y, z2] = tipAt(a), [sx, sy] = P(x, y, z2); if (i) g.lineTo(sx, sy); else g.moveTo(sx, sy); }
+        g.strokeStyle = rgba(C.neon, 0.45 * fade); g.lineWidth = A[2] * 0.35; g.lineCap = "round"; g.stroke();
+      }
+      // ใบดาบ: เรือง → ขอบ → แกนขาว (เรียวที่ปลาย)
+      const dxs = B[0] - A[0], dys = B[1] - A[1], len = Math.hypot(dxs, dys) || 1, nx = -dys / len, ny = dxs / len;
+      const w0 = A[2] * 0.13;
+      g.strokeStyle = rgba(C.neon, 0.35 * fade); g.lineWidth = w0 * 5; g.lineCap = "round"; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+      g.fillStyle = rgba(C.neon, 0.5 * fade);
+      g.beginPath(); g.moveTo(A[0] + nx * w0 * 2, A[1] + ny * w0 * 2); g.lineTo(B[0], B[1]); g.lineTo(A[0] - nx * w0 * 2, A[1] - ny * w0 * 2); g.closePath(); g.fill();
+      g.fillStyle = rgba(C.core, 0.95 * fade);
+      g.beginPath(); g.moveTo(A[0] + nx * w0 * 0.7, A[1] + ny * w0 * 0.7); g.lineTo(B[0], B[1]); g.lineTo(A[0] - nx * w0 * 0.7, A[1] - ny * w0 * 0.7); g.closePath(); g.fill();
+      glow(g, A[0], A[1], A[2] * 0.25, C.neon, 0.6 * fade, WHITE);
+      if (ms >= hit - 40) glow(g, B[0], B[1], B[2] * (ms < hit + 200 ? 1.1 : 0.5), C.neon, 0.9 * fade, WHITE); // ปลายดาบกระแทกพื้น
+    });
+    if (!lowQ && ms >= hit && ms < hit + 500) shards(g, tx, ty, (ms - hit) / 500, "120,110,95", 1, seed + k * 17, 10, 1.0); // ดินกระเด็นตรงที่ดาบฟาด
   }
 }
 
