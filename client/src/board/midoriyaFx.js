@@ -265,7 +265,7 @@ function smashFx(g, e, now, p, seed, lowQ) {
   if (ballA > 0) {
     const [bx0, by0, bs] = pt(ac, 0, 0.15);
     const pop = tk < 1 ? 0 : clamp01((wt - travel) / 600);
-    const rT = (cone ? Math.max(0.9, hwAt(ac) * 1.05 + 0.5) : halfLine + 0.6) * (big ? 1.35 : 1) * (0.55 + 0.45 * easeOut(clamp01(wt / 160))) * (1 + 0.35 * pop);
+    const rT = (cone ? Math.max(0.7, hwAt(ac) * 0.6 + 0.35) : halfLine + 0.45) * (big ? 1.35 : 1) * (0.55 + 0.45 * easeOut(clamp01(wt / 160))) * (1 + 0.35 * pop);
     const R = bs * rT * 0.85;
     const n = lowQ ? 26 : 60;
     const spin = wt / 900;
@@ -281,6 +281,27 @@ function smashFx(g, e, now, p, seed, lowQ) {
       }
       g.closePath();
     };
+    // ทรงกรวยย้อนกลับไปหาหมัด (หัวกลม + หางกรวย — ผู้ใช้สั่ง "กลมเป็นทรงกรวยไปข้างหลัง") ขอบข้างขรุขระ
+    const [hx0, hy0] = pt(0.35, 0, 0.1);
+    const dxh = bx0 - hx0, dyh = by0 - hy0, Lh = Math.hypot(dxh, dyh) || 1, nxh = -dyh / Lh, nyh = dxh / Lh;
+    const coneTail = (sc, ox, oy, js) => {
+      const N = 18, left = [], right = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N, jag = hash(js + i * 2.1 + Math.floor(wt / 90) * 0.5), jag2 = hash(js + i * 3.7 + Math.floor(wt / 90) * 0.3);
+        const w = R * sc * (0.1 + 0.9 * Math.pow(t, 0.85));
+        const cx3 = hx0 + dxh * t + ox, cy3 = hy0 + dyh * t + oy;
+        left.push([cx3 + nxh * w * (0.9 + 0.18 * jag), cy3 + nyh * w * (0.9 + 0.18 * jag) * 0.86]);
+        right.push([cx3 - nxh * w * (0.9 + 0.18 * jag2), cy3 - nyh * w * (0.9 + 0.18 * jag2) * 0.86]);
+      }
+      g.beginPath(); g.moveTo(left[0][0], left[0][1]);
+      for (const q2 of left) g.lineTo(q2[0], q2[1]);
+      for (let i = right.length - 1; i >= 0; i--) g.lineTo(right[i][0], right[i][1]);
+      g.closePath();
+    };
+    coneTail(1.04, R * 0.08, R * 0.14, seed + 13); g.fillStyle = rgba(FOG_D, ballA * 0.6); g.fill();
+    const tg = g.createLinearGradient(hx0, hy0, bx0, by0);
+    tg.addColorStop(0, rgba("238,238,244", ballA * 0.35)); tg.addColorStop(0.6, rgba("238,238,244", ballA * 0.85)); tg.addColorStop(1, rgba("238,238,244", ballA * 0.96));
+    coneTail(1, 0, 0, seed + 17); g.fillStyle = tg; g.fill();
     // เงาเทาด้านล่าง → ตัวก้อนขาว → แกนสว่าง
     blob(1.04, R * 0.08, R * 0.14, seed + 3); g.fillStyle = rgba(FOG_D, ballA * 0.7); g.fill();
     blob(1, 0, 0, seed + 7); g.fillStyle = rgba("238,238,244", ballA * 0.96); g.fill();
