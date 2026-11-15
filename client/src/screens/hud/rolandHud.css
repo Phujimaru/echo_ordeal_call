@@ -1,0 +1,35 @@
+/* แถบ EGO Page ของโรลันด์ — RolandHud.jsx · ดำแบบ Black Silence + เส้นเรืองเขียวแบบหน้า EGO · เคลื่อนไหวด้วย transform/opacity/filter */
+.rl-ego { position: fixed; left: 50%; bottom: 158px; transform: translateX(-50%); z-index: 34; display: flex; align-items: center; gap: 10px; padding: 6px 12px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 12, 12, .92), rgba(2, 3, 3, .95));
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+  box-shadow: inset 0 0 0 1px rgba(80, 255, 170, .35), inset 0 -14px 22px rgba(40, 255, 150, .06); }
+.rl-ego::before, .rl-ego::after { content: ""; position: absolute; left: 14px; right: 14px; height: 1px; background: linear-gradient(90deg, transparent, rgba(110, 255, 190, .85), transparent); }
+.rl-ego::before { top: 2px; }
+.rl-ego::after { bottom: 2px; }
+
+/* Emotion: เพชรแนวตั้ง */
+.rl-emo { display: flex; flex-direction: column-reverse; gap: 3px; }
+.rl-gem { display: block; width: 7px; height: 7px; transform: rotate(45deg); background: #1b2420; box-shadow: inset 0 0 0 1px rgba(120, 255, 190, .3); transition: background .25s ease, box-shadow .25s ease; }
+.rl-gem.on { background: #8affc8; box-shadow: 0 0 6px rgba(90, 255, 170, .95), inset 0 0 0 1px #e6fff2; }
+.rl-sep { width: 1px; align-self: stretch; background: linear-gradient(180deg, transparent, rgba(110, 255, 190, .55), transparent); }
+
+/* หน้า EGO */
+.rl-pages { display: flex; gap: 6px; }
+.rl-page { position: relative; width: 46px; height: 62px; overflow: hidden; border-radius: 3px; background: #050706;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08); transition: transform .3s ease, box-shadow .3s ease; }
+.rl-page img { display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1.7); transform-origin: 50% 44%; filter: grayscale(1) brightness(.35) contrast(1.1); transition: filter .3s ease; }
+.rl-page.on { transform: translateY(-3px); box-shadow: 0 0 0 1px #6dffb8, 0 0 12px rgba(60, 255, 160, .7), 0 4px 10px rgba(0, 0, 0, .6); }
+.rl-page.on img { filter: none; }
+.rl-shine { position: absolute; inset: 0; opacity: 0; background: linear-gradient(115deg, transparent 35%, rgba(200, 255, 230, .55) 50%, transparent 65%); transform: translateX(-120%); }
+.rl-page.on .rl-shine { opacity: 1; animation: rlShine 3.6s ease-in-out var(--d) infinite; }
+.rl-page.fervent { box-shadow: 0 0 0 1px #ff4b5c, 0 0 14px rgba(255, 40, 60, .75), 0 4px 10px rgba(0, 0, 0, .6); animation: rlBeat 1.1s ease-in-out infinite; }
+
+.rl-stack, .rl-turns { position: absolute; font-size: 11px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; padding: 2px 3px; }
+.rl-stack { right: 1px; bottom: 1px; color: #04120b; background: #8affc8; border-radius: 2px; box-shadow: 0 0 6px rgba(90, 255, 170, .9); }
+.rl-turns { left: 1px; top: 1px; color: #fff; background: #c4142a; border-radius: 2px; box-shadow: 0 0 6px rgba(255, 30, 50, .9); }
+.rl-cd { font-size: 12px; font-weight: 900; color: #b8ffdc; font-variant-numeric: tabular-nums; text-shadow: 0 0 6px rgba(60, 255, 160, .7); }
+
+@keyframes rlShine { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@keyframes rlBeat { 0%, 100% { transform: translateY(-3px) scale(1); } 15% { transform: translateY(-3px) scale(1.07); } 30% { transform: translateY(-3px) scale(1); } 45% { transform: translateY(-3px) scale(1.04); } }
+.rl-ego[data-low="true"] .rl-shine, .rl-ego[data-low="true"] .rl-page.fervent { animation: none; }
+@media (prefers-reduced-motion: reduce) { .rl-shine, .rl-page.fervent { animation: none; } }

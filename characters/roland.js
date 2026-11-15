@@ -9,7 +9,7 @@
 //  BS Page (พื้นฐาน): เลือกการ์ดในมือ (เก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้) · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
 //    ดาเมจการ์ด = ค่าบนการ์ด + พลังโจมตี/เสริมพลัง (attack.skillStrike opts.bonus) · ไม่จบตา · เดินต่อไม่ได้
 //  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น · ใช้แล้วหัก Emotion · บัฟถาวร (ผู้ใช้ปรับ 2026-11-15) — Fervent Beats ครบ 5 เทิร์นตายทันที
-//    ถือบัฟได้หลายแบบพร้อมกัน · แต่ละแบบรับได้ครั้งเดียว (Claude ตัดสิน)
+//    ถือบัฟได้หลายแบบ · เลือกแบบเดิมซ้ำได้ ผลซ้อนกัน (ผู้ใช้ตัดสิน 2026-11-15) · Fervent ซ้ำ = พลังโจมตีซ้อน นับเวลาตายเดิมต่อ (Claude ตัดสิน)
 //  Furioso (ท่าไม้ตาย · คูลดาวน์ 4 เทิร์น): แนว 4×1 พุ่งชนศัตรูคนแรก · คลิปลงเมื่อไม่หลบ (เสียงคลิกงดตามกฎห้ามเสียงซ้อนวีดีโอ)
 //
 //  ผู้ใช้ตัดสิน 2026-11-08: การ์ดรอบตัว = ประชิด 4 ทิศ · Logic แนว 3×1 โดนศัตรูคนแรก · Crystal สวนกลับกรอบ 3×3 จนจบเทิร์น · มือเกิน 6 ใบ = ใบที่เกินไม่ได้
@@ -80,6 +80,7 @@ function fresh() {
 function st(p) { return p.roland || (p.roland = fresh()); }
 const egoOn = (p, k) => isRoland(p) && !!st(p).egos[k] && ((p.statuses[EGO[k].status] || 0) > 0);
 const egosHeld = (p) => EGO_KEYS.filter((k) => st(p).egos[k]);
+const stacks = (p, k) => (egoOn(p, k) ? st(p).egos[k] : 0); // จำนวนครั้งที่เลือกแบบนี้ (ผลซ้อน)
 const crystalOn = (p) => isRoland(p) && ((p.statuses[CRYSTAL] || 0) > 0);
 const chargeOf = (s) => s.used.length;
 const cdLeft = (ready, r) => Math.max(0, (ready || 0) - r);
@@ -173,7 +174,7 @@ function onDealt(engine, p, t) {
     s.oldBoysRound = 0;
     gainSp(engine, p, OLD_BOYS_SP, CARDS.oldboys.name);
   }
-  if (egoOn(p, "kiss")) addShard(engine, p, t);
+  for (let i = stacks(p, "kiss"); i > 0; i--) addShard(engine, p, t);
 }
 // 1 ฮิต → { dealt, dodge } · ex.sure = ด่านหลบผ่านมาแล้ว (Furioso ทอยก่อนคลิป)
 function hit(engine, p, t, n, name, ex = {}) {
@@ -359,7 +360,6 @@ const ULT_NAME = "Furioso";
 function egoBlock(p, k, r) {
   const s = st(p), e = EGO[k];
   if (!e) return "none";
-  if (s.egos[k]) return "owned";
   if (s.emotion < e.emotion) return "emotion";
   if (cdLeft(s.egoReady, r) > 0) return "cd";
   return null;
@@ -368,9 +368,11 @@ function useEgo(engine, p, k) {
   const s = st(p), e = EGO[k], r = engine.roundNumber;
   s.emotion -= e.emotion;
   s.egoReady = r + EGO_SHARED_CD;
-  s.egos[k] = true;
+  const again = egoOn(p, k);
+  s.egos[k] = (again ? s.egos[k] : 0) + 1;
   s.egoAt[k] = engine.severStamp();
-  p.statuses[e.status] = k === "fervent" ? FERVENT_TURNS : 1; // บัฟอื่นถาวร (NO_TICK_STATUS)
+  // บัฟอื่นถาวร (NO_TICK_STATUS) ค่า = จำนวนซ้อน · Fervent ค่า = เทิร์นที่เหลือ (เลือกซ้ำไม่ต่อเวลา)
+  p.statuses[e.status] = k === "fervent" ? (again ? p.statuses[e.status] : FERVENT_TURNS) : s.egos[k];
   fx(engine, p, "ego", { ego: k });
   if (k === "fervent") engine.sfx(SFX.heart);
   if (k === "urging") engine.healHp(p, 1);
@@ -405,7 +407,7 @@ function cardChoices(p, r) {
 function egoChoices(p, r) {
   const s = st(p);
   return EGO_KEYS.map((k) => {
-    const e = EGO[k], cd = s.egos[k] ? 0 : cdLeft(s.egoReady, r);
+    const e = EGO[k], cd = cdLeft(s.egoReady, r);
     return {
       key: k, name: e.name, img: IMG.buff(k), cost: require("../server/skills").skillCostOf(p, "secondary", 0, { form: k }), area: { kind: "self" }, cd, locked: !!egoBlock(p, k, r),
       desc: `${e.name} (Emotion ${e.emotion}): ${e.desc}`,
@@ -422,12 +424,12 @@ module.exports = {
   isRoland,
 
   resetCombat(p) { p.roland = isRoland(p) ? fresh() : null; },
-  maxHp(p) { return HP + (egoOn(p, "urging") ? 1 : 0); },
+  maxHp(p) { return HP + stacks(p, "urging"); },
   maxArmor() { return ARMOR; },
   maxSkill() { return MAX_SKILL; },
-  mov(p) { return isRoland(p) ? MOV + (egoOn(p, "urging") ? 1 : 0) : null; },
+  mov(p) { return isRoland(p) ? MOV + stacks(p, "urging") : null; },
   blocksSkillGain(p, src) { return isRoland(p) && src === "item" && PassiveSeal.on(p); }, // ลบสกิลติดตัว = ข้อเสียหายด้วย
-  attackBaseOverride(engine, attacker) { return egoOn(attacker, "fervent") ? FERVENT_ATK : 0; },
+  attackBaseOverride(engine, attacker) { return FERVENT_ATK * stacks(attacker, "fervent"); },
 
   // ---------- จังหวะเทิร์น ----------
   onRoundStartTick(engine, p) {
@@ -465,11 +467,12 @@ module.exports = {
   // ---------- Scars / Crystal Atelier ----------
   adjustIncomingDamage(engine, p, n, isNormalAttack) {
     if (!egoOn(p, "scars") || !(n > 0)) return n;
-    if (isNormalAttack && Math.random() * 100 < SCARS_PCT) {
+    const n2 = stacks(p, "scars");
+    if (isNormalAttack && Array.from({ length: n2 }).some(() => Math.random() * 100 < SCARS_PCT)) { // ซ้อน = ทอยแยกต่อชั้น
       engine.log(`🩹 ${p.name} Scars — ไม่ได้รับความเสียหาย`);
       return 0;
     }
-    return Math.max(0, n - SCARS_REDUCE);
+    return Math.max(0, n - SCARS_REDUCE * n2);
   },
   grantedDodge(engine, p) {
     if (!crystalOn(p) || !(st(p).crystalDodge > 0)) return null;
@@ -487,7 +490,7 @@ module.exports = {
   counterPush() { return { push: false }; },
   fixedStrikeDamage(engine, attacker, target, ctx = {}) {
     if (!isRoland(attacker) || ctx.estimate || !ctx.counter || !st(attacker).countering) return null;
-    return COUNTER_DMG + (egoOn(attacker, "fervent") ? FERVENT_ATK : 0);
+    return COUNTER_DMG + FERVENT_ATK * stacks(attacker, "fervent");
   },
   attackSound(p) { return isRoland(p) && st(p).countering ? SFX.atk("crystal") : undefined; },
   onStrikeResolved(engine, attacker, target, res, { counter } = {}) {
@@ -576,6 +579,9 @@ module.exports = {
     return {
       emotion: s.emotion, emotionMax: EMOTION_MAX, ultCd: cdLeft(s.ultReady, engine.roundNumber), hits: s.hits, hitsMax: HITS_PER_EMOTION, charge: chargeOf(s), chargeMax: CARD_KINDS,
       pagesLeft: Math.max(0, PAGES_PER_TURN - pagesUsed(s, engine.roundNumber)), pagesMax: PAGES_PER_TURN, crystalDodge: crystalOn(p) ? s.crystalDodge : 0,
+      // แถบ EGO Page (client/src/screens/hud/RolandHud.jsx): ทุกแบบตามลำดับ · n = จำนวนซ้อน · turns = Fervent เหลือกี่เทิร์น
+      egos: EGO_KEYS.map((k) => ({ k, name: EGO[k].name, img: IMG.buff(k), n: stacks(p, k), turns: k === "fervent" && stacks(p, k) ? p.statuses[EGO[k].status] || 0 : 0 })),
+      egoCd: cdLeft(s.egoReady, engine.roundNumber),
     };
   },
   skillLocks(engine, p) {

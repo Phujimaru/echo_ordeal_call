@@ -285,7 +285,7 @@ test("ไอเทมเติมแต้มสกิลไม่ได้", ()
   assert.strictEqual(r.skillPoints, 0);
 });
 
-test("Emotion skill: ราคา 2 · หัก Emotion · บัฟถาวร · คูลดาวน์รวม 5 · ถือได้หลายแบบ แบบละครั้ง", () => {
+test("Emotion skill: ราคา 2 · หัก Emotion · บัฟถาวร · คูลดาวน์รวม 5 · ถือได้หลายแบบ · เลือกซ้ำซ้อนผล", () => {
   const { r, s } = setup();
   s.emotion = 3; r.skillPoints = 5;
   engine.useSkill(R, "secondary", [], { form: "urging" });
@@ -299,11 +299,17 @@ test("Emotion skill: ราคา 2 · หัก Emotion · บัฟถาว�
   const round = engine.roundNumber;
   engine.setRoundNumber(round + 5);
   r.skillUsedRound = false; s.emotion = 3;
+  const mov = roland.mov(r);
   engine.useSkill(R, "secondary", [], { form: "urging" });
-  assert.strictEqual(s.emotion, 3, "แบบเดิมรับซ้ำไม่ได้");
+  assert.strictEqual(s.emotion, 2, "แบบเดิมเลือกซ้ำได้");
+  assert.strictEqual(s.egos.urging, 2);
+  assert.strictEqual(r.statuses.rolandUrging, 2);
+  assert.strictEqual(engine.maxHpOf(r), 11);
+  assert.strictEqual(roland.mov(r), mov + 1);
+  engine.setRoundNumber(round + 10);
+  r.skillUsedRound = false; r.skillPoints = 5;
   engine.useSkill(R, "secondary", [], { form: "lies" });
   assert.ok(s.egos.lies && s.egos.urging);
-  assert.strictEqual(engine.maxHpOf(r), 10);
   roland.onEndTurn(engine);
   assert.ok(s.egos.urging, "ไม่หมดเอง");
   r.statuses.rolandUrging = 0;
@@ -311,6 +317,13 @@ test("Emotion skill: ราคา 2 · หัก Emotion · บัฟถาว�
   roland.onEndTurn(engine);
   assert.ok(!s.egos.urging && s.egos.lies);
   assert.strictEqual(r.hp, 9);
+});
+
+test("Scars ซ้อน 2 ชั้น: ลดดาเมจ 2", () => {
+  const { r, s } = setup();
+  s.egos.scars = 2; r.statuses.rolandScars = 2;
+  Math.random = () => 0.5;
+  assert.strictEqual(roland.adjustIncomingDamage(engine, r, 3, true), 1);
 });
 
 test("Fervent Beats: พลังโจมตี +3 ใช้กับการ์ด · อมตะ · หมดลงตาย", () => {
@@ -332,7 +345,7 @@ test("Fervent Beats: พลังโจมตี +3 ใช้กับการ�
 
 test("Scars: ลดดาเมจ 1 · ติด 20% = 0", () => {
   const { r, s } = setup();
-  s.egos.scars = true; r.statuses.rolandScars = 1;
+  s.egos.scars = 1; r.statuses.rolandScars = 1;
   Math.random = () => 0.5;
   assert.strictEqual(roland.adjustIncomingDamage(engine, r, 3, true), 2);
   Math.random = () => 0.1;
@@ -341,7 +354,7 @@ test("Scars: ลดดาเมจ 1 · ติด 20% = 0", () => {
 
 test("A Kiss: เศษน้ำแข็งครบ 5 สตั้น + ดาเมจ 1", () => {
   const { r, e, s } = setup();
-  s.egos.kiss = true; r.statuses.rolandKiss = 1;
+  s.egos.kiss = 1; r.statuses.rolandKiss = 1;
   e.statuses[roland.SHARD] = 4;
   use("ranga", s, [E]);
   assert.ok(!e.statuses[roland.SHARD]);
