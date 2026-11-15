@@ -30,6 +30,8 @@ grep -rn "<id>\|<Id>\|<ID>\|<prefix>" --include=*.js --include=*.jsx --include=*
 
 ## ลำดับที่ปลอดภัย
 
+(อย่าลืมลบบรรทัดของเขาใน [CHARACTERS.md](../../../CHARACTERS.md) และข้อยกเว้นใน `tests/character-rules.test.js` ถ้ามี)
+
 ไล่จาก "ปลายน้ำ" เข้าหา "ต้นน้ำ" แล้วเช็ค syntax ทุกก้าว — ถ้าลบ `characters/<id>.js`
 ตั้งแต่แรก ไฟล์อื่นจะพังหมดจนหาจุดที่เหลือไม่เจอ
 

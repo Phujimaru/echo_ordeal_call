@@ -445,6 +445,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 
 ## เขียนเทสต์ยังไง
 
+**ด่านกลางอัตโนมัติ:** `tests/character-rules.test.js` วนเช็กทุกตัวใน `CHARACTERS` เอง — ข้อมูลครบ (`gender` f/m/n · `mov` · `range` · `area.kind` ที่ engine รู้จัก) · มีฮุค `severables` · ปุ่มหลายตัวเลือกทุกตัวมี `desc` · ทุกสกิลไม่ทะลุหลบหลีก 100% · ไฟล์สื่อที่อ้างมีจริง ตัวใหม่ต้องผ่านโดยไม่เพิ่มข้อยกเว้นเอง · เพิ่มบรรทัดสรุปตัวละครใน [CHARACTERS.md](../../../CHARACTERS.md) ด้วย
+
 ลอกโครงจาก `tests/skill-area.test.js` (ระยะ/ตาเดิน — ต้นแบบที่ดีที่สุด) หรือ `tests/characters/muimi.test.js` / `oberon_summer.test.js`:
 
 - `const { engine, resolveRound } = require('../../server.js')` แล้วยัด `engine.players` เอง → `engine.startMatch()` → `engine.clearPhaseTimer()`
