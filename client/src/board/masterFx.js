@@ -27,7 +27,7 @@ const PAL = {
   1: { neon: "120,255,140", core: "235,255,235", deep: "20,150,70", spark: "190,250,255", crystal: "130,255,160" },
   2: { neon: "255,224,130", core: "255,252,235", deep: "210,150,40", spark: "255,255,220", crystal: "255,240,180" },
 };
-const VIOLET = "150,80,255", VOID = "20,8,36", WHITE = "255,255,255";
+const VIOLET = "150,80,255", VOID = "20,8,36", WHITE = "255,255,255", DARKC = "20,70,35";
 const palOf = (ph) => PAL[ph === 2 ? 2 : 1];
 
 // จังหวะ (ms) — server characters/master.js T (วินาที) ต้องตรงกัน
@@ -80,20 +80,22 @@ function bolt(g, x0, y0, x1, y1, seed, jit, w, a, rgb) {
 // กอหนามคริสตัล: ผลึกแหลม 4–6 แท่งเฉียงออกจากจุดบนพื้น (สูง h ช่อง)
 function crystalCluster(g, wx, wy, h, rgb, a, seed, big) {
   if (!(a > 0) || !(h > 0.02)) return;
-  const n = big ? 6 : 4;
+  const n = big ? 8 : 6;
+  // ฐานเรืองใต้กอ (ให้เห็นชัดบนพื้นสว่าง)
+  { const [gx0, gy0, gs0] = P(wx, wy, 0.05); add(g, () => glow(g, gx0, gy0, gs0 * (big ? 0.85 : 0.65), rgb, a * 0.65, WHITE)); }
   for (let i = 0; i < n; i++) {
     const r1 = hash(seed + i * 1.7), r2 = hash(seed + i * 4.1);
     const lean = (r1 - 0.5) * 0.9, hh = h * (0.55 + r2 * 0.6) * (i === 0 ? 1.25 : 1);
     const bx = wx + (r2 - 0.5) * 0.45, by = wy + (r1 - 0.5) * 0.35;
     const [ax, ay, s] = P(bx, by, 0);
     const [tx, ty] = P(bx + lean * 0.35, by, hh);
-    const wd = s * (big ? 0.11 : 0.085) * (0.7 + r1 * 0.6);
+    const wd = s * (big ? 0.2 : 0.16) * (0.7 + r1 * 0.6);
     // ผลึก: สองหน้า (สว่าง/มืด) + ขอบเรือง
-    g.fillStyle = rgba(rgb, a * 0.55);
+    g.fillStyle = rgba(rgb === PAL[2].crystal ? "130,95,30" : DARKC, a * 0.75);
     g.beginPath(); g.moveTo(ax - wd, ay); g.lineTo(tx, ty); g.lineTo(ax, ay + wd * 0.35); g.closePath(); g.fill();
-    g.fillStyle = rgba("255,255,255", a * 0.45);
+    g.fillStyle = rgba(rgb, a * 0.9);
     g.beginPath(); g.moveTo(ax + wd, ay); g.lineTo(tx, ty); g.lineTo(ax, ay + wd * 0.35); g.closePath(); g.fill();
-    g.strokeStyle = rgba(rgb, a); g.lineWidth = 1.5;
+    g.strokeStyle = rgba(WHITE, a); g.lineWidth = 2;
     g.beginPath(); g.moveTo(ax - wd, ay); g.lineTo(tx, ty); g.lineTo(ax + wd, ay); g.stroke();
   }
   const [gx, gy, gs] = P(wx, wy, h * 0.3);
@@ -123,7 +125,7 @@ export function masterPose(id, kind, dir, ms) {
 function poseOf(id, now) {
   const p = POSE.get(id);
   if (!p) return null;
-  const q = (now - p.t0) / p.ms;
+  const q = (typeof window !== "undefined" && window.__mfxAt != null ? window.__mfxAt : now - p.t0) / p.ms;
   if (q < 0 || q > 1) return null;
   return { ...p, q };
 }
@@ -203,6 +205,8 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const im = imgOf(u.standee);
   if (!im) return undefined;
   const n = Math.max(1, u.size | 0);
+  // wx/wy ที่ drawUnit ส่งมา = กลางช่องมุมบนซ้าย → ย้ายไปกลางกล่อง n×n (ตัว 2×2 ยืนกลาง 4 ช่องพอดี)
+  wx += (n - 1) / 2; wy += (n - 1) / 2;
   const boss = !m.summon;
   const ph = boss ? (m.phase === 2 ? 2 : 1) : (m.summon === "blessed" || m.summon === "crusader" ? 2 : 1);
   const t = REDUCED ? 0 : now;
@@ -220,14 +224,20 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   }
   const [bx, by, s] = P(wx + dx, wy + dy, z);
   const tr = faceOf(u, P(wx, wy)[0], now);
+  if (pose && pose.dir && pose.dir[0]) tr.face = pose.dir[0]; // หันตามทิศที่ปล่อยท่า (ค้างไว้จนเดิน)
   const H = s * (boss ? 1.5 + n * 0.62 : 1.3) * (u.k || 1) * sq, W = (H * im.naturalWidth) / im.naturalHeight / sq;
   const breathe = REDUCED ? 0 : Math.sin(t / 520 + n) * 0.018;
   const scale = boss ? 1 : 0.6;
   // เงาใต้ตัว (เล็กลงตามความสูง)
   if (liftZ <= 0.05) { const k = 1 / (1 + z * 0.35); gEllipse(g, wx + dx + 0.04, wy + dy + 0.05, 0.45 * n * scale * k, 0, 28); g.fillStyle = `rgba(0,0,0,${0.35 * k})`; g.fill(); }
+  // dev: window.__mfxFoot = true → กรอบช่องที่ตัวยืน (ตรวจว่ายืนตรงช่อง)
+  if (typeof window !== "undefined" && window.__mfxFoot) {
+    const x0 = wx - n / 2, y0 = wy - n / 2, c = [P(x0, y0), P(x0 + n, y0), P(x0 + n, y0 + n), P(x0, y0 + n)];
+    g.save(); g.strokeStyle = "#ff2fd0"; g.lineWidth = 3; g.beginPath(); c.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); g.stroke(); g.restore();
+  }
   auraBack(g, wx + dx, wy + dy, n, H, ph, now, u.lowQ, scale, !!m.down);
   g.save();
-  const foot = by + s * 0.1 * n;
+  const foot = by; // เท้ายืนกลางกล่อง n×n
   g.translate(bx, foot);
   if (m.down) rot = -0.5;
   g.rotate(rot);
@@ -235,11 +245,15 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   g.scale(tr.face > 0 ? -1 : 1, 1 + breathe);
   if (!u.lowQ) { g.shadowColor = rgba(palOf(ph).neon, m.down ? 0.2 : 0.85); g.shadowBlur = boss ? 18 : 10; }
   if (m.down) g.filter = "grayscale(0.85) brightness(0.55)";
-  g.drawImage(im, -W * 0.5, -H, W, H);
+  // ภาพ Master มีออร่าใต้เท้า ~9% ของความสูง — เลื่อนลงให้เท้าจริงอยู่ที่จุดยืน
+  const pad = boss ? H * 0.09 : 0;
+  // ลำตัวไม่อยู่กลางภาพ (ดาบยื่นซ้าย · เฟส 2 มีปีกขวา) — จุดยึด = กลางขาในภาพ (สัดส่วนความกว้าง)
+  const ax = boss ? (ph === 2 ? 0.47 : 0.67) : 0.5;
+  g.drawImage(im, -W * ax, -H + pad, W, H);
   g.filter = "none"; g.shadowBlur = 0;
-  if (flash > 0) { add(g, () => glow(g, 0, -H * 0.5, H * 0.75, palOf(ph).neon, flash, WHITE)); }
+  if (flash > 0) { add(g, () => glow(g, 0, -H * 0.45, H * 0.75, palOf(ph).neon, flash, WHITE)); }
   g.restore();
-  return { cx: bx, top: foot - H, bottom: foot, left: bx - W * 0.5, right: bx + W * 0.5 };
+  return { cx: bx, top: foot - H + (boss ? H * 0.09 : 0), bottom: foot, left: bx - W * 0.5, right: bx + W * 0.5 };
 }
 
 // ============================================================
@@ -247,7 +261,8 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
 // ============================================================
 export function masterFx(g, e, now, lowQ) {
   const dur = e.dur || MASTER_FX_DUR[e.kind];
-  const ms = now - e.t0, p = ms / dur;
+  // dev (MasterFxDev): window.__mfxAt = ms → ค้างเฟรมที่เวลานั้นของทุกเหตุการณ์ (ตรวจภาพ)
+  const ms = typeof window !== "undefined" && window.__mfxAt != null ? window.__mfxAt : now - e.t0, p = ms / dur;
   if (p < 0 || p > 1) return;
   const seed = ((e.t0 | 0) % 977) / 7;
   g.save();
@@ -455,7 +470,7 @@ function slamFx(g, e, ms, seed, lowQ) {
     // รอยแยกจากจุดทุบถึงช่อง
     if (q < 0.6) { const [ax, ay] = P(wx + v[0] * n * 0.5, wy + v[1] * n * 0.5, 0.02), [bx2, by2] = P(tx, ty, 0.02); g.strokeStyle = rgba(C.neon, 0.6 * (1 - q / 0.6)); g.lineWidth = 2; g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx2, by2); g.stroke(); }
     gEllipse(g, tx, ty, 0.45, 0.01, 18); g.fillStyle = rgba(C.neon, 0.22 * fade); g.fill();
-    crystalCluster(g, tx, ty, (e.big ? 1.6 : 1.15) * grow * (q > 0.75 ? 1 - (q - 0.75) / 0.25 : 1), C.crystal, fade, seed + t.x * 13 + t.y * 7, e.big);
+    crystalCluster(g, tx, ty, (e.big ? 2.3 : 1.7) * grow * (q > 0.75 ? 1 - (q - 0.75) / 0.25 : 1), C.crystal, fade, seed + t.x * 13 + t.y * 7, e.big);
     if (q > 0.72) shards(g, tx, ty, (q - 0.72) / 0.28, C.crystal, 1, seed + t.x + t.y * 3, lowQ ? 4 : 9, 0.9);
     // คลื่นใหญ่ (ครั้งที่ 3): สายฟ้าสตั้นแลบบนผลึก
     if (e.big && !lowQ && q < 0.7 && ((ms / 70) | 0) % 2 === 0) {
@@ -497,8 +512,18 @@ function knockFx(g, e, ms, seed, lowQ) {
     const s0 = P(wx + v[0] * n * 0.5 + side[0] * half, wy + v[1] * n * 0.5 + side[1] * half, 0.05), s1 = P(wx + v[0] * n * 0.5 - side[0] * half, wy + v[1] * n * 0.5 - side[1] * half, 0.05);
     const e0 = P(pts[12][0], pts[12][1], 0.05), e1 = P(pts[0][0], pts[0][1], 0.05);
     g.moveTo(s0[0], s0[1]); g.lineTo(e0[0], e0[1]); g.lineTo(e1[0], e1[1]); g.lineTo(s1[0], s1[1]); g.closePath(); g.fill();
+    // แผ่นใบดาบ: ระนาบโปร่งแสงเต็มความสูง (ฐาน → ยอด)
+    const zTop = (i) => 2.1 * Math.sin((i / 12) * Math.PI * 0.9 + 0.15);
+    const base = pts.map(([x, y]) => P(x, y, 0.05)), topP = pts.map(([x, y], i) => P(x, y, zTop(i)));
+    const [, shTop] = topP[6], [, shBase] = base[6];
+    const sheet = g.createLinearGradient(0, shBase, 0, shTop);
+    sheet.addColorStop(0, rgba(C.neon, 0.15 * a)); sheet.addColorStop(0.7, rgba(C.neon, 0.45 * a)); sheet.addColorStop(1, rgba(C.core, 0.8 * a));
+    g.fillStyle = sheet; g.beginPath();
+    base.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    for (let i = topP.length - 1; i >= 0; i--) g.lineTo(topP[i][0], topP[i][1]);
+    g.closePath(); g.fill();
     // ตัวใบดาบ: ฐาน → ยอด
-    for (const [zz, col, al, lw] of [[0.05, C.neon, 0.7, 6], [0.9, C.neon, 0.55, 10], [1.7, C.core, 0.9, 3]]) {
+    for (const [zz, col, al, lw] of [[0.05, C.neon, 0.7, 6], [1.1, C.neon, 0.55, 12], [2.1, C.core, 0.95, 4]]) {
       g.strokeStyle = rgba(col, al * a); g.lineWidth = lw; g.lineCap = "round"; g.beginPath();
       pts.forEach(([x, y], i) => { const [sx, sy] = P(x, y, zz * Math.sin((i / 12) * Math.PI * 0.9 + 0.15)); if (i) g.lineTo(sx, sy); else g.moveTo(sx, sy); });
       g.stroke();
