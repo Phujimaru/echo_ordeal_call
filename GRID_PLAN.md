@@ -1742,6 +1742,7 @@ Claude ตัดสินเอง (ยังไม่ได้ถาม): ส�
 
 | ตัวละคร | การกระทำ → ธาตุ |
 |---|---|
+| Master | เฟส 1: ตีปกติ + Twin Sword Slam ☠️ พิษ · Knockdown Slash 🌪️ ลม · Smite ⚡ สายฟ้า · เฟส 2: ตีปกติ + Twin Sword Slam ✨ แสง · Knockdown ✨ แสง · Smite 🌑 มืด (สเปก §7.34) · ตัวอัญเชิญ: Undead ☠️ · Raider ⬜ · Blessed/Holy Crusader ✨ |
 | Ice Spike | ❄️ ทุกการกระทำ (ไถลชน = ตีปกติ · Glacial Path · หนาม · Ice Surge · ระเบิดติดตัว · Shock Wave) |
 | โซระ | ร่าง Fire Frame: ตีปกติ + Mouse Separade 🔥 · ร่างอื่น ⬜ |
 | ไรโด | ร่างทันเดอร์ดารัมเบีย ⚡ · คิงแพนด้อน 🔥 · Strium Ray + ตีปกติร่างสโตเรี่ยม 🔥 · Ginga Cross Shoot 🔥 (ผู้ใช้ตอบ) · ที่เหลือ ⬜ |

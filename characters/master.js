@@ -33,7 +33,7 @@ const SFX = {
   melee: "master_melee", slam: "master_wave", slash: "master_slash", thunder: "master_thunder",
   shock: "master_shockwave", revive: "master_revive", roar: "master_roar", death: "master_death", raider: "master_raider",
 };
-const MUSIC = { p1: "/characters/master/phase1.ogg", p2: "/characters/master/phase2.ogg" };
+const MUSIC = { p1: "master_phase1", p2: "master_phase2" }; // คีย์เสียงใน client/src/audio.js
 
 const HP = 100, ATK = 3, SIZE = 2, MOV = 9;
 const LAND_ROUND = 3;

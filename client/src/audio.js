@@ -605,6 +605,10 @@ const FILES = {
   // มิโดริยะ อิซึคุ (GRID_PLAN §7.33): สังเคราะห์ .claude/plans/midoriya-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · midoriya_million = ช่วงไคลแมกซ์ตัดจากคลิปของผู้ใช้ (1,000,000% ครั้งที่ไม่มีคลิป)
   ...Object.fromEntries(["punch", "punch_cowl", "cowl", "recoil", "smash_storm", "million_storm"].map((k) => [`midoriya_${k}`, `/effect_sound/midoriya/midoriya_${k}.m4a`])),
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
+  // Master (GRID_PLAN §7.34): ไฟล์จากผู้ใช้ (แปลง wav → m4a · ยังไม่ปรับความดัง) · เพลงเฟส 1/2 วนจนเปลี่ยนเฟส/ตาย (state.skillMusic)
+  ...Object.fromEntries(["melee", "slash", "wave", "revive", "roar", "death", "shockwave", "thunder", "raider"].map((k) => [`master_${k}`, `/characters/master/master_${k}.m4a`])),
+  master_phase1: "/characters/master/phase1.ogg",
+  master_phase2: "/characters/master/phase2.ogg",
   // ไรเดอร์ ZECT (GRID_PLAN §7.28): FULL FORCE เล่นตลอดช่วง Clock Up · clock_up = เสียงจาก clock_up.mp4 ของผู้ใช้ (Clock Up รอบที่ไม่มีคลิป)
   //  parry (ชนกัน) / clock_over / kick_charge = สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   full_force: "/theme_song/FULL FORCE.mp3",
