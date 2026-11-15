@@ -330,23 +330,27 @@ function runDouble(engine, d, t, delay = 0) {
   if (Board.dist(Board.boxOf(d), tbox) === 1) secs += collide(engine, owner, d, t, tbox, delay + Math.round(secs * 1000));
   return secs;
 }
-// ชน: กระดานคู่ขนาน 4 (เกราะก่อน) · รู้จักตัวเองฯ 2 ทะลุเกราะ · หลบไม่ได้ · ต้นตอ = ตัวเหมือน (ชั้นเดียวกับเป้า) → ตัวเหมือนสลาย
+// ชน: กระดานคู่ขนาน 4 (เกราะก่อน) · รู้จักตัวเองฯ 2 ทะลุเกราะ · หลบได้ (กฎผู้ใช้ 2026-11-15 — ผู้โจมตี = วาเลนไทน์ · แม่นยำของวาเลนไทน์ = โดนแน่นอน)
+//  · ต้นตอ = ตัวเหมือน (ชั้นเดียวกับเป้า) → ตัวเหมือนสลายทั้งโดนและหลบ
 function collide(engine, owner, d, t, tbox, delay = 0) {
   const { dmg, pierce } = d.summon;
   const at = tile(d.pos), targetAt = tile(tbox || t.pos);
   const before = vit(t);
   if (owner) openWin(st(owner));
   d.summon.colliding = true; // เป้าตายจากการชนนี้ = ฉากเมนเจอร์ของตัวนี้เอง (onDeath ของเป้าไม่ต้องสั่งแตกซ้ำ)
+  let dodge = false;
   engine.withEffectSource(d, () => {
     t.wasAttacked = true;
+    // ทอยหลบ: ผู้โจมตี = วาเลนไทน์ (เจ้าของ · ไม่มี = ตัวเหมือน) — หลบ = ไม่เสียหาย ตัวเหมือนยังสลาย
+    if (engine.skillDodge(owner || d, t, " ตัวที่เหมือนกัน")) { dodge = true; return; }
     if (pierce) engine.dealDirect(t, dmg, false);
     else engine.dealMixed(t, dmg, false);
     if (t.alive && t.hp <= 0) engine.instantDeath(t);
   });
   const dealt = Math.max(0, before - vit(t));
   if (owner) closeWin(engine, owner, d);
-  engine.log(`🧊 ตัวที่เหมือนกันชน ${t.name} -${dealt}${pierce ? " (ทะลุเกราะ)" : " (ลดเกราะก่อน)"}`);
-  if (owner) fx(engine, owner, "menger", { id: d.id, ownerId: owner.id, doubleId: d.id, targetId: t.id, at, targetAt, dmg: dealt > 0 ? dmg : 0, pierce: !!pierce, ...(delay > 0 ? { delay } : null) });
+  if (!dodge) engine.log(`🧊 ตัวที่เหมือนกันชน ${t.name} -${dealt}${pierce ? " (ทะลุเกราะ)" : " (ลดเกราะก่อน)"}`);
+  if (owner) fx(engine, owner, "menger", { id: d.id, ownerId: owner.id, doubleId: d.id, targetId: t.id, at, targetAt, dmg: !dodge && dealt > 0 ? dmg : 0, dodge, pierce: !!pierce, ...(delay > 0 ? { delay } : null) });
   // เสียงตอนชนจริงบนจอ (หลังเดินถึง — ฉากล่าช้า delay ms)
   const ring = () => { engine.sfx(SFX.menger); speak(engine, owner, VOICE_EVENT.meet); };
   if (delay > 0) setTimeout(ring, delay).unref?.(); else ring();

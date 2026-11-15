@@ -347,6 +347,49 @@ test('รู้จักตัวเองอย่างแท้จริง: 
   assert.equal(view('V', 'V').character.ultimate.choices.find((c) => c.key === 'justice').locked, false, 'คูลดาวน์แยกกัน');
 });
 
+// กฎผู้ใช้ 2026-11-15: ทุกสกิลหลบได้ · แม่นยำของผู้โจมตี (วาเลนไทน์) เท่านั้นที่โดนแน่นอน
+test('ตัวเหมือนชน: หลบได้ (ผู้โจมตี = วาเลนไทน์) — หลบ = ไม่เสียหาย ตัวเหมือนยังสลาย · วาเลนไทน์มีแม่นยำ = โดน', () => {
+  // รู้จักตัวเองฯ (ทะลุเกราะ 2)
+  for (const acc of [false, true]) {
+    for (const k of Object.keys(calls)) calls[k] = [];
+    const P = setup([['V', 'funny_valentine', 2, 7], ['B', 'dummy', 5, 7], ['C', 'dummy', 12, 2]]);
+    engine.setActor('V');
+    ult('V', 'know', ['B']);
+    const [d] = doubles();
+    assert.ok(d);
+    engine.clearPhaseTimer();
+    P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+    if (acc) P.V.statuses.accurate = 2;
+    const hp0 = P.B.hp, sp0 = P.V.skillPoints;
+    engine.setActor('B');
+    engine.finishActor();
+    assert.equal(d.alive, false, 'ชนแล้วสลายทั้งโดน/หลบ');
+    const m = fxOf('menger')[0];
+    if (acc) {
+      assert.equal(P.B.hp, hp0 - 2, 'แม่นยำ = โดน');
+      assert.equal(m.dodge, false);
+      assert.equal(m.dmg, 2);
+    } else {
+      assert.equal(P.B.hp, hp0, 'หลบพ้น');
+      assert.equal(m.dodge, true);
+      assert.equal(m.dmg, 0);
+      assert.equal(P.V.skillPoints, sp0, 'ไม่เสียหาย = ไม่ได้แต้ม');
+    }
+  }
+  // กระดานคู่ขนาน: หลบ = ไม่เสียหาย แต่ยังกลับกระดานหลัก
+  for (const k of Object.keys(calls)) calls[k] = [];
+  const P = setup([['V', 'funny_valentine', 2, 7], ['B', 'dummy', 4, 7], ['C', 'dummy', 12, 2]]);
+  engine.setActor('V');
+  ult('V', 'parallel', [], { dir: 'right' });
+  engine.clearPhaseTimer();
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  const v0 = vit(P.B);
+  engine.setActor('B');
+  engine.finishActor();
+  assert.equal(vit(P.B), v0, 'หลบพ้น');
+  assert.deepEqual([P.B.dim, P.V.dim, P.V.valentine.parallel], [null, null, null], 'ยังกลับกระดานหลัก');
+});
+
 test('แด่ตัวฉันทุกคน: ร่างแยก 3 ตัวติดตัว · จบตาทันทีแล้วคุมทีละตัว 20 วิ · แต้มร่วม · ตีดาเมจ 1 +1 แต้ม · ใช้สกิลไม่ได้', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['V', 'funny_valentine', 2, 7], ['B', 'dummy', 2, 9], ['C', 'dummy', 12, 2]]);

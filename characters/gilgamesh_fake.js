@@ -50,7 +50,8 @@ const HIT_CAP = 3; // เมตตาจากราชา: โดนคนเ�
 const CENTER_PCT = 45; // เมตตาจากราชา: % ที่ตกตรงตัวเป้า · ที่เหลือเฉไปรอบตัว 3×3 (Claude — ผู้ใช้ขอให้กระจาย ไม่โดน 100%)
 const ZONE_MAX = 14;
 // สนาม Eos (PVE ร่วมมือ): เมตตาจากราชากลับไปแบบก่อนปรับสมดุล 2026-11-09 + ยิงแม่น (ผู้ใช้ 2026-11-11) —
-//  มีทั้งคลัง · ไม่มีเพดานต่อคน · ตกตรงตัวทุกนัด หลบไม่ได้ · ความมั่งคั่ง +1 ทุกนัดที่ยิง · ยิงแล้วยังตีปกติได้ · โหมดอื่นคงเดิม
+//  มีทั้งคลัง · ไม่มีเพดานต่อคน · ตกตรงตัวทุกนัด · ความมั่งคั่ง +1 ทุกนัดที่ยิง · ยิงแล้วยังตีปกติได้ · โหมดอื่นคงเดิม
+//  ทุกนัดทอยหลบได้ทุกโหมด (กฎผู้ใช้ 2026-11-15: ทุกสกิลหลบได้ · แม่นยำของผู้โจมตีเท่านั้นที่โดนแน่นอน)
 const eosMode = (engine) => !!engine && require("../server/pveMode").isPveCoop(); // PVE ร่วมมือ = Eos + Road Trip (ผู้ใช้สั่ง 2026-11-14)
 const ULT_AREA = { kind: "line", len: 14, width: 5, hostile: true };
 // ของที่ไม่ใช่สมบัติสำหรับยิง/กัน (ของถาวร/ชาร์จ/ประจำตัวละคร)
@@ -140,9 +141,9 @@ const countOfForm = (p, form, eos = false) => {
 };
 
 // ---------- ตาย/ดาเมจจากสกิลของกิล (นอกท่อ skillStrike — ต้องจัดการคนตายเอง) ----------
-function hurt(engine, p, t, n, reason, sure = false) {
+function hurt(engine, p, t, n, reason) {
   t.wasAttacked = true;
-  if (!sure && engine.skillDodge(p, t, reason)) return { dodge: true }; // sure = แม่นยำ (Eos: เมตตาจากราชา)
+  if (engine.skillDodge(p, t, reason)) return { dodge: true }; // ทุกสกิลหลบได้ (แม่นยำของกิลเจาะ — ในตัว skillDodge)
   const amt = n + (engine.statusAmtOf(t, "fragile") || 0);
   const before = (t.hp || 0) + (t.armor || 0);
   engine.dealMixed(t, amt);
@@ -260,7 +261,7 @@ function fireShot(engine, p, i) {
   p.inventory.splice(p.inventory.indexOf(item), 1);
   v.fired++;
   const big = i + 1 >= v.n;
-  const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา", eos) : { dodge: true, miss: true };
+  const r = t ? hurt(engine, p, t, SHOT_DMG, "เมตตาจากราชา") : { dodge: true, miss: true }; // แต่ละนัด = การโจมตี 1 ครั้ง ทอยหลบแยก (Eos ด้วย)
   // ความมั่งคั่ง +1 เฉพาะนัดที่โดน (ผู้ใช้ 2026-11-09 — เดิมได้ทุกนัดที่ยิง) · Eos: ทุกนัดที่ยิง
   if (t && !r.dodge) v.hits[t.id] = (v.hits[t.id] || 0) + 1;
   // Road Trip (ผู้ใช้สั่ง 2026-11-14): ความมั่งคั่งไม่เกิน +RT_WEALTH_PER_VOLLEY ต่อชุด
@@ -276,7 +277,7 @@ function fireShot(engine, p, i) {
   }
   const w = { x: land.x, y: land.y, k: ++s.wSeq, w: Math.floor(Math.random() * 6), big };
   s.weapons.push(w);
-  fx(engine, p, "shot", { i, n: v.n, to: { ...spot }, land: { x: land.x, y: land.y }, tid: t ? t.id : null, hit: !!t && !r.dodge, kill: !!r.kill, big, w: w.w, k: w.k, item: item.type, seq: v.seq });
+  fx(engine, p, "shot", { i, n: v.n, to: { ...spot }, land: { x: land.x, y: land.y }, tid: t ? t.id : null, hit: !!t && !r.dodge, dodge: !!t && !!r.dodge, kill: !!r.kill, big, w: w.w, k: w.k, item: item.type, seq: v.seq });
   engine.sfx(big ? SFX.shotBig : SFX.shot);
   if (t && !r.dodge) engine.log(`🗡️ ${shopName(engine, item)} พุ่งใส่ ${t.name} -${r.dealt}`);
   else if (t) engine.log(`💨 ${t.name} หลบ ${shopName(engine, item)} ได้`);
@@ -324,6 +325,8 @@ function enumaHit(engine, p, tiles) {
   engine.withEffectSource(p, () => {
     for (const t of victims) {
       t.wasAttacked = true;
+      // ทุกสกิลหลบได้ (กฎผู้ใช้ 2026-11-15) — กิลได้แม่นยำตอนยิง (fireEnuma) จึงโดนแน่นอนตราบที่แม่นยำยังอยู่
+      if (engine.skillDodge(p, t, " Enuma Elish")) continue; // skillDodge ลงบันทึกเอง
       engine.instantDeath(t, "absolute");
       if (!t.alive) { t.pos = null; engine.log(`🌌 ${t.name} ถูกลำแสงแห่งการแยกฟ้าดินกลืนหาย!`); }
     }
@@ -476,7 +479,7 @@ module.exports = {
           return {
             key: o.key, name: o.all ? `ทั้งคลัง ×${o.n}` : `×${o.n}`, img: IMG.skill2, cost: 0, area: { kind: "self" },
             desc: eos
-              ? `ยิง ${o.n} นัด ในกรอบ ${side}×${side} · ตรงตัวทุกนัด หลบไม่ได้ · ความมั่งคั่ง +1 ต่อนัด · ตีปกติต่อได้`
+              ? `ยิง ${o.n} นัด ในกรอบ ${side}×${side} · ตรงตัวทุกนัด · ความมั่งคั่ง +1 ต่อนัด · ตีปกติต่อได้`
               : `ยิง ${o.n} นัด ในกรอบ ${side}×${side} · ตกตรงตัว ${CENTER_PCT}% · โดนคนเดียวกันได้ไม่เกิน ${HIT_CAP} นัด · ความมั่งคั่ง +1 ต่อนัดที่โดน · ตีปกติไม่ได้ในตานั้น`,
             zone: z && map ? { x0: z.x0, y0: z.y0, side: z.side, cols: map.cols, rows: map.rows, gx: p.pos.x, gy: p.pos.y } : null,
             locked: !!s.ea || !z || !foesIn(engine, p, z.tiles).length,

@@ -328,20 +328,63 @@ test('Rho Aias: 4 แต้ม · คุ้มครอง −1 + ต้าน�
   assert.equal(P.S.statuses.resist, 2);
 });
 
-test('Ex calibruuuu!: แนว 7×1 ดาเมจ 5 · คุ้มครอง/หลบไม่มีผล · ใช้แล้ว Excalibur ยังอยู่', () => {
+test('Ex calibruuuu!: แนว 7×1 ดาเมจ 5 · คุ้มครองไม่มีผล · ใช้แล้ว Excalibur ยังอยู่', () => {
   const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2], ['B', 'dummy', 5, 1], ['C', 'dummy', 7], ['D', 'dummy', 8]]);
   engine.setActor('S');
   P.S.emiya.ubwEnd = engine.roundNumber + 3;
   P.S.emiya.capBonus = 8; P.S.skillPoints = 14;
   trace('excalibur');
   P.A.statuses.guard = 2; P.A.statusAmt.guard = 1;
-  P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
   drain(() => engine.useSkill('S', 'secondary', [], { dir: 'right' }));
-  assert.equal(P.A.armor, 0); assert.equal(P.A.hp, 5, 'คุ้มครอง/หลบไม่มีผล 5');
+  assert.equal(P.A.armor, 0); assert.equal(P.A.hp, 5, 'คุ้มครองไม่มีผล 5');
   assert.equal(P.B.armor, 3, 'แนวกว้าง 1 — แถวข้างไม่โดน');
   assert.equal(P.C.hp, 5, 'ช่องที่ 7 โดน');
   assert.equal(P.D.armor, 3, 'นอกแนว 7');
   assert.equal(P.S.emiya.weapon, 'excalibur', 'ไม่หายหลังใช้สกิลรอง');
+});
+
+// กฎผู้ใช้ 2026-11-15: ทุกสกิลหลบได้ · แม่นยำของผู้โจมตีเท่านั้นที่โดนแน่นอน
+test('Ex calibruuuu!: หลบได้ (หลบหลีก 100% = ไม่เสียหาย) · ชิโร่มีแม่นยำ = โดนแน่นอน', () => {
+  const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2], ['C', 'dummy', 4]]);
+  engine.setActor('S');
+  P.S.emiya.ubwEnd = engine.roundNumber + 3;
+  P.S.emiya.capBonus = 8; P.S.skillPoints = 14;
+  trace('excalibur');
+  P.A.statuses.evade = 1; P.A.statusAmt.evade = 100;
+  drain(() => engine.useSkill('S', 'secondary', [], { dir: 'right' }));
+  assert.equal(P.A.hp + P.A.armor, 10, 'หลบพ้น');
+  assert.equal(P.C.hp, 5, 'คนที่ไม่หลบโดน');
+  const hit = fxOf('excaliburHit')[0];
+  assert.ok(hit.hits.find((h) => h.id === 'A').dodge, 'fx บอกว่าหลบ');
+  assert.equal(hit.hits.find((h) => h.id === 'C').dodge, false);
+
+  calls.fx = [];
+  const Q = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 2]]);
+  engine.setActor('S');
+  Q.S.emiya.ubwEnd = engine.roundNumber + 3;
+  Q.S.emiya.capBonus = 8; Q.S.skillPoints = 14;
+  trace('excalibur');
+  Q.S.statuses.accurate = 2;
+  Q.A.statuses.evade = 1; Q.A.statusAmt.evade = 100;
+  drain(() => engine.useSkill('S', 'secondary', [], { dir: 'right' }));
+  assert.equal(Q.A.hp, 5, 'แม่นยำ = โดนแม้หลบหลีก 100%');
+});
+
+test('Caladbolg II ระเบิด: หลบได้ · แม่นยำ = โดน', () => {
+  for (const acc of [false, true]) {
+    calls.cut = [];
+    const P = setup([['S', 'emiya_shirou', 0], ['A', 'dummy', 3], ['B', 'dummy', 5]]);
+    engine.setActor('S');
+    trace('hrunting');
+    P.S.skillPoints = 8;
+    if (acc) P.S.statuses.accurate = 2;
+    P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+    drain(() => engine.useSkill('S', 'secondary', [], { dir: 'right' }));
+    assert.equal(P.B.armor, acc ? 2 : 3, acc ? 'แม่นยำ = ระเบิดโดน' : 'หลบระเบิดได้');
+    const sp = fxOf('caladbolgSplash').pop();
+    assert.ok(sp);
+    assert.equal(sp.hits.find((h) => h.id === 'B').dodge, !acc);
+  }
 });
 
 test('Unlimited Blade Works: 12 แต้ม · 6 เทิร์น · ต้นเทิร์นแต้ม +1 · คูลดาวน์สกิลรองลดเพิ่ม · คูลดาวน์ 6 หลังจบ', () => {

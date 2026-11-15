@@ -309,19 +309,18 @@ test('เมตตาจากราชา: กระจาย — นัดท�
 });
 
 // ---------- สนาม Eos (PVE): เมตตาจากราชากลับไปแบบก่อนปรับสมดุล 2026-11-09 + ยิงแม่น (ผู้ใช้ 2026-11-11) ----------
-test('Eos: ทั้งคลังกลับมา · ยิงจนหมดคลัง ตรงตัวทุกนัด หลบไม่ได้ · ไม่มีเพดานต่อคน · ความมั่งคั่ง +1 ทุกนัด · ตีปกติต่อได้', (t) => {
+test('Eos: ทั้งคลังกลับมา · ยิงจนหมดคลัง ตรงตัวทุกนัด · ไม่มีเพดานต่อคน · ความมั่งคั่ง +1 ทุกนัด · ตีปกติต่อได้', (t) => {
   t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
   const P = setup([['G', 'gilgamesh_fake', 2, 7], ['B', 'dummy', 12, 2]]);
   engine.setGameMode('eos');
   P.B.hp = 30; P.B.armor = 0;
-  P.B.statuses.evade = 9; P.B.statusAmt.evade = 100; // หลบ 100% — ยังโดนทุกนัด
   P.G.inventory = [...items(20), { uid: 'bat', type: 'battery', charge: 0 }];
   P.G.gil.gateShown = true;
   const pub = view('G', 'G').character.secondary.choices;
   assert.equal(pub.length, 15, '1–14 + ทั้งคลัง');
   assert.equal(pub[pub.length - 1].key, 'all');
-  assert.match(pub[0].desc, /หลบไม่ได้/);
-  Math.random = () => 0.99; // โหมดปกติ = เฉทุกนัด · Eos ต้องตรงตัว
+  assert.doesNotMatch(pub[0].desc, /หลบไม่ได้/);
+  Math.random = () => 0.99; // โหมดปกติ = เฉทุกนัด · Eos ต้องตรงตัว (เป้าไม่มีหลบหลีก = ไม่หลบ)
   engine.setActor('G');
   engine.useSkill('G', 'secondary', [], { form: 'all' });
   flush(t, 40000);
@@ -379,7 +378,7 @@ test('Road Trip = PVE (ผู้ใช้สั่ง 2026-11-14): ตรงต�
     P.B.hp = 20; P.B.armor = 0;
     P.G.inventory = items(8);
     P.G.gil.gateShown = true;
-    assert.match(view('G', 'G').character.secondary.choices[0].desc, /หลบไม่ได้/, 'คำอธิบายแบบ PVE');
+    assert.match(view('G', 'G').character.secondary.choices[0].desc, /ตรงตัวทุกนัด/, 'คำอธิบายแบบ PVE');
     Math.random = () => 0.99;
     engine.setActor('G');
     engine.useSkill('G', 'secondary', [], { form: 'n8' });
@@ -388,4 +387,67 @@ test('Road Trip = PVE (ผู้ใช้สั่ง 2026-11-14): ตรงต�
     assert.equal(P.G.gil.wealth, 5, 'ความมั่งคั่ง +5 ต่อชุด');
     assert.ok(!engine.action.noStrike);
   } finally { match.world = prev; }
+});
+
+// กฎผู้ใช้ 2026-11-15: ทุกสกิลหลบได้ · แม่นยำของผู้โจมตีเท่านั้นที่โดนแน่นอน — แต่ละนัดทอยหลบแยก
+test('เมตตาจากราชา Eos: หลบหลีก 100% = หลบทุกนัด (ไม่เสียหาย · ไม่คุกเข่า) · กิลมีแม่นยำ = โดนทุกนัด', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  for (const acc of [false, true]) {
+    for (const k of Object.keys(calls)) calls[k] = [];
+    const P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+    engine.setGameMode('eos');
+    P.B.hp = 20; P.B.armor = 0;
+    P.B.statuses.evade = 9; P.B.statusAmt.evade = 100;
+    if (acc) P.G.statuses.accurate = 2;
+    P.G.inventory = items(4);
+    P.G.gil.gateShown = true;
+    Math.random = () => 0.5;
+    engine.setActor('G');
+    engine.useSkill('G', 'secondary', [], { form: 'n4' });
+    flush(t, 12000);
+    const shots = gilFx('shot');
+    assert.equal(shots.length, 4, 'ยิงครบ 4 นัด');
+    assert.ok(shots.every((s) => s.tid === 'B'), 'ตรงตัวทุกนัด');
+    if (acc) {
+      assert.equal(P.B.hp, 16, 'แม่นยำ = โดนทุกนัด');
+      assert.ok(shots.every((s) => s.hit && !s.dodge));
+      assert.ok((P.B.statuses.stun || 0) > 0, 'คุกเข่า');
+    } else {
+      assert.equal(P.B.hp, 20, 'หลบทุกนัด');
+      assert.ok(shots.every((s) => !s.hit && s.dodge), 'fx บอกว่าหลบ');
+      assert.ok(!(P.B.statuses.stun > 0), 'ไม่คุกเข่า');
+    }
+  }
+});
+
+test('เมตตาจากราชา ffa: กิลมีแม่นยำ = หลบหลีก 100% ก็โดน', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gilgamesh_fake', 6, 7], ['B', 'dummy', 7, 7]]);
+  P.B.hp = 20; P.B.armor = 0;
+  P.B.statuses.evade = 9; P.B.statusAmt.evade = 100;
+  P.G.statuses.accurate = 2;
+  P.G.inventory = items(2);
+  P.G.gil.gateShown = true;
+  Math.random = () => 0.1; // ตกตรงตัว
+  engine.setActor('G');
+  engine.useSkill('G', 'secondary', [], { form: 'n2' });
+  flush(t, 10000);
+  assert.equal(P.B.hp, 18);
+});
+
+test('Enuma Elish: ทอยหลบ — กิลไม่มีแม่นยำแล้ว (ถูกล้าง) หลบหลีก 100% รอด · มีแม่นยำ = ตาย', (t) => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const P = setup([['G', 'gilgamesh_fake', 3, 7], ['B', 'dummy', 9, 8], ['C', 'dummy', 10, 7]]);
+  P.B.statuses.evade = 9; P.B.statusAmt.evade = 100;
+  Math.random = () => 0.5;
+  // ชาร์จ → ยิงต้นตาเดินถัดไป (ได้แม่นยำ) → แม่นยำถูกล้างก่อนลำแสงลง (ENUMA_HIT)
+  P.G.gil.ea = true; P.G.gil.wealth = 25;
+  engine.setActor('G');
+  engine.useSkill('G', 'ultimate', [], { dir: 'right' });
+  P.G.gil.charge.fire = engine.roundNumber;
+  gil.onActorReady(engine, P.G);
+  P.G.statuses.accurate = 0; // แม่นยำถูกล้างระหว่างรอลำแสง
+  flush(t, 15000);
+  assert.equal(P.B.alive, true, 'หลบ Enuma Elish ได้');
+  assert.equal(P.C.alive, false, 'คนที่ไม่หลบตาย');
 });
