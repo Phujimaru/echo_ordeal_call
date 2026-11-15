@@ -409,7 +409,7 @@ function skillStrike(attacker, target, reason, opts = {}) {
   if ((target.statuses.discord || 0) > 0) dmg += 1;
   dmg += statusAmtOf(target, "fragile");
   dmg = Math.min(dmg, combat.damageCapOf(attacker)); // เพดานของผู้ลงมือ (อรชุน: ท่าไม้ตาย ≤ 6)
-  combat.dealMixed(target, dmg, true);
+  if (opts.pierce) combat.dealDirect(target, dmg, true); else combat.dealMixed(target, dmg, true); // opts.pierce = ทะลุเกราะ (ลงเลือดตรง · โล่ยังรับ)
   match.lastLog.push(`${attacker.name} ${reason} → ${target.name} -${dmg} (ลดเกราะก่อน)`);
   if (target.alive && target.hp <= 0) {
     combat.instantDeath(target);

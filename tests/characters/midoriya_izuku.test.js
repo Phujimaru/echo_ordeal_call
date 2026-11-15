@@ -176,27 +176,29 @@ test("1,000,000%: ทุกคน 10 · ตัวเอง 14 (เลือด�
   assert.ok(!p.alive, "ตายหลังใช้");
 });
 
-test("PVE: ดาเมจ 2 เท่า (1,000,000% = 40) · ดาเมจเข้าตัวเองเท่าเดิม", () => {
+test("PVE: 1,000,000% 60 ทะลุเกราะ · Delaware 10 · ดาเมจเข้าตัวเองเท่าเดิม", () => {
   let { p, t, u } = setup({ mode: "eos" });
   u.pos = { x: 9, y: 6 };
+  for (const o of [t, u]) { o.hp = 80; o.armor = 5; }
   smash("million");
   runBeats();
-  assert.equal(t.hp, 10);
-  assert.equal(u.hp, 10, "ทุกคนโดน 40");
+  assert.equal(t.hp, 20);
+  assert.equal(t.armor, 5, "ทะลุเกราะ");
+  assert.equal(u.hp, 20, "ทุกคนโดน 60");
   assert.equal(p.hp, 1);
   ({ p, t } = setup({ mode: "eos" }));
   smash("delaware");
   runBeats();
-  assert.equal(t.hp, 44);
+  assert.equal(t.hp, 40);
   assert.equal(p.armor, 2);
 });
 
-test("PVE: Smash 8 · ตัวเอง 2 · คูลดาวน์ 1 เทิร์น", () => {
+test("PVE: Smash 12 · ตัวเอง 2 · คูลดาวน์ 1 เทิร์น", () => {
   const { p, t } = setup({ mode: "eos" });
   clear(9, 6);
   smash("smash");
   runBeats();
-  assert.equal(t.hp, 42);
+  assert.equal(t.hp, 38);
   assert.equal(p.armor, 3, "ตัวเอง 2");
   nextRound();
   t.pos = { x: 7, y: 6 };
@@ -204,20 +206,38 @@ test("PVE: Smash 8 · ตัวเอง 2 · คูลดาวน์ 1 เท�
   assert.equal(match.skillBeats.length, 1, "คูลดาวน์ 1 = ใช้ได้เทิร์นถัดไป");
 });
 
-test("PVE: Detroit 16 · ผลักไปชนก่อนสุดระยะ = เพิ่ม 4 · ไม่ชน = ไม่เพิ่ม", () => {
+test("PVE: Detroit 22 ทะลุเกราะ · ผลักไปชนก่อนสุดระยะ = เพิ่ม 6 · ไม่ชน = ไม่เพิ่ม", () => {
   const { p, t, u } = setup({ mode: "eos" });
   clear(9, 6);
   engine.boardMap().terrain["10,6"] = "rock";
   u.pos = { x: 9, y: 5 }; // แถว 3 · ผลักถึงแถว 6 ไม่ชน
+  t.armor = 4;
   smash("detroit");
   runBeats();
-  assert.equal(t.hp, 30, "16 + ชน 4");
+  assert.equal(t.hp, 22, "22 + ชน 6");
+  assert.equal(t.armor, 4, "ทะลุเกราะ");
   assert.deepEqual(t.pos, { x: 9, y: 6 }, "ชนหินหยุด");
-  assert.equal(u.hp, 34, "ไม่ชน = 16");
+  assert.equal(u.hp, 28, "ไม่ชน = 22");
   assert.deepEqual(u.pos, { x: 12, y: 5 });
   assert.equal(p.armor, 0);
   assert.equal(p.hp, 9, "ตัวเอง 6");
 });
+
+test("PVE: ระหว่าง Full Cowl ทุก Smash +4 · เกมปกติไม่เพิ่ม", () => {
+  let { p, t } = setup({ mode: "eos" });
+  engine.useSkill("a", "secondary", []);
+  assert.equal(mi.powerOf(p, mi.FORMS.smash), 16);
+  assert.equal(mi.powerOf(p, mi.FORMS.million), 64);
+  nextRound();
+  p.pos = { x: 6, y: 6 }; t.pos = { x: 7, y: 6 };
+  smash("smash");
+  runBeats();
+  assert.equal(t.hp, 34);
+  ({ p } = setup());
+  engine.useSkill("a", "secondary", []);
+  assert.equal(mi.powerOf(p, mi.FORMS.smash), 5);
+});
+
 
 test("คูลดาวน์แยกแบบละ 2 เทิร์น · 1 สกิลต่อเทิร์น", () => {
   const { t } = setup();

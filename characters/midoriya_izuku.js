@@ -34,27 +34,26 @@ const IMG = {
   cowl: `${DIR}/skill2.webp`,
 };
 const FX = "midoriyaFx";
-// คลิป (ไฟล์จากผู้ใช้ 2026-11-15 · บีบ crf 23): 1,000,000% = ครั้งแรกของแมตช์ · อีก 4 แบบ = ทุกครั้ง (ผู้ใช้สั่ง)
+// คลิป (ไฟล์จากผู้ใช้ 2026-11-15 · บีบ crf 23): ทุกแบบเล่นทุกครั้ง (1,000,000% เดิมครั้งแรก → ทุกครั้ง ผู้ใช้สั่ง 2026-11-16)
 //  กฎผู้ใช้: action ที่ขึ้นวีดีโอ ห้ามมีเสียงเอฟเฟกต์ตัดหน้า/ซ้อน — ผลบนกระดานลงหลังคลิป
 const VIDEO = { smash: `${DIR}/smash.mp4`, throw: `${DIR}/throw.mp4`, detroit: `${DIR}/detroit.mp4`, delaware: `${DIR}/delaware.mp4`, million: `${DIR}/million.mp4` };
 const CUT = { smash: "midoriyaSmash", throw: "midoriyaThrow", detroit: "midoriyaDetroit", delaware: "midoriyaDelaware", million: "midoriyaMillion" };
 const CLIP_SEC = { smash: 6.6, throw: 5.6, detroit: 7.3, delaware: 6.4, million: 24.3 };
-const CLIP_ONCE = new Set(["million"]);
-// เสียง (client/src/audio.js): สังเคราะห์ .claude/plans/midoriya-sfx.py · million = ตัดจากคลิปของผู้ใช้ (เล่นเฉพาะครั้งที่ไม่มีคลิป)
+// เสียง (client/src/audio.js): สังเคราะห์ .claude/plans/midoriya-sfx.py · million = ตัดจากคลิปของผู้ใช้ (ตอนนี้ไม่ได้ใช้บนกระดาน — คลิปเล่นทุกครั้ง · หน้าทดสอบยังใช้)
 const SFX = { punch: "midoriya_punch", punchCowl: "midoriya_punch_cowl", cowl: "midoriya_cowl", recoil: "midoriya_recoil", million: "midoriya_million", storm: "midoriya_smash_storm", millionStorm: "midoriya_million_storm" };
 const PASSIVE = "One for All";
 const COWL_NAME = "Full Cowl";
 
 const FORMS = {
-  smash: { name: "Smash", dmg: 5, pve: 8, self: 5, pveSelf: 2, pveCd: 1, area: { kind: "line", cone: true, len: 5, width: 1, hostile: true } },
-  throw: { name: "Smash (ปาของ)", dmg: 3, pve: 6, self: 2, item: true, area: { kind: "line", len: 7, width: 1, hostile: true } },
-  detroit: { name: "Detroit Smash", dmg: 5, pve: 16, self: 6, pveBump: 4, area: { kind: "line", cone: true, len: 6, width: 1, hostile: true } },
-  delaware: { name: "Delaware Smash", dmg: 3, pve: 6, self: 3, area: { kind: "line", len: 7, width: 3, hostile: true } },
-  million: { name: "1,000,000% Delaware Detroit Smash", dmg: 10, pve: 40, self: 14, area: { kind: "line", cone: true, len: 7, width: 1, hostile: true } },
+  smash: { name: "Smash", dmg: 5, pve: 12, self: 5, pveSelf: 2, pveCd: 1, area: { kind: "line", cone: true, len: 5, width: 1, hostile: true } },
+  throw: { name: "Smash (ปาของ)", dmg: 3, pve: 10, self: 2, item: true, area: { kind: "line", len: 7, width: 1, hostile: true } },
+  detroit: { name: "Detroit Smash", dmg: 5, pve: 22, self: 6, pveBump: 6, pvePierce: true, area: { kind: "line", cone: true, len: 6, width: 1, hostile: true } },
+  delaware: { name: "Delaware Smash", dmg: 3, pve: 10, self: 3, area: { kind: "line", len: 7, width: 3, hostile: true } },
+  million: { name: "1,000,000% Delaware Detroit Smash", dmg: 10, pve: 60, self: 14, pvePierce: true, area: { kind: "line", cone: true, len: 7, width: 1, hostile: true } },
 };
 const ORDER = ["smash", "throw", "detroit", "delaware", "million"];
 const SMASH_CD = 2;
-const COWL = { sp: 6, turns: 5, cd: 3, cut: 2, cutPve: 3, resist: 3, cleanse: 2, mend: 1 };
+const COWL = { pveDmg: 4, sp: 6, turns: 5, cd: 3, cut: 2, cutPve: 3, resist: 3, cleanse: 2, mend: 1 };
 const MEND_MULT = 2;
 // จังหวะฉาก (วินาที) — client MIDORIYA_T ต้องตรงกัน (ms)
 const T = { smash: 0.55, million: 1.6 };
@@ -76,10 +75,13 @@ const pve = () => { const M = require("../server/pveMode"); return M.isPveCoop()
 const passiveOn = (p) => PassiveSeal.on(p);
 const dmgOf = (f) => (pve() ? f.pve : f.dmg);
 const cutOf = (p) => (cowlOn(p) ? (pve() ? COWL.cutPve : COWL.cut) : 0);
-// PVE (Eos/Moon — ผู้ใช้เลือกไอเดีย 1 2026-11-16): Smash = ท่าเก็บลูกกระจ๊อก (8 · ตัวเอง 2 · คูลดาวน์ 1) · Detroit = ท่าตีตัวใหญ่ (16 · ชน +4)
+// PVE (Eos/Moon — ผู้ใช้เลือก 2026-11-16): Smash = ท่าเก็บลูกกระจ๊อก (12 · ตัวเอง 2 · คูลดาวน์ 1) · Detroit = ท่าตีตัวใหญ่ (22 · ชน +6 · ทะลุเกราะ) · 1,000,000% 60 ทะลุเกราะ
 const selfOf = (f) => (pve() && f.pveSelf != null ? f.pveSelf : f.self);
 const cdOf = (f) => (pve() && f.pveCd ? f.pveCd : SMASH_CD);
 const bumpOf = (f) => (pve() && f.pveBump) || 0;
+const pierceOf = (f) => pve() && !!f.pvePierce;
+// ดาเมจของท่า: PVE ระหว่าง Full Cowl +4 (ผู้ใช้เลือก 2026-11-16)
+const powerOf = (p, f) => dmgOf(f) + (pve() && cowlOn(p) ? COWL.pveDmg : 0);
 const recoilOf = (p, f) => Math.max(0, selfOf(f) - cutOf(p));
 // form ของปุ่ม: "smash" / "throw:<uid>" / "detroit" / "delaware" / "million"
 function parseForm(form) {
@@ -125,10 +127,10 @@ function selfHurt(engine, p, n) {
   if (!p.alive) p.pos = null;
   return done;
 }
-// ผลักไปชน (Detroit · PVE): ดาเมจตายตัวเพิ่ม · ลดเกราะก่อน · ไม่ทอยหลบซ้ำ (ต่อจากหมัดที่โดนแล้ว)
-function bumpHit(engine, p, t, n, name) {
+// ผลักไปชน (Detroit · PVE): ดาเมจตายตัวเพิ่ม · ทะลุเกราะตามท่า · ไม่ทอยหลบซ้ำ (ต่อจากหมัดที่โดนแล้ว)
+function bumpHit(engine, p, t, n, name, pierce) {
   if (!t.alive || !t.pos) return;
-  engine.dealMixed(t, n, false);
+  if (pierce) engine.dealDirect(t, n, false); else engine.dealMixed(t, n, false);
   engine.log(`${p.name} ${name} → ${t.name} กระแทก -${n}`);
   if (t.alive && t.hp <= 0) {
     engine.instantDeath(t);
@@ -165,7 +167,7 @@ function castSmash(engine, p, key, item, targets, dir) {
   engine.log(`💥 ${p.name} ${f.name}${item ? ` — ปา${itemName(item)}` : ""}`);
   // คลิป → ผลบนกระดาน (เอฟเฟกต์ + จังหวะพัก + ดาเมจ) หลังคลิปจบ
   if (!p.cutsceneShown) p.cutsceneShown = {};
-  const clip = !(CLIP_ONCE.has(key) && p.cutsceneShown[CUT[key]]);
+  const clip = true; // ทุกแบบเล่นคลิปทุกครั้ง (ผู้ใช้สั่ง 2026-11-16)
   const land = () => {
     // เสียงโจมตีบนกระดาน (หลังคลิปจบ — ไม่ซ้อนวีดีโอ · ผู้ใช้ขอ): 1,000,000% ไม่มีคลิป = เสียงไคลแมกซ์จากคลิป · ที่เหลือ = ลมระเบิดสังเคราะห์
     engine.sfx(key === "million" ? (clip ? SFX.millionStorm : SFX.million) : SFX.storm);
@@ -189,7 +191,7 @@ function landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v,
     engine.withEffectSource(p, () => {
       ranked.forEach(({ t }) => {
         if (!t.alive || !t.pos) return;
-        const res = engine.skillStrike(p, t, f.name, { bonus: dmgOf(f) - 1 });
+        const res = engine.skillStrike(p, t, f.name, { bonus: powerOf(p, f) - 1, pierce: pierceOf(f) });
         if (res && !res.dodge && !res.blocked) {
           boltTag(engine, p, t);
           if (t.alive && t.pos) landed.push(t);
@@ -210,7 +212,7 @@ function landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v,
       }
       engine.ice.flush(ctx);
       const bump = bumpOf(f);
-      if (bump > 0) for (const t of bumped) bumpHit(engine, p, t, bump, f.name);
+      if (bump > 0) for (const t of bumped) bumpHit(engine, p, t, bump, f.name, pierceOf(f));
     });
     require("../server/skills").hitArea(p, tiles, foes.map((t) => t.id));
     fx(engine, p, "smashHit", { form: key, dir, hits });
@@ -249,16 +251,16 @@ function endCowl(engine, p, why) {
 }
 
 function smashDesc(p, key, item) {
-  const f = FORMS[key], dmg = dmgOf(f), recoil = recoilOf(p, f);
+  const f = FORMS[key], dmg = powerOf(p, f), recoil = recoilOf(p, f);
   const a = f.area, shape = a.cone ? `กรวย ${a.len}` : `แนว ${a.len}×${a.width}`;
-  const hit = `ศัตรูทุกคนเสียหาย ${dmg}${bumpOf(f) ? ` · ชนเพิ่ม ${bumpOf(f)}` : ""}`;
+  const hit = `ศัตรูทุกคนเสียหาย ${dmg}${pierceOf(f) ? " ทะลุเกราะ" : ""}${bumpOf(f) ? ` · ชนเพิ่ม ${bumpOf(f)}` : ""}`;
   return `${item ? `ปา${itemName(item)} · ` : ""}ธาตุลม · ${shape} · ${hit} · ผลักไปสุดระยะ · ตัวเองเสียหาย ${recoil} (คูลดาวน์ ${cdOf(f)} เทิร์น)`;
 }
 
 module.exports = {
   id: ID,
   IMG, FX, SFX, VIDEO, CUT, CLIP_SEC, FORMS, ORDER, SMASH_CD, COWL, MEND_MULT, T, PASSIVE, COWL_NAME,
-  isMe, cowlOn, parseForm, recoilOf, dmgOf, cdOf, bumpOf,
+  isMe, cowlOn, parseForm, recoilOf, dmgOf, cdOf, bumpOf, powerOf, pierceOf,
 
   resetCombat(p) {
     p.midoriya = isMe(p) ? fresh() : null;
