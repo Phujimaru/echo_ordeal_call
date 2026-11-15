@@ -198,6 +198,48 @@ function auraBack(g, wx, wy, n, H, ph, now, lowQ, scale, down) {
   g.restore();
 }
 
+// ---------- แขนที่ขยับได้ (ตัดจากภาพตอนวาด — ท่า Twin Sword Slam ฟาดดาบคู่ลงพื้นจริง) ----------
+//  พิกัดในภาพต้นฉบับ (px) · poly = ส่วนแขน+ดาบ · pivot = ไหล่ · up = มุมเงื้อ (เรเดียน · บวก = ตามเข็ม) · down = มุมฟาดลงพื้น
+//  ภาพเฟส 1 = master.webp (1058×651 ต้นฉบับ) · เฟส 2 = master2.webp (1244×668) — ไฟล์ที่ใช้ย่อเป็นสูง 720 สัดส่วนเดิม
+const ARMS = {
+  1: { iw: 1058, ih: 651, parts: [
+    { poly: [[480, 232], [602, 232], [602, 382], [562, 402], [500, 442], [380, 442], [60, 472], [0, 497], [0, 470], [350, 372], [468, 322]], pivot: [548, 250], up: 1.75, down: -0.55 },
+    { poly: [[848, 248], [1002, 248], [1008, 322], [962, 472], [898, 478], [758, 422], [698, 398], [718, 368], [848, 330]], pivot: [905, 272], up: -1.95, down: 0.55 },
+  ] },
+  2: { iw: 1244, ih: 668, parts: [
+    { poly: [[352, 248], [472, 248], [472, 442], [400, 448], [330, 422], [60, 482], [0, 499], [0, 484], [300, 400], [358, 368]], pivot: [420, 292], up: 1.75, down: -0.55 },
+    { poly: [[788, 228], [884, 228], [884, 332], [832, 472], [762, 562], [640, 562], [618, 540], [728, 420], [758, 330]], pivot: [832, 262], up: -1.95, down: 0.55 },
+  ] },
+};
+// มุมแขนตามจังหวะท่า slam (q ของ pose · ต้องตรงกับ twinSwords / slamFx): เงื้อ 0–0.62 · ฟาด 0.62–0.78 · ค้าง → คืน 0.9–1
+function armAngle(q, part) {
+  if (q < 0.62) return part.up * easeOut(q / 0.62);
+  if (q < 0.78) return part.up + (part.down - part.up) * easeIn((q - 0.62) / 0.16);
+  if (q < 0.9) return part.down;
+  return part.down * (1 - clamp01((q - 0.9) / 0.1));
+}
+// วาดภาพแบบแยกชิ้น: ลำตัว (ตัดส่วนแขนออก) แล้วแขนแต่ละข้างหมุนรอบไหล่ · ox/oy/W/H = กรอบภาพบนจอ (ในพิกัดที่หมุน/กลับด้านแล้ว)
+function drawCutImage(g, im, ox, oy, W, H, arms, q) {
+  const sx = W / arms.iw, sy = H / arms.ih;
+  const pathOf = (poly) => { g.beginPath(); poly.forEach(([x, y], i) => (i ? g.lineTo(ox + x * sx, oy + y * sy) : g.moveTo(ox + x * sx, oy + y * sy))); g.closePath(); };
+  // ลำตัว: ทั้งภาพลบส่วนแขน (evenodd)
+  g.save();
+  g.beginPath(); g.rect(ox - 2, oy - 2, W + 4, H + 4);
+  for (const part of arms.parts) part.poly.forEach(([x, y], i) => (i ? g.lineTo(ox + x * sx, oy + y * sy) : g.moveTo(ox + x * sx, oy + y * sy)));
+  g.clip("evenodd");
+  g.drawImage(im, ox, oy, W, H);
+  g.restore();
+  // แขน: หมุนรอบไหล่
+  for (const part of arms.parts) {
+    const a = armAngle(q, part), px = ox + part.pivot[0] * sx, py = oy + part.pivot[1] * sy;
+    g.save();
+    g.translate(px, py); g.rotate(a); g.translate(-px, -py);
+    pathOf(part.poly); g.clip();
+    g.drawImage(im, ox, oy, W, H);
+    g.restore();
+  }
+}
+
 // วาดตัวแทนหมาก → { cx, top, bottom, left, right } (ภาพยังไม่โหลด = undefined → drawUnit วาดหกเหลี่ยมชั่วคราว)
 //  u.master = { phase, down, summon } · u.standee = url
 export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
@@ -221,7 +263,7 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
       z += up;
       lean = q < 0.62 ? -0.18 * Math.sin(clamp01(q / 0.62) * Math.PI * 0.5) : q < 0.78 ? -0.18 + 0.46 * easeIn((q - 0.62) / 0.16) : 0.28 * (1 - clamp01((q - 0.86) / 0.14));
       if (q > 0.78 && q < 0.92) sq = 1 - 0.2 * Math.sin((q - 0.78) / 0.14 * Math.PI);
-      flash = env(q, 0.76, 0.79, 0.84, 0.95);
+      flash = 0.55 * env(q, 0.76, 0.79, 0.84, 0.95);
     }
     else if (pose.kind === "raise") { z += Math.sin(Math.min(1, q * 1.6) * Math.PI * 0.5) * 0.45 * (q < 0.85 ? 1 : (1 - q) / 0.15); flash = env(q, 0.2, 0.35, 0.7, 0.9) * 0.6; }
     else if (pose.kind === "roar") { dx = (hash(t / 30) - 0.5) * 0.06; sq = 1 + 0.06 * Math.sin(q * Math.PI); flash = env(q, 0, 0.1, 0.5, 0.8) * 0.5; }
@@ -257,7 +299,9 @@ export function drawMasterUnit(g, u, now, wx, wy, liftZ = 0) {
   const pad = boss ? H * 0.09 : 0;
   // ลำตัวไม่อยู่กลางภาพ (ดาบยื่นซ้าย · เฟส 2 มีปีกขวา) — จุดยึด = กลางขาในภาพ (สัดส่วนความกว้าง)
   const ax = boss ? (ph === 2 ? 0.47 : 0.67) : 0.5;
-  g.drawImage(im, -W * ax, -H + pad, W, H);
+  const slamQ = pose && pose.kind === "slam" && boss ? pose.q : null;
+  if (slamQ != null && ARMS[ph]) drawCutImage(g, im, -W * ax, -H + pad, W, H, ARMS[ph], slamQ); // ฟาดดาบคู่: แขนหมุนจริง
+  else g.drawImage(im, -W * ax, -H + pad, W, H);
   g.filter = "none"; g.shadowBlur = 0;
   if (flash > 0) { add(g, () => glow(g, 0, -H * 0.45, H * 0.75, palOf(ph).neon, flash, WHITE)); }
   g.restore();
@@ -467,7 +511,7 @@ function slamFx(g, e, ms, seed, lowQ) {
   const after = ms - hit;
   const [cx, cy, cs] = P(wx, wy, 0);
   // แฟลชตอนทุบ + วงคลื่นพื้น + รอยแตกตามแฉก
-  add(g, () => glow(g, cx, cy, cs * n * 2.5, WHITE, env(after, 0, 30, 90, 260)));
+  add(g, () => glow(g, cx, cy, cs * n * 1.2, C.neon, 0.75 * env(after, 0, 30, 70, 220), WHITE));
   ring(g, wx, wy, n * 0.7 + after / 300, 0.02, C.neon, Math.max(0, 1 - after / 600), 4);
   const dist = (t) => Math.abs(t.x + 0.5 - wx) + Math.abs(t.y + 0.5 - wy);
   for (const t of tiles) {
@@ -511,6 +555,7 @@ function twinSwords(g, wx, wy, n, v, ms, hit, C, seed, lowQ) {
     const [hx, hy, hzz] = [px, py, hz];
     const [tx, ty, tz] = tipAt(th);
     const A = P(hx, hy, hzz), B = P(tx, ty, tz);
+    if (ms < hit - 40) continue; // ก่อนกระแทก: แขนในภาพตัวเป็นคนเงื้อ/ฟาด (drawCutImage) — ไม่วาดดาบลอยแยก
     add(g, () => {
       // เงาการฟาด (ส่วนโค้งที่ปลายดาบกวาดผ่าน)
       if (trail) {
@@ -518,16 +563,7 @@ function twinSwords(g, wx, wy, n, v, ms, hit, C, seed, lowQ) {
         for (let i = 0; i <= 10; i++) { const a = th - 0.9 + (i / 10) * 0.9, [x, y, z2] = tipAt(a), [sx, sy] = P(x, y, z2); if (i) g.lineTo(sx, sy); else g.moveTo(sx, sy); }
         g.strokeStyle = rgba(C.neon, 0.45 * fade); g.lineWidth = A[2] * 0.35; g.lineCap = "round"; g.stroke();
       }
-      // ใบดาบ: เรือง → ขอบ → แกนขาว (เรียวที่ปลาย)
-      const dxs = B[0] - A[0], dys = B[1] - A[1], len = Math.hypot(dxs, dys) || 1, nx = -dys / len, ny = dxs / len;
-      const w0 = A[2] * 0.13;
-      g.strokeStyle = rgba(C.neon, 0.35 * fade); g.lineWidth = w0 * 5; g.lineCap = "round"; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
-      g.fillStyle = rgba(C.neon, 0.5 * fade);
-      g.beginPath(); g.moveTo(A[0] + nx * w0 * 2, A[1] + ny * w0 * 2); g.lineTo(B[0], B[1]); g.lineTo(A[0] - nx * w0 * 2, A[1] - ny * w0 * 2); g.closePath(); g.fill();
-      g.fillStyle = rgba(C.core, 0.95 * fade);
-      g.beginPath(); g.moveTo(A[0] + nx * w0 * 0.7, A[1] + ny * w0 * 0.7); g.lineTo(B[0], B[1]); g.lineTo(A[0] - nx * w0 * 0.7, A[1] - ny * w0 * 0.7); g.closePath(); g.fill();
-      glow(g, A[0], A[1], A[2] * 0.25, C.neon, 0.6 * fade, WHITE);
-      if (ms >= hit - 40) glow(g, B[0], B[1], B[2] * (ms < hit + 200 ? 1.1 : 0.5), C.neon, 0.9 * fade, WHITE); // ปลายดาบกระแทกพื้น
+      if (ms >= hit - 40) glow(g, B[0], B[1], B[2] * (ms < hit + 200 ? 0.6 : 0.3), C.neon, 0.8 * fade, WHITE); // ปลายดาบกระแทกพื้น
     });
     if (!lowQ && ms >= hit && ms < hit + 500) shards(g, tx, ty, (ms - hit) / 500, "120,110,95", 1, seed + k * 17, 10, 1.0); // ดินกระเด็นตรงที่ดาบฟาด
   }
