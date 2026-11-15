@@ -46,12 +46,12 @@ test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; });
 test.afterEach(() => { engine.clearPhaseTimer(); });
 
 // ---------- โหมด ----------
-test('โหมดผู้กอบกู้เริ่มเป็นบานาจ ลิงซ์: พลังชีวิต 7 · เกราะ 3 · ตีระยะ 1 · ชื่อ/สกิลติดตัวของร่าง · ไม่ล่องหน', () => {
+test('โหมดผู้กอบกู้เริ่มเป็นบานาจ ลิงซ์: พลังชีวิต 7 · เกราะ 3 (+3/+2 ค่าสถานะเพิ่มทุกตัว = 10/5) · ตีระยะ 1 · ชื่อ/สกิลติดตัวของร่าง · ไม่ล่องหน', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5, 'savior'], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(P.S.sliver.form, 'banagher');
-  assert.equal(engine.maxHpOf(P.S), 7);
-  assert.equal(engine.maxArmorOf(P.S), 3);
-  assert.equal(P.S.hp, 7);
+  assert.equal(engine.maxHpOf(P.S), 10);
+  assert.equal(engine.maxArmorOf(P.S), 5);
+  assert.equal(P.S.hp, 10);
   assert.deepEqual(action.rangeOf(P.S), [1, 1]);
   assert.equal(action.baseMovOf(P.S), 4);
   assert.equal(pilot.stealthed(P.S), false, 'บานาจไม่มีซุ่มโจมตี');
@@ -66,7 +66,7 @@ test('โหมดผู้กอบกู้เริ่มเป็นบา�
 test('โหมดสายลับ (ค่าเริ่มต้น) = นักบินเดิม', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 5, 5], ['C', 'dummy', 9, 5]]);
   assert.equal(P.S.sliver.form, 'pilot');
-  assert.equal(engine.maxHpOf(P.S), 5);
+  assert.equal(engine.maxHpOf(P.S), 8);
   assert.equal(view('S', 'S').character.ultimate.name, 'ผมจำเป็นต้องไปต่อ');
 });
 
@@ -103,7 +103,7 @@ test('กล่องของลาพลัส: ตก 2×2 · ศัตรู
   assert.equal(wearBtn().disabled, false);
   pilot.charAction(engine, P.S, 'wear');
   assert.equal(P.S.sliver.form, 'banagher');
-  assert.equal(engine.maxHpOf(P.S), 7);
+  assert.equal(engine.maxHpOf(P.S), 10);
   assert.equal(P.S.hp, 5, 'ฟื้น 2 (ไม่เต็ม)');
   assert.equal(P.S.armor, 2, 'ฟื้นเกราะ 2');
   assert.ok(!box.alive, 'กล่องหายเมื่อสวม');
@@ -134,7 +134,7 @@ test('โล่ดูดซับ: ดาเมจเป็น 0 + ฟื้น�
   assert.ok(P.S.sliver.absorb);
   assert.equal(calls.queue.length, 0, 'กดเฉยๆ ยังไม่มีคลิป');
   engine.withEffectSource(P.B, () => engine.dealMixed(P.S, 2));
-  assert.equal(P.S.armor, 3, 'เกราะไม่ลด');
+  assert.equal(P.S.armor, 5, 'เกราะไม่ลด');
   assert.equal(P.S.hp, 4, 'ฟื้นตามดาเมจ');
   assert.deepEqual(calls.queue, [pilot.CUT.absorb]);
   engine.withEffectSource(P.B, () => engine.dealDirect(P.S, 5));

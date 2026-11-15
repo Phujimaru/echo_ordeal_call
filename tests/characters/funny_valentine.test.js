@@ -56,7 +56,7 @@ test.after(() => { Object.assign(engine, saved); for (const id of Object.keys(en
 test.beforeEach(() => { for (const k of Object.keys(calls)) calls[k] = []; Math.random = () => 0.99; });
 test.afterEach(() => { Math.random = realRandom; engine.setGameMode('ffa'); engine.setCycleShift(0); engine.setShopPos(null); engine.clearPhaseTimer(); });
 
-test('ข้อมูล: พิเศษ · unique · พลังชีวิต 7 เกราะ 3 · เดิน 4 · ตี [1, 2] · ไอคอนสกิล · ทุกตัวเลือกมี desc · สัญญาข้อมูล §7.13', () => {
+test('ข้อมูล: พิเศษ · unique · พลังชีวิต 7 เกราะ 3 (+3/+2 ค่าสถานะเพิ่มทุกตัว = 10/5) · เดิน 4 · ตี [1, 2] · ไอคอนสกิล · ทุกตัวเลือกมี desc · สัญญาข้อมูล §7.13', () => {
   const ch = CHAR_BY_ID.funny_valentine;
   assert.equal(ch.difficulty, 'special');
   assert.equal(ch.unique, true);
@@ -65,7 +65,7 @@ test('ข้อมูล: พิเศษ · unique · พลังชีวิ�
   assert.deepEqual([ch.basic.img, ch.secondary.img, ch.ultimate.img], ['/characters/funny_valentine/funny_skill1.webp', '/characters/funny_valentine/funny_skill2.jpg', '/characters/funny_valentine/funny_skill3.webp']);
   assert.deepEqual(ch.secondary.area, { kind: 'line', len: 5, width: 1, hostile: true });
   const P = setup([['V', 'funny_valentine', 2, 7], ['B', 'dummy', 9, 7]]);
-  assert.deepEqual([P.V.hp, P.V.armor, engine.movOf(P.V)], [7, 3, 4]);
+  assert.deepEqual([P.V.hp, P.V.armor, engine.movOf(P.V)], [10, 5, 4]);
   const me = view('V', 'V');
   assert.deepEqual(Object.keys(me.valentine).sort(), ['ammo', 'ammoMax', 'parallel', 'reloadCd', 'ultCd', 'veil', 'veilCd'].sort());
   assert.deepEqual(me.valentine.ultCd, { parallel: 0, selves: 0, know: 0, justice: 0 });
@@ -110,8 +110,8 @@ test('ปืนแห่งสันติภาพ: ยิงหลายนั
   P.V.skillPoints = 0;
   engine.setActor('V');
   engine.useSkill('V', 'secondary', [], { form: 's2', dir: 'right' });
-  assert.equal(vit(P.B), 10 - 2, 'B โดน 2 นัด');
-  assert.equal(vit(P.C), 10, 'C ด้านหลังไม่โดน');
+  assert.equal(vit(P.B), 15 - 2, 'B โดน 2 นัด');
+  assert.equal(vit(P.C), 15, 'C ด้านหลังไม่โดน');
   assert.equal(P.V.skillPoints, 1, 'ยิงหลายนัดในการกดครั้งเดียว = +1');
   assert.equal(P.V.skillUsedRound, false, 'ไม่นับโควตาสกิล (ผู้ใช้สั่ง 2026-10-21)');
   assert.equal(engine.action.locked, true, 'ยิงแล้วเดินไม่ได้');
@@ -122,7 +122,7 @@ test('ปืนแห่งสันติภาพ: ยิงหลายนั
   flush(t, 1200);
   assert.equal(engine.gameState, 'ACTION', 'กลับเข้าตา (ตีปกติ/ยิงต่อได้)');
   engine.useSkill('V', 'secondary', [], { form: 's1', dir: 'right' });
-  assert.equal(vit(P.B), 10 - 3, 'กดซ้ำในตาเดียวกันได้');
+  assert.equal(vit(P.B), 15 - 3, 'กดซ้ำในตาเดียวกันได้');
   assert.equal(P.V.skillPoints, 2, 'กดครั้งที่สอง = +1 อีกครั้ง');
   assert.equal(P.V.valentine.ammo, 0);
   assert.equal(P.V.valentine.reloadRound, 2 + 5);
@@ -142,7 +142,7 @@ test('ปืน: นัดที่เป้าตายแล้วไปโด
   engine.setActor('V');
   engine.useSkill('V', 'secondary', [], { form: 's3', dir: 'right' });
   assert.equal(P.B.alive, false);
-  assert.equal(vit(P.C), 10 - 2, 'นัดที่ 2–3 ไป C');
+  assert.equal(vit(P.C), 15 - 2, 'นัดที่ 2–3 ไป C');
   flush(t, 1200);
   // กระสุนไม่พอ
   P.V.valentine.ammo = 1; P.V.skillUsedRound = false;
@@ -283,8 +283,8 @@ test('จงปลาบปลื้ม: จบตาเดินของเป
   const [d] = doubles();
   engine.setActor('B');
   engine.finishActor();
-  assert.equal(vit(P.B), 10 - 4);
-  assert.equal(P.B.armor, 0, 'เกราะก่อน');
+  assert.equal(vit(P.B), 15 - 4);
+  assert.equal(P.B.armor, 1, 'เกราะก่อน (5 − 4)');
   assert.equal(d.alive, false, 'ชนแล้วสลาย');
   assert.deepEqual([P.B.dim, P.V.dim, P.V.valentine.parallel], [null, null, null]);
   assert.equal(P.V.skillPoints, 1, 'ตัวเหมือนชน = +1');
@@ -338,8 +338,8 @@ test('รู้จักตัวเองอย่างแท้จริง: 
   engine.clearPhaseTimer();
   engine.setActor('B');
   engine.finishActor();
-  assert.equal(P.B.armor, 3, 'ทะลุเกราะ');
-  assert.equal(P.B.hp, 7 - 2);
+  assert.equal(P.B.armor, 5, 'ทะลุเกราะ');
+  assert.equal(P.B.hp, 10 - 2);
   assert.equal(d.alive, false);
   assert.equal(P.V.valentine.ultReady.know, 2 + 3);
   const choice = view('V', 'V').character.ultimate.choices.find((c) => c.key === 'know');
