@@ -99,7 +99,7 @@ test("ห้ามสกิล: BS Page ยังใช้ได้ แต่ Em
   assert.strictEqual(e.armor, 2);
   s.emotion = 5;
   engine.useSkill(R, "secondary", [], { form: "urging" });
-  assert.strictEqual(s.ego, null);
+  assert.ok(!s.egos.urging);
 });
 
 test("BS Page เปิดดูมือได้แม้ไม่มีเป้าในระยะ", () => {
@@ -163,7 +163,7 @@ test("Mook: โดนทุกคนในแนว ได้แต้มสก�
   assert.strictEqual(r.skillPoints, 3);
 });
 
-test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่ม · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +2 ครั้งเดียว", () => {
+test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่ม · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +3 ครั้งเดียว", () => {
   const { r, s } = setup();
   r.armor = 3;
   use("oldboys", s, [], { dir: "right" });
@@ -172,9 +172,9 @@ test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่
   r.skillPoints = 0;
   engine.setRoundNumber(engine.roundNumber + 1);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 2);
+  assert.strictEqual(r.skillPoints, 3);
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 2);
+  assert.strictEqual(r.skillPoints, 3);
 });
 
 test("Wheels: โดนในแนว 2×1 · คนใกล้สุดสตั้น · เกราะ +1", () => {
@@ -285,20 +285,31 @@ test("ไอเทมเติมแต้มสกิลไม่ได้", ()
   assert.strictEqual(r.skillPoints, 0);
 });
 
-test("Emotion skill: หัก Emotion · บัฟ 3 เทิร์น · คูลดาวน์รวม", () => {
+test("Emotion skill: ราคา 2 · หัก Emotion · บัฟถาวร · คูลดาวน์รวม 5 · ถือได้หลายแบบ แบบละครั้ง", () => {
   const { r, s } = setup();
-  s.emotion = 3;
+  s.emotion = 3; r.skillPoints = 5;
   engine.useSkill(R, "secondary", [], { form: "urging" });
+  assert.strictEqual(r.skillPoints, 3);
   assert.strictEqual(s.emotion, 2);
   assert.strictEqual(engine.maxHpOf(r), 10);
-  assert.strictEqual(r.statuses.rolandUrging, 3);
+  assert.ok(require("../../characters/_universal_status").NO_TICK_STATUS.has("rolandUrging"));
   r.skillUsedRound = false;
   engine.useSkill(R, "secondary", [], { form: "lies" });
-  assert.strictEqual(s.ego, "urging");
+  assert.ok(!s.egos.lies, "ติดคูลดาวน์รวม");
+  const round = engine.roundNumber;
+  engine.setRoundNumber(round + 5);
+  r.skillUsedRound = false; s.emotion = 3;
+  engine.useSkill(R, "secondary", [], { form: "urging" });
+  assert.strictEqual(s.emotion, 3, "แบบเดิมรับซ้ำไม่ได้");
+  engine.useSkill(R, "secondary", [], { form: "lies" });
+  assert.ok(s.egos.lies && s.egos.urging);
+  assert.strictEqual(engine.maxHpOf(r), 10);
+  roland.onEndTurn(engine);
+  assert.ok(s.egos.urging, "ไม่หมดเอง");
   r.statuses.rolandUrging = 0;
   r.hp = 10;
   roland.onEndTurn(engine);
-  assert.strictEqual(s.ego, null);
+  assert.ok(!s.egos.urging && s.egos.lies);
   assert.strictEqual(r.hp, 9);
 });
 
@@ -307,6 +318,7 @@ test("Fervent Beats: พลังโจมตี +3 ใช้กับการ�
   s.emotion = 5;
   engine.useSkill(R, "secondary", [], { form: "fervent" });
   assert.strictEqual(s.emotion, 0);
+  assert.strictEqual(r.statuses.rolandFervent, 5);
   use("ranga", s, [E]);
   assert.strictEqual(e.armor + e.hp, 10 - 4);
   r.hp = 0;
@@ -320,7 +332,7 @@ test("Fervent Beats: พลังโจมตี +3 ใช้กับการ�
 
 test("Scars: ลดดาเมจ 1 · ติด 20% = 0", () => {
   const { r, s } = setup();
-  s.ego = "scars"; r.statuses.rolandScars = 3;
+  s.egos.scars = true; r.statuses.rolandScars = 1;
   Math.random = () => 0.5;
   assert.strictEqual(roland.adjustIncomingDamage(engine, r, 3, true), 2);
   Math.random = () => 0.1;
@@ -329,7 +341,7 @@ test("Scars: ลดดาเมจ 1 · ติด 20% = 0", () => {
 
 test("A Kiss: เศษน้ำแข็งครบ 5 สตั้น + ดาเมจ 1", () => {
   const { r, e, s } = setup();
-  s.ego = "kiss"; r.statuses.rolandKiss = 3;
+  s.egos.kiss = true; r.statuses.rolandKiss = 1;
   e.statuses[roland.SHARD] = 4;
   use("ranga", s, [E]);
   assert.ok(!e.statuses[roland.SHARD]);

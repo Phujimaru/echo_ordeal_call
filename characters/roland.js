@@ -8,7 +8,8 @@
 //    ใช้การ์ดแบบที่ยังไม่เคยใช้ = Furioso charge +1 (ครบ 9 แบบ = ท่าไม้ตายพร้อม · ใช้แล้วนับใหม่)
 //  BS Page (พื้นฐาน): เลือกการ์ดในมือ (เก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้) · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
 //    ดาเมจการ์ด = ค่าบนการ์ด + พลังโจมตี/เสริมพลัง (attack.skillStrike opts.bonus) · ไม่จบตา · เดินต่อไม่ได้
-//  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น + คูลดาวน์ของแต่ละแบบ · ใช้แล้วหัก Emotion · บัฟ 3 เทิร์น
+//  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น · ใช้แล้วหัก Emotion · บัฟถาวร (ผู้ใช้ปรับ 2026-11-15) — Fervent Beats ครบ 5 เทิร์นตายทันที
+//    ถือบัฟได้หลายแบบพร้อมกัน · แต่ละแบบรับได้ครั้งเดียว (Claude ตัดสิน)
 //  Furioso (ท่าไม้ตาย · คูลดาวน์ 4 เทิร์น): แนว 4×1 พุ่งชนศัตรูคนแรก · คลิปลงเมื่อไม่หลบ (เสียงคลิกงดตามกฎห้ามเสียงซ้อนวีดีโอ)
 //
 //  ผู้ใช้ตัดสิน 2026-11-08: การ์ดรอบตัว = ประชิด 4 ทิศ · Logic แนว 3×1 โดนศัตรูคนแรก · Crystal สวนกลับกรอบ 3×3 จนจบเทิร์น · มือเกิน 6 ใบ = ใบที่เกินไม่ได้
@@ -34,8 +35,8 @@ const SFX = {
 };
 const HP = 6, ARMOR = 4, MAX_SKILL = 5, MOV = 4;
 const START_CARDS = 3, HAND_MAX = 6, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
-const EGO_SHARED_CD = 5, EGO_TURNS = 3, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
-const LIES_MAX = 4, OLD_BOYS_SP = 2, MOOK_SP = 3, COUNTER_RING = 1, COUNTER_DMG = 1; // สวนกลับ: กรอบ 3×3 รอบตัว (ห่างไม่เกิน 1 ทั้งแกน x และ y)
+const EGO_SHARED_CD = 5, FERVENT_TURNS = 5, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
+const LIES_MAX = 4, OLD_BOYS_SP = 3, MOOK_SP = 3, COUNTER_RING = 1, COUNTER_DMG = 1; // สวนกลับ: กรอบ 3×3 รอบตัว (ห่างไม่เกิน 1 ทั้งแกน x และ y)
 const FURIOSO = { cost: 3, cd: 4, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
 const SHARD = "rolandIce";      // สแตกบนเป้า (ไม่ลดเทิร์น — NO_TICK_STATUS)
 const CRYSTAL = "rolandCrystal"; // ป้ายหลบ + สวนกลับ (ลดเองตอนจบเทิร์น)
@@ -47,8 +48,8 @@ const line2 = { kind: "line", len: 2, width: 1, hostile: true };
 const CARDS = {
   allas: { name: "Allas Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · อ่อนแอ 1 ในเทิร์นถัดไป" },
   zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
-  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +2 (ครั้งเดียว)" },
-  mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
+  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +3 (ครั้งเดียว)" },
+  mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะคงที่ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
   ranga: { name: "Ranga Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เลือดไหล 1" },
   wheels: { name: "Wheels Industry", cost: 4, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
   crystal: { name: "Crystal Atelier", cost: 3, area: { kind: "line", len: 3, width: 1, hostile: true }, desc: "เลือกทิศ แนว 3×1 พุ่งหาคนแรก · ดาเมจ 1 สองครั้ง · ไม่มีเป้าก็ใช้ได้ · หลบหลีก 1 ครั้ง · ถูกตีปกติสวนกลับรอบตัว 3×3 ดาเมจ 1 (จนจบเทิร์น)" },
@@ -57,11 +58,11 @@ const CARDS = {
 };
 const CARD_KEYS = Object.keys(CARDS);
 const EGO = {
-  fervent: { name: "Fervent Beats", cost: 3, emotion: 5, cd: 999, status: "rolandFervent", desc: "3 เทิร์น: พลังโจมตีพื้นฐาน +3 · อมตะ · บัฟหมดลงตายทันที" },
-  urging: { name: "Urging", cost: 3, emotion: 1, cd: 9, status: "rolandUrging", desc: "3 เทิร์น: พลังชีวิตสูงสุด +1 · ระยะเดิน +1 · ฟื้นพลังชีวิต 1" },
-  scars: { name: "Scars", cost: 2, emotion: 3, cd: 9, status: "rolandScars", desc: "3 เทิร์น: ความเสียหายที่ได้รับ −1 · ถูกโจมตี 20% ไม่เสียหาย" },
-  kiss: { name: "A Kiss", cost: 2, emotion: 3, cd: 9, status: "rolandKiss", desc: "3 เทิร์น: สร้างความเสียหาย = เศษน้ำแข็ง 1 ชิ้น · ครบ 5 ชิ้น สตั้นเทิร์นถัดไป + ดาเมจ 1" },
-  lies: { name: "Lies", cost: 2, emotion: 2, cd: 9, status: "rolandLies", desc: "3 เทิร์น: ราคาการ์ดอาวุธสุ่มใหม่ 0–4 ทุกเทิร์น" },
+  fervent: { name: "Fervent Beats", cost: 2, emotion: 5, status: "rolandFervent", desc: "พลังโจมตีพื้นฐาน +3 · อมตะ · ครบ 5 เทิร์นตายทันที" },
+  urging: { name: "Urging", cost: 2, emotion: 1, status: "rolandUrging", desc: "พลังชีวิตสูงสุด +1 · ฟื้นพลังชีวิต 1 · ระยะเดิน +1" },
+  scars: { name: "Scars", cost: 2, emotion: 3, status: "rolandScars", desc: "ความเสียหายที่ได้รับ −1 · ถูกโจมตี 20% ไม่เสียหาย" },
+  kiss: { name: "A Kiss", cost: 2, emotion: 3, status: "rolandKiss", desc: "สร้างความเสียหาย = เศษน้ำแข็ง 1 ชิ้น · ครบ 5 ชิ้น สตั้นเทิร์นถัดไป + ดาเมจ 1" },
+  lies: { name: "Lies", cost: 2, emotion: 2, status: "rolandLies", desc: "ราคาการ์ดอาวุธสุ่มใหม่ 0–4 ทุกเทิร์น" },
 };
 const EGO_KEYS = Object.keys(EGO);
 
@@ -72,12 +73,13 @@ const LINE = () => Board().LINE_DIRS;
 function fresh() {
   return {
     started: false, seq: 0, hand: [], used: [], bonusDraw: 0, pageRound: 0, pages: 0,
-    hits: 0, emotion: 0, ultReady: 0, egoReady: 0, own: {}, ego: null, egoAt: 0, lies: null,
+    hits: 0, emotion: 0, ultReady: 0, egoReady: 0, egos: {}, egoAt: {}, lies: null,
     oldBoysRound: 0, crystalAt: 0, crystalDodge: 0, countering: false,
   };
 }
 function st(p) { return p.roland || (p.roland = fresh()); }
-const egoOn = (p, k) => isRoland(p) && st(p).ego === k && ((p.statuses[EGO[k].status] || 0) > 0);
+const egoOn = (p, k) => isRoland(p) && !!st(p).egos[k] && ((p.statuses[EGO[k].status] || 0) > 0);
+const egosHeld = (p) => EGO_KEYS.filter((k) => st(p).egos[k]);
 const crystalOn = (p) => isRoland(p) && ((p.statuses[CRYSTAL] || 0) > 0);
 const chargeOf = (s) => s.used.length;
 const cdLeft = (ready, r) => Math.max(0, (ready || 0) - r);
@@ -171,7 +173,7 @@ function onDealt(engine, p, t) {
     s.oldBoysRound = 0;
     gainSp(engine, p, OLD_BOYS_SP, CARDS.oldboys.name);
   }
-  if (s.ego === "kiss" && egoOn(p, "kiss")) addShard(engine, p, t);
+  if (egoOn(p, "kiss")) addShard(engine, p, t);
 }
 // 1 ฮิต → { dealt, dodge } · ex.sure = ด่านหลบผ่านมาแล้ว (Furioso ทอยก่อนคลิป)
 function hit(engine, p, t, n, name, ex = {}) {
@@ -357,28 +359,28 @@ const ULT_NAME = "Furioso";
 function egoBlock(p, k, r) {
   const s = st(p), e = EGO[k];
   if (!e) return "none";
+  if (s.egos[k]) return "owned";
   if (s.emotion < e.emotion) return "emotion";
-  if (cdLeft(s.egoReady, r) > 0 || cdLeft(s.own[k], r) > 0) return "cd";
+  if (cdLeft(s.egoReady, r) > 0) return "cd";
   return null;
 }
 function useEgo(engine, p, k) {
   const s = st(p), e = EGO[k], r = engine.roundNumber;
   s.emotion -= e.emotion;
   s.egoReady = r + EGO_SHARED_CD;
-  s.own[k] = r + e.cd;
-  s.ego = k;
-  s.egoAt = engine.severStamp();
-  p.statuses[e.status] = EGO_TURNS;
+  s.egos[k] = true;
+  s.egoAt[k] = engine.severStamp();
+  p.statuses[e.status] = k === "fervent" ? FERVENT_TURNS : 1; // บัฟอื่นถาวร (NO_TICK_STATUS)
   fx(engine, p, "ego", { ego: k });
   if (k === "fervent") engine.sfx(SFX.heart);
   if (k === "urging") engine.healHp(p, 1);
   if (k === "lies") rollLies(s);
   engine.log(`💠 ${p.name} ${e.name}`);
 }
-function endEgo(engine, p) {
-  const s = st(p), k = s.ego;
-  if (!k) return;
-  s.ego = null;
+function endEgo(engine, p, k) {
+  const s = st(p);
+  if (!s.egos[k]) return;
+  delete s.egos[k];
   delete p.statuses[EGO[k].status];
   if (k === "lies") s.lies = null;
   if (k === "urging") p.hp = Math.min(p.hp, engine.maxHpOf(p));
@@ -403,7 +405,7 @@ function cardChoices(p, r) {
 function egoChoices(p, r) {
   const s = st(p);
   return EGO_KEYS.map((k) => {
-    const e = EGO[k], cd = Math.max(cdLeft(s.egoReady, r), cdLeft(s.own[k], r));
+    const e = EGO[k], cd = s.egos[k] ? 0 : cdLeft(s.egoReady, r);
     return {
       key: k, name: e.name, img: IMG.buff(k), cost: require("../server/skills").skillCostOf(p, "secondary", 0, { form: k }), area: { kind: "self" }, cd, locked: !!egoBlock(p, k, r),
       desc: `${e.name} (Emotion ${e.emotion}): ${e.desc}`,
@@ -416,7 +418,7 @@ module.exports = {
   // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ระหว่าง Emotion A Kiss ทุกความเสียหาย = เศษน้ำแข็ง ❄️
   defaultElement(engine, p) { return egoOn(p, "kiss") ? "ice" : null; },
   IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, MOV, START_CARDS, HAND_MAX, PAGES_PER_TURN, EMOTION_MAX,
-  HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, EGO_TURNS, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RING, FURIOSO,
+  HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, FERVENT_TURNS, OLD_BOYS_SP, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RING, FURIOSO,
   isRoland,
 
   resetCombat(p) { p.roland = isRoland(p) ? fresh() : null; },
@@ -438,14 +440,14 @@ module.exports = {
     s.bonusDraw = 0;
     for (let i = 0; i < n; i++) drawOne(s);
     secretFx(engine, p, "draw");
-    if (s.ego === "lies" && egoOn(p, "lies")) rollLies(s);
+    if (egoOn(p, "lies")) rollLies(s);
   },
   onEndTurn(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isRoland(p)) continue;
       const s = st(p);
       if (!crystalOn(p)) s.crystalDodge = 0;
-      if (p.alive && s.ego && !egoOn(p, s.ego)) endEgo(engine, p);
+      for (const k of egosHeld(p)) if (p.alive && !egoOn(p, k)) endEgo(engine, p, k);
     }
   },
   onDeath(engine, p) {
@@ -562,7 +564,7 @@ module.exports = {
   severables(engine, p) {
     if (!isRoland(p) || !p.alive) return [];
     const s = st(p), out = [];
-    if (s.ego && egoOn(p, s.ego)) out.push({ key: "ego", label: EGO[s.ego].name, at: s.egoAt, cancel: () => endEgo(engine, p) });
+    for (const k of egosHeld(p)) if (egoOn(p, k)) out.push({ key: `ego_${k}`, label: EGO[k].name, at: s.egoAt[k] || 0, cancel: () => endEgo(engine, p, k) });
     if (crystalOn(p)) out.push({ key: "crystal", label: CARDS.crystal.name, at: s.crystalAt, cancel: () => { s.crystalDodge = 0; delete p.statuses[CRYSTAL]; } });
     return out;
   },

@@ -534,7 +534,7 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite", "rolandUrging", "rolandScars", "rolandKiss", "rolandLies"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
 
 module.exports = {
   SPELLBURDEN_MAX,

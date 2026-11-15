@@ -81,7 +81,7 @@ const STATUS_INFO = {
   ryougiMind:     { icon: "🗡️", label: "รากฐานจิต", cls: "bg-slate-200 text-gray-900", desc: "การโจมตีครั้งถัดไป ศัตรูที่โดนถูกลบบัฟล่าสุด 1 อย่างและถูกปิดผลสกิลที่ทำงานอยู่อันล่าสุด 1 อย่าง ใช้ได้ครั้งเดียว" },
   ryougiBloom:    { icon: "🌸", label: "ดับสิ้นซะ", cls: "bg-pink-300 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
   // โรลันด์ (เทิร์นที่เหลือ · เศษน้ำแข็ง = จำนวนชิ้น)
-  rolandFervent: { icon: "🫀", label: "Fervent Beats", cls: "bg-rose-500", desc: "พลังโจมตีพื้นฐานเพิ่ม 3 เป็นอมตะ บัฟหมดลงตายทันที" },
+  rolandFervent: { icon: "🫀", label: "Fervent Beats", cls: "bg-rose-500", desc: "พลังโจมตีพื้นฐานเพิ่ม 3 เป็นอมตะ ครบเวลาตายทันที" },
   rolandUrging:  { icon: "❤️", label: "Urging", cls: "bg-rose-300 text-gray-900", desc: "พลังชีวิตสูงสุดเพิ่ม 1 ระยะเดินเพิ่ม 1" },
   rolandScars:   { icon: "🩹", label: "Scars", cls: "bg-amber-200 text-gray-900", desc: "ความเสียหายที่ได้รับลด 1 ถูกโจมตีมีโอกาส 20% ไม่เสียหาย" },
   rolandKiss:    { icon: "❄️", label: "A Kiss", cls: "bg-sky-200 text-gray-900", desc: "สร้างความเสียหายแล้วเป้าได้เศษน้ำแข็ง 1 ชิ้น" },
