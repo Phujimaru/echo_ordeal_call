@@ -112,6 +112,12 @@ function ownerLeft(owner) {
   for (const p of Object.values(match.players)) if (p.summon && p.summon.ownerId === owner.id) remove(p);
 }
 // ลบทั้งหมด (เปลี่ยนแผนที่ / กลับห้องรอ / เริ่มแมตช์ใหม่)
-function removeAll() {
-  for (const p of Object.values(match.players)) if (p.summon) delete match.players[p.id];
+//  opts.keepOnMap (เปลี่ยนแผนที่ — action.placeOnBoard): ยูนิตที่ตั้ง summon.keepOnMap + ยังมีชีวิต + เจ้าของยังอยู่ในห้อง = เก็บไว้ (pos ว่าง)
+//   → ฮุค onBoardPlaced ของโมดูลเจ้าของวางลงแผนที่ใหม่เอง (Master: ตัวอัญเชิญตามไปด้วย — ผู้ใช้ 2026-11-15)
+function removeAll(opts = {}) {
+  for (const p of Object.values(match.players)) {
+    if (!p.summon) continue;
+    if (opts.keepOnMap && p.alive && p.summon.keepOnMap && match.players[p.summon.ownerId]) { p.pos = null; continue; }
+    delete match.players[p.id];
+  }
 }

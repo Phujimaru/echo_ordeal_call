@@ -388,7 +388,7 @@ function smashes(p) {
 function placeOnBoard(area) {
   require("../element").resetFields(); // หมอกพิษ / หลุมดำ หายเมื่อเปลี่ยนแผนที่
   Ride.clearAll(); // ขี่ผู้เล่นอื่น: เปลี่ยนภูมิภาค = ลงจากหลังทุกคน (ได้จุดเกิดของตัวเอง)
-  Summon.removeAll(); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด
+  Summon.removeAll({ keepOnMap: true }); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด — ยกเว้นตัวที่ตั้ง keepOnMap (ตัวอัญเชิญของ Master: เจ้าของวางใหม่ใน onBoardPlaced)
   Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
   match.board = { area };
   Board.setWrap(Board.isColonyArea(area) ? Board.COLONY.cols : 0); // Colony: กระดานต่อวงรอบ (dist/covers ใช้ค่านี้)
@@ -396,7 +396,8 @@ function placeOnBoard(area) {
   const map = boardMap();
   const alive = combat.alivePlayers();
   // ระบบคู่: จุดเกิดแจกต่อฝ่าย (ตัวแรกที่ยังอยู่) · อีกตัวลงช่องว่างติดกัน
-  const leads = alive.filter((p) => Duo.unitsOf(p).find((u) => u.alive) === p);
+  //  ยูนิตที่ถูกเรียกที่ตามมาแผนที่ใหม่ (keepOnMap) ไม่รับจุดเกิด — เจ้าของวางเองใน onBoardPlaced
+  const leads = alive.filter((p) => !p.summon && Duo.unitsOf(p).find((u) => u.alive) === p);
   const spawns = Board.assignSpawns(map, leads.map((p) => ({ id: p.id, teamId: p.teamId || null })), { teamMode: lobby.teamModeActive() });
   for (const p of Object.values(match.players)) p.pos = p.alive && spawns[p.id] ? { ...spawns[p.id] } : null;
   for (const p of alive) {

@@ -278,3 +278,22 @@ test("ปฏิกิริยาใหม่: แสงจ้า (ตาบอ�
   Element.tickFields();
   assert.equal(b.hp, 19);
 });
+
+test("เปลี่ยนแผนที่: ตัวอัญเชิญที่รอดตามไปเกิดรอบตัว Master (เลือด/สถานะเดิม) · ตัวที่ตายแล้วไม่กลับมา", () => {
+  const { m, b } = setup();
+  const made = M.summonWave(engine, m);
+  made[0].hp = 3; made[0].statuses.poison = 2;
+  kill(b, made[1]); kill(b, made[1]); // Undead ตัวที่ 2: ล้ม (รอฟื้น) — ยังมีชีวิต
+  made[2].alive = false; // Raider ตายไปแล้ว
+  engine.placeOnBoard(2);
+  const left = engine.summon.ofOwner("m");
+  assert.deepEqual(left.map((u) => u.id).sort(), [made[0].id, made[1].id].sort());
+  for (const u of left) {
+    assert.ok(u.pos, "ได้ที่ยืนบนแผนที่ใหม่");
+    const near = Math.max(Math.abs(u.pos.x - m.pos.x), Math.abs(u.pos.y - m.pos.y));
+    assert.ok(near <= 7, "เกิดรอบตัว Master");
+  }
+  assert.equal(made[0].hp, 3);
+  assert.equal(made[0].statuses.poison, 2);
+  assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
+});

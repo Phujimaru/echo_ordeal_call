@@ -194,7 +194,7 @@ function summonWave(engine, p) {
     if (!pos) break;
     const u = engine.summon.spawn(p, {
       kind: `master_${k}`, characterId: "master_summon", name: d.name, img: d.img, hp: d.hp, armor: 0,
-      mov: d.mov, range: d.range, pos, data: { ai: true, masterKind: k, utype: d.utype },
+      mov: d.mov, range: d.range, pos, data: { ai: true, masterKind: k, utype: d.utype, keepOnMap: true }, // keepOnMap = ตามไปแผนที่ใหม่
     });
     u.summon.side = p.duoOf || p.id;
     u.teamId = p.teamId || null;
@@ -218,6 +218,19 @@ function nearFree(engine, p) {
       if (engine.tileFree(x, y, null)) cand.push({ x, y });
     }
     if (cand.length) return cand[Math.floor(Math.random() * cand.length)];
+  }
+  return null;
+}
+
+function freeNearSpawn(engine) {
+  const map = engine.boardMap();
+  const spawns = [...(map.spawns || [])];
+  for (let i = spawns.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [spawns[i], spawns[j]] = [spawns[j], spawns[i]]; }
+  for (const sp of spawns) {
+    for (let r = 0; r <= 6; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      if (engine.tileFree(sp.x + dx, sp.y + dy, null)) return { x: sp.x + dx, y: sp.y + dy };
+    }
   }
   return null;
 }
@@ -360,6 +373,13 @@ module.exports = {
       if (s.landed) { p.boardSize = SIZE; continue; }
       if (p.pos) s.spawnAt = { ...p.pos };
       p.pos = null;
+    }
+    // ตัวอัญเชิญที่รอดตามมาแผนที่ใหม่ (Summon.removeAll keepOnMap): เกิดรอบตัว Master · Master ไม่อยู่บนกระดาน (ยังไม่ลง/ตาย) = รอบจุดเกิดแบบสุ่ม · ไม่มีที่ = หาย
+    for (const u of Object.values(engine.players)) {
+      if (!u.summon || !u.summon.masterKind || !u.alive || u.pos) continue;
+      const owner = engine.players[u.summon.ownerId];
+      const spot = owner && owner.pos ? nearFree(engine, owner) : freeNearSpawn(engine);
+      if (spot) u.pos = spot; else engine.summon.remove(u);
     }
   },
   onRoundDealt(engine) {
