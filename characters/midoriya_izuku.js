@@ -46,9 +46,9 @@ const PASSIVE = "One for All";
 const COWL_NAME = "Full Cowl";
 
 const FORMS = {
-  smash: { name: "Smash", dmg: 5, pve: 10, self: 5, area: { kind: "line", cone: true, len: 5, width: 1, hostile: true } },
+  smash: { name: "Smash", dmg: 5, pve: 8, self: 5, pveSelf: 2, pveCd: 1, area: { kind: "line", cone: true, len: 5, width: 1, hostile: true } },
   throw: { name: "Smash (ปาของ)", dmg: 3, pve: 6, self: 2, item: true, area: { kind: "line", len: 7, width: 1, hostile: true } },
-  detroit: { name: "Detroit Smash", dmg: 5, pve: 10, self: 6, area: { kind: "line", cone: true, len: 6, width: 1, hostile: true } },
+  detroit: { name: "Detroit Smash", dmg: 5, pve: 16, self: 6, pveBump: 4, area: { kind: "line", cone: true, len: 6, width: 1, hostile: true } },
   delaware: { name: "Delaware Smash", dmg: 3, pve: 6, self: 3, area: { kind: "line", len: 7, width: 3, hostile: true } },
   million: { name: "1,000,000% Delaware Detroit Smash", dmg: 10, pve: 40, self: 14, area: { kind: "line", cone: true, len: 7, width: 1, hostile: true } },
 };
@@ -76,7 +76,11 @@ const pve = () => { const M = require("../server/pveMode"); return M.isPveCoop()
 const passiveOn = (p) => PassiveSeal.on(p);
 const dmgOf = (f) => (pve() ? f.pve : f.dmg);
 const cutOf = (p) => (cowlOn(p) ? (pve() ? COWL.cutPve : COWL.cut) : 0);
-const recoilOf = (p, f) => Math.max(0, f.self - cutOf(p));
+// PVE (Eos/Moon — ผู้ใช้เลือกไอเดีย 1 2026-11-16): Smash = ท่าเก็บลูกกระจ๊อก (8 · ตัวเอง 2 · คูลดาวน์ 1) · Detroit = ท่าตีตัวใหญ่ (16 · ชน +4)
+const selfOf = (f) => (pve() && f.pveSelf != null ? f.pveSelf : f.self);
+const cdOf = (f) => (pve() && f.pveCd ? f.pveCd : SMASH_CD);
+const bumpOf = (f) => (pve() && f.pveBump) || 0;
+const recoilOf = (p, f) => Math.max(0, selfOf(f) - cutOf(p));
 // form ของปุ่ม: "smash" / "throw:<uid>" / "detroit" / "delaware" / "million"
 function parseForm(form) {
   const s = String(form || "");
@@ -121,6 +125,17 @@ function selfHurt(engine, p, n) {
   if (!p.alive) p.pos = null;
   return done;
 }
+// ผลักไปชน (Detroit · PVE): ดาเมจตายตัวเพิ่ม · ลดเกราะก่อน · ไม่ทอยหลบซ้ำ (ต่อจากหมัดที่โดนแล้ว)
+function bumpHit(engine, p, t, n, name) {
+  if (!t.alive || !t.pos) return;
+  engine.dealMixed(t, n, false);
+  engine.log(`${p.name} ${name} → ${t.name} กระแทก -${n}`);
+  if (t.alive && t.hp <= 0) {
+    engine.instantDeath(t);
+    if (!t.alive) engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`);
+  }
+  if (!t.alive) t.pos = null;
+}
 // ระยะตามแนวที่ต่อย (แถวที่เท่าไรนับจากขอบตัว) และระยะห่างจากแนวกลาง
 function rowOf(engine, p, t, v) {
   const n = engine.sizeOf(p), c = Math.floor((n - 1) / 2);
@@ -136,7 +151,7 @@ function castSmash(engine, p, key, item, targets, dir) {
   const v = Board.LINE_DIRS[dir];
   if (!f || !v || !p.pos) return "";
   const s = st(p), r = engine.roundNumber;
-  s.ready[key] = r + SMASH_CD;
+  s.ready[key] = r + cdOf(f);
   if (item) {
     const idx = (p.inventory || []).findIndex((it) => it.uid === item.uid);
     if (idx >= 0) p.inventory.splice(idx, 1);
@@ -184,11 +199,18 @@ function landSmash(engine, p, key, f, item, ranked, foes, tiles, recoil, dir, v,
       // ผลักไปจนถึงปลายระยะของท่า — ไกลสุดก่อน (คนหน้าไม่ชนคนหลังที่กำลังจะถูกผลัก)
       const order = landed.map((t) => ({ t, along: rowOf(engine, p, t, v).along })).sort((a, b) => b.along - a.along);
       const ctx = engine.ice.begin();
+      const bumped = [];
       for (const { t, along } of order) {
         const n = area.len - along;
-        if (n > 0 && t.alive && t.pos) engine.ice.pushUnit(t, { x: v[0], y: v[1] }, ctx, n);
+        if (!(n > 0 && t.alive && t.pos)) continue;
+        const mark = ctx.events.length;
+        engine.ice.pushUnit(t, { x: v[0], y: v[1] }, ctx, n);
+        // ชนกำแพง/ขอบแมพ/ตัวอื่น (หรือตัวใหญ่ผลักไม่ไป) ก่อนถึงปลายระยะ
+        if (ctx.events.slice(mark).some((e) => e.kind === "knock" && e.id === t.id && e.collide)) bumped.push(t);
       }
       engine.ice.flush(ctx);
+      const bump = bumpOf(f);
+      if (bump > 0) for (const t of bumped) bumpHit(engine, p, t, bump, f.name);
     });
     require("../server/skills").hitArea(p, tiles, foes.map((t) => t.id));
     fx(engine, p, "smashHit", { form: key, dir, hits });
@@ -229,14 +251,14 @@ function endCowl(engine, p, why) {
 function smashDesc(p, key, item) {
   const f = FORMS[key], dmg = dmgOf(f), recoil = recoilOf(p, f);
   const a = f.area, shape = a.cone ? `กรวย ${a.len}` : `แนว ${a.len}×${a.width}`;
-  const hit = `ศัตรูทุกคนเสียหาย ${dmg}`;
-  return `${item ? `ปา${itemName(item)} · ` : ""}ธาตุลม · ${shape} · ${hit} · ผลักไปสุดระยะ · ตัวเองเสียหาย ${recoil} (คูลดาวน์ ${SMASH_CD} เทิร์น)`;
+  const hit = `ศัตรูทุกคนเสียหาย ${dmg}${bumpOf(f) ? ` · ชนเพิ่ม ${bumpOf(f)}` : ""}`;
+  return `${item ? `ปา${itemName(item)} · ` : ""}ธาตุลม · ${shape} · ${hit} · ผลักไปสุดระยะ · ตัวเองเสียหาย ${recoil} (คูลดาวน์ ${cdOf(f)} เทิร์น)`;
 }
 
 module.exports = {
   id: ID,
   IMG, FX, SFX, VIDEO, CUT, CLIP_SEC, FORMS, ORDER, SMASH_CD, COWL, MEND_MULT, T, PASSIVE, COWL_NAME,
-  isMe, cowlOn, parseForm, recoilOf, dmgOf,
+  isMe, cowlOn, parseForm, recoilOf, dmgOf, cdOf, bumpOf,
 
   resetCombat(p) {
     p.midoriya = isMe(p) ? fresh() : null;

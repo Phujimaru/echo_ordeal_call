@@ -191,6 +191,34 @@ test("PVE: ดาเมจ 2 เท่า (1,000,000% = 40) · ดาเมจ�
   assert.equal(p.armor, 2);
 });
 
+test("PVE: Smash 8 · ตัวเอง 2 · คูลดาวน์ 1 เทิร์น", () => {
+  const { p, t } = setup({ mode: "eos" });
+  clear(9, 6);
+  smash("smash");
+  runBeats();
+  assert.equal(t.hp, 42);
+  assert.equal(p.armor, 3, "ตัวเอง 2");
+  nextRound();
+  t.pos = { x: 7, y: 6 };
+  smash("smash");
+  assert.equal(match.skillBeats.length, 1, "คูลดาวน์ 1 = ใช้ได้เทิร์นถัดไป");
+});
+
+test("PVE: Detroit 16 · ผลักไปชนก่อนสุดระยะ = เพิ่ม 4 · ไม่ชน = ไม่เพิ่ม", () => {
+  const { p, t, u } = setup({ mode: "eos" });
+  clear(9, 6);
+  engine.boardMap().terrain["10,6"] = "rock";
+  u.pos = { x: 9, y: 5 }; // แถว 3 · ผลักถึงแถว 6 ไม่ชน
+  smash("detroit");
+  runBeats();
+  assert.equal(t.hp, 30, "16 + ชน 4");
+  assert.deepEqual(t.pos, { x: 9, y: 6 }, "ชนหินหยุด");
+  assert.equal(u.hp, 34, "ไม่ชน = 16");
+  assert.deepEqual(u.pos, { x: 12, y: 5 });
+  assert.equal(p.armor, 0);
+  assert.equal(p.hp, 9, "ตัวเอง 6");
+});
+
 test("คูลดาวน์แยกแบบละ 2 เทิร์น · 1 สกิลต่อเทิร์น", () => {
   const { t } = setup();
   smash("smash");
@@ -253,7 +281,8 @@ test("Full Cowl ล้างดีบัฟ 2 อันที่โดนล่�
 test("Full Cowl PVE: ดาเมจเข้าตัวเอง −3", () => {
   const { p } = setup({ mode: "eos" });
   engine.useSkill("a", "secondary", []);
-  assert.equal(mi.recoilOf(p, mi.FORMS.smash), 2);
+  assert.equal(mi.recoilOf(p, mi.FORMS.smash), 0, "Smash PVE 2 − 3");
+  assert.equal(mi.recoilOf(p, mi.FORMS.detroit), 3);
   assert.equal(mi.recoilOf(p, mi.FORMS.million), 11);
 });
 
