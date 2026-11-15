@@ -25,7 +25,7 @@ export const MIDORIYA_HIT_P = { midoriyaPunch: 0.32, midoriyaPunchCowl: 0.3 };
 export const MIDORIYA_FX_DUR = { ...MIDORIYA_MS, midoriyaSmash: 3200, midoriyaRecoil: 1000, midoriyaCowl: 1500 };
 export const isMidoriyaFx = (kind) => typeof kind === "string" && kind in MIDORIYA_FX_DUR;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-export const smashDur = (form) => (form === "million" ? MIDORIYA_T.million + 4200 : MIDORIYA_T.smash + (form === "detroit" ? 3200 : 2600));
+export const smashDur = (form) => (form === "million" ? MIDORIYA_T.million + 2600 : MIDORIYA_T.smash + (form === "detroit" ? 2100 : 1900));
 
 function bodyAt(x, y, n = 1) {
   n = Math.max(1, n | 0);
@@ -123,7 +123,7 @@ function punchFx(g, e, p, seed, lowQ, cowl) {
 
 // ---------- Smash ----------
 //  อ้างอิงคลิปของผู้ใช้: ชาร์จ = แขนเรืองแดงส้ม เส้นเลือดชมพูแดงแตก (1,000,000% + สายฟ้าเขียว) →
-//  ปะทะ = ประกายขาวแตกเป็นหนามรอบหมัด → กำแพงลมขาวเทาพัดข้ามทั้งจอ เส้นความเร็วเทาเข้ม → ฝุ่นควันค้างคลุมทั้งฉากแล้วค่อยจาง
+//  ปะทะ = ประกายขาวแตกเป็นหนามรอบหมัด → มวลลมก้อนใหญ่ลอยกลางอากาศซัดไปตามทิศ (รูปทรงกรวย/แนวตามท่า) แล้วสลาย
 const VEIN = "255,70,120", HOT = "255,150,60", FOG = "214,214,222", FOG_D = "120,122,134", BROWN = "150,60,50";
 // ประกายขาวแตกเป็นหนาม (starburst) — r = รัศมี, n = จำนวนหนาม
 function starburst(g, x, y, r, n, seed, a, rot = 0) {
@@ -166,42 +166,6 @@ function chargeArm(g, A, fist, t, q, big, cowl, seed, lowQ) {
   if ((big || cowl) && !lowQ) crackle(g, A, t, big ? 12 : 6, 0.7 + 0.3 * q, big ? 1.1 : 0.7, seed + 9);
   g.restore();
 }
-// 1,000,000%: ทั้งจอ — ชาร์จ = จอมืดลง + เส้นโฟกัสสีสลับ (ฟ้า/เขียว/ชมพู/เหลือง ตามต้นคลิป) วิ่งเข้าหาหมัด · ปะทะ = แฟลชขาวเต็มจอ
-const FOCUS = ["90,200,255", "80,255,140", "255,70,220", "255,235,90"];
-function millionScreen(g, fist, t, beat, seed, lowQ) {
-  const m = g.getTransform(), cv = g.canvas, W = cv.width, H = cv.height, U = Math.min(W, H) / 800;
-  const sx = m.a * fist.x + m.c * fist.y + m.e, sy = m.b * fist.x + m.d * fist.y + m.f;
-  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
-  if (t < beat) {
-    const q = clamp01(t / beat);
-    g.fillStyle = `rgba(6,8,14,${0.55 * easeOut(q)})`; g.fillRect(0, 0, W, H);
-    const col = FOCUS[Math.floor(t / 180) % FOCUS.length], R = Math.hypot(W, H);
-    g.globalCompositeOperation = "lighter"; g.lineCap = "round";
-    const n = lowQ ? 30 : 90;
-    for (let i = 0; i < n; i++) {
-      const ang = hash(seed + i * 1.9) * TAU, k = ((hash(seed + i * 3.3) + t / 260) % 1);
-      const r0 = R * (0.12 + 0.8 * (1 - k)), len = R * (0.1 + 0.25 * hash(seed + i));
-      g.strokeStyle = rgba(i % 5 ? col : WHITE, (0.25 + 0.6 * q) * (0.4 + 0.6 * hash(seed + i * 7)));
-      g.lineWidth = Math.max(1, U * (1.5 + 5 * hash(seed + i * 2.2)));
-      g.beginPath(); g.moveTo(sx + Math.cos(ang) * r0, sy + Math.sin(ang) * r0);
-      g.lineTo(sx + Math.cos(ang) * (r0 + len), sy + Math.sin(ang) * (r0 + len)); g.stroke();
-    }
-    glow(g, sx, sy, U * (80 + 260 * q), GREEN, 0.4 + 0.4 * q);
-    // ประกายรูปกากบาทที่หมัด (แบบต้นคลิป)
-    for (const a of [0.6, -0.6]) {
-      g.save(); g.translate(sx, sy); g.rotate(a);
-      const L = U * (200 + 500 * q);
-      const gr = g.createLinearGradient(-L, 0, L, 0);
-      gr.addColorStop(0, rgba(col, 0)); gr.addColorStop(0.5, rgba(WHITE, 0.9 * q)); gr.addColorStop(1, rgba(col, 0));
-      g.fillStyle = gr; g.fillRect(-L, -U * 6 * (1 + q), L * 2, U * 12 * (1 + q));
-      g.restore();
-    }
-  } else {
-    const k = (t - beat) / 450;
-    if (k < 1) { g.fillStyle = `rgba(255,255,250,${0.95 * (1 - k)})`; g.fillRect(0, 0, W, H); }
-  }
-  g.restore();
-}
 function smashFx(g, e, now, p, seed, lowQ) {
   const A = bodyAt(e.x, e.y, e.size || 1);
   const v = DIRS[e.dir] || [1, 0];
@@ -215,7 +179,6 @@ function smashFx(g, e, now, p, seed, lowQ) {
   const [dx1, dy1] = P(e.x + 0.5 + v[0] * 4, e.y + 0.5 + v[1] * 4);
   const ang = Math.atan2(dy1 - fy0, dx1 - fx0);
   // 1) ชาร์จ
-  if (big) millionScreen(g, fist, t, beat, seed, lowQ);
   if (t < beat + 60) chargeArm(g, A, fist, t, clamp01(t / beat), big, e.cowl, seed, lowQ);
   const wt = t - beat;
   if (wt < 0) return;
@@ -226,79 +189,90 @@ function smashFx(g, e, now, p, seed, lowQ) {
     const k = wt / 520;
     starburst(g, fist.x, fist.y, A.s * (0.6 + (big ? 3.2 : wide ? 2.4 : 1.8) * easeOut(k)), lowQ ? 14 : 26, seed + Math.floor(wt / 90), 1 - k * k, ang);
   }
-  // 3) ทั้งจอ: กำแพงลม → ฝุ่นควันค้าง (พิกัดจอ)
-  const cv = g.canvas, W = cv.width, H = cv.height, U = Math.min(W, H) / 800;
-  const m = g.getTransform();
-  const sx = m.a * fist.x + m.c * fist.y + m.e, sy = m.b * fist.x + m.d * fist.y + m.f;
-  g.save();
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  const span = Math.hypot(W, H) * 1.25;
-  const frontT = big ? 520 : 380;
-  const front = span * easeOut(clamp01(wt / frontT));
-  const hold = big ? 0.55 : 0.42;
-  const fade = q < hold ? 1 : 1 - clamp01((q - hold) / (1 - hold));
-  const peak = (big ? 0.97 : wide ? 0.93 : 0.88) * fade;
-  // ม่านลมตามแนวพัด (หน้าคลื่นคมแล้วค่อยกลืนทั้งจอ)
-  g.save(); g.translate(sx, sy); g.rotate(ang);
-  const gr = g.createLinearGradient(-span * 0.15, 0, front, 0);
-  gr.addColorStop(0, rgba(FOG, peak * 0.85)); gr.addColorStop(0.8, rgba(FOG, peak)); gr.addColorStop(1, rgba("250,250,255", 0));
-  g.fillStyle = gr; g.fillRect(-span * 0.15, -span, front + span * 0.15, span * 2);
-  g.restore();
-  // ฝุ่นท่วมทั้งจอ (ด้านหลังหมัดด้วย)
-  const cover = clamp01((wt - frontT * 0.6) / 300) * peak * (big ? 0.92 : 0.8);
-  if (cover > 0) { g.fillStyle = rgba(FOG, cover); g.fillRect(0, 0, W, H); }
-  if (big && cover > 0) { g.fillStyle = rgba(BROWN, cover * 0.28); g.fillRect(0, 0, W, H); }
-  // ก้อนฝุ่นควันม้วน (ทั้งจอ ลอยไปตามทิศ)
-  const ux = Math.cos(ang), uy = Math.sin(ang);
-  const nP = lowQ ? 10 : big ? 42 : 28;
-  for (let i = 0; i < nP; i++) {
-    const h1 = hash(seed + i * 3.1), h2 = hash(seed + i * 7.7), h3 = hash(seed + i * 1.3);
-    const along = (h1 - 0.15) * span, side = (h2 - 0.5) * span * 1.1;
-    if (along > front) continue;
-    const drift = wt * (0.35 + h3 * 0.5) * U;
-    const x = sx + ux * (along + drift) - uy * side, y = sy + uy * (along + drift) + ux * side;
-    const r = U * (110 + 190 * h3) * (big ? 1.4 : 1) * (0.7 + 0.5 * clamp01(wt / 900));
-    puff(g, x, y, r, fade * (0.35 + 0.35 * h2), i % 3 ? FOG : FOG_D);
-  }
-  // เส้นความเร็ว (เทาเข้ม + ขาว) พุ่งข้ามจอ
-  const nS = lowQ ? 24 : big ? 120 : 80;
-  g.lineCap = "round";
-  for (let i = 0; i < nS; i++) {
-    const h1 = hash(seed + i * 2.3), h2 = hash(seed + i * 5.9), h3 = hash(seed + i * 8.1);
-    const speed = (2.2 + 2.5 * h3) * U * (big ? 1.3 : 1);
-    const along = ((h1 * span + wt * speed) % (span * 1.2)) - span * 0.1;
-    if (along > front + 80 * U) continue;
-    const side = (h2 - 0.5) * span * 1.1;
-    const x = sx + ux * along - uy * side, y = sy + uy * along + ux * side;
-    const len = U * (120 + 380 * h3);
-    g.strokeStyle = rgba(i % 4 === 0 ? "250,250,255" : i % 7 === 0 && big ? VEIN : "70,72,84", fade * (0.35 + 0.45 * h2));
-    g.lineWidth = Math.max(1, U * (2 + 7 * h1));
-    g.beginPath(); g.moveTo(x - ux * len, y - uy * len); g.lineTo(x, y); g.stroke();
-  }
-  // เศษหินปลิว
-  if (!lowQ) {
-    for (let i = 0; i < (big ? 40 : 22); i++) {
+  // 3) มวลลมก้อนใหญ่ซัดออกไปตามทิศ (ผู้ใช้สั่ง 2026-11-15: ลมขนาดใหญ่ ซัดไปตามทิศ รูปทรงกรวย · ไม่ทับจอ · ไม่ใช่ของนิ่งบนพื้น)
+  //  ลอยกลางอากาศ (ยกจากพื้น) · หน้าคลื่น = สันลมขาวม้วนหนา วิ่งจากหมัดถึงปลายระยะแล้วพุ่งเลยออกไปสลาย
+  //  ตัวลมด้านหลังหน้าคลื่น = กรวยบานออก (กรวย) / แถบกว้างคงที่ (แนว) + เส้นลมหมุนวนพุ่งตาม
+  const len = Math.max(1, Number(e.len) || (e.tiles && e.tiles.length ? Math.max(...e.tiles.map((c) => (c.x - e.x) * v[0] + (c.y - e.y) * v[1])) : 5));
+  const cone = e.cone !== undefined ? !!e.cone : e.form !== "throw" && e.form !== "delaware";
+  const halfLine = Math.max(0.5, (Number(e.width) || (e.form === "delaware" ? 3 : 1)) / 2);
+  const hwAt = (a) => (cone ? Math.max(0.35, a - 0.15) : halfLine) * (big ? 1.08 : 1);
+  const side = [-v[1], v[0]];
+  const lift = big ? 0.55 : 0.42; // ยกจากพื้น (เท่าของขนาดช่อง)
+  // (ระยะตามแนว a, ระยะขวาง l) → จุดบนจอ ลอยกลางอากาศ
+  const pt = (a, l, up = 0) => {
+    const [x, y, s] = P(e.x + 0.5 + v[0] * a + side[0] * l, e.y + 0.5 + v[1] * a + side[1] * l);
+    return [x, y - s * (lift + up), s];
+  };
+  const travel = big ? 620 : 460; // ms ที่หน้าคลื่นวิ่งถึงปลายระยะ
+  const reach = len + 0.5;
+  const front = (reach + (big ? 2 : 1.4)) * easeOut(clamp01(wt / (travel * 1.35)));
+  const tail = Math.max(0.3, front - (big ? 6 : 4.2) * clamp01(wt / (travel * 1.6))); // ท้ายลมตามหน้าคลื่นไป
+  const fade = 1 - clamp01((q - 0.45) / 0.55);
+  const over = clamp01((front - reach) / 1.6); // พุ่งเลยปลายระยะ = จางลง
+  const alpha = fade * (1 - over * 0.85);
+  if (alpha > 0) {
+    // ตัวลม: กรวย/แถบโปร่งแสง ไล่จากท้าย (จาง) → หน้าคลื่น (ทึบ)
+    const N = 14, L = [], R = [];
+    for (let i = 0; i <= N; i++) {
+      const a = tail + (front - tail) * (i / N), hw = hwAt(Math.min(a, reach + 1));
+      L.push(pt(a, -hw)); R.push(pt(a, hw));
+    }
+    const [tx, ty] = pt(tail, 0), [fx2, fy2] = pt(front, 0);
+    const gr = g.createLinearGradient(tx, ty, fx2, fy2);
+    gr.addColorStop(0, rgba(FOG, 0)); gr.addColorStop(0.55, rgba(FOG, alpha * 0.55)); gr.addColorStop(1, rgba("248,248,252", alpha * 0.85));
+    g.fillStyle = gr;
+    g.beginPath(); g.moveTo(L[0][0], L[0][1]);
+    for (const p2 of L) g.lineTo(p2[0], p2[1]);
+    for (let i = R.length - 1; i >= 0; i--) g.lineTo(R[i][0], R[i][1]);
+    g.closePath(); g.fill();
+    // ขอบลมสีเทาเข้มสองข้าง (ให้เห็นรูปทรงกรวย)
+    g.lineCap = "round"; g.lineJoin = "round";
+    for (const edge of [L, R]) {
+      g.strokeStyle = rgba(FOG_D, alpha * 0.6); g.lineWidth = Math.max(1, edge[N][2] * 0.05);
+      g.beginPath(); g.moveTo(edge[0][0], edge[0][1]); for (const p2 of edge) g.lineTo(p2[0], p2[1]); g.stroke();
+    }
+    // เส้นลมหมุนวน (โค้ง) พุ่งไปข้างหน้าในตัวลม
+    const nS = lowQ ? 8 : big ? 34 : 22;
+    for (let i = 0; i < nS; i++) {
+      const h1 = hash(seed + i * 2.3), h2 = hash(seed + i * 5.9), h3 = hash(seed + i * 8.1);
+      const a = tail + (front - tail) * ((h1 + wt / (300 + 300 * h3)) % 1);
+      const hw = hwAt(Math.min(a, reach + 1)), l = (h2 - 0.5) * 2 * hw * 0.9;
+      const segLen = 0.6 + 1.2 * h3, curl = (h2 - 0.5) * 0.8;
+      const p0 = pt(a - segLen, l - curl, 0.15 * h1), p1 = pt(a - segLen * 0.5, l + curl * 0.5, 0.3 * h1), p2 = pt(a, l, 0.1 * h3);
+      g.strokeStyle = rgba(i % 3 === 0 ? "70,72,84" : big && i % 5 === 1 ? VEIN : "255,255,255", alpha * (0.45 + 0.45 * h3));
+      g.lineWidth = Math.max(1, p2[2] * (0.02 + 0.035 * h1));
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(p1[0], p1[1], p2[0], p2[1]); g.stroke();
+    }
+    // หน้าคลื่น: สันลมขาวม้วนหนาตลอดความกว้าง
+    const hwF = hwAt(Math.min(front, reach + 1)), nC = Math.max(4, Math.ceil(hwF * 2 / 0.32));
+    for (let i = 0; i <= nC; i++) {
+      const l = -hwF + (2 * hwF) * (i / nC), h1 = hash(seed + i * 4.7 + Math.floor(wt / 120));
+      const [px, py, s] = pt(front - 0.15 * h1, l, 0.2 * Math.sin(i * 1.7 + wt / 90));
+      puff(g, px, py, s * (0.38 + 0.22 * h1) * (big ? 1.3 : 1), alpha * 0.9, big && i % 3 === 1 ? BROWN : i % 4 ? "246,246,250" : FOG);
+    }
+    // เศษหินปลิวไปกับลม
+    if (!lowQ) for (let i = 0; i < (big ? 18 : 10); i++) {
       const h1 = hash(seed + i * 4.4), h2 = hash(seed + i * 9.2);
-      const along = wt * (1.4 + 1.8 * h1) * U, side = (h2 - 0.5) * U * 500 * (1 + wt / 1200);
-      if (along > front) continue;
-      const x = sx + ux * along - uy * side, y = sy + uy * along + ux * side;
-      const r = U * (4 + 9 * h2);
-      g.fillStyle = rgba("85,78,70", fade * 0.9);
-      g.save(); g.translate(x, y); g.rotate(wt / 90 + i);
-      g.fillRect(-r, -r * 0.6, r * 2, r * 1.2); g.restore();
+      const a = front - 0.2 - 1.4 * h1, hw = hwAt(Math.max(0.5, Math.min(a, reach + 1)));
+      if (a < tail) continue;
+      const [px, py, s] = pt(a, (h2 - 0.5) * 2 * hw, 0.3 * Math.sin(h1 * 9 + wt / 150));
+      const r = s * (0.025 + 0.03 * h2);
+      g.fillStyle = rgba("85,78,70", alpha * 0.9);
+      g.save(); g.translate(px, py); g.rotate(wt / 80 + i); g.fillRect(-r, -r * 0.6, r * 2, r * 1.2); g.restore();
+    }
+    // 1,000,000%: สายฟ้าเขียว/แดงฟาดในตัวลม
+    if (big && !lowQ) {
+      const step = Math.floor(wt / 85);
+      g.save(); g.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 5; i++) {
+        const a = tail + (front - tail) * hash(seed + i * 3 + step), hw = hwAt(Math.min(a, reach + 1));
+        const l = (hash(seed + i * 7 + step) - 0.5) * 2 * hw;
+        const [x0, y0, s] = pt(a - 0.7, l), [x1, y1] = pt(a + 0.3, l + (hash(seed + i + step) - 0.5));
+        bolt(g, x0, y0, x1, y1, seed + i + step, s * 0.12, s * 0.016, alpha, i % 2 ? BOLT : VEIN);
+      }
+      g.restore();
     }
   }
-  // 1,000,000%: สายฟ้าเขียว + แดงฟาดในพายุ
-  if (big && !lowQ && fade > 0.2) {
-    const step = Math.floor(wt / 80);
-    g.globalCompositeOperation = "lighter";
-    for (let i = 0; i < 6; i++) {
-      const a0 = hash(seed + i + step * 3) * span * 0.8, s0 = (hash(seed + i * 2 + step) - 0.5) * span * 0.8;
-      const x0 = sx + ux * a0 - uy * s0, y0 = sy + uy * a0 + ux * s0;
-      bolt(g, x0, y0, x0 + ux * 260 * U + uy * 60 * U, y0 + uy * 260 * U - ux * 60 * U, seed + i + step, 30 * U, 4 * U, fade, i % 2 ? BOLT : VEIN);
-    }
-  }
-  g.restore();
 }
 
 // ---------- ร่างกายรับแรง ----------
