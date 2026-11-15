@@ -148,6 +148,7 @@ const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "we
   "rooted",       // ถูกตรึง (คลื่นความมืดของกิระ): เดินไม่ได้ (ทำอย่างอื่นได้ตามปกติ)
   "oilSoaked",    // ชุ่มน้ำมัน (ดิเอโก้): โดนไม้ขีด = ระเบิด 3×3 รอบตัว
   "diegoNet",     // ติดตาข่าย (ดิเอโก้): ป้ายคู่กับถูกตรึง — โดนไม้ขีด = ลุกไหม้ 3
+  "stirred",      // กระตุ้น (ปฏิกิริยาพิษ+สายฟ้า — server/element.js): ดาเมจต่อเทิร์นทุกแบบ ×2
   "noPassive"];   // ลบสกิลติดตัว (server/passiveSeal.js — Rule Breaker ของชิโร่ระหว่าง UBW)
 // ดีบัฟที่ล้างได้ทีละขั้น (คำสาป / ช็อต): โดนล้าง = ลดลงทีละ 1 หน่วย ไม่หายทั้งหมด
 const SOFT_DEBUFF_STEP = ["curse", "shock"];
@@ -182,7 +183,8 @@ function dotFieldBonus(engine) {
 //  พลังโจมตีที่ทำได้ -1 (อ่านที่ computeAttackBase คู่กับ "อ่อนแอ")
 //  ต่างจากลุกไหม้/เลือดไหลตรงที่เก็บเป็น "จำนวนเทิร์น" ไม่ใช่สแตค จึงลดเทิร์นเองตามลูปกลางของ endTurn
 function applyPoison(p, turns) {
-  if (resistActive(p)) return false;  // ต้านสถานะผิดปกติกันได้
+  if (resistActive(p)) return false;
+  if (require("../server/element").typeBlocks(p, "poison")) return false; // ประเภท Zombie ไม่ติดพิษร้าย (GRID_PLAN §7.34)  // ต้านสถานะผิดปกติกันได้
   applyBuff(p, "poison", null, turns);
   return true;
 }
@@ -400,8 +402,10 @@ function tickBurn(engine, p) {
     // _statusDamage: บอกฮุคของตัวละครว่าก้อนนี้เป็น "ดาเมจจากสถานะ/ดีบัฟ" ไม่ใช่ดาเมจจากสกิลหรือการโจมตี
     const dmg = 1 + dotFieldBonus(engine); // การเดินทาง (ป่าไม้ต้องสาป กลางคืน): 50% แรงขึ้น +1
     p._statusDamage = true;
+    p._dotKind = "burn"; // ประเภท Zombie (server/element.js typeAdjust): ลุกไหม้ ×2
     engine.dealMixed(p, dmg); // ลุกไหม้: ลดเกราะก่อน ถ้าไม่มีเกราะจึงเข้าเลือดจริง
     p._statusDamage = false;
+    p._dotKind = null;
     engine.log(`🔥 ${p.name} ลุกไหม้ — เสียหาย -${dmg}${dmg > 1 ? " (ป่าไม้ต้องสาป)" : ""} (ลดเกราะก่อน) (เหลืออีก ${p.statuses.hburn - 1} หน่วย)`);
    
     if (p.alive && p.hp <= 0) {

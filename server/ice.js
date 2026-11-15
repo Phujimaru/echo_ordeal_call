@@ -21,7 +21,7 @@
 Object.assign(module.exports, {
   overlayOf, hasOverlay, publicInfo, iceAt, spikeAt, spikeKeyOf, isSpikeKind,
   layIce, undoLay, placeSpike, raiseSpike, damageSpike, removeSpike, restoreSpike,
-  begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed,
+  begin, flush, fxSeconds, resolveEntry, pushUnit, forcedSlides, revealPushed, applySlow, slowed, slowAmt,
   canHitSpike, attackSpike, hitSpikesInArea, onEndTurn, trampleSpikes,
   noteHurt, flushBursts, canLay, canSpike, raiseAllSpikes,
   movCutImmune, bumpSpike, dashBump, shockWave, ownIceAt, ownSpikeAt, ownIceTiles, ownSpikeTiles, meltIce, breakSpike,
@@ -296,6 +296,8 @@ function movCutImmune(p) {
   return !!(hook && hook.movCutImmune && hook.movCutImmune(p));
 }
 function slowed(p) { return ((p && p.statuses && p.statuses.slow) || 0) > 0; }
+// ระยะเดินที่เชื่องช้าหัก (Holy Crusader ของ Master ซ้อนได้ Lv2 — statusAmt.slow · ปกติ 1)
+function slowAmt(p) { return slowed(p) ? Math.max(1, (p.statusAmt && p.statusAmt.slow) || 1) : 0; }
 
 // ---------- เหตุการณ์ให้ client ----------
 let fxSeq = 0;

@@ -303,7 +303,8 @@ io.on('connection', (socket) => {
     if (!ch || ch.locked || ch.hidden) ch = CHARACTERS.find((c) => !c.locked && !c.hidden) || CHARACTERS[0];
     // ตัวละคร unique: เลือกได้แค่ 1 คนต่อเกม — ปฏิเสธการเข้าร่วมแทนการสลับตัวให้เงียบๆ
     //  (ฝั่ง client ปิดการ์ดไว้ตั้งแต่หน้าเลือกตัวละครผ่าน event "takenChars" — ด่านนี้กันเคสกดพร้อมกันเป๊ะ)
-    if (ch.unique && Object.values(match.players).some((o) => o.characterId === ch.id)) {
+    if ((ch.unique && Object.values(match.players).some((o) => o.characterId === ch.id))
+      || (ch.difficulty === "boss" && Object.values(match.players).some((o) => !o.summon && (CHAR_BY_ID[o.characterId] || {}).difficulty === "boss"))) { // หมวด Boss: ได้ทีละตัวต่อเกม (Master)
       socket.emit("characterTaken", { characterId: ch.id, name: ch.name });
       return;
     }

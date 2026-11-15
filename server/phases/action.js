@@ -39,6 +39,7 @@ const Dim = require("../dimension");
 const Summon = require("../summon");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
+const UnitAi = { order: () => require("../unitAi").order(), isAi: (u) => require("../unitAi").isAi(u), start: (u) => require("../unitAi").start(u) }; // ตัวอัญเชิญที่ AI คุม (require ตอนเรียก — กัน require วน)
 const Fodlan = require("../fodlan");
 const ClockUp = require("../clockUp");
 const RT = require("../roadtrip"); // Road Trip: ประตูท้ายเปิด = ระยะตี +1 (rangeOf)
@@ -245,7 +246,7 @@ function movOf(p) {
   //  ฮุค movCutImmune (Ice Spike — ผู้ใช้สั่ง 2026-11-08): ไม่โดนผลลดระยะเดินทุกแบบ (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ) · ถูกตรึง/เดินไม่ได้ยังมีผล
   const fod = Fodlan.movMod(p);
   const n = Ice.movCutImmune(p) ? Math.max(0, baseMovOf(p) + Math.max(0, fod))
-    : Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - (Ice.slowed(p) ? 1 : 0) - (walksThrough(p) ? 0 : movPenalty(p, a)) + fod);
+    : Math.max(0, baseMovOf(p) - (cardDeck.bustedOf(p) ? 1 : 0) - Ice.slowAmt(p) - (walksThrough(p) ? 0 : movPenalty(p, a)) + fod);
   // รองเท้าวายุ (ไอเทมร้านค้า): ระยะเดินตานี้ +a.movBonus — บวกหลังหักโทษ (ใช้ตอนไม่มีระยะเลยก็ยังเดินได้ตามรองเท้า)
   const total = n + ((a && a.movBonus) || 0) + Colony.movBonus(p); // Colony: แรงโน้มถ่วงดับ +2
   return a && a.movLeft != null ? Math.min(total, a.movLeft) : total;
@@ -385,6 +386,7 @@ function smashes(p) {
 //  ร้านค้าถูกยกออก — ต้นเทิร์นถัดไป (dealRound) สุ่มจุดใหม่บนแผนที่นี้พร้อมของใหม่ (GRID_PLAN §3)
 //  ตัวใหญ่: วางใกล้จุดเกิดของตัวเองให้ทั้งตัวลงได้โดยไม่ทับใคร (พังสิ่งกีดขวางได้ = พังของใต้ตัว)
 function placeOnBoard(area) {
+  require("../element").resetFields(); // หมอกพิษ / หลุมดำ หายเมื่อเปลี่ยนแผนที่
   Ride.clearAll(); // ขี่ผู้เล่นอื่น: เปลี่ยนภูมิภาค = ลงจากหลังทุกคน (ได้จุดเกิดของตัวเอง)
   Summon.removeAll(); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด
   Dim.resetAll(); // ชั้นมิติ (server/dimension.js): ทุกคนกลับกระดานหลัก
@@ -545,7 +547,7 @@ function resolveArea(p, area, targets, dir, tile) {
   }
   if (kind === "line") {
     if (!Board.LINE_DIRS[dir]) return null;
-    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone);
+    const tiles = Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1);
     return Board.unitsOnTiles(units, tiles).map((u) => u.id).filter((id) => id !== p.id);
   }
   return null;
@@ -590,15 +592,17 @@ function areaTiles(p, area, dir, tile) {
   if (kind === "tile") { const t = tileOf(tile); return t ? tileArea(area, t) : []; }
   if (!p || !p.pos) return [];
   if (kind === "aoe") return Board.aoeTiles(boardMap(), p.pos.x, p.pos.y, areaRange(p, area), sizeOf(p), !!area.square);
-  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone);
+  if (kind === "line" && Board.LINE_DIRS[dir]) return Board.lineTiles(boardMap(), p.pos.x, p.pos.y, dir, area.len || 1, area.width || 1, sizeOf(p), area.arc || 0, !!area.cone, Number.isFinite(area.fan) ? area.fan : -1);
   return [];
 }
 
 // ---------- ลำดับเดิน ----------
 // แต้มมากเดินก่อน · เท่ากันสุ่ม · ไพ่แตกไปท้ายแถว (หลายคนสุ่มกันเอง)
+//  ฮุค orderLast(p) → true = เดินท้ายสุดเสมอ หลังคนไพ่แตก (Master: ไม่จั่วไพ่ — GRID_PLAN §7.34)
 function turnOrderOf(players, rng = Math.random) {
-  const rows = players.map((p) => ({ p, bust: cardDeck.bustedOf(p), score: cardDeck.scoreOf(p), r: rng() }));
-  rows.sort((a, b) => (a.bust - b.bust) || (a.bust ? 0 : b.score - a.score) || (a.r - b.r));
+  const lastOf = (p) => { const h = CHAR_HOOKS[p.characterId]; return h && h.orderLast && combat.runHook(h, "orderLast", p) ? 1 : 0; };
+  const rows = players.map((p) => ({ p, last: lastOf(p), bust: cardDeck.bustedOf(p), score: cardDeck.scoreOf(p), r: rng() }));
+  rows.sort((a, b) => (a.last - b.last) || (a.bust - b.bust) || (a.bust ? 0 : b.score - a.score) || (a.r - b.r));
   return rows.map((row) => row.p.id);
 }
 function beginOrder() {
@@ -608,7 +612,8 @@ function beginOrder() {
   const alive = Duo.cardHolders().filter((p) => Duo.unitsOf(p).some((u) => u.alive && (u.pos || Ride.riding(u))));
   const order = turnOrderOf(alive);
   // Moon Cell (GRID_PLAN §8.4): ฮาคุโนะเดินก่อนผู้เล่นเสมอ (ไม่จั่วไพ่)
-  match.turnOrder = [...Moon.bossOrder(), ...order];
+  // ยูนิตที่ AI คุม (server/unitAi.js — ตัวอัญเชิญของ Master): เดินหลังผู้เล่นทุกคน
+  match.turnOrder = [...Moon.bossOrder(), ...order, ...UnitAi.order()];
   match.actorIndex = -1;
   match.actorId = null;
   match.action = null;
@@ -709,6 +714,7 @@ function nextActor() {
     if (match.gameState !== "ACTION") return; // ฉากต้นตาเดินพักตาไว้แล้ว (บรอดแคสต์เอง)
     view.broadcastState();
     if (Moon.isBoss(units[0])) Moon.startAi(units[0]); // Moon Cell: ตาของฮาคุโนะคุมโดย AI (server/moonCell.js)
+    else if (UnitAi.isAi(units[0])) UnitAi.start(units[0]); // ตัวอัญเชิญที่ AI คุม (server/unitAi.js)
     return;
   }
 }

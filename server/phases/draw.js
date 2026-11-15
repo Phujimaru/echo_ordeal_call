@@ -186,6 +186,10 @@ function dealRound() {
     const hits = Soot.tickRound();
     if (hits.length) engine.boardFx("shadowFx", { kind: "stormTick", hits });
   }
+  // ปฏิกิริยาธาตุที่ค้างพื้นที่ (หมอกพิษ / หลุมดำ — server/element.js) ลงผลหลังลูปผู้เล่น (ทุกคนได้ผลเทิร์นเดียวกัน)
+  require("../element").tickFields();
+  // ฮุค broadcast onRoundDealt(engine): ต้นเทิร์นหลังลูปผู้เล่น (ผลที่ลงกับผู้เล่นคนอื่น — Master: ลงจากฟ้า / ฟื้น + คลื่นกระแทก)
+  combat.broadcastHook("onRoundDealt", engine);
   reopenFallenOwners();
   lockStuckSides();
   // ผลต้นเทิร์นฆ่าศัตรูคนสุดท้าย = จบเกมทันที (ด่านเดียวกับ nextActor)
@@ -225,6 +229,8 @@ function lockStuckSides() {
 // แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)
 function dealHand(p) {
   p.cards = [];
+  // ฮุค noCards(p) → true = ไม่ถือไพ่เลย (Master — GRID_PLAN §7.34): ล็อกทันที · ลำดับเดินใช้ orderLast
+  { const h = CHAR_HOOKS[p.characterId]; if (h && h.noCards && h.noCards(p)) { p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; p.statusAmt.cardAtkBonus = 0; p.locked = true; p.busted = false; return; } }
   p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; // นับจำนวนครั้งที่ทริกเกอร์สีนั้นทำงานไปแล้วในรอบนี้
   p.statusAmt.cardAtkBonus = 0;
   { const c = cardDeck.drawInitialCard(p); if (c) { p.cards.push(c); cardDeck.onCardDrawn(p, c); } }

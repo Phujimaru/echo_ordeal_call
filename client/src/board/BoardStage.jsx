@@ -400,7 +400,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me), !!pick.square).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
-      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0, !!pick.cone).map((t) => key(t.x, t.y)) };
+      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0, !!pick.cone, Number.isFinite(pick.fan) ? pick.fan : -1).map((t) => key(t.x, t.y)) };
     }
     if (pick.kind === "tile" && pick.place === "list") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
