@@ -50,6 +50,16 @@ test("Master ใน Eos PVE: ลงจากฟ้า · Slam/Knockdown โด�
   const made = M.summonWave(engine, m);
   assert.ok(made.length > 0);
   for (const u of made) assert.ok(engine.sameTeam(u, m) && engine.sameTeam(u, a), "ตัวอัญเชิญเป็นพวกผู้เล่น");
+  // ตัวอัญเชิญเล็ง/ตีมอน Eos (ผู้ใช้ 2026-11-16)
+  const u0 = made[0];
+  const plan = UnitAi.planTurn(u0);
+  assert.equal(plan.targetId, mon.id, "ตัวอัญเชิญเล็งมอน");
+  const mhp = mon.hp + (mon.armor || 0);
+  if (plan.to) u0.pos = { ...plan.to };
+  match.gameState = "ACTION"; match.actorId = u0.id; match.action = { locked: false, moved: true, canto: false, from: { ...u0.pos } }; u0.didAttackRound = false;
+  assert.ok(require("../../server/phases/action").attackTarget(u0.id, mon.id), "ตีมอนได้");
+  assert.ok(mon.hp + (mon.armor || 0) < mhp, "มอนเสียเลือด");
+  match.gameState = "PLAYING"; match.actorId = null; match.action = null;
   // ตาย → ฟื้นเฟส 2
   engine.withEffectSource(mon, () => { combat.dealMixed(m, 9999); if (m.hp <= 0) combat.instantDeath(m); });
   match.roundNumber = 6; combat.broadcastHook("onRoundDealt", engine);

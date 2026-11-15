@@ -1120,7 +1120,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const endCall = useCallback(() => setCall(null), []);
   // เสียงฉากตาเดิน (ผู้ใช้ให้ไฟล์มา 2026-10-09): ตาเรา = notificate_mine · ตาคนอื่น = notificate
   useEffect(() => {
-    if (!call) return;
+    if (!call || (byId[call.id] && byId[call.id].summon && /^master_/.test(byId[call.id].summon.kind || ""))) return;
     const mine = !!me && sameSide(byId[call.id] || { id: call.id }, me);
     playSfx(mine ? "notificate_mine" : "notificate");
     if (mine) requestAttention(); // ถึงตาเรา: หน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ
@@ -1128,15 +1128,18 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
 
   // ---------- แถบลำดับเดิน ----------
   // มืดบอด (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
+  //  ยูนิตที่ถูกเรียก (ตัวอัญเชิญของ Master / มอน) ไม่ขึ้นในแถบลำดับ — ผู้ใช้ 2026-11-16 (กระดานโดนเบียด)
+  const isAiUnit = (u) => !!(u && u.summon && /^master_/.test(u.summon.kind || ""));
+  const notUnit = (id) => !isAiUnit(byId[id]);
   const order = masked ? []
     : phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length
-      ? [...roster].filter((p) => p.alive).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
-      : state.turnOrder;
+      ? [...roster].filter((p) => p.alive && !isAiUnit(p)).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id)
+      : state.turnOrder.filter(notUnit);
   const actor = state.actorId ? byId[state.actorId] : null;
   // คิว 2 คนถัดไป: ต่อจากตำแหน่งที่เดินล่าสุด (server actorIndex · ไม่มี = หาจากฝ่ายของคนที่เดินอยู่) · ตัดคนตกรอบ/มองไม่เห็น (มืดบอด)
   const actIdx = typeof state.actorIndex === "number" ? state.actorIndex : (state.turnOrder || []).indexOf(actorSide);
   const upNext = masked || phase === "PLAYING" || !state.turnOrder ? []
-    : state.turnOrder.slice(actIdx + 1).filter((id) => byId[id] && sideAlive(byId[id], state.players) && !byId[id].masked).slice(0, 2);
+    : state.turnOrder.slice(actIdx + 1).filter((id) => byId[id] && notUnit(id) && sideAlive(byId[id], state.players) && !byId[id].masked).slice(0, 2);
 
   // แถบลำดับเดินชนแถบบนซ้าย (รอบ/ภูมิภาค) ในแนวนอน — จอแคบหรือคนเยอะ → ลดลงไปอยู่ใต้แถบบน
   //  วัดใหม่เมื่อจอ/รายชื่อ/ข้อความแถบบนเปลี่ยน (เทียบแค่แนวนอน ตำแหน่งแนวตั้งไม่มีผล) · setState เฉพาะตอนค่าเปลี่ยน
@@ -1265,7 +1268,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         document.body,
       )}
       {/* ฉากตาเดิน (แบบ A ประตูหกเหลี่ยม) */}
-      {call && phase === "ACTION" && byId[call.id] && !(masked && byId[call.id].masked) && createPortal(
+      {call && phase === "ACTION" && byId[call.id] && notUnit(call.id) && !(masked && byId[call.id].masked) && createPortal(
         <TurnCall key={call.key} k={sk} p={byId[call.id]} rank={Math.max(1, order.indexOf(sideOf(byId[call.id])) + 1)} isMe={!!me && sameSide(byId[call.id], me)} onDone={endCall} />,
         document.body,
       )}
