@@ -337,6 +337,8 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   applyBurn: (p, n) => (combat.statusReflected(p, (src) => applyBurn(src, n)) ? 0 : applyBurn(p, n)), // สะท้อนได้ · "ลุกไหม้" (สถานะ Universal): จุดเดียวที่ทุกตัวละครใช้ใส่สถานะนี้ (เคารพต้านสถานะ + เพดาน)
   EVADE_TURNS,
   applyEvade, // "หลบหลีก" (สถานะ Universal): 1 เทิร์นเสมอ · ไม่ซ้อน (ได้ซ้ำ = รีเฟรช · % ใช้ค่ามากสุด)
+  // ตัวคูณการฟื้นของ "เยียวยา" บนตัวเอง (ฮุค mendMult — มิโดริยะ One for All ×2) · characters/_universal_status.tickMend
+  mendMultOf: (p) => { const h = p && CHAR_HOOKS[p.characterId]; const m = h && typeof h.mendMult === "function" ? Number(h.mendMult(p)) : 1; return m > 0 ? m : 1; },
   healHp: combat.healHp,
   healArmor: combat.healArmor,
   healOverflow: combat.healOverflow,

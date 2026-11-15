@@ -1326,6 +1326,14 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **มอดไหม้จากภายใน**: `damageBonus` เฉพาะ `engine.inStrike()` (skillStrike ก็เรียก computeAttackBase — ต้องกัน) · ลบลุกไหม้ใน `onStrikeLanded` · เอฟเฟกต์/เสียงตรงจังหวะปะทะผ่าน `engine.boardFxAtHit` → `hitFx.current.shinraFx`
 - client: `board/shinraFx.js` (ท่าตี `shinraKick`/`shinraKickBlaze` · socket `shinraFx` · ออร่า `shinraHero`/`shinraBlaze` · รอยเท้า `shinraPrints` จาก BoardStage ตอนเดิน) · `screens/hud/ShinraHud.jsx` แถบเปลวเพลง · เพลง `shinra_inferno` (skillMusic) · เสียง `effect_sound/shinra/`
 
+## 57. พื้นที่กรวย / สกิลไม่ใช้แต้มที่ราคาเป็นดาเมจเข้าตัวเอง / เยียวยาคูณ (มิโดริยะ อิซึคุ — `characters/midoriya_izuku.js` · GRID_PLAN §7.33)
+
+- **พื้นที่กรวย**: `area { kind: "line", cone: true, len: N }` → `Board.lineTiles(map, x, y, dir, len, width, size, arc, cone)` = แถว i (1..len จากช่องติดตัว) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงแนวตัว · `width` ไม่ใช้ · client เลือกทิศเหมือน line (ป้าย "กรวย N") · `action.resolveArea`/`areaTiles` ส่ง cone ให้แล้ว
+- **ดาเมจเข้าตัวเอง (ราคาของท่า)**: ลดเกราะก่อนด้วย `engine.loseArmor`/`loseHp` ตรงๆ ภายใต้ `withEffectSource(null)` (ไม่ผ่านด่านหลบ/ลด/สะท้อนของ `dealMixed`) แล้วเช็คตายเอง
+- **เยียวยาคูณ**: ฮุค `mendMult(p)` → ตัวคูณการฟื้นของ "เยียวยา" บนตัวเอง (`engine.mendMultOf` · `_universal_status.tickMend`) · ลบสกิลติดตัว = คืน 1
+- **ติดคราบธาตุที่สองตามหลังการโจมตี**: หลังดาเมจลง (ไม่หลบ) เรียก `Element.apply(t, "bolt", p)` — ตีปกติใน `onStrikeLanded` · สกิลหลัง `skillStrike`
+- client: `board/midoriyaFx.js` (ท่าตี `midoriyaPunch`/`midoriyaPunchCowl` · socket `midoriyaFx` smash/smashHit/recoil/cowl · ออร่า `midoriyaCowl`) · หน้าทดสอบ `?board=1&midoriya=1` (`MidoriyaFxDev.jsx`)
+
 ## 56. โหมด Road Trip: PVE ไม่มีจุดจบ / ช่วงเดินทางเรียลไทม์ไม่มีเทิร์น / สู้บนถนน-บนรถตู้ / จุดพักเดินอิสระ (`server/roadtrip/` · GRID_PLAN §8.8 · สัญญากลาง `.claude/plans/roadtrip-contract.md`)
 - ตัวตน: `match.world = match.gameMode = "roadtrip"` · ความยาก `match.rtDiff` (`easy|normal|hard` โหวตพร้อมโหมด `selectGameMode { world: "roadtrip", diff }` · เสมอ = ปกติ · `lobby.rtDiffOf`) · 1–6 คน ทีม A (`teamModeActive`) · เล่นอีกรอบ = ความยากเดิม · ไม่มีหุ่นยืนเฉย/การเดินทาง 7 ภูมิภาค/ภาษีกลางคืน
 - สถานะทั้งหมด `match.roadtrip` (สร้างใหม่ทุกแมตช์ — อัปเกรดรีเซ็ต) · ส่ง client ที่ `state.roadtrip` (`RT.publicInfo` — สัญญา §4 + `now` (นาฬิกา server) `van.prices` `van.nitroOn` `fork.options[].km` (ระยะถึงจุดหมาย — วิ่งจริงเมื่อเลือก) `event.title/icon/result` `combat.warn` `stop.acts[id] { cd (มิลลิวินาทีที่เหลือ), kind }` `stop.dog` `best` · fx `garage {pid}` เมื่อเดินติด/กดอู่ · ผู้เล่น `players[].rtDiff` (จุดโหวตความยาก) · กระดาน `state.board.rtRegion` / `rtNight` · วิทยุ `yt.queue` ≤ 20 ไอดี)

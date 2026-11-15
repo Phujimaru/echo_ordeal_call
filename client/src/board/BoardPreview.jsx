@@ -18,6 +18,7 @@
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
 //   ?shinra=1 = คุซาคาเบะ ชินระ · ปุ่มเล่นเอฟเฟกต์ไฟทุกแบบ + สลับออร่า (ShinraFxDev.jsx)
+//   ?midoriya=1 = มิโดริยะ อิซึคุ · ปุ่มเล่น Smash ทุกแบบ / Full Cowl / ออร่า (MidoriyaFxDev.jsx)
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
 //   ?kazuma=1 = เคนซากิ คาซุมะ · ปุ่มเล่นตีปกติ (ดาบ/หมัด/Blast/Slash) + พุ่ง Lightning Sonic + ทุกเหตุการณ์ของ socket "kazumaFx" (KazumaFxDev.jsx)
@@ -50,6 +51,7 @@ import OtoyaFxDev from "./OtoyaFxDev"; // ?otoya=1 = ปุ่มเล่นเ
 import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่นเอฟเฟกต์มหาเทพอรชุน
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
+import MidoriyaFxDev from "./MidoriyaFxDev"; // ?midoriya=1 = ปุ่มเล่นเอฟเฟกต์ของมิโดริยะ อิซึคุ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 
 const AREA_NAMES = { 1: "อาณาจักรแห่งจุดเริ่มต้น", 2: "ทุ่งดอกไม้", 3: "ป่าไม้ต้องสาป", 4: "คลื่นวงวนน้ำ", 5: "ทะเลทราย", 6: "อาณาจักรน้ำแข็ง", 7: "จุดสิ้นสุดของโลก" };
@@ -148,6 +150,7 @@ const DIO_DEV = Q.get("dio") === "1";
 const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
+const MIDORIYA_DEV = Q.get("midoriya") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
   : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
@@ -584,6 +587,7 @@ export default function BoardPreview() {
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}
       <div style={{ position: "absolute", left: 12, bottom: 12, padding: "8px 14px", color: "#fff", background: "rgba(22,36,64,.94)", font: "400 14px Kanit, sans-serif" }}>

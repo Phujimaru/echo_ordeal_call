@@ -17,6 +17,7 @@ import { dioEventFx } from "../dioFx";
 import { ZECT_FX_DUR } from "../zectFx";
 import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
+import { MIDORIYA_T, smashDur } from "../midoriyaFx";
 import { valentineEventFx } from "../valentineFx";
 import { celineEventFx } from "../celineFx";
 import { ryougiEventFx } from "../ryougiFx";
@@ -173,8 +174,21 @@ export default function useCharSocketFx(ctx) {
       else if (kind === "shinraLatomHit" || kind === "shinraDetonate") setShake((n) => n + 1);
     };
     socket.on("shinraFx", onShinra);
+    // มิโดริยะ อิซึคุ (midoriyaFx.js): Smash (ชาร์จ → คลื่นลมกวาดพื้นที่) / ร่างกายรับแรง / Full Cowl · smashHit = จอสั่นตอนปะทะ
+    const MIDORIYA_KIND = { smash: "midoriyaSmash", recoil: "midoriyaRecoil", cowl: "midoriyaCowl" };
+    const onMidoriya = (ev) => {
+      const at = ev && ev.at;
+      if (!ev || !at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
+      if (ev.kind === "smashHit") { if (!lowQ) setShake((n) => n + 1); return; }
+      const kind = MIDORIYA_KIND[ev.kind];
+      if (!kind) return;
+      const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
+      pushFx([{ kind, x: at.x, y: at.y, tiles, dir: ev.dir, form: ev.form, cowl: !!ev.cowl, n: ev.n, ...(kind === "midoriyaSmash" ? { dur: smashDur(ev.form) } : {}) }]);
+      if (kind === "midoriyaSmash" && ev.form === "million" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), MIDORIYA_T.million + 200));
+    };
+    socket.on("midoriyaFx", onMidoriya);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

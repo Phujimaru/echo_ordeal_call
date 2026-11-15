@@ -875,7 +875,8 @@ function bandTiles(map, x, y, orient, width) {
   for (let a = a0; a < a0 + w; a++) for (let b = 0; b < (v ? map.rows : map.cols); b++) out.push(v ? { x: a, y: b } : { x: b, y: a });
   return out;
 }
-function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0) {
+// cone = กรวย (มิโดริยะ: Smash) — แถว i (1..len) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงกลางตัว · ไม่สน width
+function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false) {
   syncWrap(map);
   const v = LINE_DIRS[dir];
   if (!v) return [];
@@ -900,7 +901,8 @@ function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0) {
     return out;
   }
   for (let i = 1; i <= len; i++) {
-    for (let j = -half; j <= width - 1 - half; j++) {
+    const lo = cone ? -(i - 1) - c : -half, hi = cone ? (i - 1) + (n - 1 - c) : width - 1 - half;
+    for (let j = lo; j <= hi; j++) {
       const tx = cx + fx * (edge + i) + sx * j, ty = cy + fy * (edge + i) + sy * j;
       if (inBounds(map, tx, ty)) out.push({ x: wx(tx), y: ty });
     }

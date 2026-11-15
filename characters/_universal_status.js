@@ -283,7 +283,7 @@ function applyMend(p, amount, turns) {
 //  ใช้ engine.healHp จึงเคารพ "ไร้ทางเยียวยา"/"ผกผัน"/เลือดไหล ครบเหมือนการฟื้นเลือดช่องทางอื่น
 function tickMend(engine, p) {
   if (!p || !p.alive || !(((p.statuses && p.statuses.mend) || 0) > 0)) return 0;
-  const amt = statusAmtOf(p, "mend") || 1;
+  const amt = (statusAmtOf(p, "mend") || 1) * (engine.mendMultOf ? engine.mendMultOf(p) : 1); // มิโดริยะ One for All: ×2
   const got = engine.healHp(p, amt);
   p.statuses.mend -= 1;
   if (p.statuses.mend <= 0) delete p.statuses.mend;

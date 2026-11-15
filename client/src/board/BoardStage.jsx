@@ -400,7 +400,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     if (pick.kind === "aoe") return { aoe: Rules.aoeTiles(map, me.pos.x, me.pos.y, pick.radius, sizeOfP(me), !!pick.square).map((t) => key(t.x, t.y)) };
     if (pick.kind === "line") {
       const dir = dirToward(me.pos, hover, sizeOfP(me)) || pick.lastDir || "up";
-      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0).map((t) => key(t.x, t.y)) };
+      return { dir, aoe: Rules.lineTiles(map, me.pos.x, me.pos.y, dir, pick.len, pick.width, sizeOfP(me), pick.arc || 0, !!pick.cone).map((t) => key(t.x, t.y)) };
     }
     if (pick.kind === "tile" && pick.place === "list") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles): ช่องในรายการ = มุมบนซ้ายของตัว · ตัวใหญ่ = ทุกช่องในกรอบเลือกได้
@@ -868,7 +868,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
       faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? (state.clockUp.members.some((m) => m.id === p.id && m.kind === "alter") ? "alter" : "clock") : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
-      aura: p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
+      aura: p.midoriya && p.midoriya.cowl > 0 ? "midoriyaCowl" : p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)

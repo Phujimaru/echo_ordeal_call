@@ -103,7 +103,8 @@ test('ทุกตัวละครที่เล่นได้อยู่�
   const covered = new Set(['ice_spike', 'sora_otosumi', 'raido_hikaru', 'kate', 'emiliko', 'celine', 'diego_alt', 'kensaki_kazuma', 'trafalgar_law',
     'kagami', 'gilgamesh_fake', 'roland', 'echo', 'muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine',
     'fern', 'ryougi', 'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
-    'emiya_kiritsugu', 'inui_takumi', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra']);
+    'emiya_kiritsugu', 'inui_takumi', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra',
+    'midoriya_izuku']); // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));
   assert.deepEqual(missing, [], `ตัวที่ยังไม่อยู่ในตารางธาตุ: ${missing.join(', ')}`);

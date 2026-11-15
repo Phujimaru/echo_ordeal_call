@@ -1696,6 +1696,41 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- มิโดริยะ อิซึคุ (My Hero Academia) — กลาง — ดู characters/midoriya_izuku.js (GRID_PLAN §7.33) ----------
+    //  ไม่ระบุค่าพลัง → ค่าตั้งต้น (HP 10 / เกราะ 5 รวมโบนัสกลาง) · พื้นฐาน = ปุ่ม 5 แบบ (skillPub choices) · ยังไม่มีท่าไม้ตาย
+    id: "midoriya_izuku",
+    gender: "m",
+    name: "มิโดริยะ อิซึคุ",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/midoriya_izuku/midoriya.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "One for All",
+      desc: "เยียวยาบนตัวเองฟื้น 2 เท่า · ระหว่าง Full Cowl การโจมตีทุกแบบ (ตีปกติและสกิล) เป็นธาตุลม แล้วติดคราบไฟฟ้าตาม (ไม่มีดาเมจเอง แต่ทำปฏิกิริยาได้)",
+    },
+    basic: {
+      name: "Smash",
+      desc: "ไม่ใช้แต้ม · ธาตุลม · เลือก 1 ใน 5 (คูลดาวน์แยกแบบละ 2 เทิร์น) · Smash: กรวย 5 คนแรกเสียหาย 5 ตัวเอง 5 · ปาของ (สละไอเทม): แนว 7×1 เสียหาย 3 ตัวเอง 2 · Detroit: กรวย 6 ทุกคน 5 ตัวเอง 6 · Delaware: แนว 7×3 ทุกคน 3 ตัวเอง 3 · 1,000,000%: กรวย 7 คนแรกเสียหาย 10 ตัวเอง 14 · ท่าเป้าเดี่ยว: ศัตรูอื่นในกรวยเสียหายครึ่งหนึ่ง · ผลักศัตรูไปสุดระยะ · ตัวเองเสียหายหลังใช้ (ลดเกราะก่อน · ไม่พอ = ตาย) · PVE: ดาเมจ 2 เท่า (1,000,000% = 40)",
+      area: { kind: "line", len: 5, width: 1, cone: true, hostile: true }, // พื้นที่จริงตามตัวเลือก (skillArea)
+      cost: 0,
+      img: "/characters/midoriya_izuku/skill1.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "Full Cowl",
+      desc: "5 เทิร์น: ดาเมจเข้าตัวเองของ Smash −2 (PVE −3) · เยียวยาตลอดผล · ล้างดีบัฟ 2 อันล่าสุด · ต้านสถานะ 3 เทิร์น (คูลดาวน์ 3 เทิร์นหลังหมดผล)",
+      area: { kind: "self" },
+      cost: 6,
+      img: "/characters/midoriya_izuku/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: null,
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

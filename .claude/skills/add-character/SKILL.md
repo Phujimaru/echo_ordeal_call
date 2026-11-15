@@ -298,6 +298,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | จบเกมด้วยผู้ชนะที่กำหนด + พักฉากก่อนสรุปผล | `engine.declareWinner(p)` + `engine.holdEndTurn(sec)` (จากฮุค `onEndTurn`) + ข้อมูลฉากใน state (`engine.setYukiBoom`) | `endTurn.gameOver` / `colonyHoldThen` |
 | สกิลแนวกว้างเลขคู่ (4×4) | `area { kind: "line", width: 4 }` ได้แล้ว — เยื้องไปทางลบของแกนขวาง (−2…+1) | `Board.lineTiles` |
 | สกิลครึ่งวง 180° รอบตัว (เลือกทิศ) | `area { kind: "line", arc: 2 }` = ข้าวหลามตัดครึ่งหน้ารัศมี 2 รวมแถวข้างตัว (8 ช่อง · ป้าย "ครึ่งวง 2") (ออพติมัส ไพร์ม — GAME_SYSTEM §40) | `Board.lineTiles` |
+| สกิลทรงกรวยไปข้างหน้า (เลือกทิศ) | `area { kind: "line", cone: true, len: 5 }` = แถว i กว้าง 2i−1 (ป้าย "กรวย 5") (มิโดริยะ Smash — GAME_SYSTEM §57) | `Board.lineTiles` |
+| สกิลราคาเป็นดาเมจเข้าตัวเอง / เยียวยาคูณบนตัวเอง | `skillFree` + ลด `loseArmor`/`loseHp` ใต้ `withEffectSource(null)` · ฮุค `mendMult(p)` (มิโดริยะ — GAME_SYSTEM §57) | `_universal_status.tickMend` |
 | ซ่อนปุ่มสกิลตามร่าง (ร่างนี้ไม่มีสกิลรอง/ท่าไม้ตาย) | ฮุค `skillHidden(p, tier)` → true = ช่องนั้นเป็น `null` ใน state · ปิดใน `canUseSkill` ด้วย (รถบรรทุกเก่า) | `view.buildStateFor` |
 | ท่าตั้งรับ: ถูกตีปกติแล้วฟันสวน (ทุกระยะ · ดาเมจตายตัว · ผู้ตีไม่ถอย) | `counters(p, card)` (เปิดตีสวนกลาง) + `counterAnyRange(engine, ผู้สวน, ผู้ตี)` (ด่านสุดท้าย = ตั้งธงสวนได้) + `fixedStrikeDamage(..., { counter })` + `counterPush` → `{ push: false }` · จบท่าใน `onStrikeResolved({ counter })` · คลิปตอนสวนจริง `counterClip(engine, ผู้สวน, card)` (ออพติมัส ไพร์ม ผู้พิทักษ์ — GAME_SYSTEM §40) | `action.counters` / `attack.counterAndPush` |
 | ผลเมื่อใช้ไอเทมจากกระเป๋า | `onItemUsed(engine, p, item)` (ออพติมัส: คริ +25%) | `shop.itemUsed` |
