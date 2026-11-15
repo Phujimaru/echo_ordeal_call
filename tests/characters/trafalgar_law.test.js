@@ -371,6 +371,28 @@ test('Mess: หัวใจเข้ากระเป๋า · บีบ = ค�
   assert.equal(P.L.inventory.some((it) => it.type === 'lawHeart'), false);
 });
 
+test('บีบหัวใจ: หลบได้ (หลบหลีก 100% = ไม่เสีย แต่เสียครั้งบีบ) · ลอว์ติดแม่นยำ = โดน (ผู้ใช้ 2026-11-15)', () => {
+  noRoll();
+  const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 1]]);
+  room('5');
+  ult('mess');
+  strike('E');
+  const heart = P.L.inventory.find((it) => it.type === 'lawHeart');
+  assert.ok(heart);
+  const vit0 = P.E.hp + P.E.armor;
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100;
+  drain(() => engine.useInventoryItem('L', heart.uid));
+  assert.equal(P.E.hp + P.E.armor, vit0, 'หลบพ้น');
+  assert.equal(heart.uses, 2, 'หลบพ้นยังเสียครั้งบีบ');
+  engine.setRoundNumber(engine.roundNumber + 1);
+  H().onRoundStartTick(engine, P.L);
+  engine.setActor('L');
+  P.E.statuses.evade = 1; P.E.statusAmt.evade = 100;
+  P.L.statuses.accurate = 1;
+  drain(() => engine.useInventoryItem('L', heart.uid));
+  assert.equal(P.E.hp + P.E.armor, vit0 - 2, 'แม่นยำทะลุหลบ');
+});
+
 test('ตายใน Room เหลือศพ · Counter Shock ฟื้นพลังชีวิต 1 · 3 ครั้งต่อเกม', () => {
   noRoll();
   const P = setup([['L', 'trafalgar_law', 0], ['E', 'dummy', 1], ['F', 'dummy', 4, 2]]);

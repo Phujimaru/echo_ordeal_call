@@ -1639,7 +1639,7 @@ export function lawEventFx(ev, ctx = {}) {
     case "shamble": f.ca = soulRgb(ev.a && ev.a.id, RED_L); f.cb = soulRgb(ev.b && ev.b.id, CYAN); if (ev.a && okT(ev.a.at)) out.look.push([ev.a.at, 0]); break;
     case "shambleDone": f.ca = soulRgb(ev.a && ev.a.id, RED_L); f.cb = soulRgb(ev.b && ev.b.id, CYAN); break;
     case "squeeze": if (okT(ev.at)) out.look.push([ev.at, 0]); break;
-    case "squeezeHit": if (okT(ev.to)) { out.look.push([ev.to, 0]); out.fx.push(fl(ev.to, `-${ev.dmg | 0}`, [ev.targetId], 32)); } out.shake.push(0); break;
+    case "squeezeHit": if (okT(ev.to)) { out.look.push([ev.to, 0]); out.fx.push(fl(ev.to, ev.dodge ? "หลบ" : `-${ev.dmg | 0}`, ev.dodge ? undefined : [ev.targetId], 32)); } if (!ev.dodge) out.shake.push(0); break;
     case "shock": if (okT(ev.to)) out.look.push([ev.to, 0]); out.shake.push(LAW_FX.shock - 40); break;
     default:
   }

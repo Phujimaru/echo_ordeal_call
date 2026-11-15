@@ -21,8 +21,8 @@ const AREA_KINDS = new Set(['self', 'field', 'tile', 'target', 'aoe', 'line']);
 
 // ไม่ต้องมี severables: Echo ไม่มีผลค้างของตัวเอง (สวมร่างแล้วใช้ฮุคของร่างนั้น) · เรียวกิเป็นคนตัดเอง
 const NO_SEVERABLES = new Set(['echo', 'ryougi']);
-// ท่าที่ยังทะลุหลบหลีก — ออกแบบไว้ก่อนกฎ 2026-11-05 · รอผู้ใช้ตัดสิน (ห้ามเพิ่มรายการใหม่เอง)
-const DODGE_PENDING = new Set(['sliver_bullet.secondary', 'sliver_bullet.ultimate', 'diego_alt.secondary']);
+// ท่าที่ได้รับยกเว้นให้ทะลุหลบหลีก — ว่างเสมอ (ผู้ใช้ 2026-11-15: ทุกสกิลต้องหลบได้ · โดนแน่ได้ด้วยบัฟแม่นยำเท่านั้น) ห้ามเพิ่มเอง
+const DODGE_PENDING = new Set([]);
 
 const blank = (id, characterId, position) => ({
   id, name: id, position, characterId, alive: true, connected: true, cards: [], statuses: {}, statusAmt: {},
@@ -96,17 +96,31 @@ for (const c of playable) {
   test(`หลบได้ ${c.id}: ทุกสกิลไม่ทะลุหลบหลีก 100%`, () => {
     const origErr = console.error;
     console.error = () => {};
+    // เป้าประชิด/ห่าง 2 ช่อง ทั้ง 4 ทิศ × ทุกตัวเลือกของปุ่ม (opts.form) — ท่าแนวตรง/พื้นที่/ระยะไกลต้องเจอเป้าอย่างน้อยหนึ่งแบบ
+    const SPOTS = [[1, 0, 'right'], [-1, 0, 'left'], [0, 1, 'down'], [0, -1, 'up'], [2, 0, 'right'], [0, -2, 'up']];
+    const formsOf = (t) => {
+      duel(c.id);
+      const me = engine.buildStateFor('A').players.find((p) => p.id === 'A');
+      const s = me && me.character && me.character[t];
+      engine.clearPhaseTimer();
+      return s && Array.isArray(s.choices) && s.choices.length ? s.choices.map((o) => o.key) : [undefined];
+    };
     try {
       for (const t of TIERS) {
         if (!c[t] || DODGE_PENDING.has(`${c.id}.${t}`)) continue;
-        const { A, B } = duel(c.id);
-        A.skillPoints = 12;
-        B.statuses = { evade: 9 }; B.statusAmt = { evade: 100 };
-        const hp = B.hp, armor = B.armor;
-        engine.setActor('A');
-        try { engine.useSkill('A', t, ['B'], { dir: 'right', tile: { x: 6, y: 5 } }); } catch { /* ท่าที่ต้องเลือกค่าอื่น — เช็กแค่ว่าไม่ทะลุหลบ */ }
-        assert.ok(B.alive && B.hp >= hp && B.armor >= armor, `${c.id}.${t} ทำดาเมจทะลุหลบหลีก 100% (hp ${hp}→${B.hp} เกราะ ${armor}→${B.armor})`);
-        engine.clearPhaseTimer();
+        for (const form of formsOf(t)) {
+          for (const [dx, dy, dir] of SPOTS) {
+            const { A, B } = duel(c.id);
+            B.pos = { x: 5 + dx, y: 5 + dy };
+            A.skillPoints = 12;
+            B.statuses = { evade: 9 }; B.statusAmt = { evade: 100 };
+            const hp = B.hp, armor = B.armor;
+            engine.setActor('A');
+            try { engine.useSkill('A', t, ['B'], { dir, tile: { ...B.pos }, form }); } catch { /* ท่าที่ต้องเลือกค่าอื่น — เช็กแค่ว่าไม่ทะลุหลบ */ }
+            assert.ok(B.alive && B.hp >= hp && B.armor >= armor, `${c.id}.${t}${form ? `[${form}]` : ''} (${dir} ${Math.abs(dx || dy)} ช่อง) ทำดาเมจทะลุหลบหลีก 100% (hp ${hp}→${B.hp} เกราะ ${armor}→${B.armor})`);
+            engine.clearPhaseTimer();
+          }
+        }
       }
     } finally { console.error = origErr; engine.clearPhaseTimer(); }
   });
