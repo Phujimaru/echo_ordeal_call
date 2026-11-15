@@ -63,7 +63,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | `characters.js` | ชื่อ/ความยาก/รูป/`mov`/`range`/คำอธิบายสกิล/ราคา/`area` (`effect: null` ถ้าจัดการเองในโมดูล) |
 | `characters/_transforms.js` | คัตซีน: `{ img, video, title, label, seconds, music, afterReveal }` |
 | `server/*.js` | เสียบ hook ตามตารางด้านล่าง (ฟังก์ชันไหนอยู่ไฟล์ไหน: GAME_SYSTEM.md §1.1) |
-| `client/src/screens/Game.jsx` | ป้ายสถานะ (`STATUS_INFO`) · ข้อมูลเฉพาะตัวบน HUD · เอฟเฟกต์เฉพาะตัว |
+| `client/src/screens/Game.jsx` (+ `screens/game/*` — ป้ายสถานะ `STATUS_INFO` อยู่ที่ `game/statusData.js`) | ป้ายสถานะ (`STATUS_INFO`) · ข้อมูลเฉพาะตัวบน HUD · เอฟเฟกต์เฉพาะตัว |
 | `client/src/screens/CharacterSelect.jsx` | ใส่ id ใน `order` ของหมวดความยาก (ไม่ใส่ก็ขึ้น แต่ไปต่อท้ายสุด) |
 | `tests/characters/<id>.test.js` | เทสต์ |
 
@@ -371,9 +371,9 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - ปุ่มสกิลอ่าน `area` จาก `state.players[].character.<tier>.area` (range `"mov"` เป็นตัวเลขแล้ว) — **สกิลที่มี `area` ถูกต้องได้ป้ายระยะและโหมดเลือกเป้าบนกระดานอัตโนมัติ**
   (`client/src/board/BoardStage.jsx` prop `pick`): `target` → กดคนในระยะ (คนนอกระยะจาง) · `aoe` → กดยืนยัน · `line` → ชี้/กดเลือกทิศ — ไม่ต้องเขียน UI เลือกเป้าเอง
 - `ลำดับเดิน`, ฉากตี/สวน/ถอย, หน้าต่างคาดการณ์ผล อยู่ใน `BoardStage.jsx` — ตัวละครไม่ต้องแตะ
-- ป้ายสถานะเฉพาะตัวใส่ `STATUS_INFO` ใน `Game.jsx` · เฉพาะจอคอม/แท็บเล็ต (CLAUDE.md)
+- ป้ายสถานะเฉพาะตัวใส่ `STATUS_INFO` ใน `client/src/screens/game/statusData.js` · เฉพาะจอคอม/แท็บเล็ต (CLAUDE.md)
 
-## เขียนคำอธิบายสกิล (`desc` ใน characters.js และ `STATUS_INFO` ใน Game.jsx)
+## เขียนคำอธิบายสกิล (`desc` ใน characters.js และ `STATUS_INFO` ใน screens/game/statusData.js)
 
 ผู้เล่นอ่านบนการ์ดเล็กๆ — สั้นแต่ครบ:
 - **ตัวเลข เงื่อนไข ระยะเวลา จำนวนเป้า จำนวนครั้ง ต้องครบ** (ตรวจกับโค้ดจริง ไม่ใช่สเปกเก่า)
