@@ -93,6 +93,7 @@ function boardPublic() {
     special: m.special || {}, flow: m.flow || {}, healKind: m.healKind || "heal",
     ...Ice.publicInfo(), // ธารน้ำแข็ง / หนามน้ำแข็ง / คุกน้ำแข็งที่รอช่วงที่ 2 (Ice Spike) / พื้นเปียก (เอมิลิโกะ)
     storms: Soot.publicInfo(), // ม่านแดง (ระบำเขม่า — เคท)
+    elemFields: require("./element").fieldsPub(), // หมอกพิษ / หลุมดำ (ปฏิกิริยาธาตุของ Master — server/element.js)
     spawns: m.spawns, shopSpots: m.shopSpots,
     ...(match.world === "roadtrip" && match.roadtrip ? { rtRegion: match.roadtrip.region.id, rtNight: !!match.roadtrip.night } : {}), // Road Trip: ภูมิภาค/กลางคืน (client เปลี่ยนชุดสีพื้นเมื่อเปลี่ยน)
     // Colony (GRID_PLAN §8.3): กระดานต่อวงรอบ · กำแพงกั้นปล้อง + ประตู · แถวแรกที่ยังไม่ปิดผนึก · แถบกระจก

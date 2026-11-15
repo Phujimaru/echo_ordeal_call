@@ -6,9 +6,13 @@ export const ELEMENTS = {
   bolt: { icon: "⚡", name: "สายฟ้า", color: "#ffd84a" },
   water: { icon: "💧", name: "น้ำ", color: "#4aa3ff" },
   wind: { icon: "🌪️", name: "ลม", color: "#7fe0b5" },
+  // ธาตุใหม่ของ Master (GRID_PLAN §7.34)
+  poison: { icon: "☠️", name: "พิษ", color: "#7ddc4a" },
+  light: { icon: "✨", name: "แสง", color: "#ffe9a0" },
+  dark: { icon: "🌑", name: "มืด", color: "#8a5cff" },
 };
-export const ELEMENT_KEYS = ["fire", "ice", "bolt", "water", "wind"];
-export const AURA_STATUS = { elFire: "fire", elIce: "ice", elBolt: "bolt", elWater: "water" };
+export const ELEMENT_KEYS = ["fire", "ice", "bolt", "water", "wind", "poison", "light", "dark"];
+export const AURA_STATUS = { elFire: "fire", elIce: "ice", elBolt: "bolt", elWater: "water", elPoison: "poison", elLight: "light", elDark: "dark" };
 // คราบธาตุของผู้เล่นจาก statuses (ไม่มี = null)
 export function auraOf(p) {
   const st = p && p.statuses;
@@ -25,6 +29,12 @@ export const REACTIONS = [
   { key: "freeze", a: "ice", b: "water", name: "เยือกแข็ง", eff: ["น้ำแข็งกัด ", "2", " เทิร์น · เดินไม่ได้ ", "1", " เทิร์น"] },
   { key: "conduct", a: "bolt", b: "water", name: "นำไฟฟ้า", eff: ["ดาเมจเพิ่ม ", "2", " ทะลุเกราะ"] },
   { key: "swirl", a: "wind", b: null, name: "พัดพา", eff: ["กระจายธาตุที่อยู่บนตัวเป้าหมาย"] },
+  // Master (GRID_PLAN §7.34 · ชื่อผู้ใช้อนุมัติ)
+  { key: "fog", a: "poison", b: "fire", name: "หมอกพิษ", eff: ["หมอก 3×3 ", "3", " เทิร์น · ตาบอด · เสียหาย ", "1", "/เทิร์น"] },
+  { key: "stir", a: "poison", b: "bolt", name: "กระตุ้น", eff: ["ดาเมจต่อเทิร์น ×", "2", " · ", "3", " เทิร์น"] },
+  { key: "spread", a: "poison", b: "wind", name: "กระจายพิษ", eff: ["พิษร้ายติดศัตรูในกรอบ 5×5"] },
+  { key: "hole", a: "light", b: "dark", name: "หลุมดำ", eff: ["ดูดเข้ากลาง ", "3", " เทิร์น · ระเบิด ", "3"] },
+  { key: "glare", a: "light", b: "light", name: "แสงจ้า", eff: ["ตาบอด · ลบสกิลติดตัว ", "3", " เทิร์น"] },
 ];
 export const REACTION_BY_KEY = Object.fromEntries(REACTIONS.map((r) => [r.key, r]));
 
@@ -43,4 +53,5 @@ export const SKILL_ELEMENTS = {
   kagami: { ultimate: ["bolt"] }, // Rider Kick
   gilgamesh_fake: { basic: ["bolt"] }, // ถือ EA → พายุสายฟ้าแดง
   roland: { secondary: ["ice"] }, // Emotion A Kiss
+  master: { passive3: ["poison", "light"], basic: ["poison", "light"], secondary: ["wind", "light"], ultimate: ["bolt", "dark"] }, // เฟส 1 → เฟส 2
 };

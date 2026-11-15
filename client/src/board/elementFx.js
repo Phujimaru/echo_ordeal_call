@@ -17,8 +17,8 @@ import { elBombFx } from "./elementBombFx"; // ระเบิดธาตุ �
 const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const TAU = Math.PI * 2;
 
-export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181" };
-const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️" };
+export const EL_RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181", poison: "125,220,74", light: "255,236,160", dark: "138,92,255" };
+const EL_ICON = { fire: "🔥", ice: "❄️", bolt: "⚡", water: "💧", wind: "🌪️", poison: "☠️", light: "✨", dark: "🌑" };
 const WHITE = "255,255,255", STEAM = "235,240,245";
 
 export const ELEM_FX_DUR = { elReact: 1800, elName: 1800, elBomb: 2000, elAura: 800, elLink: 750 };

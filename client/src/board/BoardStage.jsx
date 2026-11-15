@@ -877,7 +877,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
-      standee: !mk && p.freddy ? p.freddy.standee || null : null, // เฟรดดี้: ภาพตัวเต็มแทนหมาก (freddyFx.js)
+      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.master ? p.master.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ: ภาพตัวเต็มแทนหมาก
+      master: !mk && p.master ? { phase: p.master.phase || 1, down: !!p.master.down, summon: p.master.summon || null } : null, // Master (masterFx.js): ออร่า/ท่าทาง
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
       elem: !mk ? auraOf(p) : null, // คราบธาตุ (elementFx.js · GRID_PLAN §8.7)
@@ -1201,6 +1202,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         fx={fx}
         ice={iceProp}
         storms={state.board ? state.board.storms : null}
+        elemFields={state.board ? state.board.elemFields : null}
         colony={colonyView}
         roadtrip={(state.world === "roadtrip" || state.gameMode === "roadtrip") && state.roadtrip && state.roadtrip.phase === "combat" ? state.roadtrip : null}
         moon={state.moon || null}
