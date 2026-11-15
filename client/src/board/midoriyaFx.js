@@ -146,6 +146,12 @@ function starburst(g, x, y, r, n, seed, a, rot = 0) {
   g.fillStyle = gr; shape(0.6); g.fill();
   g.restore();
 }
+function billow(g, x, y, r, a, tint = null) {
+  if (a <= 0 || r <= 0) return;
+  puff(g, x + r * 0.12, y + r * 0.22, r * 1.02, a * 0.55, tint || FOG_D);
+  puff(g, x, y, r, a * 0.95, tint ? tint : FOG);
+  puff(g, x - r * 0.22, y - r * 0.28, r * 0.62, a * 0.9, "255,255,255");
+}
 function puff(g, x, y, r, a, rgb = FOG) {
   if (a <= 0 || r <= 0) return;
   const gr = g.createRadialGradient(x, y, r * 0.15, x, y, r);
@@ -166,6 +172,67 @@ function chargeArm(g, A, fist, t, q, big, cowl, seed, lowQ) {
   if ((big || cowl) && !lowQ) crackle(g, A, t, big ? 12 : 6, 0.7 + 0.3 * q, big ? 1.1 : 0.7, seed + 9);
   g.restore();
 }
+// 1,000,000%: ต้นท่าอลังการแต่อยู่รอบตัวบนกระดาน (ผู้ใช้สั่ง 2026-11-15 — ไม่ทับจอ)
+//  ชาร์จ = เส้นโฟกัสสีสลับ (ฟ้า/เขียว/ชมพู/เหลือง ตามต้นคลิป) วิ่งเข้าหาหมัด · ประกายกากบาทโตขึ้น · ออร่าเขียว + สายฟ้าพันตัว · เศษหินลอยจากพื้น
+//  ปะทะ = แฟลชขาว + วงคลื่นกระแทกรอบตัว
+const FOCUS = ["90,200,255", "80,255,140", "255,70,220", "255,235,90"];
+function millionCharge(g, A, fist, t, beat, seed, lowQ) {
+  const R = A.s * 3.4;
+  g.save();
+  if (t < beat) {
+    const q = clamp01(t / beat), col = FOCUS[Math.floor(t / 170) % FOCUS.length];
+    g.globalCompositeOperation = "lighter";
+    // ออร่าเขียวใหญ่รอบตัว
+    glow(g, A.bx, A.hy, A.s * (0.9 + 0.9 * q), GREEN, 0.25 + 0.35 * q, BOLT);
+    // เส้นโฟกัสวิ่งเข้าหาหมัด (ในวงรอบตัว)
+    g.lineCap = "round";
+    const n = lowQ ? 18 : 56;
+    for (let i = 0; i < n; i++) {
+      const ang = hash(seed + i * 1.9) * TAU, k = (hash(seed + i * 3.3) + t / 300) % 1;
+      const r0 = R * (0.18 + 0.82 * (1 - k)), len = R * (0.12 + 0.22 * hash(seed + i));
+      const a = (0.25 + 0.65 * q) * Math.sin(k * Math.PI);
+      g.strokeStyle = rgba(i % 4 ? col : WHITE, a);
+      g.lineWidth = Math.max(1, A.s * (0.012 + 0.03 * hash(seed + i * 2.2)));
+      g.beginPath();
+      g.moveTo(fist.x + Math.cos(ang) * r0, fist.y + Math.sin(ang) * r0 * 0.75);
+      g.lineTo(fist.x + Math.cos(ang) * (r0 + len), fist.y + Math.sin(ang) * (r0 + len) * 0.75);
+      g.stroke();
+    }
+    // ประกายกากบาทที่หมัด
+    for (const rot of [0.62, -0.62]) {
+      g.save(); g.translate(fist.x, fist.y); g.rotate(rot);
+      const L = A.s * (0.5 + 2.2 * q), w = A.s * (0.03 + 0.05 * q);
+      const gr = g.createLinearGradient(-L, 0, L, 0);
+      gr.addColorStop(0, rgba(col, 0)); gr.addColorStop(0.5, rgba(WHITE, 0.95 * q)); gr.addColorStop(1, rgba(col, 0));
+      g.fillStyle = gr; g.fillRect(-L, -w, L * 2, w * 2);
+      g.restore();
+    }
+    glow(g, fist.x, fist.y, A.s * (0.3 + 0.7 * q), col, 0.6 * q);
+    // สายฟ้าเขียวพันตัว
+    if (!lowQ) crackle(g, A, t, 16, 0.6 + 0.4 * q, 1.4, seed + 21);
+    g.globalCompositeOperation = "source-over";
+    // เศษหินลอยขึ้นจากพื้นรอบตัว
+    if (!lowQ) for (let i = 0; i < 14; i++) {
+      const h1 = hash(seed + i * 6.1), h2 = hash(seed + i * 2.7);
+      const ang = h1 * TAU, d = A.s * (0.5 + 1.1 * h2);
+      const rise = A.s * (0.1 + 0.9 * h1) * easeOut(clamp01(q * 1.3 - h2 * 0.3));
+      const x = A.bx + Math.cos(ang) * d, y = A.by + Math.sin(ang) * d * 0.5 - rise;
+      const r = A.s * (0.03 + 0.04 * h1);
+      g.fillStyle = rgba("85,78,70", 0.9 * q);
+      g.save(); g.translate(x, y); g.rotate(t / 400 + i); g.fillRect(-r, -r * 0.7, r * 2, r * 1.4); g.restore();
+    }
+  } else {
+    const k = (t - beat) / 520;
+    if (k < 1) {
+      g.globalCompositeOperation = "lighter";
+      glow(g, fist.x, fist.y, A.s * (1.2 + 2.6 * easeOut(k)), WHITE, (1 - k) * 0.95, WHITE);
+      g.globalCompositeOperation = "source-over";
+      ring(g, A.bx, A.by, A.s * (0.5 + 3.2 * easeOut(k)), A.s * 0.08 * (1 - k), (1 - k) * 0.9, "245,245,250");
+      ring(g, A.bx, A.by, A.s * (0.3 + 2.2 * easeOut(k)), A.s * 0.05 * (1 - k), (1 - k) * 0.8, GREEN);
+    }
+  }
+  g.restore();
+}
 function smashFx(g, e, now, p, seed, lowQ) {
   const A = bodyAt(e.x, e.y, e.size || 1);
   const v = DIRS[e.dir] || [1, 0];
@@ -179,6 +246,7 @@ function smashFx(g, e, now, p, seed, lowQ) {
   const [dx1, dy1] = P(e.x + 0.5 + v[0] * 4, e.y + 0.5 + v[1] * 4);
   const ang = Math.atan2(dy1 - fy0, dx1 - fx0);
   // 1) ชาร์จ
+  if (big) millionCharge(g, A, fist, t, beat, seed, lowQ);
   if (t < beat + 60) chargeArm(g, A, fist, t, clamp01(t / beat), big, e.cowl, seed, lowQ);
   const wt = t - beat;
   if (wt < 0) return;
@@ -219,7 +287,7 @@ function smashFx(g, e, now, p, seed, lowQ) {
     }
     const [tx, ty] = pt(tail, 0), [fx2, fy2] = pt(front, 0);
     const gr = g.createLinearGradient(tx, ty, fx2, fy2);
-    gr.addColorStop(0, rgba(FOG, 0)); gr.addColorStop(0.55, rgba(FOG, alpha * 0.55)); gr.addColorStop(1, rgba("248,248,252", alpha * 0.85));
+    gr.addColorStop(0, rgba(FOG, 0)); gr.addColorStop(0.55, rgba(FOG, alpha * 0.22)); gr.addColorStop(1, rgba("248,248,252", alpha * 0.4));
     g.fillStyle = gr;
     g.beginPath(); g.moveTo(L[0][0], L[0][1]);
     for (const p2 of L) g.lineTo(p2[0], p2[1]);
@@ -231,6 +299,24 @@ function smashFx(g, e, now, p, seed, lowQ) {
       g.strokeStyle = rgba(FOG_D, alpha * 0.6); g.lineWidth = Math.max(1, edge[N][2] * 0.05);
       g.beginPath(); g.moveTo(edge[0][0], edge[0][1]); for (const p2 of edge) g.lineTo(p2[0], p2[1]); g.stroke();
     }
+    // ตัวลมฟู: ก้อนเมฆลมนูนหลายชั้น สูงต่ำต่างกัน พองตัว + ม้วนไปข้างหน้า (วาดไกล → ใกล้)
+    const body = [];
+    const nB = lowQ ? 14 : big ? 70 : 46;
+    for (let i = 0; i < nB; i++) {
+      const h1 = hash(seed + i * 1.37), h2 = hash(seed + i * 4.91), h3 = hash(seed + i * 7.33);
+      const a = tail + (front - tail) * Math.pow(h1, 0.7);
+      if (a < 0.4) continue;
+      const hw = hwAt(Math.min(a, reach + 1));
+      const l = (h2 - 0.5) * 2 * hw * 0.95;
+      const roll = Math.sin(wt / (180 + 120 * h3) + i) * 0.12;
+      const up = 0.05 + 0.75 * h3 + roll;
+      const age = clamp01((front - a) / 2.2);
+      const [px, py, sc] = pt(a, l, up);
+      const r = sc * (0.28 + 0.3 * h3) * (0.75 + 0.6 * age) * (big ? 1.25 : 1) * (cone ? 0.7 + 0.3 * Math.min(1, a / reach) * 1.4 : 1);
+      body.push({ px, py, r, d: a, k: (1 - 0.55 * age) * (0.7 + 0.3 * h2), tint: big && i % 4 === 1 ? BROWN : null });
+    }
+    body.sort((u, w) => w.d - u.d);
+    for (const b of body) billow(g, b.px, b.py, b.r, alpha * b.k, b.tint);
     // เส้นลมหมุนวน (โค้ง) พุ่งไปข้างหน้าในตัวลม
     const nS = lowQ ? 8 : big ? 34 : 22;
     for (let i = 0; i < nS; i++) {
@@ -248,7 +334,8 @@ function smashFx(g, e, now, p, seed, lowQ) {
     for (let i = 0; i <= nC; i++) {
       const l = -hwF + (2 * hwF) * (i / nC), h1 = hash(seed + i * 4.7 + Math.floor(wt / 120));
       const [px, py, s] = pt(front - 0.15 * h1, l, 0.2 * Math.sin(i * 1.7 + wt / 90));
-      puff(g, px, py, s * (0.38 + 0.22 * h1) * (big ? 1.3 : 1), alpha * 0.9, big && i % 3 === 1 ? BROWN : i % 4 ? "246,246,250" : FOG);
+      billow(g, px, py, s * (0.4 + 0.24 * h1) * (big ? 1.3 : 1), alpha, big && i % 3 === 1 ? BROWN : null);
+      if (!lowQ && i % 2 === 0) { const [qx, qy, qs] = pt(front - 0.35, l, 0.55 + 0.3 * h1); billow(g, qx, qy, qs * (0.3 + 0.2 * h1) * (big ? 1.3 : 1), alpha * 0.9); }
     }
     // เศษหินปลิวไปกับลม
     if (!lowQ) for (let i = 0; i < (big ? 18 : 10); i++) {
