@@ -238,17 +238,18 @@ test('เปลี่ยนชิ้นส่วน: มีแขน 3 แต้
   assert.deepEqual(calls.sfx, [{ sound: 'sliver_reload', onlyFor: ['S'] }]);
 });
 
-test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · หลบไม่ได้) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
+test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ดาเมจ 4 (เกราะก่อน · ทอยหลบรายตัว) · เสียแขน · ปรากฏตัว · ไม่จบตา · ลำแสงบนกระดาน', () => {
   const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 9, 5], ['D', 'dummy', 10, 5]]);
   P.B.armor = 1; P.B.hp = 7;
-  P.C.statuses.evade = 1; P.C.statusAmt.evade = 100; // หลบหลีก 100% ก็หลบไม่ได้
+  P.C.statuses.evade = 1; P.C.statusAmt.evade = 100; // หลบหลีก 100% = หลบพ้น
   Math.random = () => 0;
   engine.setActor('S');
   engine.useSkill('S', 'secondary', [], { dir: 'right' });
   assert.equal(P.S.skillPoints, 4);
   assert.equal(P.B.armor, 0);
   assert.equal(P.B.hp, 4, 'เกราะ 1 + เลือด 3');
-  assert.equal(P.C.hp + P.C.armor, 15 - 4);
+  assert.equal(P.C.hp + P.C.armor, 15, 'หลบพ้น = ไม่โดน');
+  assert.ok(!P.C.wasAttacked, 'หลบพ้น = ไม่มีผลโดนตี');
   assert.equal(P.D.hp + P.D.armor, 15, 'ช่องที่ 9 นอกแนว');
   assert.equal(P.S.sliver.arm, false);
   assert.equal(P.S.sliver.hidden, false);
@@ -269,6 +270,16 @@ test('Beam Magnum: แนว 8×1 ทะลุศัตรูทุกคน ด
   assert.equal(calls.queue.length, 1);
   assert.equal(calls.sfx.filter((c) => c.sound === 'sliver_shot').length, 2);
   assert.equal(calls.fx.length, 2);
+});
+
+test('Beam Magnum: ผู้ยิงติดแม่นยำ = ทะลุหลบหลีก 100%', () => {
+  const P = setup([['S', 'sliver_bullet', 1, 5], ['B', 'dummy', 4, 5], ['C', 'dummy', 12, 12]]);
+  P.B.statuses.evade = 1; P.B.statusAmt.evade = 100;
+  P.S.statuses.accurate = 1;
+  Math.random = () => 0;
+  engine.setActor('S');
+  engine.useSkill('S', 'secondary', [], { dir: 'right' });
+  assert.equal(P.B.hp + P.B.armor, 15 - 4);
 });
 
 test('Beam Magnum: ฆ่าได้ (หายจากกระดาน) · โหมดทีมไม่โดนเพื่อน · ไม่เลือกทิศ = กดไม่ได้', () => {
