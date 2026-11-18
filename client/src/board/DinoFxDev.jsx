@@ -116,7 +116,9 @@ export default function DinoFxDev({ units, setUnits, pushFx, setFocus, setShake 
   };
   useEffect(() => {
     window.__dinoFx = (k) => play[k] && play[k]();
-    return () => { delete window.__dinoFx; };
+    // ช้าลง N เท่า (ดูท่ากระโจนทีละเฟรม): window.__dinoSlow("dinoBite", 8)
+    window.__dinoSlow = (kind = "dinoBite", k = 8) => { const a = me(), b = foe(); pushFx([{ kind, x: a.x, y: a.y, to: b, size: 1, toSize: 1, dur: DINO_MS[kind] * k }]); };
+    return () => { delete window.__dinoFx; delete window.__dinoSlow; };
   });
   const labels = [
     ["claw", "ตีปกติ"], ["scorn", "อย่ามาดูถูกกันนะ"], ["possess", "เข้าร่วมเผ่าพันธุ์"], ["release", "หลุดการควบคุม"], ["swarm", "ฉันจะฆ่าแก"], ["swarmHit", "ตีคนที่ถูกตรึง"],

@@ -33,6 +33,8 @@ export const DINO_FX_DUR = {
   dinoCharge: 900, dinoLeap: 800, dinoDrain: 1000, dinoStomp: 1000, dinoStompHit: 1300, dinoTransform: 1200, dinoRevert: 900,
 };
 export const isDinoFx = (kind) => typeof kind === "string" && kind in DINO_FX_DUR;
+// ท่าตีที่กำลังเล่น ต่อช่องที่ผู้ตียืน — ตัวหมากภาพเต็มตัวกระโจนตาม (ไม่ใช่แค่เอฟเฟกต์ลอย — ผู้ใช้สั่ง 2026-11-18)
+const POUNCE = new Map();
 
 function bodyAt(x, y, n = 1) {
   n = Math.max(1, n | 0);
@@ -438,13 +440,17 @@ function biteStrikeFx(g, e, p, seed, lowQ) {
   const H = DINO_HIT_P.dinoBite, dir = B.bx >= A.bx ? 1 : -1;
   // อ้าปาก → งับ (ปะทะ H) → ค้างงับสั่น → ข่วนซ้ำ (0.6–0.8)
   const open = clamp01(p / (H * 0.7)), close = clamp01((p - H * 0.7) / (H * 0.3));
-  if (p < H + 0.22) {
-    const shakeX = p > H ? Math.sin(p * 90) * B.s * 0.02 * (1 - (p - H) / 0.22) : 0;
-    const a = p < H + 0.12 ? 1 : (H + 0.22 - p) / 0.1;
-    g.save(); g.translate(shakeX, 0);
-    jaws(g, B.bx, B.hy, B.s * 1.25 * (0.75 + 0.25 * open), p < H * 0.7 ? 0.05 * (1 - open) : close, a * Math.min(1, open * 2));
+  // เส้นฟันขาววาบตอนงับ (ตัวไดโนเสาร์งับเองบนกระดาน)
+  if (p > H * 0.85 && p < H + 0.1) {
+    const q = clamp01((p - H * 0.85) / (H * 0.15 + 0.1));
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (const sgn of [-1, 1]) {
+      g.strokeStyle = rgba("255,255,245", (1 - q) * 0.9); g.lineWidth = Math.max(1.5, B.s * 0.03);
+      g.beginPath(); g.arc(B.bx, B.hy + sgn * B.s * 0.32 * (1 - close * 0.7), B.s * 0.32, sgn > 0 ? Math.PI * 1.15 : Math.PI * 0.15, sgn > 0 ? Math.PI * 1.85 : Math.PI * 0.85); g.stroke();
+    }
     g.restore();
   }
+  void open;
   if (p >= H) {
     const q = (p - H) / (1 - H);
     // รอยเขี้ยว 2 แถว
@@ -469,8 +475,13 @@ export function dinoFx(g, e, now, lowQ) {
   if (p < 0 || p > 1) return;
   const seed = ((e.t0 | 0) % 977) / 97;
   g.save();
-  if (e.kind === "dinoClaw") { if (e.to) clawStrikeFx(g, e, p, seed, lowQ); }
-  else if (e.kind === "dinoBite") { if (e.to) biteStrikeFx(g, e, p, seed, lowQ); }
+  if (e.kind === "dinoClaw" || e.kind === "dinoBite") {
+    if (e.to) {
+      // ตัวดิเอโก้กระโจนเข้าไปเองด้วย (drawDinoStandee อ่านจากช่องที่ยืน)
+      POUNCE.set(`${Math.round(e.x)},${Math.round(e.y)}`, { t0: e.t0, to: { x: e.to.x, y: e.to.y }, from: { x: e.x, y: e.y }, kind: e.kind, dur });
+      if (e.kind === "dinoClaw") clawStrikeFx(g, e, p, seed, lowQ); else biteStrikeFx(g, e, p, seed, lowQ);
+    }
+  }
   else if (e.kind === "dinoVirus") virusFx(g, e, p, seed, lowQ);
   else if (e.kind === "dinoScorn") scornFx(g, e, p, seed, lowQ);
   else if (e.kind === "dinoPossess") possessFx(g, e, now, p, seed, lowQ);
@@ -598,6 +609,14 @@ function part(g, img, W, H, x0, y0, x1, y1) {
   g.drawImage(img, sx * iw, sy * ih, (ex - sx) * iw, (ey - sy) * ih, -W * 0.5 + sx * W, -H + sy * H, (ex - sx) * W, (ey - sy) * H);
 }
 export const isDinoStandee = (u) => !!(u && u.dino && u.standee);
+function pounceOf(wx, wy, now) {
+  const k = `${Math.floor(wx)},${Math.floor(wy)}`; // wx/wy = กลางช่อง · เหตุการณ์ = มุมช่อง
+  const a = POUNCE.get(k);
+  if (!a) return null;
+  const q = (now - a.t0) / a.dur;
+  if (q < 0 || q >= 1) { if (q >= 1) POUNCE.delete(k); return null; }
+  return { ...a, q };
+}
 export function drawDinoStandee(g, u, now, wx, wy, liftZ = 0) {
   const img = dinoImg(u.standee);
   if (!img) return undefined;
@@ -615,7 +634,28 @@ export function drawDinoStandee(g, u, now, wx, wy, liftZ = 0) {
   const lean = -0.13 * run + Math.sin(ph * 2) * 0.025 * run; // ภาพหันซ้าย: หมุนทวนเข็ม = หัวก้มไปข้างหน้า
   const swing = Math.sin(ph) * 0.42 * run;
   const tail = (REDUCED ? 0 : Math.sin(now / 520) * 0.05) * (1 - run) + Math.sin(ph + Math.PI / 2) * 0.16 * run;
-  const foot = by + s * 0.12;
+  // ---- ท่าตี: กระโจนเข้าไปงับ/ข่วนแล้วกระโดดกลับ (เลื่อนตัวทั้งภาพ + หมุน/ยืด) ----
+  const atk = pounceOf(wx, wy, now);
+  let pox = 0, poy = 0, pz = 0, plean = 0, pstretch = 0, pshake = 0, pface = 0;
+  if (atk) {
+    const q = atk.q, bite = atk.kind === "dinoBite";
+    const dx = atk.to.x - atk.from.x, dy = atk.to.y - atk.from.y;
+    const dist = Math.max(0.001, Math.hypot(dx, dy)), reach = Math.max(0, dist - (bite ? 0.35 : 0.5)) / dist;
+    const H = DINO_HIT_P[atk.kind], crouch = 0.12, back = bite ? 0.78 : 0.62;
+    let go; // 0 = ที่เดิม · 1 = ประชิดเป้า
+    if (q < crouch) { go = -0.08 * (q / crouch); pstretch = -0.12 * (q / crouch); plean = 0.12 * (q / crouch); }
+    else if (q < H) { const t = (q - crouch) / (H - crouch); go = -0.08 + 1.08 * easeOut(t); pz = Math.sin(t * Math.PI) * (bite ? 0.55 : 0.3); plean = -0.35 * t; pstretch = 0.12 * Math.sin(t * Math.PI); }
+    else if (q < back) {
+      go = 1; const t = (q - H) / (back - H);
+      plean = bite ? -0.45 + Math.sin(t * Math.PI * 5) * 0.12 : -0.3 + Math.sin(t * Math.PI) * 0.25; // งับแล้วสะบัดหัว / ตะปบแล้วบิดตัว
+      pshake = bite ? Math.sin(t * Math.PI * 7) * 0.05 * (1 - t) : 0;
+      if (bite && t > 0.55) pz = Math.sin((t - 0.55) / 0.45 * Math.PI) * 0.12; // ข่วนซ้ำ: ยกตัวตะปบ
+    } else { const t = (q - back) / (1 - back); go = 1 - easeOut(t); pz = Math.sin(t * Math.PI) * 0.3; plean = -0.2 * (1 - t); }
+    pox = dx * reach * go + pshake; poy = dy * reach * go;
+    pface = Math.sign(P(atk.to.x, atk.to.y)[0] - P(atk.from.x, atk.from.y)[0]) || 0;
+  }
+  const [abx, aby] = atk ? P(wx + pox, wy + poy, Math.max(0, liftZ) + pz) : [bx, by];
+  const foot = (atk ? aby : by) + s * 0.12;
   g.save();
   // เงา: เล็กลง/จางลงตอนลอย
   if (liftZ <= 0.05) {
@@ -633,10 +673,10 @@ export function drawDinoStandee(g, u, now, wx, wy, liftZ = 0) {
       g.beginPath(); g.ellipse(px + back + (i - 1) * ps * 0.08 * (1 + q), py + ps * 0.1 - ps * 0.06 * q * (i % 2), ps * (0.05 + 0.08 * q), ps * (0.03 + 0.04 * q), 0, 0, TAU); g.fill();
     }
   }
-  g.translate(bx, foot - hop);
-  // ภาพต้นฉบับหันซ้าย: เดินไปขวา = พลิก
-  g.scale(-tr.flip * sx, sy);
-  g.rotate(lean);
+  g.translate(atk ? abx : bx, foot - hop);
+  // ภาพต้นฉบับหันซ้าย: เดินไปขวา = พลิก · ตีอยู่ = หันหาเป้า
+  g.scale(-(atk && pface ? pface : tr.flip) * sx * (1 + pstretch), sy * (1 - pstretch * 0.6));
+  g.rotate(lean + plean);
   if (u.isActor) { g.shadowColor = "rgba(255,255,255,.55)"; g.shadowBlur = 14; }
   // หาง (หลังสุด): หมุนรอบโคนหาง
   const [tpx, tpy] = cfg.tailPivot;
@@ -658,5 +698,6 @@ export function drawDinoStandee(g, u, now, wx, wy, liftZ = 0) {
   leg(0, cfg.legSplit, swing);
   g.restore();
   const top = foot - hop - H * sy;
-  return { cx: bx, top, bottom: foot, left: bx - W * 0.5, right: bx + W * 0.5 };
+  const cx = atk ? abx : bx;
+  return { cx, top, bottom: foot, left: cx - W * 0.5, right: cx + W * 0.5 };
 }
