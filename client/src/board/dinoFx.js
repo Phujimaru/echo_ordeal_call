@@ -10,7 +10,7 @@
 //   dinoStompHit  คลื่นกระแทกข้าวหลามตัดรัศมี 4 + รอยแตก + ฝุ่น  dinoTransform / dinoRevert  เกล็ดระเบิดออก / หดเข้า
 //  ค้างบนตัว (boardUnits): u.dino = { form, frenzy } (ร่างไดโนเสาร์ = ไอหายใจ + เงาหางบนพื้น · ความบ้าคลั่ง = จุดแดงในตา) ·
 //   u.dvirus = จำนวนไวรัส (สปอร์ลอยเหนือหัว — ใครก็ติดได้) · u.possessed = กำลังถูกควบคุม (ตาสัตว์เลื้อยคลานเหนือหัว + เถารัดตัว)
-import { P } from "./boardGeo";
+import { P, gEllipse } from "./boardGeo";
 
 const TAU = Math.PI * 2;
 const REDUCED = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -434,4 +434,122 @@ export function dinoAuraFront(g, x, y, now, lowQ, alpha, u) {
     reptileEye(g, bx, hy - s * 0.75, s, 0.95, blink);
   }
   g.restore();
+}
+
+// ---------- หมากภาพเต็มตัวที่ "วิ่ง" ได้ (ร่างคน diego_half / ร่างไดโนเสาร์ diego_full_form) ----------
+//  ผู้ใช้สั่ง 2026-11-18: เดินแล้วต้องเป็นท่าวิ่ง ไม่ใช่หมากเลื่อน
+//  ภาพนิ่งชิ้นเดียว → ตัดเป็นส่วน (ลำตัว · หาง · ขาหน้า · ขาหลัง) แล้วขยับแยก:
+//   ก้าว = ขาสลับเหวี่ยง (เฉือนแนวนอนรอบสะโพก) + ตัวกระเด้ง 2 ครั้งต่อช่อง + ลำตัวโน้มไปข้างหน้า + หางสะบัดสวนจังหวะ
+//   เท้าแตะพื้น = ฝุ่นฟุ้ง + ตัวยุบ/ยืดเล็กน้อย · หยุดเดิน = หายใจ (ยุบยืดช้า) + หางแกว่งเบาๆ · กลับทิศ = พลิกแบบเร็วไม่กระตุก
+//  ภาพต้นฉบับหันซ้าย (หัวซ้าย หางขวา) — part = สัดส่วนบนภาพ
+const STANDEE_H = { full: 1.75, half: 1.6 };
+const PARTS = {
+  full: { tailX: 0.62, tailPivot: [0.62, 0.55], legTop: 0.6, legSplit: 0.5, legEnd: 0.66 },
+  half: { tailX: 0.7, tailPivot: [0.7, 0.42], legTop: 0.55, legSplit: 0.56, legEnd: 0.74 },
+};
+const STRIDE = 0.5; // ช่องต่อก้าว (2 ก้าวต่อช่อง)
+const dImgs = {};
+function dinoImg(url) {
+  if (!url) return null;
+  if (!dImgs[url] && typeof Image === "function") { const img = new Image(); img.decoding = "async"; img.src = url; dImgs[url] = img; }
+  const img = dImgs[url];
+  return img && img.complete && img.naturalWidth > 0 ? img : null;
+}
+const gait = new Map();
+function gaitOf(u, wx, wy, now) {
+  let tr = gait.get(u.id);
+  if (!tr) { if (gait.size > 24) gait.clear(); tr = { wx, wy, face: 1, flip: 1, phase: 0, run: 0, frame: now, last: now, puffs: [] }; gait.set(u.id, tr); }
+  if (tr.frame !== now) {
+    const dt = Math.min(100, Math.max(1, now - tr.frame));
+    const d = Math.hypot(wx - tr.wx, wy - tr.wy);
+    if (d > 2) { tr.wx = wx; tr.wy = wy; d && (tr.phase = 0); } // วาร์ป/เปลี่ยนแผนที่ = ไม่นับเป็นก้าว
+    else if (d > 0.0005) {
+      const [sx0] = P(tr.wx, tr.wy), [sx1] = P(wx, wy);
+      if (Math.abs(sx1 - sx0) > 0.05) tr.face = sx1 > sx0 ? 1 : -1;
+      const before = Math.floor(tr.phase / Math.PI);
+      tr.phase += (d / STRIDE) * Math.PI;
+      if (Math.floor(tr.phase / Math.PI) !== before) {
+        tr.puffs.push({ t: now, x: wx, y: wy, side: before & 1 });
+        if (tr.puffs.length > 8) tr.puffs.shift();
+      }
+      tr.last = now;
+      tr.wx = wx; tr.wy = wy;
+    }
+    const moving = now - tr.last < 140;
+    tr.run += ((moving ? 1 : 0) - tr.run) * Math.min(1, dt / 110);
+    // พลิกทิศแบบเร็ว (ไม่กระตุก)
+    tr.flip += (tr.face - tr.flip) * Math.min(1, dt / 70);
+    tr.frame = now;
+  }
+  return tr;
+}
+// วาดส่วนหนึ่งของภาพ: สัดส่วน (x0,y0)-(x1,y1) บนภาพ → ตำแหน่งเดียวกันในกรอบ W×H (จุดอ้างอิงที่ฐานกลาง)
+function part(g, img, W, H, x0, y0, x1, y1) {
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  const pad = 0.004; // ซ้อนขอบกันรอยต่อ
+  const sx = Math.max(0, x0 - pad), sy = Math.max(0, y0 - pad), ex = Math.min(1, x1 + pad), ey = Math.min(1, y1 + pad);
+  g.drawImage(img, sx * iw, sy * ih, (ex - sx) * iw, (ey - sy) * ih, -W * 0.5 + sx * W, -H + sy * H, (ex - sx) * W, (ey - sy) * H);
+}
+export const isDinoStandee = (u) => !!(u && u.dino && u.standee);
+export function drawDinoStandee(g, u, now, wx, wy, liftZ = 0) {
+  const img = dinoImg(u.standee);
+  if (!img) return undefined;
+  const kind = /full_form/.test(u.standee) ? "full" : "half";
+  const cfg = PARTS[kind];
+  const tr = gaitOf(u, wx, wy, now);
+  const run = REDUCED ? 0 : tr.run, ph = tr.phase;
+  const [bx, by, s] = P(wx, wy, Math.max(0, liftZ));
+  const H = s * STANDEE_H[kind] * (u.k || 1), W = (H * img.naturalWidth) / img.naturalHeight;
+  // ก้าว: กระเด้ง |sin| (ลอยกลางก้าว แตะพื้นตอนเปลี่ยนเท้า) · ยุบตอนแตะ · โน้มไปข้างหน้า
+  const hop = Math.abs(Math.sin(ph)) * s * 0.13 * run;
+  const land = Math.pow(1 - Math.abs(Math.sin(ph)), 6) * run; // 1 = ช่วงเท้าแตะพื้น
+  const breathe = REDUCED ? 0 : Math.sin(now / 650) * 0.018 * (1 - run);
+  const sy = 1 + breathe - land * 0.07 + (1 - land) * run * 0.03, sx = 1 - breathe * 0.5 + land * 0.05;
+  const lean = -0.13 * run + Math.sin(ph * 2) * 0.025 * run; // ภาพหันซ้าย: หมุนทวนเข็ม = หัวก้มไปข้างหน้า
+  const swing = Math.sin(ph) * 0.42 * run;
+  const tail = (REDUCED ? 0 : Math.sin(now / 520) * 0.05) * (1 - run) + Math.sin(ph + Math.PI / 2) * 0.16 * run;
+  const foot = by + s * 0.12;
+  g.save();
+  // เงา: เล็กลง/จางลงตอนลอย
+  if (liftZ <= 0.05) {
+    const k = 1 - (hop / (s * 0.13 || 1)) * 0.25;
+    gEllipse(g, wx + 0.03, wy + 0.05, 0.42 * k, 0, 28, 0.3 * k); g.fillStyle = `rgba(0,0,0,${0.32 * k})`; g.fill();
+  }
+  // ฝุ่นจากเท้า (อยู่บนพื้น ข้างหลังตัว)
+  for (const pf of tr.puffs) {
+    const q = (now - pf.t) / 520;
+    if (q < 0 || q > 1) continue;
+    const [px, py, ps] = P(pf.x, pf.y);
+    const back = -tr.face * ps * (0.18 + 0.12 * q);
+    for (let i = 0; i < 3; i++) {
+      g.fillStyle = `rgba(${DUST},${(1 - q) * 0.4})`;
+      g.beginPath(); g.ellipse(px + back + (i - 1) * ps * 0.08 * (1 + q), py + ps * 0.1 - ps * 0.06 * q * (i % 2), ps * (0.05 + 0.08 * q), ps * (0.03 + 0.04 * q), 0, 0, TAU); g.fill();
+    }
+  }
+  g.translate(bx, foot - hop);
+  // ภาพต้นฉบับหันซ้าย: เดินไปขวา = พลิก
+  g.scale(-tr.flip * sx, sy);
+  g.rotate(lean);
+  if (u.isActor) { g.shadowColor = "rgba(255,255,255,.55)"; g.shadowBlur = 14; }
+  // หาง (หลังสุด): หมุนรอบโคนหาง
+  const [tpx, tpy] = cfg.tailPivot;
+  const pivX = -W * 0.5 + tpx * W, pivY = -H + tpy * H;
+  g.save(); g.translate(pivX, pivY); g.rotate(tail); g.translate(-pivX, -pivY);
+  part(g, img, W, H, cfg.tailX, 0, 1, 1);
+  g.restore();
+  // ขาหลัง (ฝั่งหาง) เหวี่ยงสวนขาหน้า — เฉือนแนวนอนรอบสะโพก (ด้านบนของขาอยู่กับที่ ปลายเท้าแกว่ง)
+  const hipY = -H + cfg.legTop * H;
+  const leg = (x0, x1, k) => {
+    g.save(); g.translate(0, hipY); g.transform(1, 0, k, 1, 0, 0); g.translate(0, -hipY);
+    part(g, img, W, H, x0, cfg.legTop, x1, 1);
+    g.restore();
+  };
+  leg(cfg.legSplit, cfg.tailX, -swing);
+  // ลำตัว + หัว
+  part(g, img, W, H, 0, 0, cfg.tailX, cfg.legTop);
+  // ขาหน้า
+  leg(0, cfg.legSplit, swing);
+  g.restore();
+  const top = foot - hop - H * sy;
+  return { cx: bx, top, bottom: foot, left: bx - W * 0.5, right: bx + W * 0.5 };
 }
