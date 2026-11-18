@@ -42,7 +42,7 @@ const STAT_BONUS = { hp: 3, armor: 2 };
 const STAT_BONUS_OF = {
   kate: { hp: 2, armor: 2 }, emiliko: { hp: 2, armor: 2 },
   dio_brando: { hp: 5, armor: 0 },
-  gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 },
+  gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 }, diego_dino: { hp: 3, armor: 0 },
   master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 25 (patch 1 · ฮุค maxHp) · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
 };
 const statBonusOf = (p) => (p && STAT_BONUS_OF[statId(p)]) || STAT_BONUS;
@@ -102,6 +102,15 @@ function maxSkillOf(p) {
 
 // ระบบคู่ (server/duo.js): สองตัวของผู้เล่นคนเดียวกันเป็นฝ่ายเดียวกันเสมอ (ทุกโหมด)
 function sameTeam(a, b) {
+  // ควบคุมร่าง (server/possess.js): ตัวที่กำลังถูกคุมเป็นฝ่ายเดียวกับผู้คุม
+  if (a && b && a.id !== b.id && match.possess) {
+    const Possess = require("./possess");
+    const pa = Possess.sideOf(a), pb = Possess.sideOf(b);
+    if (pa !== a || pb !== b) {
+      if (pa.id === pb.id) return true;
+      a = pa; b = pb;
+    }
+  }
   if (a && b && a.id !== b.id && Duo.sideKey(a) === Duo.sideKey(b)) return true;
   return !!(lobby.teamModeActive() && a && b && a.id !== b.id && a.teamId && b.teamId && a.teamId === b.teamId);
 }

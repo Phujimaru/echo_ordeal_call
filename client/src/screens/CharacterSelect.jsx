@@ -173,7 +173,7 @@ export default function CharacterSelect({ roster, position, color: myColor, name
   const withMode = (c) => {
     const m = c && Array.isArray(c.modes) ? c.modes.find((x) => x.key === modeKey(c)) : null;
     if (!m || !m.charName) return c;
-    return { ...c, name: m.charName, passive: m.passive, passive2: m.passive2, passive3: m.passive3, passive4: m.passive4, passive5: m.passive5, basic: m.basic, secondary: m.secondary, ultimate: m.ultimate };
+    return { ...c, name: m.charName, img: m.img || c.img, passive: m.passive, passive2: m.passive2, passive3: m.passive3, passive4: m.passive4, passive5: m.passive5, basic: m.basic, secondary: m.secondary, ultimate: m.ultimate };
   };
   const sel = roster.find((c) => c.id === picked);
   const shown = withMode(roster.find((c) => c.id === (picked || shownId)));

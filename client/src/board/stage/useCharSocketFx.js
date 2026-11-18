@@ -20,6 +20,7 @@ import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
 import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
 import { MASTER_T, masterPose } from "../masterFx";
+import { DINO_T } from "../dinoFx";
 import { P as projectTile, LW, LH } from "../boardGeo";
 import { valentineEventFx } from "../valentineFx";
 import { celineEventFx } from "../celineFx";
@@ -212,6 +213,26 @@ export default function useCharSocketFx(ctx) {
       else if (kind === "magnaBatHit" && !lowQ) setShake((n) => n + 1);
     };
     socket.on("magnaFx", onMagna);
+    // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ไวรัส / เกราะแตก / ควบคุมร่าง / ฝูงไดโนเสาร์ / พุ่ง / กระโดด / ดูดแต้ม / กระทืบ / กลายพันธุ์
+    //  เสียงฝั่ง client เฉพาะจังหวะที่ไม่มีคลิป: ไวรัสติด · ดูดแต้ม · หลุดการควบคุม (ท่าที่มีคลิปไม่เล่นเสียงซ้อน)
+    const DINO_KIND = { virus: "dinoVirus", scorn: "dinoScorn", possess: "dinoPossess", release: "dinoRelease", swarm: "dinoSwarm", pin: "dinoPin", charge: "dinoCharge", leap: "dinoLeap", drain: "dinoDrain", stomp: "dinoStomp", stompHit: "dinoStompHit", transform: "dinoTransform", revert: "dinoRevert" };
+    const okP = (t) => (okT(t) ? { x: t.x, y: t.y } : null);
+    const onDino = (ev) => {
+      const kind = ev && DINO_KIND[ev.kind];
+      if (!kind) return;
+      const at = okP(ev.at) || okP(ev.from) || okP(ev.to) || (Array.isArray(ev.path) && okP(ev.path[0]));
+      if (!at) return;
+      const hits = Array.isArray(ev.hits) ? ev.hits.map((h) => ({ at: okP(h && h.at), dodge: !!(h && h.dodge) })) : null;
+      const path = Array.isArray(ev.path) ? ev.path.map(okP).filter(Boolean) : null;
+      pushFx([{ kind, x: at.x, y: at.y, to: okP(ev.to), from: okP(ev.from), at: okP(ev.at), path, hits, n: ev.n | 0, radius: ev.radius | 0, targetId: ev.targetId || null }]);
+      if (kind === "dinoVirus") playSfx("dino_virus");
+      else if (kind === "dinoDrain") playSfx("dino_drain");
+      if ((kind === "dinoStompHit" || kind === "dinoCharge") && !lowQ) {
+        const beat = kind === "dinoCharge" ? DINO_T.charge * 0.45 : 0;
+        for (const d of kind === "dinoStompHit" ? [0, 120, 300] : [0]) timers.current.push(setTimeout(() => setShake((n) => n + 1), beat + d));
+      }
+    };
+    socket.on("dinoFx", onDino);
     // โซระ Eagle / Tutle / Orca Frame (soraFrameFx.js): พายุขนนก · พายุน้ำ · โยน/ครอบ/แตกกระดอง · วาร์ป · โซนาร์ (Orca Echo — เฉพาะโซระ)
     //  ทุกเหตุการณ์มาหลังคลิปจบแล้ว (เสียงไม่ซ้อนวีดีโอ)
     const pt = (o) => (o && Number.isFinite(o.x) && Number.isFinite(o.y) ? { x: o.x, y: o.y } : null);
@@ -262,7 +283,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

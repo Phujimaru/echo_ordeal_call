@@ -154,6 +154,7 @@ function itemBlocked(p, item) { return linked(p) && !!item && DRAW_ITEMS.has(ite
 const MOVES = {
   celine: { basic: (p, o) => o.form === "swap" },
   diego_alt: { ultimate: (p) => !!(p.diego && p.diego.stopping) },
+  diego_dino: { basic: (p) => !!(p.dino && p.dino.form === "dino"), secondary: (p) => !!(p.dino && p.dino.form === "dino"), ultimate: (p) => !!(p.dino && p.dino.form === "dino") }, // ร่างไดโนเสาร์: พุ่ง/กระโดด/กระโดดลง
   dio_brando: { ultimate: (p) => !!(p.dio && p.dio.stopping) },
   giorno_giovanna: { ultimate: (p) => !!(p.giorno && p.giorno.requiem) },
   kate: { secondary: (p, o) => o.form === "whip" || o.form === "wings" },

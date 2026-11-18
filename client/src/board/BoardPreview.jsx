@@ -19,6 +19,7 @@
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
 //   ?shinra=1 = คุซาคาเบะ ชินระ · ปุ่มเล่นเอฟเฟกต์ไฟทุกแบบ + สลับออร่า (ShinraFxDev.jsx)
 //   ?magna=1 = แม็กน่า สวิง · ปุ่มเล่นบอลไฟ / ไม้เบสบอล / โซ่ Deathmatch / Finisher (MagnaFxDev.jsx)
+//   ?dino=1 = ดิเอโก้ อสูรกายดึกดำบรรพ์ · ปุ่มเล่นทุกท่า + คลิป + ร่างคน/ไดโนเสาร์/ม้า (DinoFxDev.jsx)
 //   ?midoriya=1 = มิโดริยะ อิซึคุ · ปุ่มเล่น Smash ทุกแบบ / Full Cowl / ออร่า (MidoriyaFxDev.jsx)
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
@@ -54,6 +55,7 @@ import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่น
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
 import MagnaFxDev from "./MagnaFxDev"; // ?magna=1 = ปุ่มเล่นเอฟเฟกต์ของแม็กน่า สวิง
+import DinoFxDev from "./DinoFxDev"; // ?dino=1 = ปุ่มเล่นเอฟเฟกต์ของดิเอโก้ อสูรกายดึกดำบรรพ์
 import MasterFxDev from "./MasterFxDev"; // ?master=1 = ปุ่มเล่นเอฟเฟกต์ของ Master // ?midoriya=1 = ปุ่มเล่นเอฟเฟกต์ของมิโดริยะ อิซึคุ
 import SoraFxDev from "./SoraFxDev"; // ?sora=1 = ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade (ปกติ / Fire Frame)
 
@@ -155,6 +157,7 @@ const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
 const MAGNA_DEV = Q.get("magna") === "1";
+const DINO_DEV = Q.get("dino") === "1";
 const MASTER_DEV = Q.get("master") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
@@ -597,6 +600,7 @@ export default function BoardPreview() {
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {MAGNA_DEV && <MagnaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {DINO_DEV && <DinoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MASTER_DEV && <MasterFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {FERN_DEV && <FernFxDev units={units} pushFx={pushFx} setFocus={setFocus} map={map} ferns={fernGlow} setFerns={setFernGlow} />}
       {GYRO_DEV && <GyroFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} balls={gyroBalls} setBalls={setGyroBalls} />}

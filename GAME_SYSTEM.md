@@ -1393,3 +1393,13 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **ไอเทมช่วงจั่ว** (ยาเปลี่ยนสีการ์ด/ยาโชคลาภ/กรรไกรตัดไพ่) ใช้ไม่ได้: `shop.useDrawItem` → `Chain.itemBlocked`
 - แม็กน่า: ติดโซ่ = ปุ่มสามช่องเปลี่ยน (`skillPub`/`skillArea`/`skillCost` · `flash: true`) · Finisher แบบ 1 ผ่านฮุค `blocksAttack` (กันทั้งก้อน) + คิวคลิปด้วย `engine.wantFlow()` · แบบ 2 ผ่าน `onActorReady` + `pausePlayingForCutscene` · OverHeat นับผ่านฮุค broadcast `onDamageDealt` แยกการโจมตีด้วย `cmdSeq`
 
+
+## 60. ควบคุมร่าง / โหมดที่เป็นตัวละครอีกตัว / ระเบิดรอบจุดลง (`server/possess.js` · ดิเอโก้ อสูรกายดึกดำบรรพ์ `characters/diego_dino.js` · GRID_PLAN §7.36)
+- **ควบคุมร่าง** `Possess.mark(t, by, round)` → `match.possess[t.id] = { by, round }` · ถึงตาของ t ในเทิร์น round:
+  `Duo.controlledId(by)` = t (แผงตัวเรา/ปุ่ม/เดิน/ตีของผู้คุมเป็นของ t — ท่อเดียวกับระบบคู่) · `Duo.controlledId(t.id)` = id ปลอม `possessed:<id>` (เจ้าของสั่งอะไรไม่ได้) ·
+  `combat.sameTeam` อ่าน `Possess.sideOf` (t เป็นฝ่ายผู้คุม) · `shop.useInventoryItem/useDrawItem/buyShopItem` ปฏิเสธ (`Possess.blocksItems`) ·
+  หมดผล: ฮุคของผู้ใช้ท่าเรียก `Possess.clear` ใน `afterActorEnd` · `Possess.sweep()` ตอนจบเทิร์น (ตาถูกข้าม) · state `players[].possessedBy`
+- **ใช้ไอเทมไม่ได้ตามร่าง**: ฮุค `noItems(p)` → true (ร่างไดโนเสาร์) — `shop.itemsBlocked`
+- **โหมดในหน้าเลือกตัวที่เป็นตัวละครอีกตัว**: `modes: [{ key, name, char: "<id>" }]` → join สลับ characterId · ตัวนั้นตั้ง `modeOf: "<id การ์ด>"` = ไม่ขึ้นการ์ดแยก (publicRoster `hidden`) แต่ยังอยู่ในสมุดไดอารี่ของ Echo · แผงหน้าเลือกตัวใช้ชื่อการ์ด + ภาพ/สกิลของตัวนั้น
+- **ปุ่ม tile list + พรีวิวระเบิด**: `area { kind: "tile", place: "list", tiles, blast: N }` → ชี้ช่อง = ไฮไลต์ข้าวหลามตัดรัศมี N รอบช่องนั้น (BoardStage)
+- **สองร่างชุดสกิลแยกขาดในตัวเดียว** (ไม่ใช่ choices): `skillPub` ส่งเฉพาะ name/img/desc (view ทับ skillPub หลัง skillArea — ห้ามส่ง area/cost) · `skillArea` / `skillCost` ตามร่าง · หมากภาพเต็มตัวตามร่าง `dinoState.standee` (ขี่ม้า = หกเหลี่ยม)

@@ -285,6 +285,10 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ลงผลต้นเทิร์นที่โดนคนอื่น (หลังลูปผู้เล่น) | broadcast `onRoundDealt(engine)` (Master: ลงจากฟ้า/ฟื้น + คลื่นกระแทก) | `phases/draw.js dealRound` |
 | ไม่ถือไพ่ / เดินท้ายสุด / คนอื่นฮีลไม่ได้ | `noCards(p)` · `orderLast(p)` · `blocksHealFrom(engine, p, src)` | `draw.dealHand` · `action.turnOrderOf` · `combat.healHp` |
 | คลื่นหลายแฉก (ตรงกว้างเท่าตัว + เฉียงจากมุมหน้า) | `area { kind: "line", len, fan }` (`fan: 0` = แนวกว้างเท่าตัว) | `Board.lineTiles` |
+| ควบคุมตาเดินของคนอื่น (ผู้คุมเดิน/สกิล/ตีแทน · เป้าเป็นฝ่ายผู้คุม · ใช้ไอเทมไม่ได้) | `Possess.mark(t, by, round)` + ล้างใน `afterActorEnd` / `Possess.sweep()` (ดิเอโก้ อสูรกายดึกดำบรรพ์: เข้าร่วมเผ่าพันธุ์ — GAME_SYSTEM §60) | `server/possess.js` → `Duo.controlledId` / `combat.sameTeam` / `shop` |
+| ใช้ไอเทมไม่ได้ตามร่าง | ฮุค `noItems(p)` → true | `shop.itemsBlocked` |
+| โหมดหน้าเลือกตัวที่เป็นอีกตัวละคร (การ์ดเดียว) | `modes: [{ key, name, char }]` บนการ์ด + `modeOf: "<id การ์ด>"` บนตัวนั้น (ยังขึ้นในไดอารี่ Echo) | `server/socket.js` join · `publicRoster` |
+| ปุ่มเลือกช่องลงจากรายการ + พรีวิวระเบิดข้าวหลามตัด | `area { kind: "tile", place: "list", tiles, blast: N }` (เติม tiles ใน `skillArea`) | BoardStage hover |
 | เลือกโหมดในหน้าเลือกตัว / ร่างที่ชุดสกิลแยกขาด | characters.js `modes` + `forms` → `p.charMode` (อ่านใน `resetCombat`) · ปุ่มทับด้วย `skillPub`/`skillArea`/`skillCost` · ชื่อ/ปก/สกิลติดตัวด้วย `characterPub` → `{ name, img, passive, passive2 }` (ต้นแบบ นักบินปริศนา–บานาจ · GAME_SYSTEM §31) | `server/socket.js` join · `server/view.js` |
 | ยูนิตบินได้ (ทะลุทุกอย่าง ซ้อนช่อง ไม่ขวางใคร) + สายจูงกับเจ้าของ | `flies(p)` → true · `walkLeash(p)` → `{ x, y, r }` (โล่บินได้ของบานาจ) | `action.walksThrough` / `walkUnits` / `planWalk` |
 | ล่อเป้า (ศัตรูเล็งได้เฉพาะตัวล่อ) | ตั้ง `t.taunt = { ids, until }` เอง · ระบบกลางเช็คใน `canStrike` + สกิล target · `engine.tauntOf(t)` | `action.tauntOf` / `tauntAllows` |

@@ -73,6 +73,7 @@ const STATUS_INFO = {
   rooted:        { icon: "⛓️", label: "ถูกตรึง", cls: "bg-violet-900 text-white", desc: "เดินไม่ได้ แต่ใช้สกิลและโจมตีได้ตามปกติ" },
   // ดิเอโก้ แบรนโด (โลกคู่ขนาน)
   oilSoaked:     { icon: "🛢️", label: "ชุ่มน้ำมัน", cls: "bg-amber-800 text-white", desc: "ถูกโยนไม้ขีดไฟใส่จะระเบิดรอบตัว 3×3 ช่อง คนในพื้นที่เสียพลังชีวิต 2 เกราะรับก่อน ติดลุกไหม้ แล้วพื้นกลายเป็นกองไฟ" },
+  dinoVirus:     { icon: "🦠", label: "ไวรัสบรรพกาล", cls: "bg-lime-700 text-white", desc: "ครบ 3 = ถูกควบคุมร่างได้ · ไม่ได้รับเพิ่ม 3 เทิร์นจะลดลง 1" },
   diegoNet:      { icon: "🕸️", label: "ติดตาข่าย", cls: "bg-stone-500 text-white", desc: "โดนไม้ขีดไฟหรือแรงระเบิดน้ำมันจะติดลุกไหม้ 3 แทน 1" },
   yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },
   yunaNoRide:    { icon: "🚫", label: "ขี่ไม่ได้", cls: "bg-white/20", desc: "ขี่ผู้เล่นอื่นไม่ได้" },
@@ -211,6 +212,19 @@ export function statusEntries(p, full) {
     if (d.stopping) out.push({ key: "diegoStop", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-300 text-gray-900", desc: "เวลาหยุดอยู่ ได้ตาเดินใหม่ ตีปกติไม่ได้แต่ใช้สกิลรวมได้ 3 ครั้ง ความเสียหายที่ทำใส่คนอื่นลงตอนเวลาเดินต่อ" });
     else if (d.worldArmed) out.push({ key: "diegoWorld", v: 1, icon: "⏱️", label: "เดอะเวิลด์", cls: "bg-yellow-500 text-gray-900", desc: "ศัตรูทำให้เสียหายก่อนจบเทิร์น การกระทำนั้นถูกยกเลิกแล้วหยุดเวลาทันที ถ้าไม่โดนจะได้หยุดเวลาต้นเทิร์นหน้าก่อนทุกคน" });
     else if (d.worldCd > 0) out.push({ key: "diegoWorldCd", v: d.worldCd, turns: true, icon: "⏳", label: "เดอะเวิลด์", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ท่าไม้ตายได้อีก" });
+  }
+  // ถูกควบคุมร่าง (server/possess.js — เข้าร่วมเผ่าพันธุ์ของดิเอโก้): ใครก็ติดได้
+  if (p.possessedBy) out.push({ key: "dinoPossessed", v: 1, icon: "🦖", label: "เข้าร่วมเผ่าพันธุ์", cls: "bg-lime-800 text-white", desc: "เข้าร่วมเผ่าพันธุ์" });
+  // ดิเอโก้ อสูรกายดึกดำบรรพ์: ความบ้าคลั่ง · ร่างไดโนเสาร์ · อย่ามาดูถูกกันนะ · ม้า · คูลดาวน์ท่าไม้ตาย (ตัวเลข/ไอคอนเท่านั้น)
+  if (p.dino && p.dino.frenzy != null) {
+    const d = p.dino, h = p.diego || {};
+    out.push({ key: "dinoFrenzy", v: 1, icon: "🦖", label: `${d.frenzy}/${d.frenzyMax}`, cls: d.frenzy >= 2 ? "bg-teal-600 text-white" : "bg-teal-900 text-white", desc: "ความบ้าคลั่ง" });
+    if (d.form === "dino") out.push({ key: "dinoForm", v: 1, icon: "🦖", label: "ร่างไดโนเสาร์", cls: "bg-cyan-700 text-white", desc: "ร่างไดโนเสาร์" });
+    if (d.scorn > 0) out.push({ key: "dinoScorn", v: d.scorn, turns: true, icon: "🦎", label: "อย่ามาดูถูกกันนะ", cls: "bg-lime-600 text-gray-900", desc: "ไวรัสบรรพกาล +2" });
+    if (h.mounted) out.push({ key: "dinoHorse", v: 1, icon: "🐎", label: `${h.horseHp}/5`, cls: "bg-amber-700 text-white", desc: "ซิลเวอร์ บูลเล็ต" });
+    else if (h.horseCd > 0) out.push({ key: "dinoHorseCd", v: h.horseCd, turns: true, icon: "🐎", label: "⏳", cls: "bg-white/20", desc: "ซิลเวอร์ บูลเล็ต" });
+    if (d.form !== "dino" && d.swarmCd > 0) out.push({ key: "dinoSwarmCd", v: d.swarmCd, turns: true, icon: "⏳", label: "ฉันจะฆ่าแก", cls: "bg-white/20", desc: "ฉันจะฆ่าแก" });
+    if (d.form === "dino" && d.stompCd > 0) out.push({ key: "dinoStompCd", v: d.stompCd, turns: true, icon: "⏳", label: "ย่ำกระหม่อม", cls: "bg-white/20", desc: "ย่ำกระหม่อม" });
   }
   // ฟันนี่ วาเลนไทน์: กระสุน (รีโหลด) · หลบสายตา (เทิร์นที่เหลือ / คูลดาวน์) · กระดานคู่ขนานเปิดอยู่ (ตัวเลข/ไอคอนเท่านั้น)
   //  คูลดาวน์ท่าไม้ตายแต่ละแบบอยู่บนการ์ดตัวเลือก (locked + left จาก server)

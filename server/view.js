@@ -421,6 +421,8 @@ function buildStateInner(viewerId) {
         yuna: hook && hook.yunaState ? hook.yunaState(engine, p) : undefined, // ยูนะ: เพลง / วง / ไอดอล / เงาของเสียง / ขี่
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
         gyro: hook && hook.gyroState ? hook.gyroState(engine, p) : undefined, // ไจโร: ลูกเหล็ก (บนพื้น/ในมือ) / สัดส่วนทองคำ / ม้า / เสริมท่าไม้ตาย (GRID_PLAN §7.11 สัญญาข้อมูล)
+        dino: hook && hook.dinoState ? hook.dinoState(engine, p, viewer) : undefined,
+        possessedBy: (() => { const e = require("./possess").live(p); return e ? e.by : null; })(), // ควบคุมร่าง (server/possess.js — เข้าร่วมเผ่าพันธุ์): ใครคุมตาเดินของคนนี้ (รอ/กำลังคุม) // ดิเอโก้ อสูรกายดึกดำบรรพ์: ร่าง / ความบ้าคลั่ง / คูลดาวน์ / ภาพหมาก — GRID_PLAN §7.36
         diego: hook && hook.diegoState ? hook.diegoState(engine, p, viewer) : undefined, // ดิเอโก้: เล่ห์เหลี่ยม / กระสุน / เดอะเวิลด์ / ม้า / ตาข่าย (เจ้าของเห็น) — GRID_PLAN §7.12
         valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งเสริมพลัง / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
@@ -509,6 +511,7 @@ function unseenPub(o, p) {
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     midoriya: undefined, // มิโดริยะ: มองไม่เห็น = ไม่รู้ Full Cowl/คูลดาวน์
+    dino: undefined, // ดิเอโก้ อสูรกายดึกดำบรรพ์: มองไม่เห็น = ไม่รู้ร่าง/ความบ้าคลั่ง
     magna: undefined, // แม็กน่า: มองไม่เห็น = ไม่รู้ OverHeat/บอลไฟ
     shinra: o.shinra ? { ember: null, max: null, hero: 0, warm: 0, smolder: 0, latomCd: null } : undefined,
     actions: undefined,
