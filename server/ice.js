@@ -548,6 +548,7 @@ function pushUnit(u, dir, ctx, n = 1) {
   while (steps < n) {
     const to = { x: cur.x + dir.x, y: cur.y + dir.y };
     if (!action.tileFree(to.x, to.y, u.id)) { blocked = true; break; }
+    if (require("./soulChain").clampPush(u, to.x, to.y)) break; // โซ่ Soul Chain: ถูกผลัก/ดึงไกลกว่าคู่โซ่ 4 ช่องไม่ได้ (หยุดตรงขอบโซ่)
     cur = to; steps++;
     if (Board.isIce(action.boardMap(), cur.x, cur.y)) break;
   }

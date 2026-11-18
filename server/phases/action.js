@@ -206,6 +206,8 @@ function walkUnits(ref) {
 }
 // สายจูง (ฮุค walkLeash(p) → { x, y, r }): ช่องที่หยุดได้ต้องห่างจุดนั้นไม่เกิน r (แมนฮัตตัน) · ไม่มี = null
 function leashOf(p) {
+  const chain = require("../soulChain").leashOf(p); // โซ่ Soul Chain: ห่างคู่โซ่ไม่เกิน 4 ช่อง (มาก่อนสายจูงของตัวละคร)
+  if (chain) return chain;
   const hook = p && CHAR_HOOKS[p.characterId];
   const l = hook && hook.walkLeash ? hook.walkLeash(p) : null;
   return l && Number.isFinite(l.x) && Number.isFinite(l.y) && Number.isFinite(l.r) ? l : null;
@@ -349,6 +351,7 @@ function strikeRect(p) {
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
   if (!tauntAllows(p, target)) return false; // ถูกล่อเป้า: ตีได้เฉพาะตัวล่อ
+  if (require("../soulChain").apart(p, target)) return false; // โซ่ Soul Chain: ตีได้เฉพาะคู่โซ่ / คนนอกตีคนในโซ่ไม่ได้
   // ฮุค strikeAllows(p, target) → false = ตีเป้านี้ไม่ได้ (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room — client ใช้ players[].strikeZone คัดเหมือนกัน)
   const zoneHook = CHAR_HOOKS[p.characterId];
   if (zoneHook && zoneHook.strikeAllows && !zoneHook.strikeAllows(p, target)) return false;
@@ -361,6 +364,12 @@ function canStrike(p, target) {
 }
 // ตีแนวตรงแล้วโดนใครอีกบ้างนอกจากเป้าหลัก (ศัตรูในแนวเดียวกัน รวมคนที่มองไม่เห็น) → { ids, tiles }
 function laneVictims(p, target) {
+  const r = laneVictimsRaw(p, target);
+  if (!r || !Array.isArray(r.ids)) return r;
+  const Chain = require("../soulChain"); // โซ่ Soul Chain: คนนอกโซ่ไม่โดนตีแนว/กรอบ
+  return { ...r, ids: r.ids.filter((id) => !Chain.apart(p, match.players[id])) };
+}
+function laneVictimsRaw(p, target) {
   if (!p.pos || !target || !target.pos) return null;
   // ตีรอบตัว 8 ช่อง (ฮุค strikeRing + ringTiles — กิลกาเมช ถือ EA): ศัตรูทุกคนรอบตัวโดนด้วย
   const ringHook = CHAR_HOOKS[p.characterId];
@@ -526,6 +535,13 @@ function areaRange(p, area) {
 //  line: เลือกทิศ (dir) — ทุกคนในแนว len×width · การคัดเพื่อน/ศัตรูเป็นหน้าที่ของ hook (บางท่าใช้กับศัตรูได้)
 //  การมองเห็น (server/visibility.js): เล็งคนที่มองไม่เห็นไม่ได้ · พื้นที่ที่ไม่ใช่สกิลโจมตี (ไม่มี area.hostile) ไม่โดนคนที่มองไม่เห็น
 function resolveArea(p, area, targets, dir, tile) {
+  const ids = resolveAreaRaw(p, area, targets, dir, tile);
+  if (!ids) return ids;
+  // โซ่ Soul Chain (server/soulChain.js): สกิลพื้นที่ไม่โดนคนที่อยู่คนละฝั่งโซ่
+  const Chain = require("../soulChain");
+  return ids.filter((id) => !Chain.apart(p, match.players[id]));
+}
+function resolveAreaRaw(p, area, targets, dir, tile) {
   const kind = (area && area.kind) || "self";
   if (kind === "self" || kind === "field") return Array.isArray(targets) ? targets : [];
   if (!p.pos) return null;
@@ -566,6 +582,7 @@ function targetOk(p, area, range, t) {
   if (!t || !t.alive || !t.pos) return false;
   if (t.id === p.id) return !!area.self;
   if (!Dim.same(p, t)) return false; // ชั้นมิติ: เล็งคนคนละชั้นไม่ได้
+  if (require("../soulChain").apart(p, t)) return false; // โซ่ Soul Chain: เล็งได้เฉพาะคู่โซ่
   if (Visibility.hiddenFromUnit(p, t)) return false;
   if (!tauntAllows(p, t)) return false; // ถูกล่อเป้า: เล็งศัตรูได้เฉพาะตัวล่อ
   if (Fodlan.shields(p, t)) return false; // สนาม Eos: โดมกำแพงเวท

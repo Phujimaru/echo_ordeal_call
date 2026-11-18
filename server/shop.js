@@ -681,6 +681,7 @@ function useDrawItem(id, uid, opts = {}) {
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
   const item = p.inventory[idx];
+  if (require("./soulChain").itemBlocked(p, item)) return; // โซ่ Soul Chain: ยาเปลี่ยนสีการ์ด/ยาโชคลาภ/กรรไกรตัดไพ่ ใช้ไม่ได้
   if (item.type === "fortune") {
     if ((p.statuses.fortune || 0) >= FORTUNE_MAX) return; // เต็มเพดานแล้ว ไม่เสียของ
     p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);

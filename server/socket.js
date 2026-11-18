@@ -423,6 +423,7 @@ io.on('connection', (socket) => {
     }
     const hook = p && CHAR_HOOKS[p.characterId];
     if (!hook || !hook.charAction || typeof key !== 'string') return;
+    if (require('./soulChain').actionBlocked(p, key)) return; // โซ่ Soul Chain: ปุ่มเคลื่อนที่ (พุ่ง/วาร์ป) ใช้ไม่ได้
     const t = tile && Number.isInteger(tile.x) && Number.isInteger(tile.y) ? { x: tile.x, y: tile.y } : null;
     combat.withEffectSource(p, () => combat.runHook(hook, 'charAction', engine, p, key, { tile: t }));
   }), 8);

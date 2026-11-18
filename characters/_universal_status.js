@@ -101,6 +101,8 @@ function applyBuff(p, key, amount, turns) {
 // ต้านสถานะผิดปกติ: สถานะ resist ที่ตัวละคร/ไอเทม/ไพ่ฟ้าตั้งได้
 function resistActive(p) {
   if (!p) return false;
+  // โซ่ Soul Chain (server/soulChain.js): ต้นตออยู่นอกโซ่ = ทุกดีบัฟ/สถานะผิดปกติไม่ติด (จุดร่วมของทุกตัวใส่ดีบัฟ)
+  if (require("../server/soulChain").blocks(p)) return true;
   return ((p.statuses && p.statuses.resist) || 0) > 0;
 }
 

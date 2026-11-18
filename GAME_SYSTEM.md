@@ -1383,3 +1383,13 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - หมวดความยาก `boss`: `view.takenUniqueChars` + socket join — มีตัว boss แล้ว ตัว boss อื่นเลือกไม่ได้
 - client: `masterFx.js` (ตัวเต็มขยับ/ออร่า/ท่า `masterPose` · เหตุการณ์ socket `masterFx` → `useCharSocketFx` จอสั่น + ซูมกระแทก (`canvas.animate` transform) · ท่าตีปกติ `MASTER_MS`) · หน้าทดสอบ `?board=1&master=1` (`window.__masterFx(kind)` · `__mfxAt` ค้างเฟรม · `__mfxFoot` กรอบช่องที่ยืน)
 
+## 59. โซ่ Soul Chain — สองคนแยกจากทุกคน / แต้มกองกลาง / สายจูงจากผลของคนอื่น / ป้ายสกิลเคลื่อนที่ (`server/soulChain.js` · แม็กน่า สวิง `characters/magna.js` · GRID_PLAN §7.35)
+- **สถานะ**: `p.soulChain = { with, by, at }` ติดทั้งสองฝ่าย · `Chain.partnerOf(p)` (ต้องชี้กันทั้งสองทาง) · `link(owner, target, stamp)` / `unlink(p)` / `unlinkOf(ownerId)` · เริ่มแมตช์ล้างใน `combat.resetCombat` (`resetPlayer`)
+- **แยกจากคนอื่น** `Chain.apart(a, b)` (คนใดคนหนึ่งติดโซ่กับคนอื่น) + `Chain.blocks(target)` (ต้นตอ effectSource อยู่คนละฝั่งโซ่): `action.canStrike` · `targetOk` · `resolveArea` (กรองผลลัพธ์ทุกชนิด) · `laneVictims` · `combat.adjustIncomingDamage` / `applyDebuff` / `applyBuff` / `healHp` · `_universal_status.resistActive` (จุดร่วมของดีบัฟ/ลุกไหม้/เลือดไหล/พิษ) · client `BoardStage chainOk` (ใน `tauntOk`) อ่าน `players[].soulChain`
+- **แต้มกองกลาง**: `skillPoints` ของทั้งคู่เป็น accessor ชี้ `{ v }` เดียวกัน (เพดาน 8) — โค้ดเดิมที่ `p.skillPoints -= n` ใช้ได้เลย · ระบบคู่ (เคท & เอมิลิโกะ) ติดกองที่เจ้าของ (`holderOf`) เพราะตัวคู่อ่านแต้มเจ้าของผ่าน accessor ของ `server/duo.js` · ถูกย้อน (หยุดเวลา) แล้ว accessor หาย = `ensurePool` ต่อใหม่ตอน `partnerOf`
+- **สายจูง**: `action.leashOf` ถาม `Chain.leashOf` ก่อนฮุค `walkLeash` · ถูกผลัก `Ice.pushUnit` หยุดที่ขอบโซ่ (`clampPush` — ไม่นับชน)
+- **ลดความเสียหายใส่กัน** `Chain.floorDamage(p, n0, n1)` ท้าย `adjustIncomingDamage`: ฮิตแรกของการโจมตี (คีย์ `match.cmdSeq`) ไม่ต่ำกว่า 1 · ส่วนที่ลดไม่ได้ไปลดฮิตถัดไปของการโจมตีเดียวกัน
+- **ป้ายสกิลเคลื่อนที่** (ย้ายตัวเองบนกระดาน — พุ่ง/วาร์ป/สลับที่/เข้าชั้นมิติ): ตาราง `MOVES[characterId][tier](p, opts)` + `ACTIONS[characterId]` (ปุ่ม HUD) ใน `server/soulChain.js` · ตรวจที่ `skills.useSkill` (หลัง `canUseSkill`) · socket `charAction` · `Ride.canAsk` · view ล็อกปุ่ม/ตัวเลือก (`chainLocks`) — **ตัวละครใหม่ที่มีท่าย้ายตัวเองต้องเพิ่มที่นี่**
+- **ไอเทมช่วงจั่ว** (ยาเปลี่ยนสีการ์ด/ยาโชคลาภ/กรรไกรตัดไพ่) ใช้ไม่ได้: `shop.useDrawItem` → `Chain.itemBlocked`
+- แม็กน่า: ติดโซ่ = ปุ่มสามช่องเปลี่ยน (`skillPub`/`skillArea`/`skillCost` · `flash: true`) · Finisher แบบ 1 ผ่านฮุค `blocksAttack` (กันทั้งก้อน) + คิวคลิปด้วย `engine.wantFlow()` · แบบ 2 ผ่าน `onActorReady` + `pausePlayingForCutscene` · OverHeat นับผ่านฮุค broadcast `onDamageDealt` แยกการโจมตีด้วย `cmdSeq`
+

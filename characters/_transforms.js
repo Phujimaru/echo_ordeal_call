@@ -27,6 +27,7 @@ const ot = require("./old_truck"); // รถบรรทุกเก่า / อ
 const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
 const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
+const magna = require("./magna"); // แม็กน่า สวิง: Deathmatch (โซ่ติด) / Finisher (ทำงาน) ทุกครั้ง
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
@@ -221,6 +222,9 @@ module.exports = function buildTransforms() {
     [midoriya.CUT.detroit]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.detroit, title: midoriya.FORMS.detroit.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.detroit, music: null, afterReveal: false },
     [midoriya.CUT.delaware]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.delaware, title: midoriya.FORMS.delaware.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.delaware, music: null, afterReveal: false },
     [midoriya.CUT.million]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.million, title: midoriya.FORMS.million.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.million, music: null, afterReveal: false },
+    // แม็กน่า สวิง (GRID_PLAN §7.35) — ความยาวจริง 9.36 / 6.04 วิ · ไฟล์ผู้ใช้ 1.2 Mbps ไม่ต้องบีบ
+    [magna.CUT.deathmatch]: { img: magna.IMG.deathmatch, video: magna.VIDEO.deathmatch, title: magna.NAME.deathmatch, label: "ปล่อยท่าไม้ตาย", seconds: magna.CLIP_SEC.deathmatch, music: null, afterReveal: false },
+    [magna.CUT.finisher]: { img: magna.IMG.finisher, video: magna.VIDEO.finisher, title: magna.NAME.finisher, label: "ปล่อยท่าไม้ตาย", seconds: magna.CLIP_SEC.finisher, music: null, afterReveal: false },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

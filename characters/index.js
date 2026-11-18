@@ -45,7 +45,8 @@ const yaguruma = require("./yaguruma");
 const kagami = require("./kagami");
 const tsurugi = require("./tsurugi");
 const gilgamesh_fake = require("./gilgamesh_fake"); // กิลกาเมช (Fake) — มหันตภัย · unique (EA · Gate of Babylon ปืนกลสมบัติ · Enuma Elish · กระเป๋า 50)
-const kurenai_otoya = require("./kurenai_otoya"); // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
+const kurenai_otoya = require("./kurenai_otoya");
+const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
   oberon_summer,
@@ -87,6 +88,7 @@ const CHARACTER_MODULES = [
   kusakabe_shinra,
   midoriya_izuku,
   master,
+  magna,
 ];
 
 const CHAR_HOOKS = {};

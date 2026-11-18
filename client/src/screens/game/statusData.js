@@ -242,6 +242,15 @@ export function statusEntries(p, full) {
     if (s.smolder > 0) out.push({ key: "shinraSmolder", v: s.smolder, turns: true, icon: "💥", label: "มอดไหม้จากภายใน", cls: "bg-amber-300 text-gray-900", desc: "ตีปกติระเบิดลุกไหม้บนตัวเป้าเป็นความเสียหาย" });
     if (s.latomCd > 0) out.push({ key: "shinraLatomCd", v: s.latomCd, turns: true, icon: "⏳", label: "ลาทัม", cls: "bg-white/20", desc: "รอให้ครบเทิร์นจึงใช้ลาทัมได้" });
   }
+  // แม็กน่า สวิง: OverHeat n/8 · บอลไฟ n/3 · Fire Knuckle / Fire Boost (เทิร์นที่เหลือ) · โซ่ (เทิร์นที่เหลือ / Finisher รอทำงาน)
+  if (p.magna) {
+    const m = p.magna;
+    out.push({ key: "magnaHeat", v: 1, icon: "🔥", label: `OverHeat ${m.heat | 0}/8`, cls: m.heat >= 8 ? "bg-red-600 text-white" : m.heat >= 5 ? "bg-orange-400 text-gray-900" : m.heat >= 3 ? "bg-amber-300 text-gray-900" : "bg-white/20", desc: "3+ ระยะตี +1 · 5+ สร้างความเสียหายมีโอกาส 20% ลุกไหม้ 1 (ติดโซ่ 40%) · 8 ความเสียหายที่ได้รับ −1" });
+    if (m.balls > 0) out.push({ key: "magnaBalls", v: 1, icon: "☄️", label: `บอลไฟ ${m.balls}/3`, cls: "bg-orange-300 text-gray-900", desc: "ใช้ตีด้วย Baseball bat และปา Soul Chain Deathmatch" });
+    if (m.knuckle > 0) out.push({ key: "magnaKnuckle", v: m.knuckle, turns: true, icon: "👊", label: "Fire Knuckle", cls: "bg-orange-500 text-white", desc: "ตีปกติติดลุกไหม้ 1" });
+    if (m.boost > 0) out.push({ key: "magnaBoost", v: m.boost, turns: true, icon: "💨", label: "Fire Boost", cls: "bg-red-500 text-white", desc: "ตีปกติได้ 2 ครั้งต่อตาเดิน · หลบหลีก 35%" });
+  }
+  if (p.soulChain) out.push({ key: "soulChain", v: p.magna && p.magna.chain > 0 ? p.magna.chain : 1, turns: !!(p.magna && p.magna.chain > 0), icon: "⛓️", label: p.magna && p.magna.armed ? "Soul Chain Finisher" : "Soul Chain Deathmatch", cls: p.magna && p.magna.armed ? "bg-sky-400 text-gray-900" : "bg-orange-600 text-white", desc: "แชร์แต้มสกิล · ห่างกันไม่เกิน 4 ช่อง · ใช้สกิลเคลื่อนที่ไม่ได้ · โจมตีและได้รับผลได้แค่จากกันเอง" });
   // ผู้นำแห่งตระกูลเรียวกิ: คูลดาวน์หยินหยาง (เนตรมณะ/เยียวยา) · ดับสิ้นซะ — เนตรมณะ/รากฐานจิต/ดับสิ้นซะ เป็นสถานะ netramana / ryougiMind / ryougiBloom
   if (p.ryougi) {
     const r = p.ryougi;

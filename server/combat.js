@@ -30,6 +30,7 @@ const Ride = require("./ride");
 const TimeStop = require("./timeStop");
 const Dim = require("./dimension");
 const Summon = require("./summon");
+const Chain = require("./soulChain");
 
 // ตัวละครเจ้าของค่าสถานะพื้นฐาน (เลือด/เกราะ/แต้มสกิลสูงสุด) — เจ้าหญิง Echo ตอนเปลี่ยนสกิลยังใช้ของ Echo (characters/echo.js)
 const statId = (p) => CHAR_HOOKS.echo.statId(p);
@@ -65,6 +66,7 @@ function healHp(p, amount) {
   if (noHealActive(p)) return 0;
   // ฮุค blocksHealFrom(engine, p, ผู้ฮีล) → true = คนอื่นฮีลให้ไม่ได้ (Master: A fking boss!! — ฮีลตัวเองได้)
   if (match.effectSourceId && match.effectSourceId !== p.id) {
+    if (Chain.blocks(p)) return 0; // โซ่ Soul Chain (server/soulChain.js): คนนอกโซ่ฮีลให้ไม่ได้
     const hh = CHAR_HOOKS[p.characterId];
     if (hh && hh.blocksHealFrom && runHook(hh, "blocksHealFrom", engine, p, match.players[match.effectSourceId])) return 0;
   }
@@ -117,12 +119,14 @@ function withEffectSource(source, fn) {
 const noStatus = (p) => !!(p && p.summon && p.summon.noStatus);
 function applyBuff(p, key, amount, turns) {
   if (noStatus(p)) return;
+  if (Chain.blocks(p)) return; // โซ่ Soul Chain: บัฟจากคนนอกโซ่ไม่ติด
   rawApplyBuff(p, key, amount, turns);
 }
 function applyDebuff(p, key, amount, turns) {
   if (noStatus(p)) return false;
   if (friendlyEffectBlocked(p)) return false;
   if (Dim.blocks(p)) return false; // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้น = ไม่ติด
+  if (Chain.blocks(p)) return false; // โซ่ Soul Chain (server/soulChain.js): ต้นตออยู่นอกโซ่ = ไม่ติด
   if (untouchable(p)) return false; // ฮุค untouchable (ยูนะ: เงาของเสียง) — ไม่มีอะไรติดจากคนอื่น
   if (statusReflected(p, (src) => applyDebuff(src, key, amount, turns))) return false; // สะท้อน (โจรุโน่: ต้นตอแห่งชีวิต)
   if (Element().typeBlocks(p, key)) return false; // ประเภทตัวละคร (Holy: ไม่ติดอ่อนแอ/เชื่องช้า · Zombie: ไม่ติดพิษร้าย — server/element.js)
@@ -366,6 +370,7 @@ function damageSoft(p) {
 function adjustIncomingDamage(p, n, isNormalAttack, kind) {
   // ชั้นมิติ (server/dimension.js): ต้นตออยู่คนละชั้นกับเป้า = ไม่มีผล (ผลสนามที่ไม่มีต้นตอยังโดน)
   if (n > 0 && Dim.blocks(p)) return 0;
+  if (n > 0 && Chain.blocks(p)) return 0; // โซ่ Soul Chain: คนนอกโซ่ทำให้เสียหายไม่ได้ (และคนในโซ่ทำใส่คนนอกไม่ได้)
   // ตั้งรับด้วยการหยุดเวลา (ฮุค counterArmed — ดิเอโก้: เดอะเวิลด์) = ตัดการกระทำของผู้โจมตีทั้งก้อน (server/timeStop.js)
   if (n > 0) TimeStop.check(p, n);
   // ศัตรูทำให้เสียหาย = ถูกโจมตี (ฮุค onAttacked) · การโจมตีครั้งนี้ถูกกันทั้งก้อน (ฮุค blocksAttack — เฟิร์น: ผู้เชี่ยวชาญเวทมนต์พื้นฐาน) = 0
@@ -379,6 +384,7 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
     }
   }
   if (n > 0 && untouchable(p)) return 0;
+  const n0 = n; // ก่อนลดความเสียหาย — คู่โซ่ Soul Chain ลดใส่กันได้ไม่ต่ำกว่า 1 (Chain.floorDamage)
   const hook = CHAR_HOOKS[p && p.characterId];
   n = hook && hook.adjustIncomingDamage ? hook.adjustIncomingDamage(engine, p, n, isNormalAttack, kind) : n;
   // ประเภทตัวละคร × ธาตุ (Zombie/Holy/Metal) + กระตุ้น (ดาเมจต่อเทิร์น ×2) — server/element.js typeAdjust (ปัดขึ้น)
@@ -391,6 +397,7 @@ function adjustIncomingDamage(p, n, isNormalAttack, kind) {
     n = Math.max(0, n + d);
   }
   if (n > 0 && p) n = require("./fodlan").incomingDamage(p, n, match.effectSourceId && match.players[match.effectSourceId], kind); // Eos: ทหารโล่ (มอน) · Shield of the Just (ผู้เล่น)
+  n = Chain.floorDamage(p, n0, n);
   return Math.min(n, damageCapOf(match.effectSourceId && match.players[match.effectSourceId]));
 }
 // เพดานความเสียหายต่อครั้งของผู้ลงมือ (ฮุค damageCap(engine, source) → ตัวเลข | null — ยูนะ: ขี่อยู่ไม่เกิน 2) · ไม่มี = ไม่จำกัด
@@ -524,6 +531,7 @@ function resetRoundDisplay(p) {
 function resetCombat(p) {
   CHAR_HOOKS.echo.restoreBase(p); // เจ้าหญิง Echo: ร่างที่สวมจากไดอารี่ไม่ค้างข้ามแมตช์
   p.ready = false; // ห้องรอ: ต้องกดพร้อมใหม่ทุกครั้งที่กลับมาห้องรอ/เริ่มแมตช์ใหม่
+  Chain.resetPlayer(p); // โซ่ Soul Chain: แต้มกองกลาง/โซ่ค้างไม่ข้ามแมตช์ (ก่อนตั้งแต้ม — ถอด accessor ก่อน)
   p.skillPoints = 0; p.alive = true; p.shield = 0;
   p.statuses = {}; p.seen = {}; p.transformAt = 0;
   p.statusAmt = {};      // จำนวน (amount) ของบัฟ/ดีบัฟพื้นฐาน (patch 2.0.8) — คู่กับ p.statuses

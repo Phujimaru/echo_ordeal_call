@@ -88,6 +88,7 @@ function runSkill(id, tier, targets, opts = {}) {
   // ด่านก่อนหักแต้มของตัวละคร (คูลดาวน์/โควตาเฉพาะตัว) — ไม่มีฮุค = ผ่าน
   //  opts = ตัวเลือกจาก client (ไรโด ฮิคารุ: opts.form = ร่างที่เลือกใน UltraLive)
   if (hook && hook.canUseSkill && !hook.canUseSkill(engine, p, tier, targets, opts)) return;
+  if (require("./soulChain").skillBlocked(p, tier, opts)) return; // โซ่ Soul Chain: สกิลเคลื่อนที่ (พุ่ง/วาร์ป/สลับที่) ใช้ไม่ได้
   // โควตาสกิลหลัก 1 อันต่อเทิร์น — ignoresTurnQuota = กดได้แม้ใช้โควตาไปแล้ว (มุยมิ: เสบียงฉุกเฉิน)
   //  skipsTurnQuota = กดแล้วไม่กินโควตา (มุยมิ: เสบียงฉุกเฉิน · โอเบรอน: นกจาบยามเช้า)
   const ignoresQuota = !!(hook && hook.ignoresTurnQuota && hook.ignoresTurnQuota(p, tier, opts));

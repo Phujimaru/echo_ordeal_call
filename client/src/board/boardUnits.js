@@ -19,6 +19,7 @@ import { faizGhosts, faizTrailClear } from "./faizFx";
 import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
+import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
 import { kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { otoUnitBack, otoUnitFront } from "./otoyaFx";
 import { elemUnitBack, elemUnitFront } from "./elementFx";
@@ -291,6 +292,7 @@ function drawUnit(g, u, now, boxes) {
   const auraAt = u.aura === "kira" ? [u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), u.alpha == null ? 1 : u.alpha] : null;
   if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   // คุซาคาเบะ ชินระ (shinraFx.js): ไอพ่นใต้เท้า (ฮีโร่) / เพลิงท่วมตัว (อุ่นเครื่องพอแล้ว)
+  if (u.magna) magnaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: OverHeat/Fire Boost
   if (u.aura === "midoriyaCowl") midoriyaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // มิโดริยะ Full Cowl
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
@@ -441,6 +443,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.reticle) { if (tb) drawReticle(g, tb.cx, (tb.top + tb.bottom) / 2, (tb.bottom - tb.top) * 0.5, u.reticle, now, u.hpTone === "ally"); else drawReticle(g, bx, hy, hexR, u.reticle, now, u.hpTone === "ally"); }
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
+  if (u.magna) magnaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: บอลไฟวนรอบตัว / Fire Knuckle
   if (u.aura === "midoriyaCowl") midoriyaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);

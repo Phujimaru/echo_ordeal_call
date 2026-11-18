@@ -43,6 +43,17 @@ const Fodlan = require("./fodlan");
 const Dim = require("./dimension");
 
 // รูปที่แสดงบนสนาม: ร่างของตัวละคร (hook displayImg) > ภาพประจำตัว
+// โซ่ Soul Chain (server/soulChain.js): ช่องสกิลที่เป็นสกิลเคลื่อนที่ = ล็อก (ทับ skillLocks ของตัวละคร)
+function chainLocks(p, locks) {
+  const Chain = require("./soulChain");
+  if (!Chain.linked(p)) return locks;
+  let out = locks;
+  for (const tier of ["basic", "secondary", "ultimate"]) {
+    if (!Chain.skillBlocked(p, tier, {})) continue;
+    out = { ...(out || {}), [tier]: { ...((out && out[tier]) || {}), locked: true } };
+  }
+  return out;
+}
 function displayImg(p) {
   const look = CHAR_HOOKS.echo.lookOf(p); // เจ้าหญิง Echo สวมร่าง = ภาพบนกระดานของ Echo เสมอ
   if (look) return look.boardImg;
@@ -291,6 +302,12 @@ function buildStateInner(viewerId) {
         s.area = movArea(s.area);
         if (Array.isArray(s.choices)) s.choices = s.choices.map((c) => (c && c.area && c.area.range === "mov" ? { ...c, area: movArea(c.area) } : c));
       }
+      // โซ่ Soul Chain: ตัวเลือกที่เป็นสกิลเคลื่อนที่ = ล็อก (server/soulChain.js skillBlocked)
+      if (!secret && require("./soulChain").linked(p)) {
+        for (const [s, tierName] of [[basicPub, "basic"], [secondaryPub, "secondary"], [ultimatePub, "ultimate"]]) {
+          if (s && Array.isArray(s.choices)) s.choices = s.choices.map((c) => (c && require("./soulChain").skillBlocked(p, tierName, { form: c.key }) ? { ...c, locked: true } : c));
+        }
+      }
       if (basicPub) basicPub.cost = showCost(basicPub, "basic");
       if (secondaryPub) secondaryPub.cost = showCost(secondaryPub, "secondary");
       if (ultimatePub) ultimatePub.cost = showCost(ultimatePub, "ultimate");
@@ -315,8 +332,9 @@ function buildStateInner(viewerId) {
         teamId: p.teamId || null,
         teamConfirmed: !!p.teamConfirmed,
         // คูลดาวน์/ล็อกรายช่องของตัวละคร (โอเบรอน) — client ใช้ทำปุ่มเทา + ตัวเลขคูลดาวน์
-        skillLocks: CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
-          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined, // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
+        skillLocks: chainLocks(p, CHAR_HOOKS[p.characterId] && CHAR_HOOKS[p.characterId].skillLocks
+          ? CHAR_HOOKS[p.characterId].skillLocks(engine, p, viewer) : undefined), // viewer = ผู้ชม (ดิเอโก้: ซ่อนคูลดาวน์เดอะเวิลด์จากศัตรู)
+        soulChain: require("./soulChain").publicOf(p), // โซ่ Soul Chain (server/soulChain.js): { with, by } — วาดโซ่ + คัดเป้าที่ตี/เล็งได้
         modeVote: p.modeVote || null,
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         eosDiff: p.modeVote ? p.eosDiff || null : null, // ความยากที่โหวต (สนาม Eos)
@@ -408,6 +426,7 @@ function buildStateInner(viewerId) {
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งเสริมพลัง / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
         shinra: hook && hook.shinraState ? hook.shinraState(engine, p, viewer) : undefined, // คุซาคาเบะ ชินระ: เปลวเพลง / ฮีโร่ / อุ่นเครื่อง / มอดไหม้จากภายใน / คูลดาวน์ลาทัม — GRID_PLAN §7.32
         midoriya: hook && hook.midoriyaState ? hook.midoriyaState(engine, p) : undefined, // มิโดริยะ: Full Cowl (เทิร์นที่เหลือ/คูลดาวน์) · คูลดาวน์ Smash แต่ละแบบ — GRID_PLAN §7.33
+        magna: hook && hook.magnaState ? hook.magnaState(engine, p) : undefined, // แม็กน่า: OverHeat · บอลไฟ · Fire Knuckle/Boost · โซ่ — GRID_PLAN §7.35
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17
         emiya: hook && hook.emiyaState ? hook.emiyaState(engine, p) : undefined, // ชิโร่: อาวุธ / เทิร์น+ครั้งที่เหลือ / คูลดาวน์ / UBW / ความจุที่เพิ่ม — GRID_PLAN §7.18
@@ -490,6 +509,7 @@ function unseenPub(o, p) {
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     midoriya: undefined, // มิโดริยะ: มองไม่เห็น = ไม่รู้ Full Cowl/คูลดาวน์
+    magna: undefined, // แม็กน่า: มองไม่เห็น = ไม่รู้ OverHeat/บอลไฟ
     shinra: o.shinra ? { ember: null, max: null, hero: 0, warm: 0, smolder: 0, latomCd: null } : undefined,
     actions: undefined,
   };

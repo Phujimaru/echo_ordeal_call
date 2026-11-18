@@ -1795,6 +1795,49 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- แม็กน่า สวิง (Black Clover) — ยาก — ดู characters/magna.js (GRID_PLAN §7.35) ----------
+    //  พลังชีวิต 7 / เกราะ 3 (+ โบนัสกลาง) · แต้ม 0/8 · OverHeat 0/8 · ติดโซ่ = ปุ่มทั้งสามช่องเปลี่ยน (skillPub/skillArea/skillCost)
+    id: "magna",
+    gender: "m",
+    name: "แม็กน่า สวิง",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/magna/magna.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Soul vow Blazing",
+      desc: "OverHeat 0–8 · สร้างความเสียหาย +1 ต่อการโจมตี · ทั้งเทิร์นไม่สร้างความเสียหาย −1 · 3+ ระยะตี +1 · 5+ สร้างความเสียหายมีโอกาส 20% ลุกไหม้ 1 (ติดโซ่ 40%) · 8 ความเสียหายที่ได้รับ −1 ต่อครั้ง · ธาตุไฟทุกการโจมตี",
+    },
+    basic: {
+      name: "Fire Ball",
+      desc: "ธาตุไฟ · สร้างบอลไฟ 1 ลูก (เก็บได้ 3) · ติดโซ่: Fire Knuckle (2 แต้ม · ไม่นับเป็นการใช้สกิล · ยังเดินได้): 4 เทิร์น ตีปกติติดลุกไหม้ 1 (คูลดาวน์ 5 เทิร์น)",
+      area: { kind: "self" },
+      cost: 1,
+      img: "/characters/magna/fireball.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "Baseball bat",
+      desc: "ธาตุไฟ · ลูกละ 2 แต้ม · เลือกทิศ แนว 4×1: ตีบอลไฟ 1–2 ลูกใส่ศัตรูคนแรกในแนว ลูกละ 1 (หลบได้แยกลูก · ลดเกราะก่อน) (คูลดาวน์ 3 เทิร์น) · ติดโซ่: Fire Boost (4 แต้ม · ยังเดินได้): 2 เทิร์น ตีปกติได้ 2 ครั้งต่อตาเดิน หลบหลีก 35% (คูลดาวน์ 4 เทิร์น)",
+      area: { kind: "line", len: 4, width: 1, hostile: true },
+      cost: 2,
+      img: "/characters/magna/bat.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Soul Chain Deathmatch",
+      desc: "ธาตุไฟ · 6 แต้ม + บอลไฟ 1 · เลือกทิศ แนว 4×1: ปาบอลไฟใส่ศัตรูคนแรกในแนว (หลบได้) โดน = เชื่อมโซ่ 5 เทิร์น: แชร์แต้มสกิล · ห่างกันไม่เกิน 4 ช่อง · ใช้สกิลเคลื่อนที่ไม่ได้ · โจมตีและได้รับผลได้แค่จากกันเอง · ใช้ยาเปลี่ยนสีการ์ด/ยาโชคลาภ/กรรไกรตัดไพ่ไม่ได้ · ลดความเสียหายใส่กันได้ไม่ต่ำกว่า 1 (คูลดาวน์ 5 เทิร์นหลังโซ่หาย) · ติดโซ่: Soul Chain Finisher (5 แต้ม + OverHeat 8): คู่โซ่โจมตีใส่ = ยกเลิกแล้วสวน 3 · ไม่ถูกโจมตี = ต้นตาเดินถัดไปดึงมาติดตัว เสียหาย 3 ฟื้นพลังชีวิตตามลุกไหม้บนเป้า · ติดตัว = ผลัก 5 ช่อง · โซ่ขาด",
+      area: { kind: "line", len: 4, width: 1, hostile: true },
+      cost: 6,
+      img: "/characters/magna/deathmatch.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

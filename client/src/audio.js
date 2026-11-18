@@ -620,6 +620,8 @@ const FILES = {
   // มิโดริยะ อิซึคุ (GRID_PLAN §7.33): สังเคราะห์ .claude/plans/midoriya-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · midoriya_million = ช่วงไคลแมกซ์ตัดจากคลิปของผู้ใช้ (1,000,000% ครั้งที่ไม่มีคลิป)
   ...Object.fromEntries(["punch", "punch_cowl", "cowl", "recoil", "smash_storm", "million_storm"].map((k) => [`midoriya_${k}`, `/effect_sound/midoriya/midoriya_${k}.m4a`])),
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
+  // แม็กน่า สวิง (GRID_PLAN §7.35): สังเคราะห์ .claude/plans/magna-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · ตีปกติ: จุดปะทะ 0.29 วิ (MAGNA_HIT_P)
+  ...Object.fromEntries(["swing", "knuckle", "ball", "bat", "bat_hit", "boost", "throw", "arm", "pull", "fin_hit", "chain_break"].map((k) => [`magna_${k}`, `/effect_sound/magna/magna_${k}.m4a`])),
   // Master (GRID_PLAN §7.34): ไฟล์จากผู้ใช้ (แปลง wav → m4a · ยังไม่ปรับความดัง) · เพลงเฟส 1/2 วนจนเปลี่ยนเฟส/ตาย (state.skillMusic)
   ...Object.fromEntries(["melee", "slash", "wave", "revive", "roar", "death", "shockwave", "thunder", "raider", "meteor", "choir", "summon", "swing", "stomp"].map((k) => [`master_${k}`, `/characters/master/master_${k}.m4a`])),
   master_phase1: "/characters/master/phase1.ogg",

@@ -36,6 +36,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - ฮุค `resetCombat` ของตัวใหม่ถูกเรียกตอน Echo สวมร่าง — ห้ามแจกของ/รีเซ็ตแต้ม/เงินซ้ำได้ (Echo เก็บ `KEEP_ON_MIMIC` ไว้ให้ แต่ฟิลด์ใหม่ที่ควรค้างต้องเพิ่มเข้าไป) · ผลค้างต้องตัดได้ตอนคืนร่าง (`severables`)
 - รัน `tests/echo-mimic-all.test.js` + `tests/echo-mimic-stress.test.js` ทุกครั้ง · ห้ามเพิ่มเข้า `BLOCKED` เองโดยไม่ถามผู้ใช้
 
+## สกิลที่ย้ายตัวเองต้องติดป้าย "สกิลเคลื่อนที่" (ระบบกลาง 2026-11-18 · GAME_SYSTEM §59)
+
+- โซ่ Soul Chain ของแม็กน่า (`server/soulChain.js`) ห้ามคนที่ติดโซ่ใช้สกิลเคลื่อนที่ — ตัวใหม่ที่มีท่าพุ่ง/วาร์ป/สลับที่/เข้าชั้นมิติ (ย้าย `p.pos` ของตัวเอง) ต้องเพิ่มลงตาราง `MOVES[id][tier](p, opts)` (ปุ่ม HUD → `ACTIONS[id]`) ในไฟล์นั้น
+- ทางกดใหม่ที่ไม่ผ่าน `useSkill`/`charAction` ต้องเช็ค `Chain.skillBlocked` / `actionBlocked` เอง · ผลใส่คนอื่นผ่านท่อกลาง (`dealMixed`/`applyDebuff`/`applyBurn`/`healHp`/`resolveArea`) แยกโซ่ให้อัตโนมัติ
+
 ## สกิลติดตัวต้องปิดได้ด้วย "ลบสกิลติดตัว" (ระบบกลาง 2026-11-12 · GAME_SYSTEM §30.1)
 
 - สถานะ Universal `noPassive` (Rule Breaker ของชิโร่ระหว่าง UBW · ใส่ด้วย `engine.applyPassiveSeal(p, turns)`) — ติดอยู่ = สกิลติดตัวทุกช่องไม่ทำงาน

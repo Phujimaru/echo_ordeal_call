@@ -23,6 +23,7 @@ import { ZECT_HIT_P, ZECT_MS } from "./zectFx";
 import { KIRI_HIT_P, KIRI_MS } from "./kiriFx";
 import { SHINRA_HIT_P, SHINRA_MS } from "./shinraFx";
 import { MIDORIYA_HIT_P, MIDORIYA_MS } from "./midoriyaFx";
+import { MAGNA_HIT_P, MAGNA_MS } from "./magnaFx";
 import { MASTER_HIT_P, MASTER_MS } from "./masterFx";
 import { KAZUMA_HIT_P, KAZUMA_MS } from "./kazumaFx";
 import { HAKUNO_HIT_P, HAKUNO_MS } from "./moonFx";
@@ -68,8 +69,8 @@ export function smashFx(g, e, now) {
 //  ฟันนี่ วาเลนไทน์: valKnife / valGun อยู่ใน valentineFx.js
 //  องค์หญิงดอกไม้ เซลิน: celine* (อาวุธ 6 แบบ) อยู่ใน celineFx.js
 //  คิชินามิ ฮาคุโนะ (บอส Moon Cell): hakunoM / hakunoF อยู่ใน moonFx.js
-export const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS, ...SHINRA_MS, ...MIDORIYA_MS, ...MASTER_MS };
-const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P, ...SHINRA_HIT_P, ...MIDORIYA_HIT_P, ...MASTER_HIT_P };
+export const STYLE_MS = { echo: 1100, hair: 1200, rock: 1400, ...HK_MS, ...SH_MS, ...KIRA_MS, ...YUNA_MS, ...GRAY_MS, ...VAL_MS, ...FERN_MS, ...CELINE_MS, ...RYOUGI_MS, ...EMIYA_MS, ...KAZUMA_MS, ...HAKUNO_MS, ...LAW_MS, ...OT_MS, ...GIO_MS, ...ARJ_MS, ...DIO_MS, ...FAIZ_MS, ...ZECT_MS, ...GIL_MS, ...KIRI_MS, ...SHINRA_MS, ...MIDORIYA_MS, ...MAGNA_MS, ...MASTER_MS };
+const STYLE_HIT_P = { echo: 0.45, hair: 0.5, rock: 0.55, ...HK_HIT_P, ...SH_HIT_P, ...KIRA_HIT_P, ...YUNA_HIT_P, ...GRAY_HIT_P, ...VAL_HIT_P, ...FERN_HIT_P, ...CELINE_HIT_P, ...RYOUGI_HIT_P, ...EMIYA_HIT_P, ...KAZUMA_HIT_P, ...HAKUNO_HIT_P, ...LAW_HIT_P, ...OT_HIT_P, ...GIO_HIT_P, ...ARJ_HIT_P, ...DIO_HIT_P, ...FAIZ_HIT_P, ...ZECT_HIT_P, ...GIL_HIT_P, ...KIRI_HIT_P, ...SHINRA_HIT_P, ...MIDORIYA_HIT_P, ...MAGNA_HIT_P, ...MASTER_HIT_P };
 export const STYLE_HIT = Object.fromEntries(Object.keys(STYLE_MS).map((k) => [k, Math.round(STYLE_MS[k] * STYLE_HIT_P[k])]));
 const SQY = 0.6; // วงรีบนพื้น (สัดส่วนแนวตั้ง)
 const easeIn3 = (t) => t * t * t;

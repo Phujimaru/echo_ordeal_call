@@ -49,6 +49,7 @@ import { ZECT_FX_DUR, isZectFx, zectFx } from "./zectFx";
 import { KIRI_FX_DUR, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { SHINRA_FX_DUR, isShinraFx, shinraFx } from "./shinraFx";
 import { MIDORIYA_FX_DUR, isMidoriyaFx, midoriyaFx } from "./midoriyaFx";
+import { MAGNA_FX_DUR, isMagnaFx, magnaFx, magnaChains } from "./magnaFx";
 import { MASTER_FX_DUR, isMasterFx, masterFx, drawElemFields } from "./masterFx";
 import { KAZUMA_FX_DUR, isKazumaFx, kazumaFx } from "./kazumaFx";
 import { ROLAND_FX_DUR, isRolandFx, rolandFx } from "./rolandFx";
@@ -88,7 +89,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...SORA_FRAME_FX_DUR, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...MIDORIYA_FX_DUR, ...MASTER_FX_DUR, ...ELEM_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...MIDORIYA_FX_DUR, ...MAGNA_FX_DUR, ...MASTER_FX_DUR, ...ELEM_FX_DUR,
 };
 
 
@@ -466,6 +467,7 @@ export function drawFrame(g, st, now) {
   items.sort((a, b) => a.d - b.d);
   for (const it of items) it.f();
   if (st.otoya && st.otoya.links && st.otoya.links.length) otoyaLinks(g, st.otoya.links, units, now, lowQ); // สายโน้ตดนตรีในหัวใจ (เหนือตัวละคร)
+  if (units.some((u) => u.chain)) magnaChains(g, units, now, lowQ); // โซ่ Soul Chain ของแม็กน่า (เหนือตัวละคร · ฟ้า = Finisher รอทำงาน)
   if (storms) drawStormAir(g, storms, info, now, lowQ);
   // ป้าย "🏪 N" (เหลือ N เทิร์น) เหนือกลางร้านแต่ละร้าน · Colony = เฉพาะแคปซูลที่ลงถึงพื้นแล้ว
   if (!rtOn) for (const sh of shopList) {
@@ -561,6 +563,7 @@ export function drawFrame(g, st, now) {
     else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
     else if (isShinraFx(e.kind)) shinraFx(g, e, now, lowQ); // คุซาคาเบะ ชินระ (shinraFx.js)
     else if (isMidoriyaFx(e.kind)) midoriyaFx(g, e, now, lowQ); // มิโดริยะ อิซึคุ (midoriyaFx.js)
+    else if (isMagnaFx(e.kind)) magnaFx(g, e, now, lowQ); // แม็กน่า สวิง (magnaFx.js)
     else if (isMasterFx(e.kind)) masterFx(g, e, now, lowQ); // Master (masterFx.js)
     else if (isValentineFx(e.kind)) valentineFx(g, e, now, lowQ);
     else if (isFernFx(e.kind)) fernFx(g, e, now, lowQ);

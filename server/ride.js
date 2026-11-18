@@ -70,6 +70,8 @@ function canAsk(p, t) {
   if (p.summon || t.summon || (p.dim || null) !== (t.dim || null)) return false; // ยูนิตที่ถูกเรียก / คนละชั้นมิติ ขี่ไม่ได้
   if (!action.canAct(p) || match.action.locked || match.action.dismount) return false; // เพิ่งลงจากหลังตานี้ = ขึ้นใหม่ไม่ได้
   if (p.mountId || t.mountId || riderOf(p)) return false;
+  const Chain = require("./soulChain"); // โซ่ Soul Chain: ขี่ = เคลื่อนที่ไปกับคนอื่น — ไม่ได้ทั้งคนขี่และคนถูกขี่
+  if (Chain.linked(p) || Chain.linked(t)) return false;
   const seats = carSeats(p, t);
   if (seats > 0) { if (ridersOf(t).length >= seats) return false; }
   else {

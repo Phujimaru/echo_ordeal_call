@@ -109,7 +109,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const isAllyHit = (p) => !!p && !!me && !!me.allyStrike && p.id !== me.id && !!p.pos && sameDim(p) && !isDoubleP(p) && !p.summon
     && (sameSide(p, me) || (teamMode && !!me.teamId && p.teamId === me.teamId));
   // ถูกล่อเป้า (โล่ผู้พิทักษ์ — server action.tauntOf): เล็งศัตรูได้เฉพาะตัวล่อ (ตีปกติ + สกิลเลือกเป้า)
-  const tauntOk = (p) => !me || !Array.isArray(me.taunt) || !me.taunt.length || !isEnemy(p) || me.taunt.includes(p.id);
+  //  + โซ่ Soul Chain (server/soulChain.js apart): ติดโซ่ = เล็ง/ตีได้แค่คู่โซ่ · คนที่ติดโซ่กับคนอื่น = เล็งไม่ได้
+  const chainOk = (p) => !me || !p || p.id === me.id || ((!me.soulChain || me.soulChain.with === p.id) && (!p.soulChain || p.soulChain.with === me.id));
+  const tauntOk = (p) => chainOk(p) && (!me || !Array.isArray(me.taunt) || !me.taunt.length || !isEnemy(p) || me.taunt.includes(p.id));
 
   const action = state.action;
   const myTurn = !!me && me.alive && !!me.pos && phase === "ACTION" && state.actorId === me.id && !!action;
@@ -870,6 +872,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       wings: !mk && !!p.shadow && !!p.shadow.inStorm && (p.characterId || (p.character && p.character.id)) === "kate",
       // อินุอิ Start Up / ช่วง Clock Up (ไรเดอร์ ZECT — state.clockUp): ภาพค้างตามตัว (faizFx.js)
       faizTrail: state.clockUp && state.clockUp.members.some((m) => m.id === p.id && !m.over) ? (state.clockUp.members.some((m) => m.id === p.id && m.kind === "alter") ? "alter" : "clock") : !!(p.inui && p.inui.startUp && p.inui.startUp.running),
+      // แม็กน่า สวิง (magnaFx.js): บอลไฟวนรอบตัว · แสงร้อนตาม OverHeat · Fire Knuckle/Boost · โซ่ (เจ้าของโซ่วาดไปหาคู่โซ่ — server soulChain.publicOf)
+      magna: !mk && p.magna ? { balls: p.magna.balls | 0, heat: p.magna.heat | 0, knuckle: p.magna.knuckle | 0, boost: p.magna.boost | 0 } : null,
+      chain: p.soulChain && p.soulChain.by === p.id ? { to: p.soulChain.with, armed: !!(p.magna && p.magna.armed) } : null,
       aura: p.midoriya && p.midoriya.cowl > 0 ? "midoriyaCowl" : p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
