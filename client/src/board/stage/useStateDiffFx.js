@@ -250,7 +250,7 @@ export default function useStateDiffFx(ctx) {
       //  ลอว์ (law* — lawFx.js): ฉากปะทะ (รอยตัด/ใบมีดเขียว/มือ) อยู่ในท่าตีแล้วเช่นกัน · lawSlash ไม่พุ่ง (ตัดจากที่ยืน)
       const kz = !!style && (style.startsWith("kazuma") || style.startsWith("law") || style.startsWith("faiz") || style.startsWith("kiri") || style in ZECT_FX_DUR); // ไรเดอร์ ZECT (zectFx.js): ฉากปะทะอยู่ในท่าตี
       //  ฮาคุโนะชาย (hakunoM — moonFx.js): หมัดโค้ดช็อกพุ่งเข้าด้วย lunge แบบเดียวกัน
-      const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
+      const kzLunge = (ZECT_LUNGE.has(style) || style === "faizFist" || style === "faizKnuckle" || style === "kazumaBlade" || style === "kazumaPunch" || style === "kazumaKing" || style === "kazumaStraight" || style === "hakunoM" || style === "dinoClaw" || style === "dinoBite") && Math.abs(fromPos.x - tPos.x) + Math.abs(fromPos.y - tPos.y) <= 2;
       const ZOOM_IN = lowQ ? 0 : 480;
       const HIT = ZOOM_IN + (beam ? BEAM_T.charge + BEAM_T.extend : style ? STYLE_HIT[style] : melee && !lowQ ? 385 : 120);
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));

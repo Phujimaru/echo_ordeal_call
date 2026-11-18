@@ -2,7 +2,7 @@
 //  "me" = ดิเอโก้ · เป้า = ตัวที่ใกล้สุด · ลำดับเหมือนเกมจริง: คลิปก่อน → ผลบนกระดาน (ท่าที่มีคลิปไม่มีเสียงเอฟเฟกต์ซ้อน)
 //  คอนโซล: window.__dinoFx(kind) = เล่นชุดเดียวกับปุ่ม
 import { useEffect, useRef, useState } from "react";
-import { DINO_T } from "./dinoFx";
+import { DINO_HIT_P, DINO_MS, DINO_T } from "./dinoFx";
 import { playSfx } from "../audio";
 
 const CUR = { units: [] };
@@ -38,7 +38,13 @@ export default function DinoFxDev({ units, setUnits, pushFx, setFocus, setShake 
     setMe((u) => ({ ...u, standee: IMG.half, dino: { form: "human", frenzy: 0 }, diego: { mounted: false, horseHp: 5 } }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const play = {
-    claw: () => { playSfx(form() === "dino" ? "dino_bite" : "dino_claw"); setTimeout(() => infect(1), 250); setFocus(foe()); },
+    claw: () => {
+      const a = me(), b = foe(), bite = form() === "dino";
+      const kind = bite ? "dinoBite" : "dinoClaw";
+      pushFx([{ kind, x: a.x, y: a.y, to: b, size: 1, toSize: 1 }]);
+      setTimeout(() => { playSfx(bite ? "dino_bite" : "dino_claw"); infect(1); }, Math.round(DINO_MS[kind] * DINO_HIT_P[kind]));
+      setFocus(b);
+    },
     scorn: () => { const a = me(); pushFx([{ kind: "dinoScorn", x: a.x, y: a.y }]); playSfx("dino_crack"); setFocus(a); },
     possess: () => {
       const a = me(), b = foe();

@@ -24,7 +24,11 @@ const SKIN = "95,200,185", DARK = "20,40,45", NAVY = "45,60,160", GOLD = "235,20
 
 // จังหวะ (ms) — server characters/diego_dino.js T (วินาที) ต้องตรงกัน
 export const DINO_T = { charge: 750, leap: 700, swarm: 900, stomp: 950, possess: 1200 };
+// ท่าตีปกติ (ฮุค attackStyle — ผู้ใช้สั่ง 2026-11-18): ร่างคน = ตะปบข่วน · ร่างไดโนเสาร์ = งับแล้วข่วนซ้ำ
+export const DINO_MS = { dinoClaw: 750, dinoBite: 1050 };
+export const DINO_HIT_P = { dinoClaw: 0.42, dinoBite: 0.36 };
 export const DINO_FX_DUR = {
+  ...DINO_MS,
   dinoVirus: 800, dinoScorn: 1100, dinoPossess: 1400, dinoRelease: 900, dinoSwarm: 1000, dinoPin: 1000,
   dinoCharge: 900, dinoLeap: 800, dinoDrain: 1000, dinoStomp: 1000, dinoStompHit: 1300, dinoTransform: 1200, dinoRevert: 900,
 };
@@ -358,13 +362,116 @@ function transformFx(g, e, p, seed, lowQ, back) {
   g.restore();
 }
 
+// ---------- ตีปกติ ----------
+// รอยกรงเล็บกวาด 3 เส้น (โค้ง) ผ่านเป้า: q 0→1 = ปลายเล็บลากจากต้นถึงปลาย · dir ±1 = ทิศกวาด
+function clawSweep(g, B, q, a, dir, lowQ) {
+  if (a <= 0 || q <= 0) return;
+  const L = B.s * 0.62, ang = dir > 0 ? -0.75 : 0.75;
+  const ux = Math.cos(ang) * dir, uy = Math.sin(ang);
+  const nx = -uy, ny = ux;
+  g.save(); g.lineCap = "round";
+  for (let i = -1; i <= 1; i++) {
+    const off = i * B.s * 0.1;
+    const x0 = B.bx - ux * L * 0.5 + nx * off, y0 = B.hy - uy * L * 0.5 + ny * off;
+    const t = easeOut(clamp01(q));
+    const x1 = x0 + ux * L * t, y1 = y0 + uy * L * t;
+    const bend = B.s * 0.06 * (i + 2) * 0.4;
+    const mx = (x0 + x1) / 2 + nx * bend, my = (y0 + y1) / 2 + ny * bend;
+    g.globalCompositeOperation = "lighter";
+    g.strokeStyle = rgba(LIME, a * 0.35); g.lineWidth = B.s * 0.07;
+    g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(mx, my, x1, y1); g.stroke();
+    g.globalCompositeOperation = "source-over";
+    g.strokeStyle = rgba("255,250,235", a); g.lineWidth = Math.max(1.5, B.s * 0.025);
+    g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(mx, my, x1, y1); g.stroke();
+    // ปลายเล็บ
+    if (q < 1 && !lowQ) { g.fillStyle = rgba("255,255,255", a); g.beginPath(); g.arc(x1, y1, B.s * 0.025, 0, TAU); g.fill(); }
+  }
+  g.restore();
+}
+// แผลข่วนที่ค้าง (แดง) — ทิศตาม dir
+function clawWound(g, B, a, dir, grow) {
+  if (a <= 0) return;
+  const L = B.s * 0.5 * grow, ang = dir > 0 ? -0.75 : 0.75;
+  const ux = Math.cos(ang) * dir, uy = Math.sin(ang), nx = -uy, ny = ux;
+  g.save(); g.lineCap = "round";
+  for (let i = -1; i <= 1; i++) {
+    const off = i * B.s * 0.1;
+    const x0 = B.bx - ux * L * 0.5 + nx * off, y0 = B.hy - uy * L * 0.5 + ny * off;
+    g.strokeStyle = rgba(BLOOD, a); g.lineWidth = Math.max(1.5, B.s * 0.035);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + ux * L, y0 + uy * L); g.stroke();
+  }
+  g.restore();
+}
+function bloodSpray(g, B, q, seed, k, a, dir) {
+  for (let i = 0; i < k; i++) {
+    const h = hash(seed + i * 3.3), h2 = hash(seed + i * 8.1);
+    const ang = -Math.PI / 2 + (h - 0.5) * 2.2 + dir * 0.5;
+    const d = B.s * (0.1 + 0.45 * easeOut(q) * (0.5 + h2));
+    g.fillStyle = rgba(BLOOD, a * (1 - q));
+    g.beginPath(); g.arc(B.bx + Math.cos(ang) * d * dir, B.hy + Math.sin(ang) * d * 0.7 + B.s * 0.3 * q * q, Math.max(1, B.s * 0.02 * (1 + h)), 0, TAU); g.fill();
+  }
+}
+function clawStrikeFx(g, e, p, seed, lowQ) {
+  const A = bodyAt(e.x, e.y, e.size || 1), B = bodyAt(e.to.x, e.to.y, e.toSize || 1);
+  const H = DINO_HIT_P.dinoClaw, dir = B.bx >= A.bx ? 1 : -1;
+  // ง้าง: แสงวาบที่กรงเล็บฝั่งผู้ตี + เส้นพุ่งไปหาเป้า
+  if (p < H) {
+    const q = p / H;
+    g.save(); g.globalCompositeOperation = "lighter";
+    glow(g, A.bx + dir * A.s * 0.25, A.hy - A.s * 0.1, A.s * 0.22 * (0.5 + q), SKIN, 0.5 * q, "255,255,240");
+    g.strokeStyle = rgba(SKIN, 0.35 * q); g.lineWidth = A.s * 0.05; g.lineCap = "round";
+    g.beginPath(); g.moveTo(A.bx, A.hy); g.lineTo(A.bx + (B.bx - A.bx) * easeIn(q), A.hy + (B.hy - A.hy) * easeIn(q)); g.stroke();
+    g.restore();
+  }
+  // กวาดเล็บ → แผล + เลือดกระเด็น
+  const sw = clamp01((p - H * 0.75) / 0.2);
+  if (sw > 0) clawSweep(g, B, sw, p < 0.75 ? 1 : (1 - p) / 0.25, dir, lowQ);
+  if (p >= H) {
+    const q = (p - H) / (1 - H);
+    clawWound(g, B, (1 - q) * 0.9, dir, 1);
+    bloodSpray(g, B, q, seed, lowQ ? 5 : 10, 0.9, dir);
+    if (q < 0.3) { g.save(); g.globalCompositeOperation = "lighter"; glow(g, B.bx, B.hy, B.s * 0.45, "255,240,220", (1 - q / 0.3) * 0.6, "255,255,255"); g.restore(); }
+  }
+}
+function biteStrikeFx(g, e, p, seed, lowQ) {
+  const A = bodyAt(e.x, e.y, e.size || 1), B = bodyAt(e.to.x, e.to.y, e.toSize || 1);
+  const H = DINO_HIT_P.dinoBite, dir = B.bx >= A.bx ? 1 : -1;
+  // อ้าปาก → งับ (ปะทะ H) → ค้างงับสั่น → ข่วนซ้ำ (0.6–0.8)
+  const open = clamp01(p / (H * 0.7)), close = clamp01((p - H * 0.7) / (H * 0.3));
+  if (p < H + 0.22) {
+    const shakeX = p > H ? Math.sin(p * 90) * B.s * 0.02 * (1 - (p - H) / 0.22) : 0;
+    const a = p < H + 0.12 ? 1 : (H + 0.22 - p) / 0.1;
+    g.save(); g.translate(shakeX, 0);
+    jaws(g, B.bx, B.hy, B.s * 1.25 * (0.75 + 0.25 * open), p < H * 0.7 ? 0.05 * (1 - open) : close, a * Math.min(1, open * 2));
+    g.restore();
+  }
+  if (p >= H) {
+    const q = (p - H) / (1 - H);
+    // รอยเขี้ยว 2 แถว
+    g.save();
+    for (const sgn of [-1, 1]) for (let i = 0; i < 5; i++) {
+      g.fillStyle = rgba(BLOOD, (1 - q) * 0.95);
+      g.beginPath(); g.arc(B.bx - B.s * 0.22 + i * B.s * 0.11, B.hy + sgn * B.s * 0.08, Math.max(1.2, B.s * 0.022), 0, TAU); g.fill();
+    }
+    g.restore();
+    if (q < 0.25) { g.save(); g.globalCompositeOperation = "lighter"; glow(g, B.bx, B.hy, B.s * 0.55, BLOOD, (1 - q / 0.25) * 0.6, "255,230,220"); g.restore(); }
+    bloodSpray(g, B, q, seed, lowQ ? 6 : 12, 0.9, dir);
+  }
+  // ข่วนซ้ำ (กรงเล็บหน้า) — ทิศสวนกับตอนแรก
+  const sw = clamp01((p - 0.6) / 0.16);
+  if (sw > 0) clawSweep(g, B, sw, p < 0.85 ? 1 : (1 - p) / 0.15, -dir, lowQ);
+  if (p > 0.76) clawWound(g, B, (1 - p) / 0.24 * 0.9, -dir, 1);
+}
+
 export function dinoFx(g, e, now, lowQ) {
   const dur = e.dur || DINO_FX_DUR[e.kind];
   const p = (now - e.t0) / dur;
   if (p < 0 || p > 1) return;
   const seed = ((e.t0 | 0) % 977) / 97;
   g.save();
-  if (e.kind === "dinoVirus") virusFx(g, e, p, seed, lowQ);
+  if (e.kind === "dinoClaw") { if (e.to) clawStrikeFx(g, e, p, seed, lowQ); }
+  else if (e.kind === "dinoBite") { if (e.to) biteStrikeFx(g, e, p, seed, lowQ); }
+  else if (e.kind === "dinoVirus") virusFx(g, e, p, seed, lowQ);
   else if (e.kind === "dinoScorn") scornFx(g, e, p, seed, lowQ);
   else if (e.kind === "dinoPossess") possessFx(g, e, now, p, seed, lowQ);
   else if (e.kind === "dinoRelease") releaseFx(g, e, p, seed, lowQ);

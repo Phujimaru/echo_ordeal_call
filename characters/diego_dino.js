@@ -455,6 +455,8 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   attackElement(engine, p) { return isMe(p) && passiveOn(p) ? "poison" : null; },
+  // ท่าตีบนกระดาน (client dinoFx.js): ร่างคน = ตะปบข่วน · ร่างไดโนเสาร์ = งับแล้วข่วนซ้ำ (ผู้ใช้สั่ง 2026-11-18)
+  attackStyle(p) { return isMe(p) ? (isDino(p) ? "dinoBite" : "dinoClaw") : null; },
   attackSound(p) {
     if (!isMe(p)) return undefined;
     if (st(p).clipStrike) return null; // คลิป skill3_hit แทน
