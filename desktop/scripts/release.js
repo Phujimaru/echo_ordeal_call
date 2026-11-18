@@ -5,6 +5,7 @@
 //  npm run release                 build exe แล้วอัปทุกอย่าง
 //  npm run release -- --dry-run    ดูอย่างเดียวว่าจะอัป/ลบอะไร (ไม่ต้องมีกุญแจ ยกเว้น --prune)
 //  npm run release -- --skip-build ใช้ exe ใน desktop/dist ที่ build ไว้แล้ว
+//  npm run release -- --keep-remote=roadtrip  โฟลเดอร์ที่ในเครื่องเป็นไฟล์ดิบ → ใช้รายการไฟล์บน R2 ตามเดิม (ไม่อัปทับ)
 //  npm run release -- --prune      ลบไฟล์สื่อบน R2 ที่ไม่อยู่ใน manifest แล้ว (ตัวละครที่ถูกถอด ฯลฯ)
 //  npm run release -- --prune-only ลบไฟล์สื่อเก่าอย่างเดียว ไม่ build/ไม่อัปอะไร (ใช้ได้กับเวอร์ชันที่ปล่อยไปแล้ว)
 //
@@ -158,6 +159,17 @@ function readLatestYml(text) {
 
   // 1) manifest ไฟล์สื่อจาก client/public
   const manifest = await buildManifest(publicDir, MEDIA_DIRS);
+  // --keep-remote=roadtrip,… : โฟลเดอร์ที่ในเครื่องเป็นไฟล์ดิบ (ตัวที่ประมวลผลแล้วอยู่บน R2 เท่านั้น) → ใช้รายการจาก manifest บน R2 ตามเดิม ไม่อัปทับ
+  const keepRemote = [...args].filter((a) => a.startsWith("--keep-remote=")).flatMap((a) => a.slice(14).split(",")).filter(Boolean);
+  if (keepRemote.length) {
+    const remoteText = await fetchPublic("updates/media-manifest.json");
+    if (!remoteText) fail("--keep-remote ต้องมี media-manifest บน R2");
+    const remote = JSON.parse(remoteText).files || {};
+    const inDirs = (k) => keepRemote.some((d) => k.startsWith(`/${d}/`));
+    for (const k of Object.keys(manifest.files)) if (inDirs(k)) delete manifest.files[k];
+    for (const [k, e] of Object.entries(remote)) if (inDirs(k)) manifest.files[k] = e;
+    console.log(`• ใช้รายการไฟล์บน R2 ตามเดิม: ${keepRemote.join(", ")}`);
+  }
   const manifestFile = path.join(dist, "updates", "media-manifest.json");
   fs.mkdirSync(path.dirname(manifestFile), { recursive: true });
   fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 1));
