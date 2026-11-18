@@ -39,7 +39,7 @@ function clearMap() {
   const map = engine.boardMap();
   for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) { delete map.terrain[`${x},${y}`]; if (map.special) delete map.special[`${x},${y}`]; }
 }
-// Master ลงแล้วที่ (6,6) ตัว 2×2 · ศัตรูตัวประกอบ b c d
+// Master ลงแล้วที่ (6,6) ตัว 1×1 (Rebalance patch 1) · ศัตรูตัวประกอบ b c d
 function setup({ landed = true } = {}) {
   for (const k of Object.keys(engine.players)) delete engine.players[k];
   mk("m", "master"); mk("b", "dummy"); mk("c", "dummy"); mk("d", "dummy");
@@ -47,7 +47,7 @@ function setup({ landed = true } = {}) {
   engine.clearPhaseTimer();
   clearMap();
   const m = engine.players.m, b = engine.players.b, c = engine.players.c, d = engine.players.d;
-  if (landed) { m.master.landed = true; m.master.nextSummon = 99; m.boardSize = 2; m.pos = { x: 6, y: 6 }; }
+  if (landed) { m.master.landed = true; m.master.nextSummon = 99; m.boardSize = 1; m.pos = { x: 6, y: 6 }; }
   b.pos = { x: 1, y: 1 }; c.pos = { x: 12, y: 1 }; d.pos = { x: 1, y: 12 };
   for (const o of [b, c, d]) { o.hp = 50; o.armor = 0; }
   match.roundNumber = 4;
@@ -59,18 +59,18 @@ const runBeats = () => { for (let i = 0; i < 8 && match.skillBeats.length; i++) 
 function nextRound() { match.roundNumber++; for (const p of Object.values(engine.players)) p.skillUsedRound = false; engine.setActor("m"); }
 const kill = (src, t) => engine.withEffectSource(src, () => { combat.dealMixed(t, 500); if (t.hp <= 0) combat.instantDeath(t); });
 
-test("ค่าพื้นฐาน: HP 100 · เกราะ 0 · พลังโจมตี 3 · 2×2 · เดิน 9 · ไม่มีแต้ม · Zombie · Echo สวมไม่ได้", () => {
+test("ค่าพื้นฐาน (patch 1): HP 25 · เกราะ 0 · พลังโจมตี 3 · 1×1 · เดิน 9 · ไม่มีแต้ม · Zombie · Echo สวมไม่ได้", () => {
   const { m } = setup();
-  assert.equal(m.hp, 100);
+  assert.equal(m.hp, 25);
   assert.equal(m.armor, 0);
-  assert.equal(engine.sizeOf(m), 2);
+  assert.equal(engine.sizeOf(m), 1);
   assert.equal(engine.baseMovOf(m), 9);
   assert.equal(M.attackBaseOverride(engine, m), 3);
   assert.equal(Element.typeOf(m), "zombie");
   assert.ok(echo.BLOCKED.has("master"));
 });
 
-test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกระดาน · ต้นเทิร์น 3 ลงจุดว่าง 2×2 + ผลักทุกคนออก 1 ช่อง · ไม่จั่วไพ่ · เดินท้ายสุด", () => {
+test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกระดาน · ต้นเทิร์น 3 ลงจุดว่าง 1×1 + ผลักทุกคนออก 1 ช่อง · ไม่จั่วไพ่ · เดินท้ายสุด", () => {
   for (const k of Object.keys(engine.players)) delete engine.players[k];
   mk("m", "master"); mk("b", "dummy"); mk("c", "dummy");
   engine.startMatch(); engine.clearPhaseTimer();
@@ -84,9 +84,10 @@ test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกร�
   draw.dealRound(); engine.clearPhaseTimer();
   assert.equal(match.roundNumber, 3);
   assert.ok(m.pos, "ลงแล้ว");
+  assert.equal(engine.sizeOf(m), 1);
   for (const id of ["b", "c"]) {
     const u = engine.players[id];
-    const near = (q) => Math.abs(q.x - (m.pos.x + 0.5)) + Math.abs(q.y - (m.pos.y + 0.5));
+    const near = (q) => Math.abs(q.x - m.pos.x) + Math.abs(q.y - m.pos.y);
     assert.ok(near(u.pos) >= near(before[id]) || (u.pos.x === before[id].x && u.pos.y === before[id].y), `${id} ไม่ถูกดึงเข้าหา`);
   }
   // ลำดับเดิน: Master ท้ายสุดแม้คนอื่นไพ่แตก
@@ -97,11 +98,9 @@ test("Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกร�
 
 test("Twin Sword Slam: หนามระเบิดกรอบ 3×3 ไล่ 3 ทิศ (ตรง 3 · เฉียง 2+2) ดาเมจ 3 + พิษร้าย + คราบพิษ · คูลดาวน์ 2", () => {
   const { m, b, c, d } = setup();
-  b.pos = { x: 3, y: 7 };  // ทางตรง ช่องที่ 3 แถวล่างของตัว
-  c.pos = { x: 4, y: 4 };  // เฉียงขึ้นช่องที่ 2
+  b.pos = { x: 3, y: 7 };  // ทางตรง กรอบแรก (แถว 5–7 กลางตัว)
+  c.pos = { x: 4, y: 4 };  // เฉียงขึ้นกรอบที่ 1
   d.pos = { x: 0, y: 0 };  // กรอบเฉียงกรอบที่ 2
-  const tiles = Board.lineTiles(engine.boardMap(), 6, 6, "left", 3, 1, 2, 0, false, 2).map((t) => `${t.x},${t.y}`).sort();
-  assert.deepEqual(tiles, ["3,6", "3,7", "4,4", "4,6", "4,7", "4,9", "5,5", "5,6", "5,7", "5,8"].sort());
   engine.useSkill("m", "basic", [], { dir: "left" });
   runBeats();
   assert.equal(b.hp, 47);
@@ -121,7 +120,7 @@ test("พิษร้ายจากตีหลายครั้งซ้อ�
   assert.equal(b.statuses.poison, 3);
 });
 
-test("Knockdown Slash: กว้าง 4 ยาวสุดแผนที่ ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
+test("Knockdown Slash: กว้าง 5 ยาวสุดแผนที่ ดาเมจ 4 + ผลักถอย 1 · ลมบนคราบพิษ = กระจายพิษ", () => {
   const { m, b, c } = setup();
   b.pos = { x: 2, y: 6 }; c.pos = { x: 1, y: 5 };
   b.statuses.poison = 2; b.statuses.elPoison = 2;
@@ -145,18 +144,29 @@ test("Smite: ศัตรูทุกคนเสียหาย 2 + ช็อ�
   assert.equal(c.statuses.shock, 3);
 });
 
-test("1 สกิลต่อตา (เฟส 1)", () => {
-  const { b } = setup();
+test("Passive 3 (patch 1): เฟส 1 ใช้สกิลได้ 2 ครั้งต่อตา · ครั้งที่ 3 ไม่ได้ · เทิร์นใหม่ได้อีก", () => {
+  const { m, b } = setup();
   b.pos = { x: 4, y: 6 };
+  assert.equal(m.master.phase, 1);
   engine.useSkill("m", "basic", [], { dir: "left" });
   runBeats();
-  const hp = b.hp;
+  assert.equal(b.hp, 47, "ครั้งที่ 1 (Twin Sword Slam)");
+  assert.equal(M.skillLocks(engine, m).ultimate.locked, false, "ยังกดได้อีก 1 ครั้ง");
+  assert.equal(m.skillUsedRound, true);
+  assert.equal(M.skillLocks(engine, m).ultimate.free, true, "client ไม่ล็อกปุ่มหลังใช้โควตา");
   engine.useSkill("m", "ultimate", [], {});
   runBeats();
-  assert.equal(b.hp, hp);
+  assert.equal(b.hp, 45, "ครั้งที่ 2 (Smite)");
+  assert.equal(M.skillLocks(engine, m).secondary.locked, true, "ครบ 2 ครั้งแล้ว");
+  assert.equal(M.skillLocks(engine, m).secondary.free, false);
+  engine.useSkill("m", "secondary", [], { dir: "left" });
+  runBeats();
+  assert.equal(b.hp, 45, "ครั้งที่ 3 กดไม่ได้");
+  nextRound();
+  assert.equal(M.skillLocks(engine, m).secondary.locked, false, "เทิร์นใหม่กดได้");
 });
 
-test("ฟื้น: ดาเมจถึงตาย = เลือด 1 + สตั้น · ตายไม่ได้จนฟื้น · ต้นเทิร์นหน้า +25 → Holy · ตายอีก = ตายจริง", () => {
+test("ฟื้น: ดาเมจถึงตาย = เลือด 1 + สตั้น · ตายไม่ได้จนฟื้น · ต้นเทิร์นหน้า +12 → Holy · ตายอีก = ตายจริง", () => {
   const { m, b } = setup();
   kill(b, m);
   assert.equal(m.alive, true);
@@ -166,7 +176,7 @@ test("ฟื้น: ดาเมจถึงตาย = เลือด 1 + ส�
   combat.instantDeath(m, true);
   assert.equal(m.alive, true, "ระหว่างรอตายไม่ได้แม้ถูกบังคับ");
   draw.dealRound(); engine.clearPhaseTimer();
-  assert.equal(m.hp, 26);
+  assert.equal(m.hp, 13, "1 + 12");
   assert.equal(m.master.phase, 2);
   assert.equal(Element.typeOf(m), "holy");
   kill(b, m);
@@ -175,7 +185,7 @@ test("ฟื้น: ดาเมจถึงตาย = เลือด 1 + ส�
 
 test("A fking boss!!: คนอื่นฮีลไม่ได้ · ฮีลตัวเองได้", () => {
   const { m, b } = setup();
-  m.hp = 50;
+  m.hp = 10;
   assert.equal(engine.withEffectSource(b, () => combat.healHp(m, 5)), 0);
   assert.equal(engine.withEffectSource(m, () => combat.healHp(m, 5)), 5);
 });
@@ -230,15 +240,15 @@ test("ตัวอัญเชิญ: Undead 2 + Raider 1 รอบตัว · 
 
 test("ประเภท: Zombie ไฟ ×2 / พิษ ×0.5 ไม่ติดพิษร้าย · Holy มืด ×2.5 ไม่ติดอ่อนแอ · Metal น้ำแข็ง ×0.75 (ปัดขึ้น)", () => {
   const { m, b } = setup();
-  m.hp = 100;
+  m.hp = 20;
   engine.withEffectSource(b, () => Element.withElement("fire", () => combat.dealMixed(m, 3)));
-  assert.equal(m.hp, 94);
+  assert.equal(m.hp, 14);
   engine.withEffectSource(b, () => Element.withElement("poison", () => combat.dealMixed(m, 3)));
-  assert.equal(m.hp, 92);
+  assert.equal(m.hp, 12);
   assert.equal(require("../../characters/_universal_status").applyPoison(m, 2), false);
   m.master.phase = 2;
   engine.withEffectSource(b, () => Element.withElement("dark", () => combat.dealMixed(m, 2)));
-  assert.equal(m.hp, 87);
+  assert.equal(m.hp, 7);
   assert.equal(engine.withEffectSource(b, () => engine.applyDebuff(m, "weak", 1, 2)), false);
   const r = M.summonWave(engine, m)[2]; // Holy Crusader
   r.summon.utype = "metal"; r.hp = 10;
@@ -298,11 +308,11 @@ test("เปลี่ยนแผนที่: ตัวอัญเชิญท
   assert.ok(!engine.players[made[2].id], "ตัวที่ตายถูกลบ");
 });
 
-test("พื้นที่: Twin Sword กรอบ 3×3 ยาวสุดแผนที่ 3 ทิศ (ครั้งที่ 3 กรอบ 5×5) · Knockdown กว้าง 4 ยาวสุดแผนที่ทั้งสองเฟส", () => {
+test("พื้นที่: Twin Sword กรอบ 3×3 ยาวสุดแผนที่ 3 ทิศ (ครั้งที่ 3 กรอบ 5×5) · Knockdown กว้าง 5 → หลังฟื้น 7 ยาวสุดแผนที่", () => {
   const { m } = setup();
   assert.deepEqual(M.slamArea(m).boxes, [99, 99, 3]);
   const map = engine.boardMap();
-  const at = (b) => new Set(Board.lineTiles(map, 10, 6, "left", 99, 1, 2, 0, false, -1, 0, b).map((t) => `${t.x},${t.y}`));
+  const at = (b) => new Set(Board.lineTiles(map, 10, 6, "left", 99, 1, 1, 0, false, -1, 0, b).map((t) => `${t.x},${t.y}`));
   const small = at([99, 99, 3]);
   // ตรง: แถว 5–7 ไล่ถึงขอบซ้าย (x 0)
   for (let x = 0; x <= 9; x++) for (const y of [5, 6, 7]) assert.ok(small.has(`${x},${y}`), `ตรง ${x},${y}`);
@@ -314,29 +324,30 @@ test("พื้นที่: Twin Sword กรอบ 3×3 ยาวสุดแ�
   // 5×5: ตรง แถว 4–8 ถึงขอบ · เฉียงกรอบที่ 1 x 5–9 เยื้อง 5 (y 9–13 / y 0–… )
   for (let x = 0; x <= 9; x++) for (const y of [4, 5, 6, 7, 8]) assert.ok(big.has(`${x},${y}`), `ใหญ่ ${x},${y}`);
   for (const k of ["5,9", "9,13", "5,3", "9,0"]) assert.ok(big.has(k), k);
-  const rows = (pad) => new Set(Board.lineTiles(engine.boardMap(), 6, 6, "left", 16, 1, 2, 0, false, 0, pad).map((t) => t.y));
+  const rows = (pad) => new Set(Board.lineTiles(engine.boardMap(), 6, 6, "left", 16, 1, 1, 0, false, 0, pad).map((t) => t.y));
   m.master.phase = 1;
-  assert.equal(M.knockArea(m).pad, 1);
-  assert.deepEqual([...rows(1)].sort(), [5, 6, 7, 8]);
+  assert.equal(M.knockArea(m).pad, 2);
+  assert.deepEqual([...rows(M.knockArea(m).pad)].sort(), [4, 5, 6, 7, 8], "กว้าง 5");
   m.master.phase = 2;
-  assert.equal(M.knockArea(m).pad, 1, "หลังฟื้นกว้าง 4 เหมือนเดิม");
+  assert.equal(M.knockArea(m).pad, 3);
+  assert.deepEqual([...rows(M.knockArea(m).pad)].sort(), [3, 4, 5, 6, 7, 8, 9], "หลังฟื้นกว้าง 7");
   assert.ok(M.knockArea(m).len >= 26, "ยาวสุดแผนที่");
 });
 
-test("ฟื้นเป็นเฟส 2: +25 แม้ติดไร้ทางเยียวยา / เลือดไหล / ผกผัน", () => {
+test("ฟื้นเป็นเฟส 2: +12 แม้ติดไร้ทางเยียวยา / เลือดไหล / ผกผัน", () => {
   const { m, b } = setup();
   kill(b, m);
   m.statuses.nohealing = 3; m.statuses.hbleed = 2; m.statuses.invert = 2;
   draw.dealRound(); engine.clearPhaseTimer();
   assert.equal(m.master.phase, 2);
-  assert.equal(m.hp, 26);
+  assert.equal(m.hp, 13);
 });
 
-test("ตีปกติ: กวาดแถวหน้าตัวกว้าง 4 โดนทุกคนในแถว · เป้าห่าง 2 ช่องตรงหน้า (นอกแถว) ตีไม่ได้", () => {
+test("ตีปกติ: กวาดแถวหน้าตัวกว้าง 5 โดนทุกคนในแถว · เป้าห่าง 2 ช่องตรงหน้า (นอกแถว) ตีไม่ได้", () => {
   const { m, b, c, d } = setup();
   const A = action;
-  // Master (6,6) 2×2 · แถวหน้าซ้าย = x 5, y 5–8
-  b.pos = { x: 5, y: 5 }; c.pos = { x: 5, y: 8 }; d.pos = { x: 4, y: 6 };
+  // Master (6,6) 1×1 · แถวหน้าซ้าย = x 5, y 4–8 (กว้าง 5)
+  b.pos = { x: 5, y: 5 }; c.pos = { x: 5, y: 8 }; // c สุดขอบแถว d.pos = { x: 4, y: 6 };
   match.gameState = "ACTION"; match.actorId = "m"; match.action = { locked: false, moved: true, canto: false, from: { ...m.pos } }; m.didAttackRound = false;
   assert.equal(A.canStrike(m, d), false, "ห่าง 2 ตรงหน้า = นอกแถว");
   assert.ok(A.canStrike(m, b));

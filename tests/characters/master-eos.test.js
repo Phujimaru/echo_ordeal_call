@@ -72,8 +72,8 @@ test("Master ใน Eos PVE: ลงจากฟ้า · Slam/Knockdown โด�
   if (a.hp >= 1) assert.ok(m.hp + (m.armor || 0) < mh, "ตี Master ที่ติดตัว");
   mob2.alive = false; mob2.pos = null; a.hp = 30;
   // ไม่ติดกติกากันรุม: มอน 4 ตัวรอบตัว Master ตีได้ทุกตัว (ผู้เล่นปกติโดนได้ 2 ตัว)
-  m.pos = { x: 13, y: 13 }; a.pos = { x: 25, y: 25 }; a.hp = 30;
-  const ring = [[12, 13], [15, 14], [13, 12], [14, 15]].map(([x, y]) => { const r = S6.spawnMob(ctx, st, "daemon", { x, y }, { hp: 9, armor: 0, atk: 2, mov: 4, gold: 2 }, { look: 1, tier: 1 }); r.summon.born = 0; r.statuses.rooted = 1; return r; });
+  m.pos = { x: 13, y: 13 }; m.hp = 25; a.pos = { x: 25, y: 25 }; a.hp = 30; // ตัว 1×1 (patch 1) · เลือดเต็ม 25 กันล้มก่อนนับ
+  const ring = [[12, 13], [14, 13], [13, 12], [13, 14]].map(([x, y]) => { const r = S6.spawnMob(ctx, st, "daemon", { x, y }, { hp: 9, armor: 0, atk: 2, mov: 4, gold: 2 }, { look: 1, tier: 1 }); r.summon.born = 0; r.statuses.rooted = 1; return r; });
   const mh4 = m.hp + (m.armor || 0);
   S6.actMonsters(ctx, st);
   assert.equal(mh4 - (m.hp + (m.armor || 0)), 8, "มอน 4 ตัว × 2 = 8");

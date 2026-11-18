@@ -1,22 +1,24 @@
 // ============================================================
 //  Master — บอส 2 เฟส (World Tower Defense · สเปกจากเพื่อนผู้ใช้ · GRID_PLAN §7.34 · ผู้ใช้ตัดสิน 2026-11-15)
 //
-//  ค่าพลัง: พลังชีวิต 100 · เกราะ 0 · พลังโจมตี 3 · ตัว 2×2 · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม มีคูลดาวน์)
-//  ตีปกติ: กวาดหน้าตัว กว้าง 4 ลึก 1 (strikeRect [1, 3] บนตัว 2×2) · หลังฟื้นตีได้ 2 ครั้งต่อตา
+//  ค่าพลัง: พลังชีวิต 25 · เกราะ 0 · พลังโจมตี 3 · ตัว 1×1 · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม มีคูลดาวน์)
+//   (Rebalance patch 1 "Atomize his body" 2026-11-18: HP 100 → 25 · ตัว 2×2 → 1×1 · ฟื้น 25 → 12 · สกิล 2 ครั้ง/เทิร์นทั้ง 2 เฟส · Knockdown กว้าง 5 / 7)
+//  ตีปกติ: กวาดหน้าตัว กว้าง 5 ลึก 1 (strikeRect [1, 5] บนตัว 1×1 — ผู้ใช้ 2026-11-18 · เดิมกว้าง 4 บนตัว 2×2) · หลังฟื้นตีได้ 2 ครั้งต่อตา
 //  Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกระดาน · ต้นเทิร์น 3 ลงจากฟ้าที่จุดเกิดแบบสุ่ม → คลื่นกระแทกผลักทุกคนทั้งสนามออก 1 ช่อง (ไม่มีดาเมจ)
 //  Card Restriction: ไม่จั่วไพ่ · เดินท้ายสุดเสมอ (orderLast)
 //  Zombification/Holy Interval:
 //   เฟส 1 (Zombie): ตี/สกิลที่โดน = พิษร้าย +1 เทิร์น (สูงสุด 3) + ธาตุพิษ (สกิลที่มีธาตุเองคงธาตุเดิม)
 //   ทุก 5 เทิร์นนับจากเทิร์นที่ลง = อัญเชิญ Undead 2 + Raider 1 (เฟส 2: Blessed 2 + Holy Crusader 1) · บนสนามไม่เกิน 10 ตัว
-//   ดาเมจถึงตาย (เฟส 1) → เลือด 1 + สตั้นเทิร์นนั้น · ระหว่างรอตายไม่ได้ทุกกรณี · ต้นเทิร์นหน้าฟื้น 25 + คลื่นกระแทก → เฟส 2 (Holy)
+//   ดาเมจถึงตาย (เฟส 1) → เลือด 1 + สตั้นเทิร์นนั้น · ระหว่างรอตายไม่ได้ทุกกรณี · ต้นเทิร์นหน้าฟื้น +12 + คลื่นกระแทก → เฟส 2 (Holy)
 //   เฟส 2: ตี/สกิลที่โดน = อ่อนแอ +1 Lv (สูงสุด Lv2 · 3 เทิร์น) + ธาตุแสง · ฟื้นได้ครั้งเดียว
+//   ทั้ง 2 เฟส: ใช้สกิลได้ 2 ครั้งต่อเทิร์น (patch 1 · เดิมเฉพาะหลังฟื้น)
 //  A fking boss!!: คนอื่นฮีลให้ไม่ได้ · เลือก Master แล้วตัวหมวด Boss ตัวอื่นเลือกไม่ได้ (server/socket.js + view.takenUniqueChars)
 //  Otherly Worlder: Echo สวมไม่ได้ (characters/echo.js BLOCKED — ผู้ใช้อนุญาต)
 //  Twin Sword Slam (พื้นฐาน · คูลดาวน์ 2): คลื่น 3 แฉก (ตรงกว้างเท่าตัวยาว 3 · เฉียงแฉกละ 2) ดาเมจ 3
 //   หลังฟื้น: กดได้ 2 ครั้งก่อนคูลดาวน์ · ติดเปราะบาง +1 Lv (Lv2 · 3 เทิร์น) · ครั้งที่ 3, 6, 9 … = ตรง 4 เฉียง 3 + สตั้น 2 เทิร์น
-//  Knockdown Slash (รอง · คูลดาวน์ 3): แนวกว้างเท่าตัว ยาว 4 · ดาเมจ 4 · ผลักถอย 1 · ลม → หลังฟื้น ยาว 6 คลื่นซ้ำ 2 ครั้ง · แสง
+//  Knockdown Slash (รอง · คูลดาวน์ 3): แนวกว้าง 5 ยาวสุดแผนที่ · ดาเมจ 4 · ผลักถอย 1 · ลม → หลังฟื้น กว้าง 7 คลื่นซ้ำ 2 ครั้ง · แสง
 //  Smite (ท่าไม้ตาย · คูลดาวน์ 3): ฟ้าผ่าศัตรูทุกคน ดาเมจ 2 + ช็อต 3 เทิร์น · สายฟ้า → หลังฟื้น ผ่า 2 ครั้ง · มืด · หลบได้ทีละสาย
-//  ทุกสกิลโดนทุกศัตรูในพื้นที่ · หลบได้ (skillStrike) · 1 สกิลต่อตา (หลังฟื้น 2)
+//  ทุกสกิลโดนทุกศัตรูในพื้นที่ · หลบได้ (skillStrike) · 2 สกิลต่อตาทั้ง 2 เฟส
 // ============================================================
 const Board = require("../server/board");
 const Element = () => require("../server/element"); // require ตอนเรียก — element.js อ่าน CHAR_HOOKS ตอนโหลด (ห้ามโหลดระหว่าง characters/index)
@@ -35,14 +37,15 @@ const SFX = {
 };
 const MUSIC = { p1: "master_phase1", p2: "master_phase2" }; // คีย์เสียงใน client/src/audio.js
 
-const HP = 100, ATK = 3, SIZE = 2, MOV = 9;
+const HP = 25, ATK = 3, SIZE = 1, MOV = 9; // patch 1: HP 100 → 25 · ตัว 2×2 → 1×1
 const LAND_ROUND = 3;
-const REVIVE_HEAL = 25;
+const REVIVE_HEAL = 12; // patch 1: 25 → 12
+const PRESSES = 2; // ใช้สกิลได้กี่ครั้งต่อเทิร์น — patch 1: ทั้ง 2 เฟส (เดิมเฟส 1 = 1)
 const SUMMON_EVERY = 5, SUMMON_CAP = 10;
 const CD = { basic: 2, secondary: 3, ultimate: 3 };
 // จุดระเบิดหนามกรอบ 3×3: ตรง 3 กรอบ · เฉียงขึ้น/ลงข้างละ 2 (ภาพของเพื่อนผู้ใช้ 2026-11-15) · ครั้งที่ 3 ใหญ่ขึ้น: ตรง 4 · เฉียง 3 (Claude ตัดสิน)
 const SLAM = { dmg: 3, boxes: [99, 99, 3], bigBoxes: [99, 99, 5], stun: 2, uses2: 2 }; // ทุกครั้งยาวสุดแผนที่ · ครั้งที่ 3 กรอบ 5×5 (ผู้ใช้ 2026-11-16)
-const KNOCK = { dmg: 4, len: 99, pad: 1, pad2: 1, push: 1 }; // ยาวสุดแผนที่ · กว้าง 4 ทั้งสองเฟส (ตัว 2 + ข้างละ 1 — ผู้ใช้ 2026-11-15 แทนสเปก 4x16/6x16)
+const KNOCK = { dmg: 4, len: 99, pad: 2, pad2: 3, push: 1 }; // ยาวสุดแผนที่ · กว้าง 5 (ตัว 1 + ข้างละ 2) → หลังฟื้นกว้าง 7 (ข้างละ 3) — patch 1 (เดิมกว้าง 4 ทั้งสองเฟสบนตัว 2×2)
 const SMITE = { dmg: 2, shock: 3 };
 const POISON_MAX = 3, LV_MAX = 2, LV_TURNS = 3;
 // เวลาเอฟเฟกต์บนกระดาน (วินาที — masterFx.js)
@@ -64,7 +67,7 @@ function fresh() {
     down: null, revived: false,
     ready: { basic: 0, secondary: 0, ultimate: 0 },
     slamUses: 0, slamPress: 0, // หลังฟื้น: กดในรอบคูลดาวน์นี้ / กดสะสมทั้งหมด (ครั้งที่ 3, 6, 9 … = ท่าใหญ่)
-    pressRound: 0, presses: 0, // กดสกิลในเทิร์นนี้ (หลังฟื้นได้ 2)
+    pressRound: 0, presses: 0, // กดสกิลในเทิร์นนี้ (ได้ PRESSES ครั้ง)
     extraUsed: false, nextSummon: null, sever: 0,
   };
 }
@@ -136,7 +139,7 @@ function landingSpot(engine, p) {
   const spawns = (map.spawns || []).map((s) => ({ x: s.x, y: s.y }));
   const pool = [...spawns];
   if (st(p).spawnAt) pool.push(st(p).spawnAt);
-  // สุ่มจุดเกิด · ไม่ว่าง = หาช่อง 2×2 ว่างใกล้สุด
+  // สุ่มจุดเกิด · ไม่ว่าง = หาช่อง SIZE×SIZE ว่างใกล้สุด
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   for (const s of pool) {
     for (let r = 0; r <= 6; r++) {
@@ -174,7 +177,7 @@ function revive(engine, p) {
   s.phase = 2;
   s.slamUses = 0;
   s.slamPress = 0;
-  // ฟื้น 25 ตรงๆ ไม่ผ่านท่อฮีล — ไม่สนไร้ทางเยียวยา / เลือดไหล / ผกผัน (ผู้ใช้ 2026-11-15)
+  // ฟื้น +REVIVE_HEAL ตรงๆ ไม่ผ่านท่อฮีล — ไม่สนไร้ทางเยียวยา / เลือดไหล / ผกผัน (ผู้ใช้ 2026-11-15)
   p.hp = Math.min(engine.maxHpOf ? engine.maxHpOf(p) : HP, (p.hp || 0) + REVIVE_HEAL);
   engine.log(`👼 ${p.name} ฟื้นคืนชีพ! พลังชีวิต +${REVIVE_HEAL} — กลายเป็น Holy`);
   fx(engine, p, "revive", { secs: T.revive });
@@ -352,7 +355,7 @@ function castSmite(engine, p) {
 
 module.exports = {
   id: ID,
-  IMG, SFX, SUMMONS, CD, SLAM, KNOCK, SMITE, HP, MUSIC,
+  IMG, SFX, SUMMONS, CD, SLAM, KNOCK, SMITE, HP, MUSIC, SIZE, REVIVE_HEAL, PRESSES,
 
   resetCombat(p) {
     if (!isMe(p)) return;
@@ -433,7 +436,7 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   range(p) { return isMe(p) ? [1, 2] : null; },
-  strikeRect(p) { return isMe(p) ? [1, 3] : null; },
+  strikeRect(p) { return isMe(p) ? [1, 5] : null; }, // กว้าง 5 (ตัว 1 + ข้างละ 2 — patch 1)
   attackElement(engine, p) { return isMe(p) && passiveOn(p) ? (st(p).phase === 2 ? "light" : "poison") : null; },
   attackSound(p) { return isMe(p) ? SFX.melee : null; },
   attackStyle(p) { return isMe(p) ? (st(p).phase === 2 ? "masterSlash2" : "masterSlash") : null; },
@@ -466,16 +469,17 @@ module.exports = {
     return area;
   },
   skillFree() { return true; },
+  // ใช้สกิลได้ PRESSES ครั้งต่อเทิร์นทั้ง 2 เฟส (patch 1) — ครั้งแรกกินโควตากลาง ครั้งถัดไปข้ามโควตา (นับใน canUseSkill)
   ignoresTurnQuota(p) {
-    if (!phase2(p)) return false;
+    if (!isMe(p)) return false;
     const s = st(p);
-    return s.pressRound === (require("../server/match").roundNumber || 0) && s.presses < 2;
+    return s.pressRound === (require("../server/match").roundNumber || 0) && s.presses < PRESSES;
   },
   canUseSkill(engine, p, tier, targets, opts = {}) {
     if (!isMe(p) || !p.pos) return false;
     const s = st(p), r = round(engine);
     if (cdLeft(s.ready[tier], r) > 0) return false;
-    if (s.pressRound === r && s.presses >= (s.phase === 2 ? 2 : 1)) return false;
+    if (s.pressRound === r && s.presses >= PRESSES) return false;
     if ((tier === "basic" || tier === "secondary") && !Board.LINE_DIRS[opts.dir]) return false;
     return true;
   },
@@ -494,11 +498,12 @@ module.exports = {
   skillLocks(engine, p) {
     if (!isMe(p)) return undefined;
     const s = st(p), r = round(engine);
-    const spent = s.pressRound === r && s.presses >= (s.phase === 2 ? 2 : 1);
+    const spent = s.pressRound === r && s.presses >= PRESSES;
     const out = {};
     for (const tier of ["basic", "secondary", "ultimate"]) {
       const cd = cdLeft(s.ready[tier], r);
-      out[tier] = { cd, locked: cd > 0 || !p.pos || spent };
+      // free = ยังเหลือครั้งที่ 2 ของเทิร์น → client ไม่ล็อกปุ่มหลัง skillUsed (เดิมเฟส 2 ก็ติดล็อกฝั่ง client)
+      out[tier] = { cd, locked: cd > 0 || !p.pos || spent, free: !spent };
     }
     return out;
   },
