@@ -69,8 +69,8 @@ function dust(g, x, y, s, q, seed, k, a = 1) {
 // ตาสัตว์เลื้อยคลาน (เหลือง ม่านตาตั้ง) — สัญลักษณ์การควบคุมร่าง
 function reptileEye(g, x, y, s, a, blink = 1) {
   if (a <= 0) return;
-  const w = s * 0.2, h = s * 0.1 * blink;
-  glow(g, x, y, s * 0.32, VIRUS, a * 0.35);
+  const w = s * 0.3, h = s * 0.15 * blink;
+  glow(g, x, y, s * 0.45, VIRUS, a * 0.4);
   g.fillStyle = rgba("250,225,80", a);
   g.beginPath(); g.ellipse(x, y, w, Math.max(0.5, h), 0, 0, TAU); g.fill();
   g.strokeStyle = rgba(DARK, a); g.lineWidth = Math.max(1, s * 0.012);
@@ -154,7 +154,7 @@ function virusFx(g, e, p, seed, lowQ) {
   const k = lowQ ? 6 : 12;
   for (let i = 0; i < k; i++) {
     const h = hash(seed + i * 4.3), ang = h * TAU, d = B.s * (0.12 + 0.42 * easeOut(p));
-    spore(g, B.bx + Math.cos(ang) * d, B.hy + Math.sin(ang) * d * 0.6 - B.s * 0.2 * p, B.s * 0.025 * (1 + h), (1 - p) * 0.9);
+    spore(g, B.bx + Math.cos(ang) * d, B.hy + Math.sin(ang) * d * 0.6 - B.s * 0.2 * p, B.s * 0.05 * (1 + h), (1 - p) * 0.95);
   }
   g.restore();
 }
@@ -182,7 +182,7 @@ function possessFx(g, e, now, p, seed, lowQ) {
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
   // เถาไวรัส 3 เส้นบิดเกลียว
   for (let k = 0; k < 3; k++) {
-    g.strokeStyle = rgba(k ? VIRUS : LIME, (k ? 0.55 : 0.85) * fade); g.lineWidth = A.s * (k ? 0.025 : 0.04);
+    g.strokeStyle = rgba(k ? VIRUS : LIME, (k ? 0.7 : 0.95) * fade); g.lineWidth = A.s * (k ? 0.04 : 0.06);
     g.beginPath();
     for (let i = 0; i <= 24; i++) {
       const t = (i / 24) * up, [x, y] = at(t);
@@ -191,7 +191,7 @@ function possessFx(g, e, now, p, seed, lowQ) {
     }
     g.stroke();
   }
-  if (!lowQ) for (let i = 0; i < 6; i++) { const t = ((i / 6) + p * 0.8) % 1; if (t < up) { const [x, y] = at(t); spore(g, x, y, A.s * 0.02, 0.8 * fade); } }
+  if (!lowQ) for (let i = 0; i < 6; i++) { const t = ((i / 6) + p * 0.8) % 1; if (t < up) { const [x, y] = at(t); spore(g, x, y, A.s * 0.045, 0.85 * fade); } }
   g.restore();
   // ตาสัตว์เลื้อยคลานลืมบนหัวเป้า
   const q = clamp01((p - 0.5) / 0.3);
@@ -412,15 +412,15 @@ export function dinoAuraFront(g, x, y, now, lowQ, alpha, u) {
     g.globalCompositeOperation = "lighter";
     for (let i = 0; i < n; i++) {
       const ang = (i / n) * TAU + (REDUCED ? 0 : now / 900);
-      spore(g, bx + Math.cos(ang) * s * 0.22, hy - s * 0.42 + Math.sin(ang) * s * 0.06 + (REDUCED ? 0 : Math.sin(now / 260 + i) * s * 0.02), s * 0.028, 0.85);
+      spore(g, bx + Math.cos(ang) * s * 0.3, hy - s * 0.5 + Math.sin(ang) * s * 0.08 + (REDUCED ? 0 : Math.sin(now / 260 + i) * s * 0.03), s * 0.06, 0.95);
     }
-    if (n >= 3) glow(g, bx, hy - s * 0.42, s * 0.3, VIRUS, 0.18 + 0.1 * Math.sin(now / 200));
+    if (n >= 3) glow(g, bx, hy - s * 0.5, s * 0.4, VIRUS, 0.18 + 0.1 * Math.sin(now / 200));
     g.globalCompositeOperation = "source-over";
   }
   if (u.possessed) {
     g.globalCompositeOperation = "lighter"; g.lineCap = "round";
     for (let k = 0; k < 2; k++) {
-      g.strokeStyle = rgba(VIRUS, 0.55); g.lineWidth = s * 0.02;
+      g.strokeStyle = rgba(VIRUS, 0.65); g.lineWidth = s * 0.035;
       g.beginPath();
       for (let i = 0; i <= 20; i++) {
         const t = i / 20, ang = t * TAU * 1.5 + k * Math.PI + (REDUCED ? 0 : now / 500);
@@ -431,7 +431,7 @@ export function dinoAuraFront(g, x, y, now, lowQ, alpha, u) {
     }
     g.globalCompositeOperation = "source-over";
     const blink = REDUCED ? 1 : ((now % 3200) < 140 ? 0.15 : 1);
-    reptileEye(g, bx, hy - s * 0.62, s, 0.95, blink);
+    reptileEye(g, bx, hy - s * 0.75, s, 0.95, blink);
   }
   g.restore();
 }
