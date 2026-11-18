@@ -1737,7 +1737,7 @@ const CHARACTERS = [
   },
   {
     // ---------- Master (World Tower Defense) — Boss · unique — ดู characters/master.js (GRID_PLAN §7.34) ----------
-    //  พลังชีวิต 25 · เกราะ 0 · พลังโจมตี 3 · ตัว 1×1 (Rebalance patch 1 2026-11-18) · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม) · ตีปกติกวาดหน้าตัว กว้าง 3 (strikeRect)
+    //  พลังชีวิต 25 · เกราะ 0 · พลังโจมตี 3 · ตัว 1×1 (Rebalance patch 1 2026-11-18) · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม) · ตีปกติกวาดหน้าตัว กว้าง 5 (strikeRect)
     id: "master",
     gender: "m",
     name: "Master",

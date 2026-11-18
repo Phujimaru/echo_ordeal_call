@@ -3,7 +3,7 @@
 //
 //  ค่าพลัง: พลังชีวิต 25 · เกราะ 0 · พลังโจมตี 3 · ตัว 1×1 · เดิน 9 · ไม่มีแต้มสกิล (ทุกสกิลไม่ใช้แต้ม มีคูลดาวน์)
 //   (Rebalance patch 1 "Atomize his body" 2026-11-18: HP 100 → 25 · ตัว 2×2 → 1×1 · ฟื้น 25 → 12 · สกิล 2 ครั้ง/เทิร์นทั้ง 2 เฟส · Knockdown กว้าง 5 / 7)
-//  ตีปกติ: กวาดหน้าตัว กว้าง 3 ลึก 1 (strikeRect [1, 3] บนตัว 1×1 — เดิมกว้าง 4 บนตัว 2×2 · Claude ตัดสินตอนย่อตัว) · หลังฟื้นตีได้ 2 ครั้งต่อตา
+//  ตีปกติ: กวาดหน้าตัว กว้าง 5 ลึก 1 (strikeRect [1, 5] บนตัว 1×1 — ผู้ใช้ 2026-11-18 · เดิมกว้าง 4 บนตัว 2×2) · หลังฟื้นตีได้ 2 ครั้งต่อตา
 //  Delay Arrival: เทิร์น 1–2 ไม่อยู่บนกระดาน · ต้นเทิร์น 3 ลงจากฟ้าที่จุดเกิดแบบสุ่ม → คลื่นกระแทกผลักทุกคนทั้งสนามออก 1 ช่อง (ไม่มีดาเมจ)
 //  Card Restriction: ไม่จั่วไพ่ · เดินท้ายสุดเสมอ (orderLast)
 //  Zombification/Holy Interval:
@@ -436,7 +436,7 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   range(p) { return isMe(p) ? [1, 2] : null; },
-  strikeRect(p) { return isMe(p) ? [1, 3] : null; },
+  strikeRect(p) { return isMe(p) ? [1, 5] : null; }, // กว้าง 5 (ตัว 1 + ข้างละ 2 — patch 1)
   attackElement(engine, p) { return isMe(p) && passiveOn(p) ? (st(p).phase === 2 ? "light" : "poison") : null; },
   attackSound(p) { return isMe(p) ? SFX.melee : null; },
   attackStyle(p) { return isMe(p) ? (st(p).phase === 2 ? "masterSlash2" : "masterSlash") : null; },

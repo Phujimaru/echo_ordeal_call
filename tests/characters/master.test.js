@@ -343,11 +343,11 @@ test("ฟื้นเป็นเฟส 2: +12 แม้ติดไร้ทา
   assert.equal(m.hp, 13);
 });
 
-test("ตีปกติ: กวาดแถวหน้าตัวกว้าง 3 โดนทุกคนในแถว · เป้าห่าง 2 ช่องตรงหน้า (นอกแถว) ตีไม่ได้", () => {
+test("ตีปกติ: กวาดแถวหน้าตัวกว้าง 5 โดนทุกคนในแถว · เป้าห่าง 2 ช่องตรงหน้า (นอกแถว) ตีไม่ได้", () => {
   const { m, b, c, d } = setup();
   const A = action;
-  // Master (6,6) 1×1 · แถวหน้าซ้าย = x 5, y 5–7
-  b.pos = { x: 5, y: 5 }; c.pos = { x: 5, y: 7 }; d.pos = { x: 4, y: 6 };
+  // Master (6,6) 1×1 · แถวหน้าซ้าย = x 5, y 4–8 (กว้าง 5)
+  b.pos = { x: 5, y: 5 }; c.pos = { x: 5, y: 8 }; // c สุดขอบแถว d.pos = { x: 4, y: 6 };
   match.gameState = "ACTION"; match.actorId = "m"; match.action = { locked: false, moved: true, canto: false, from: { ...m.pos } }; m.didAttackRound = false;
   assert.equal(A.canStrike(m, d), false, "ห่าง 2 ตรงหน้า = นอกแถว");
   assert.ok(A.canStrike(m, b));
