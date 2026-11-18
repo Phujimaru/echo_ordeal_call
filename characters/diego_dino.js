@@ -94,21 +94,21 @@ const SKILLS = {
     },
     ultimate: {
       name: "ฉันจะฆ่าแก", img: IMG.swarm, cost: SWARM.cost, area: { kind: "line", len: SWARM.len, width: 1, hostile: true },
-      desc: `เลือกทิศ แนว ${SWARM.len}×1: ฝูงไดโนเสาร์ชนศัตรูคนแรก ความเสียหาย ${SWARM.dmg} + ถูกตรึงจนจบเทิร์นนี้ · ตีปกติใส่คนนั้น (ครั้งเดียว) = ความเสียหาย ${SWARM.hit} + พิษร้าย ${SWARM.poison} + เลือดไหล ${SWARM.bleed} แล้วปลดตรึง · ใช้แล้วยังเดินได้ · ขี่ม้าใช้ไม่ได้ (คูลดาวน์ ${SWARM.cd} เทิร์น)`,
+      desc: `ธาตุพิษ · เลือกทิศ แนว ${SWARM.len}×1: ฝูงไดโนเสาร์ชนศัตรูคนแรก ความเสียหาย ${SWARM.dmg} + ถูกตรึงจนจบเทิร์นนี้ · ตีปกติใส่คนนั้น (ครั้งเดียว) = ความเสียหาย ${SWARM.hit} + พิษร้าย ${SWARM.poison} + เลือดไหล ${SWARM.bleed} แล้วปลดตรึง · ใช้แล้วยังเดินได้ · ขี่ม้าใช้ไม่ได้ (คูลดาวน์ ${SWARM.cd} เทิร์น)`,
     },
   },
   dino: {
     basic: {
       name: "ว๊ากกก", img: IMG.charge, cost: CHARGE.cost, area: { kind: "line", len: CHARGE.len, width: 1, hostile: true },
-      desc: `เลือกทิศ พุ่งแนว ${CHARGE.len}×1: ทุกคนในแนว ความเสียหาย ${CHARGE.dmg} + ผลัก ${CHARGE.push} ช่องตามทิศ · ชนขอบ/สิ่งกีดขวาง +${CHARGE.bump}`,
+      desc: `ธาตุพิษ · เลือกทิศ พุ่งแนว ${CHARGE.len}×1: ทุกคนในแนว ความเสียหาย ${CHARGE.dmg} + ผลัก ${CHARGE.push} ช่องตามทิศ · ชนขอบ/สิ่งกีดขวาง +${CHARGE.bump}`,
     },
     secondary: {
       name: "อ๊ากกก", img: IMG.leap, cost: LEAP.cost, area: { kind: "line", len: LEAP.len, width: 1, hostile: true },
-      desc: `เลือกทิศ กระโดดแนว ${LEAP.len}×1 หยุดที่ศัตรูคนแรก: ความเสียหาย ${LEAP.dmg} + ดูดแต้มสกิล ${LEAP.drain} (ขาดแต้มละ ความเสียหาย +1) · ไม่โดนใคร = ลงปลายแนว`,
+      desc: `ธาตุพิษ · เลือกทิศ กระโดดแนว ${LEAP.len}×1 หยุดที่ศัตรูคนแรก: ความเสียหาย ${LEAP.dmg} + ดูดแต้มสกิล ${LEAP.drain} (ขาดแต้มละ ความเสียหาย +1) · ไม่โดนใคร = ลงปลายแนว`,
     },
     ultimate: {
       name: "ย่ำกระหม่อม", img: IMG.stomp, cost: STOMP.cost, area: { kind: "tile", range: "mov", place: "list", foot: 1, blast: STOMP.radius, hostile: true, tiles: [] },
-      desc: `กระโดดลงช่องว่างในระยะเดิน: ศัตรูรอบจุดลงระยะ ${STOMP.radius} ความเสียหาย ${STOMP.dmg} + ถูกตรึงตาเดินถัดไป + ดูดแต้มสกิล ${STOMP.drain} (ขาดแต้มละ ความเสียหาย +1) (คูลดาวน์ ${STOMP.cd} เทิร์น)`,
+      desc: `ธาตุพิษ · กระโดดลงช่องว่างในระยะเดิน: ศัตรูรอบจุดลงระยะ ${STOMP.radius} ความเสียหาย ${STOMP.dmg} + ถูกตรึงตาเดินถัดไป + ดูดแต้มสกิล ${STOMP.drain} (ขาดแต้มละ ความเสียหาย +1) (คูลดาวน์ ${STOMP.cd} เทิร์น)`,
     },
   },
 };
@@ -455,6 +455,8 @@ module.exports = {
 
   // ---------- ตีปกติ ----------
   attackElement(engine, p) { return isMe(p) && passiveOn(p) ? "poison" : null; },
+  // สกิลที่ทำดาเมจเป็นธาตุพิษ: ร่างไดโนเสาร์ทั้ง 3 ช่อง + ท่าไม้ตายร่างคน (ผู้ใช้สั่ง 2026-11-18)
+  skillElement(engine, p, tier) { return isMe(p) && (isDino(p) || tier === "ultimate") ? "poison" : null; },
   // ท่าตีบนกระดาน (client dinoFx.js): ร่างคน = ตะปบข่วน · ร่างไดโนเสาร์ = งับแล้วข่วนซ้ำ (ผู้ใช้สั่ง 2026-11-18)
   attackStyle(p) { return isMe(p) ? (isDino(p) ? "dinoBite" : "dinoClaw") : null; },
   attackSound(p) {

@@ -100,6 +100,13 @@ test("ค่าพื้นฐาน: พลังชีวิต 9 · เกร
   p.dino.mounted = false;
   assert.strictEqual(engine.baseMovOf(p), 5);
   assert.strictEqual(dd.attackElement(engine, p), "poison");
+  // สกิลที่ทำดาเมจ: ฉันจะฆ่าแก + ร่างไดโนเสาร์ทุกช่อง = ธาตุพิษ · สกิลที่ไม่มีดาเมจของร่างคน = ปกติ
+  assert.strictEqual(dd.skillElement(engine, p, "ultimate"), "poison");
+  assert.strictEqual(dd.skillElement(engine, p, "basic"), null);
+  assert.strictEqual(dd.skillElement(engine, p, "secondary"), null);
+  p.dino.form = "dino";
+  for (const tier of ["basic", "secondary", "ultimate"]) assert.strictEqual(dd.skillElement(engine, p, tier), "poison");
+  p.dino.form = "human";
 });
 
 test("ตีปกติโดน = ไวรัส +1 · ความบ้าคลั่ง +1 · เต็ม 3 ไม่เพิ่ม", () => {
@@ -257,6 +264,7 @@ test("ร่างไดโนเสาร์ย่ำกระหม่อม: 
   assert.strictEqual(t.hp, 47);
   assert.ok(t.statuses.rooted > 0);
   assert.strictEqual(u.hp, 50, "ห่าง 5 ไม่โดน");
+  assert.ok(t.statuses.elPoison > 0, "ย่ำกระหม่อมเป็นธาตุพิษ (ติดคราบพิษ)");
   assert.strictEqual(p.dino.stompReady, engine.roundNumber + 3);
 });
 
