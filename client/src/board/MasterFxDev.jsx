@@ -1,5 +1,5 @@
 // เฉพาะ dev: หน้าดูกระดาน ?board=1&master=1 — ปุ่มเล่นเอฟเฟกต์ของ Master (masterFx.js · GRID_PLAN §7.34)
-//  "me" = Master ตัว 2×2 (ภาพตัวเต็ม) · หันซ้าย (ทิศเดียวกับดาบในภาพ) · พื้นที่สกิลคิดด้วย boardRules.lineTiles เหมือนเกมจริง
+//  "me" = Master ตัว 1×1 (ภาพตัวเต็ม) · หันซ้าย (ทิศเดียวกับดาบในภาพ) · พื้นที่สกิลคิดด้วย boardRules.lineTiles เหมือนเกมจริง
 //  คอนโซล: window.__masterFx(kind) = เล่นชุดเดียวกับปุ่ม
 import { useEffect, useRef } from "react";
 import * as Rules from "./boardRules";
@@ -12,19 +12,19 @@ const IMG = { 1: "/characters/master/master.webp", 2: "/characters/master/master
 
 export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, setShake }) {
   useEffect(() => { CUR.units = units; });
-  // ตั้ง "me" เป็น Master 2×2 ครั้งแรก (ครั้งเดียว — setUnits ของหน้าพรีวิวเปลี่ยนตัวทุกเรนเดอร์)
+  // ตั้ง "me" เป็น Master 1×1 ครั้งแรก (ครั้งเดียว — setUnits ของหน้าพรีวิวเปลี่ยนตัวทุกเรนเดอร์)
   const inited = useRef(false);
   useEffect(() => {
     if (inited.current) return;
     inited.current = true;
-    setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, size: 2, standee: IMG[1], master: { phase: 1, down: false, summon: null } } : u)));
+    setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, size: 1, standee: IMG[1], master: { phase: 1, down: false, summon: null } } : u)));
   });
-  const me = () => { const u = CUR.units.find((x) => x.id === "me"); return { x: u.x, y: u.y, size: 2, phase: (u.master && u.master.phase) || 1 }; };
+  const me = () => { const u = CUR.units.find((x) => x.id === "me"); return { x: u.x, y: u.y, size: 1, phase: (u.master && u.master.phase) || 1 }; };
   const foes = () => CUR.units.filter((u) => u.id !== "me").map((u) => ({ x: u.x, y: u.y, size: u.size || 1 }));
   const shake = (...ms) => { for (const d of ms) setTimeout(() => setShake && setShake((n) => n + 1), d); };
-  const base = () => { const a = me(); return { x: a.x, y: a.y, size: 2, phase: a.phase, by: "me" }; };
+  const base = () => { const a = me(); return { x: a.x, y: a.y, size: 1, phase: a.phase, by: "me" }; };
   const slam = (big) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 2, 0, false, -1, 0, big ? [99, 99, 5] : [99, 99, 3]) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 1, 0, false, -1, 0, big ? [99, 99, 5] : [99, 99, 3]) : [];
     window.__masterLast = { me: a, tiles: tiles.length, map: !!map };
     const hit = MASTER_T.slam * 0.8;
     masterPose("me", "slam", "right", hit / 0.78);
@@ -33,7 +33,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
     setFocus({ x: a.x + 3, y: a.y + 1 });
   };
   const knock = (wave) => {
-    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 2, 0, false, 0, 1) : [];
+    const a = me(), tiles = map ? Rules.lineTiles(map, a.x, a.y, "right", 99, 1, 1, 0, false, 0, a.phase === 2 ? 3 : 2) : [];
     const T = wave ? MASTER_T.knock2 : MASTER_T.knock;
     masterPose("me", "sweep", "right", (T * 0.45) / 0.55);
     pushFx([{ kind: "masterKnock", ...base(), dir: "right", tiles, wave, dur: T + 700 }]);
@@ -49,7 +49,7 @@ export default function MasterFxDev({ units, setUnits, pushFx, setFocus, map, se
   const setPhase = (ph) => setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, standee: IMG[ph], master: { ...(u.master || {}), phase: ph, down: false } } : u)));
   const play = {
     land: () => { const a = me(), hit = MASTER_T.land * 0.42; masterPose("me", "land", null, MASTER_T.land); pushFx([{ kind: "masterLand", ...base() }]); playSfx("master_meteor"); setTimeout(() => playSfx("master_shockwave"), hit); shake(hit, hit + 140, hit + 320, hit + 560); setFocus(a); },
-    slash: () => { const a = me(), f = foes()[0] || { x: a.x - 1, y: a.y }; pushFx([{ kind: a.phase === 2 ? "masterSlash2" : "masterSlash", x: a.x, y: a.y, size: 2, to: { x: f.x, y: f.y }, toSize: 1, by: "me" }]); playSfx("master_melee"); },
+    slash: () => { const a = me(), f = foes()[0] || { x: a.x - 1, y: a.y }; pushFx([{ kind: a.phase === 2 ? "masterSlash2" : "masterSlash", x: a.x, y: a.y, size: 1, to: { x: f.x, y: f.y }, toSize: 1, by: "me" }]); playSfx("master_melee"); },
     slam: () => slam(false), slamBig: () => slam(true), knock: () => knock(0), knock2: () => { knock(0); setTimeout(() => knock(1), MASTER_T.knock + 100); },
     smite: () => smite(0), smite2: () => { smite(0); setTimeout(() => smite(1), MASTER_T.smite + 200); },
     summon: () => {

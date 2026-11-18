@@ -42,7 +42,7 @@ const STAT_BONUS_OF = {
   kate: { hp: 2, armor: 2 }, emiliko: { hp: 2, armor: 2 },
   dio_brando: { hp: 5, armor: 0 },
   gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 },
-  master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 100 · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
+  master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 25 (patch 1 · ฮุค maxHp) · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
 };
 const statBonusOf = (p) => (p && STAT_BONUS_OF[statId(p)]) || STAT_BONUS;
 // เลือดจริงสูงสุดของผู้เล่น — ตัวละครกำหนดเองได้ผ่าน hook maxHp (นักบินปริศนา 5)

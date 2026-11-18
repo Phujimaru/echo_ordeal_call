@@ -882,7 +882,7 @@ function bandTiles(map, x, y, orient, width) {
 }
 // cone = กรวย (มิโดริยะ: Smash) — แถว i (1..len) กว้าง 2i−1 (+ ขนาดตัว − 1) กลางตรงกลางตัว · ไม่สน width
 //  fan ≥ 0 (Master — Twin Sword Slam / Knockdown Slash · GRID_PLAN §7.34): แนวตรงกว้างเท่าตัว ยาว len + แฉกเฉียงจากมุมหน้าตัวสองข้าง แฉกละ fan ช่อง
-//   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · pad = แนวตรงกว้างเกินตัวข้างละ pad ช่อง (Knockdown 4 / 6 บนตัว 2×2) · ไม่ใช้ width/cone/arc
+//   (fan 0 = แนวตรงกว้างเท่าตัวอย่างเดียว) · pad = แนวตรงกว้างเกินตัวข้างละ pad ช่อง (Knockdown กว้าง 5 / 7 บนตัว 1×1 — pad 2 / 3) · ไม่ใช้ width/cone/arc
 //  boxes = [ตรง, เฉียง, ขนาด=3] (Master — Twin Sword Slam ตามภาพของเพื่อนผู้ใช้ 2026-11-15): จุดระเบิดกรอบ s×s ช่อง
 //   ตรง: กรอบต่อกันไปข้างหน้า (กลางกรอบ = แถวขวาง lo+1) · เฉียงขึ้น/ลง: กรอบที่ k อยู่ข้างหน้า s(k−1)+1…sk และเยื้องข้าง sk ช่อง
 //   จำนวนกรอบเกินกระดาน (เช่น 99) = ยาวสุดแผนที่ — หยุดเมื่อกรอบหลุดกระดานทั้งกรอบ
@@ -900,7 +900,7 @@ function lineTiles(map, x, y, dir, len, width, size = 1, arc = 0, cone = false, 
   if (Array.isArray(boxes)) {
     const lo = sx + sy > 0 ? -c : -(n - 1 - c);
     const seen = new Set();
-    const s = Math.max(1, boxes[2] | 0 || 3), j0 = lo + 1 - Math.floor((s - 1) / 2);
+    const s = Math.max(1, boxes[2] | 0 || 3), j0 = lo + Math.ceil((n - 1) / 2) - Math.floor((s - 1) / 2); // กรอบตรงกลางตัว (ตัวคู่เอียงไปทาง +1 เหมือนเดิม · ตัว 1×1 กลางพอดี — Master patch 1)
     const cap = Math.ceil(((map.cols || 14) + (map.rows || 14)) / s) + 1; // กรอบเกินนี้หลุดกระดานแน่
     const box = (i0, jb) => {
       let hit = false;
