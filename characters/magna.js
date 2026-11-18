@@ -35,9 +35,10 @@ const IMG = {
   deathmatch: `${DIR}/deathmatch.webp`,
   finisher: `${DIR}/finisher.webp`,
 };
+// ไฟล์ใน zip ชื่อสลับกับเนื้อหา (ผู้ใช้ 2026-11-19): deathmatch.mp4 = โซ่เริ่มเชื่อม (เดิม Soul_Chain_Finisher.mp4) · finisher.mp4 = เดิม Soul_Chain_Deathmatch.mp4
 const VIDEO = { deathmatch: `${DIR}/deathmatch.mp4`, finisher: `${DIR}/finisher.mp4` };
 const CUT = { deathmatch: "magnaDeathmatch", finisher: "magnaFinisher" };
-const CLIP_SEC = { deathmatch: 9.4, finisher: 6.1 };
+const CLIP_SEC = { deathmatch: 6.1, finisher: 9.4 };
 const FX = "magnaFx";
 // เสียง (client/src/audio.js — สังเคราะห์ .claude/plans/magna-sfx.py · ยังไม่มีคนฟัง) · action ที่มีคลิป = ไม่มีเสียงก่อน/ซ้อนคลิป
 const SFX = {
