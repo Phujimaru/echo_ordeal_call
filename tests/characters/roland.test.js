@@ -163,18 +163,65 @@ test("Mook: โดนทุกคนในแนว ได้แต้มสก�
   assert.strictEqual(r.skillPoints, 3);
 });
 
-test("Old Boys: แนว 2×1 · เกราะ +1 · จั่วเพิ่ม · เทิร์นหน้าสร้างความเสียหายได้แต้มสกิล +3 ครั้งเดียว", () => {
-  const { r, s } = setup();
-  r.armor = 3;
-  use("oldboys", s, [], { dir: "right" });
+test("Old Boys (ปรับ 2026-11-18): ราคา 1 · ประชิด 1 คน · ดาเมจ 1 · เกราะ +1 · จั่วเพิ่ม · แต้มสกิล +3 ทันที", () => {
+  const { r, e, s } = setup();
+  r.armor = 3; r.skillPoints = 1;
+  use("oldboys", s, [E]);
+  assert.strictEqual(e.armor, 2);
   assert.strictEqual(r.armor, 4);
   assert.strictEqual(s.bonusDraw, 1);
-  r.skillPoints = 0;
+  assert.strictEqual(r.skillPoints, 3, "1 − 1 + 3");
+  assert.strictEqual(roland.CARDS.oldboys.cost, 1);
+  assert.strictEqual(roland.CARDS.oldboys.area.kind, "target");
+  assert.strictEqual(roland.CARDS.oldboys.area.range, 1);
   engine.setRoundNumber(engine.roundNumber + 1);
+  r.skillPoints = 0;
   use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
-  use("ranga", s, [E]);
-  assert.strictEqual(r.skillPoints, 3);
+  assert.strictEqual(r.skillPoints, 0, "ไม่มีโบนัสค้างไปเทิร์นหน้าแล้ว");
+});
+
+test("Old Boys: ห่าง 2 ช่องใช้ไม่ได้ ไม่เสียแต้ม", () => {
+  const { r, s } = setup(2);
+  use("oldboys", s, [E]);
+  assert.strictEqual(r.skillPoints, 5);
+  assert.strictEqual(s.pages, 0);
+});
+
+test("จั่วการ์ดไม่ซ้ำแบบที่อยู่ในมือ (ปรับ 2026-11-18)", () => {
+  const { r, s } = setup();
+  for (let round = 0; round < 40; round++) {
+    s.started = false; s.hand = []; s.used = round % 2 ? [...roland.CARD_KEYS] : [];
+    roland.onRoundStartTick(engine, r);
+    s.bonusDraw = 5;
+    roland.onRoundStartTick(engine, r);
+    const kinds = s.hand.map((c) => c.k);
+    assert.strictEqual(kinds.length, roland.HAND_MAX);
+    assert.strictEqual(new Set(kinds).size, kinds.length, kinds.join(","));
+  }
+  s.hand = ["allas", "zelkova", "oldboys", "mook", "ranga"].map((k, i) => ({ uid: `x${i}`, k }));
+  s.used = [];
+  s.started = true; s.bonusDraw = 0;
+  roland.onRoundStartTick(engine, r);
+  assert.ok(["wheels", "crystal", "logic", "durandal"].includes(s.hand[5].k));
+});
+
+test("สนาม Eos: แต้มสกิลสูงสุด 8 · BS Page 5 ครั้งต่อเทิร์น (นอก Eos คง 5 / 2)", () => {
+  const Fodlan = require("../../server/fodlan");
+  const real = Fodlan.isEos;
+  const { r, e, s } = setup();
+  assert.strictEqual(engine.maxSkillOf(r), 5);
+  Fodlan.isEos = () => true;
+  try {
+    assert.strictEqual(engine.maxSkillOf(r), 8);
+    r.skillPoints = 8;
+    e.hp = 30; e.armor = 0;
+    for (let i = 0; i < 6; i++) use("ranga", s, [E]);
+    assert.strictEqual(s.pages, 5, "ครั้งที่ 6 ไม่ทำงาน");
+    assert.strictEqual(e.hp, 25);
+    assert.strictEqual(roland.rolandState(engine, r).pagesMax, 5);
+    assert.strictEqual(roland.skillLocks(engine, r).basic.locked, true);
+  } finally { Fodlan.isEos = real; }
+  assert.strictEqual(roland.rolandState(engine, r).pagesMax, 2);
 });
 
 test("Wheels: โดนในแนว 2×1 · คนใกล้สุดสตั้น · เกราะ +1", () => {

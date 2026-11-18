@@ -2,11 +2,11 @@
 //  Roland (Black Silence) — ยาก · unique · id "roland"
 //  สเปกผู้ใช้ C:\Users\LOQ\Downloads\Roland.txt · กติกาที่ตัดสินแล้ว GRID_PLAN §7.25 · ระบบกลาง GAME_SYSTEM §43
 //
-//  พลังชีวิต 6 / เกราะ 4 · แต้มสกิล 0/5 · เดิน 4 · พลังโจมตี 0 · ตีปกติประชิด
+//  พลังชีวิต 6 / เกราะ 4 · แต้มสกิล 0/5 (สนาม Eos 0/8 — ผู้ใช้ปรับ 2026-11-18) · เดิน 4 · พลังโจมตี 0 · ตีปกติประชิด
 //  Black Silence (ติดตัว): ไอเทมเติมแต้มสกิลไม่ได้ · เริ่มเกมได้การ์ดอาวุธ 3 ใบ · ต้นเทิร์นจั่ว 1 ใบ · การ์ดในมือไม่หมดอายุ (ผู้ใช้ปรับ 2026-11-05)
-//    จั่วเลือกแบบที่ยังไม่ได้ใช้ในรอบ Furioso นี้ก่อน · สร้างความเสียหายครบ 4 ครั้ง = Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 (นับทีละฮิต · ตีสวน/ตีปกติด้วย)
+//    จั่วไม่ซ้ำแบบที่อยู่ในมือ (ผู้ใช้ปรับ 2026-11-18) · เลือกแบบที่ยังไม่ได้ใช้ในรอบ Furioso นี้ก่อน · สร้างความเสียหายครบ 4 ครั้ง = Emotion +1 + แต้มสกิล +1 + พลังชีวิต +1 (นับทีละฮิต · ตีสวน/ตีปกติด้วย)
 //    ใช้การ์ดแบบที่ยังไม่เคยใช้ = Furioso charge +1 (ครบ 9 แบบ = ท่าไม้ตายพร้อม · ใช้แล้วนับใหม่)
-//  BS Page (พื้นฐาน): เลือกการ์ดในมือ (เก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้) · 2 ครั้งต่อเทิร์น · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
+//  BS Page (พื้นฐาน): เลือกการ์ดในมือ (เก็บได้มากสุด 6 ใบ · จั่วเกินไม่ได้) · 2 ครั้งต่อเทิร์น (สนาม Eos 5 ครั้ง) · ไม่กินโควตา · ใช้ได้แม้ติดห้ามสกิล (ฮุค ignoresNoSkill)
 //    ดาเมจการ์ด = ค่าบนการ์ด + พลังโจมตี/เสริมพลัง (attack.skillStrike opts.bonus) · ไม่จบตา · เดินต่อไม่ได้
 //  Emotion skill (รอง): คูลดาวน์รวม 5 เทิร์น · ใช้แล้วหัก Emotion · บัฟถาวร (ผู้ใช้ปรับ 2026-11-15) — Fervent Beats ครบ 5 เทิร์นตายทันที
 //    ถือบัฟได้หลายแบบ · เลือกแบบเดิมซ้ำได้ ผลซ้อนกัน (ผู้ใช้ตัดสิน 2026-11-15) · Fervent ซ้ำ = พลังโจมตีซ้อน นับเวลาตายเดิมต่อ (Claude ตัดสิน)
@@ -33,8 +33,8 @@ const SFX = {
   click: "roland_click", emotion: "roland_emotion", ready: "roland_ready", shard: "roland_shard", shatter: "roland_shatter",
   heart: "roland_heart", death: "roland_death", atk: (k) => `roland_atk_${k}`,
 };
-const HP = 6, ARMOR = 4, MAX_SKILL = 5, MOV = 4;
-const START_CARDS = 3, HAND_MAX = 6, PAGES_PER_TURN = 2, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
+const HP = 6, ARMOR = 4, MAX_SKILL = 5, EOS_MAX_SKILL = 8, MOV = 4;
+const START_CARDS = 3, HAND_MAX = 6, PAGES_PER_TURN = 2, EOS_PAGES_PER_TURN = 5, EMOTION_MAX = 5, HITS_PER_EMOTION = 4, CARD_KINDS = 9;
 const EGO_SHARED_CD = 5, FERVENT_TURNS = 5, FERVENT_ATK = 3, SCARS_REDUCE = 1, SCARS_PCT = 20, SHARD_MAX = 5, SHARD_DMG = 1;
 const LIES_MAX = 4, OLD_BOYS_SP = 3, MOOK_SP = 3, COUNTER_RING = 1, COUNTER_DMG = 1; // สวนกลับ: กรอบ 3×3 รอบตัว (ห่างไม่เกิน 1 ทั้งแกน x และ y)
 const FURIOSO = { cost: 3, cd: 4, len: 4, dmg: 4, bleed: 2, fragile: 1, fragileTurns: 2 };
@@ -48,7 +48,7 @@ const line2 = { kind: "line", len: 2, width: 1, hostile: true };
 const CARDS = {
   allas: { name: "Allas Workshop", cost: 2, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · อ่อนแอ 1 ในเทิร์นถัดไป" },
   zelkova: { name: "Zelkova Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ" },
-  oldboys: { name: "Old Boys Workshop", cost: 1, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ในเทิร์นถัดไป แต้มสกิล +3 (ครั้งเดียว)" },
+  oldboys: { name: "Old Boys Workshop", cost: 1, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เกราะ +1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · แต้มสกิล +3" },
   mook: { name: "Mook Workshop", cost: 2, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 + ทะลุเกราะคงที่ 1 · ต้นเทิร์นถัดไปจั่วเพิ่ม 1 ใบ · สร้างความเสียหายได้ แต้มสกิล +3" },
   ranga: { name: "Ranga Workshop", cost: 0, area: near, desc: "1 คนรอบตัว · ดาเมจ 1 · เลือดไหล 1" },
   wheels: { name: "Wheels Industry", cost: 4, area: line2, desc: "เลือกทิศ แนว 2×1 ทุกคน · ดาเมจ 1 · คนใกล้สุดสตั้น 1 เทิร์น · เกราะ +1" },
@@ -67,6 +67,8 @@ const EGO = {
 const EGO_KEYS = Object.keys(EGO);
 
 const isRoland = (p) => !!p && p.characterId === ID && !p.summon;
+const inEos = () => require("../server/pveMode").isEos(); // ปรับเฉพาะสนาม Eos (ผู้ใช้ 2026-11-18): แต้มสกิล 0/8 · BS Page 5 ครั้งต่อเทิร์น
+const pagesMax = () => (inEos() ? EOS_PAGES_PER_TURN : PAGES_PER_TURN);
 function eng() { return require("../server/engine").engine; }
 const Board = () => require("../server/board");
 const LINE = () => Board().LINE_DIRS;
@@ -74,7 +76,7 @@ function fresh() {
   return {
     started: false, seq: 0, hand: [], used: [], bonusDraw: 0, pageRound: 0, pages: 0,
     hits: 0, emotion: 0, ultReady: 0, egoReady: 0, egos: {}, egoAt: {}, lies: null,
-    oldBoysRound: 0, crystalAt: 0, crystalDodge: 0, countering: false,
+    crystalAt: 0, crystalDodge: 0, countering: false,
   };
 }
 function st(p) { return p.roland || (p.roland = fresh()); }
@@ -101,11 +103,14 @@ function fx(engine, p, kind, extra) {
 }
 
 // ---------- มือการ์ด ----------
+// จั่วไม่ซ้ำแบบที่อยู่ในมือ (ผู้ใช้ปรับ 2026-11-18 · 9 แบบ > มือ 6 ใบ จึงมีแบบให้จั่วเสมอ) · แบบที่ยังไม่ได้ใช้ในรอบ Furioso มาก่อน
 function drawOne(s) {
   if (s.hand.length >= HAND_MAX) return false;
   const inHand = new Set(s.hand.map((c) => c.k));
-  const unused = CARD_KEYS.filter((k) => !s.used.includes(k) && !inHand.has(k));
-  const pool = unused.length ? unused : CARD_KEYS;
+  const avail = CARD_KEYS.filter((k) => !inHand.has(k));
+  if (!avail.length) return false;
+  const unused = avail.filter((k) => !s.used.includes(k));
+  const pool = unused.length ? unused : avail;
   s.seq += 1;
   s.hand.push({ uid: `c${s.seq}`, k: pool[Math.floor(Math.random() * pool.length)] });
   return true;
@@ -166,14 +171,9 @@ function addShard(engine, p, t) {
   engine.log(`❄️ ${t.name} เศษน้ำแข็งครบ ${SHARD_MAX} ชิ้น — สตั้น + ดาเมจ ${SHARD_DMG}`);
   if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
 }
-// สร้างความเสียหายได้ (ไม่นับ 0): Old Boys ที่รอจากเทิร์นก่อน · เศษน้ำแข็ง
+// สร้างความเสียหายได้ (ไม่นับ 0): นับ Emotion · เศษน้ำแข็ง
 function onDealt(engine, p, t) {
-  const s = st(p);
   countDamage(engine, p);
-  if (s.oldBoysRound && s.oldBoysRound === engine.roundNumber) {
-    s.oldBoysRound = 0;
-    gainSp(engine, p, OLD_BOYS_SP, CARDS.oldboys.name);
-  }
   for (let i = stacks(p, "kiss"); i > 0; i--) addShard(engine, p, t);
 }
 // 1 ฮิต → { dealt, dodge } · ex.sure = ด่านหลบผ่านมาแล้ว (Furioso ทอยก่อนคลิป)
@@ -220,7 +220,7 @@ const foes = (engine, p, targets) => (targets || []).map((id) => engine.players[
 const single = (engine, p, targets) => foes(engine, p, targets)[0] || null;
 // Atelier Logic: ศัตรูคนแรกในแนว (ใกล้ตัวสุด)
 const firstFoe = (engine, p, targets) => foes(engine, p, targets).sort((a, b) => Board().dist(Board().boxOf(p), Board().boxOf(a)) - Board().dist(Board().boxOf(p), Board().boxOf(b)))[0] || null;
-const sweeps = (k) => k === "wheels" || k === "oldboys" || k === "mook"; // แนว 2×1 โดนทุกคนในแนว
+const sweeps = (k) => k === "wheels" || k === "mook"; // แนว 2×1 โดนทุกคนในแนว
 // Mook: ทะลุเกราะ 1 → ดาเมจที่ลงจริง
 function pierceHit(engine, t) {
   const before = vit(t);
@@ -258,10 +258,9 @@ function playCard(engine, p, card, targets, opts) {
         if (at) impact(engine, p, k, t, at, res);
         if (k === "wheels" && t === closest && !res.dodge && t.alive) engine.applyDebuff(t, "stun", null, nextTurnSpan(engine, t));
       }
-      if (k !== "wheels") s.bonusDraw += 1;
+      if (k === "mook") s.bonusDraw += 1;
       if (k === "mook" && dealt > 0) gainSp(engine, p, MOOK_SP, c.name);
-      if (k === "oldboys") s.oldBoysRound = r + 1;
-      if (k !== "mook") engine.healArmor(p, 1);
+      if (k === "wheels") engine.healArmor(p, 1);
       engine.skillBeat(BEAT.after, () => {});
     });
     return;
@@ -312,7 +311,9 @@ function playCard(engine, p, card, targets, opts) {
       if (k === "allas") engine.applyDebuff(t, "weak", 1, 1 + (engine.hasActed(t.id) ? 1 : 0));
       if (k === "ranga") engine.applyBleed(t, 1);
     }
-    if (k === "zelkova") s.bonusDraw += 1;
+    if (k === "zelkova" || k === "oldboys") s.bonusDraw += 1;
+    // Old Boys (ผู้ใช้ปรับ 2026-11-18): ประชิด 1 คน · เกราะ +1 · จั่วเพิ่มต้นเทิร์นถัดไป · แต้มสกิล +3 ทันที (ไม่ต้องรอสร้างความเสียหาย)
+    if (k === "oldboys") { engine.healArmor(p, 1); gainSp(engine, p, OLD_BOYS_SP, c.name); }
     if (k === "logic" && !dodged && t.alive && t.pos && Board().dist(Board().boxOf(p), Board().boxOf(t)) === 1) {
       hold += push(engine, p, t, { x: LINE()[opts.dir][0], y: LINE()[opts.dir][1] });
     }
@@ -395,7 +396,7 @@ function endEgo(engine, p, k) {
 }
 
 function cardChoices(p, r) {
-  const s = st(p), full = pagesUsed(s, r) >= PAGES_PER_TURN;
+  const s = st(p), full = pagesUsed(s, r) >= pagesMax();
   return s.hand.map((c) => {
     const d = CARDS[c.k], cost = require("../server/skills").skillCostOf(p, "basic", 0, { form: c.uid });
     return {
@@ -419,14 +420,14 @@ module.exports = {
   id: ID,
   // ธาตุ (server/element.js · GRID_PLAN §8.7.1): ระหว่าง Emotion A Kiss ทุกความเสียหาย = เศษน้ำแข็ง ❄️
   defaultElement(engine, p) { return egoOn(p, "kiss") ? "ice" : null; },
-  IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, MOV, START_CARDS, HAND_MAX, PAGES_PER_TURN, EMOTION_MAX,
+  IMG, VIDEO, CUT, FX, SFX, CARDS, CARD_KEYS, EGO, EGO_KEYS, HP, ARMOR, MAX_SKILL, EOS_MAX_SKILL, MOV, START_CARDS, HAND_MAX, PAGES_PER_TURN, EOS_PAGES_PER_TURN, EMOTION_MAX,
   HITS_PER_EMOTION, CARD_KINDS, EGO_SHARED_CD, FERVENT_TURNS, OLD_BOYS_SP, FERVENT_ATK, SHARD, SHARD_MAX, CRYSTAL, COUNTER_RING, FURIOSO,
   isRoland,
 
   resetCombat(p) { p.roland = isRoland(p) ? fresh() : null; },
   maxHp(p) { return HP + stacks(p, "urging"); },
   maxArmor() { return ARMOR; },
-  maxSkill() { return MAX_SKILL; },
+  maxSkill() { return inEos() ? EOS_MAX_SKILL : MAX_SKILL; },
   mov(p) { return isRoland(p) ? MOV + stacks(p, "urging") : null; },
   blocksSkillGain(p, src) { return isRoland(p) && src === "item" && PassiveSeal.on(p); }, // ลบสกิลติดตัว = ข้อเสียหายด้วย
   attackBaseOverride(engine, attacker) { return FERVENT_ATK * stacks(attacker, "fervent"); },
@@ -530,7 +531,7 @@ module.exports = {
     if (!p.pos) return false;
     if (tier === "basic") {
       const c = cardOf(s, opts.form);
-      if (!c || pagesUsed(s, r) >= PAGES_PER_TURN) return false;
+      if (!c || pagesUsed(s, r) >= pagesMax()) return false;
       if (c.k === "crystal") return !!LINE()[opts.dir];
       if (c.k === "logic") return !!LINE()[opts.dir] && !!firstFoe(engine, p, targets);
       if (sweeps(c.k)) return foes(engine, p, targets).length > 0;
@@ -578,7 +579,7 @@ module.exports = {
     const s = st(p);
     return {
       emotion: s.emotion, emotionMax: EMOTION_MAX, ultCd: cdLeft(s.ultReady, engine.roundNumber), hits: s.hits, hitsMax: HITS_PER_EMOTION, charge: chargeOf(s), chargeMax: CARD_KINDS,
-      pagesLeft: Math.max(0, PAGES_PER_TURN - pagesUsed(s, engine.roundNumber)), pagesMax: PAGES_PER_TURN, crystalDodge: crystalOn(p) ? s.crystalDodge : 0,
+      pagesLeft: Math.max(0, pagesMax() - pagesUsed(s, engine.roundNumber)), pagesMax: pagesMax(), crystalDodge: crystalOn(p) ? s.crystalDodge : 0,
       // แถบ EGO Page (client/src/screens/hud/RolandHud.jsx): ทุกแบบตามลำดับ · n = จำนวนซ้อน · turns = Fervent เหลือกี่เทิร์น
       egos: EGO_KEYS.map((k) => ({ k, name: EGO[k].name, img: IMG.buff(k), n: stacks(p, k), turns: k === "fervent" && stacks(p, k) ? p.statuses[EGO[k].status] || 0 : 0 })),
       egoCd: cdLeft(s.egoReady, engine.roundNumber),
@@ -588,7 +589,7 @@ module.exports = {
     if (!isRoland(p)) return undefined;
     const s = st(p), r = engine.roundNumber;
     return {
-      basic: { locked: pagesUsed(s, r) >= PAGES_PER_TURN || !s.hand.length, free: true, ignoresNoSkill: true },
+      basic: { locked: pagesUsed(s, r) >= pagesMax() || !s.hand.length, free: true, ignoresNoSkill: true },
       secondary: { locked: !EGO_KEYS.some((k) => !egoBlock(p, k, r)) },
       ultimate: { cd: cdLeft(s.ultReady, r), locked: chargeOf(s) < CARD_KINDS },
     };
