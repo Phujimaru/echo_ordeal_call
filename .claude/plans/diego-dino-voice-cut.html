@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตัดเสียงพากย์ดิเอโก้</title>
+<style>
+:root { --bg:#14171c; --card:#1d2229; --line:#2c333d; --text:#e8ecf1; --mute:#93a0b0; --acc:#5fc8b9; --sel:#fac775; --bad:#e24b4a; }
+* { box-sizing:border-box; }
+body { margin:0; padding:16px; background:var(--bg); color:var(--text); font:14px/1.5 system-ui, "Segoe UI", Tahoma, sans-serif; }
+h1 { font-size:18px; font-weight:600; margin:0 0 12px; }
+.bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; position:sticky; top:0; background:var(--bg); padding:8px 0; z-index:5; }
+button, select, input { font:inherit; color:var(--text); background:#262c35; border:1px solid var(--line); border-radius:6px; padding:4px 10px; }
+button { cursor:pointer; }
+button:hover { border-color:var(--acc); }
+button.pri { background:#11504a; border-color:var(--acc); }
+.file { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:16px; }
+.file h2 { font-size:15px; margin:0 0 8px; display:flex; gap:10px; align-items:center; }
+.wrap { overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:#0f1216; }
+canvas { display:block; cursor:crosshair; }
+table { width:100%; border-collapse:collapse; margin-top:8px; }
+td { border-bottom:1px solid var(--line); padding:4px 6px; white-space:nowrap; }
+tr.on td { background:#2a2f22; }
+input.t { width:74px; }
+.mute { color:var(--mute); }
+.tag { font-family:ui-monospace, Consolas, monospace; color:var(--sel); }
+textarea { width:100%; height:140px; background:#0f1216; color:var(--text); border:1px solid var(--line); border-radius:6px; font:12px ui-monospace, Consolas, monospace; }
+</style>
+</head>
+<body>
+<h1>ตัดเสียงพากย์ — ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์)</h1>
+<div class="bar">
+  <button class="pri" id="save">บันทึก</button>
+  <button id="copy">คัดลอก</button>
+  <span class="mute" id="msg"></span>
+</div>
+<div id="files"></div>
+<textarea id="out" readonly></textarea>
+<script>
+const USES = [
+  ["none", "— ไม่ใช้"],
+  ["turnH", "ร่างคน · ต้นตาเดิน"], ["strikeH", "ร่างคน · ตีปกติ"], ["struckH", "ร่างคน · โดนตี"],
+  ["scorn", "อย่ามาดูถูกกันนะ"], ["possess", "เข้าร่วมเผ่าพันธุ์"],
+  ["turnD", "ไดโนเสาร์ · ต้นตาเดิน"], ["strikeD", "ไดโนเสาร์ · ตีปกติ"], ["struckD", "ไดโนเสาร์ · โดนตี"],
+  ["charge", "ว๊ากกก"], ["leapMiss", "อ๊ากกก (ไม่โดน)"], ["revert", "คืนร่าง"],
+];
+// จุดตัดตั้งต้น (ร่าง Claude — ยังไม่มีใครฟัง) · Wryyy = ท่อนเดี่ยว (ผู้ใช้สั่ง)
+const FILES = [
+  { key: "human", name: "คนตอนปกติ และโจมตี", src: "diego-dino-voice-src/human.m4a", segs: [
+    [0.10, 1.14, "turnH"], [1.26, 4.56, "turnH"], [4.56, 5.72, "none"], [5.72, 10.96, "turnH", "Wryyy"], [10.98, 14.48, "turnH"], [14.82, 15.66, "none"],
+    [21.76, 23.23, "strikeH"], [23.95, 26.39, "strikeH"], [27.03, 28.67, "strikeH"], [29.42, 32.67, "strikeH"], [32.92, 35.22, "scorn"],
+    [35.75, 38.01, "possess"], [38.76, 41.84, "none"] ] },
+  { key: "extra", name: "คนเพิ่มเติม", src: "diego-dino-voice-src/extra.m4a", segs: [
+    [0.80, 2.12, "struckH"], [3.10, 6.84, "scorn"], [7.06, 10.74, "possess"], [10.80, 12.29, "struckH"], [12.45, 15.40, "none"],
+    [15.48, 18.16, "none"], [18.24, 21.46, "none"], [21.55, 23.48, "none"], [24.11, 24.94, "struckH"] ] },
+  { key: "transform", name: "แปลงร่าง และคืนร่าง", src: "diego-dino-voice-src/transform.m4a", segs: [
+    [0.12, 1.31, "none"], [1.46, 3.33, "revert"] ] },
+  { key: "dino", name: "ไดโนเสาร์", src: "diego-dino-voice-src/dino.m4a", segs: [
+    [0.20, 0.68, "strikeD"], [0.89, 6.17, "none"], [6.50, 7.33, "turnD"], [7.49, 10.64, "charge"], [10.85, 11.96, "strikeD"], [12.20, 15.25, "turnD"] ] },
+];
+const PX = 110, H = 110;
+const LS = "diegoDinoVoiceCut.v1";
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(LS) || "null"); } catch {}
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+let playing = null;
+const state = FILES.map((f) => ({ ...f, segs: (saved && saved[f.key]) || f.segs.map(([a, b, use, note]) => ({ a, b, use, note: note || "" })), sel: -1, buf: null }));
+
+function persist() {
+  try { localStorage.setItem(LS, JSON.stringify(Object.fromEntries(state.map((s) => [s.key, s.segs])))); } catch {}
+  const out = state.map((s) => ({ file: s.key, segs: s.segs.map((g) => ({ a: +g.a.toFixed(2), b: +g.b.toFixed(2), use: g.use, note: g.note || undefined })) }));
+  document.getElementById("out").value = JSON.stringify(out, null, 1);
+}
+function stop() { if (playing) { try { playing.src.stop(); } catch {} playing = null; } }
+function play(s, a, b) {
+  stop();
+  if (ctx.state === "suspended") ctx.resume();
+  const src = ctx.createBufferSource(); src.buffer = s.buf; src.connect(ctx.destination);
+  src.start(0, a, Math.max(0.01, b - a));
+  playing = { src, s, a, b, t0: ctx.currentTime };
+  src.onended = () => { if (playing && playing.src === src) playing = null; };
+  tick();
+}
+function tick() { state.forEach(draw); if (playing) requestAnimationFrame(tick); }
+
+function render() {
+  const root = document.getElementById("files");
+  root.innerHTML = "";
+  state.forEach((s, fi) => {
+    const box = document.createElement("div"); box.className = "file";
+    box.innerHTML = `<h2>${s.name} <span class="mute">${s.buf ? s.buf.duration.toFixed(1) + " วิ" : "กำลังโหลด…"}</span> <button data-a="all">▶ ทั้งไฟล์</button> <button data-a="stop">■</button></h2>
+      <div class="wrap"><canvas></canvas></div><table><tbody></tbody></table>`;
+    root.appendChild(box);
+    s.el = box; s.cv = box.querySelector("canvas");
+    box.querySelector('[data-a="all"]').onclick = () => s.buf && play(s, 0, s.buf.duration);
+    box.querySelector('[data-a="stop"]').onclick = stop;
+    if (s.buf) { s.cv.width = Math.ceil(s.buf.duration * PX); s.cv.height = H; bindCanvas(s); }
+    rows(s); draw(s);
+  });
+  persist();
+}
+function rows(s) {
+  const tb = s.el.querySelector("tbody"); tb.innerHTML = "";
+  s.segs.sort((x, y) => x.a - y.a);
+  s.segs.forEach((g, i) => {
+    const tr = document.createElement("tr"); if (i === s.sel) tr.className = "on";
+    tr.innerHTML = `<td><button data-k="p">▶</button></td>
+      <td><button data-k="a-">−</button><input class="t" data-k="a" value="${g.a.toFixed(2)}"><button data-k="a+">+</button></td>
+      <td><button data-k="b-">−</button><input class="t" data-k="b" value="${g.b.toFixed(2)}"><button data-k="b+">+</button></td>
+      <td><select data-k="u">${USES.map(([k, l]) => `<option value="${k}"${k === g.use ? " selected" : ""}>${l}</option>`).join("")}</select></td>
+      <td><input data-k="n" placeholder="โน้ต" value="${(g.note || "").replace(/"/g, "&quot;")}" style="width:110px"></td>
+      <td><button data-k="x">ลบ</button></td>`;
+    const set = (k, v) => { g[k] = Math.max(0, Math.min(s.buf ? s.buf.duration : 999, v)); if (g.a > g.b) [g.a, g.b] = [g.b, g.a]; s.sel = i; rows(s); draw(s); persist(); };
+    tr.querySelector('[data-k="p"]').onclick = () => { s.sel = i; rows(s); s.buf && play(s, g.a, g.b); };
+    tr.querySelector('[data-k="a-"]').onclick = () => set("a", g.a - 0.05);
+    tr.querySelector('[data-k="a+"]').onclick = () => set("a", g.a + 0.05);
+    tr.querySelector('[data-k="b-"]').onclick = () => set("b", g.b - 0.05);
+    tr.querySelector('[data-k="b+"]').onclick = () => set("b", g.b + 0.05);
+    tr.querySelector('[data-k="a"]').onchange = (e) => set("a", parseFloat(e.target.value) || 0);
+    tr.querySelector('[data-k="b"]').onchange = (e) => set("b", parseFloat(e.target.value) || 0);
+    tr.querySelector('[data-k="u"]').onchange = (e) => { g.use = e.target.value; draw(s); persist(); };
+    tr.querySelector('[data-k="n"]').onchange = (e) => { g.note = e.target.value; persist(); };
+    tr.querySelector('[data-k="x"]').onclick = () => { s.segs.splice(i, 1); s.sel = -1; rows(s); draw(s); persist(); };
+    tb.appendChild(tr);
+  });
+}
+function draw(s) {
+  const cv = s.cv; if (!cv || !s.buf) return;
+  const g = cv.getContext("2d"), w = cv.width, h = cv.height;
+  g.fillStyle = "#0f1216"; g.fillRect(0, 0, w, h);
+  // ช่วงที่ตัด
+  s.segs.forEach((seg, i) => {
+    const x0 = seg.a * PX, x1 = seg.b * PX;
+    g.fillStyle = i === s.sel ? "rgba(250,199,117,.28)" : seg.use === "none" ? "rgba(140,140,140,.16)" : "rgba(95,200,185,.22)";
+    g.fillRect(x0, 0, x1 - x0, h);
+    g.fillStyle = i === s.sel ? "#fac775" : seg.use === "none" ? "#666" : "#5fc8b9";
+    g.fillRect(x0, 0, 2, h); g.fillRect(x1 - 2, 0, 2, h);
+    g.font = "11px system-ui"; g.fillText(`${i + 1}`, x0 + 4, 12);
+  });
+  // คลื่นเสียง
+  if (!s.peaks) {
+    const d = s.buf.getChannelData(0), per = Math.floor(d.length / w); s.peaks = new Float32Array(w);
+    for (let x = 0; x < w; x++) { let m = 0; for (let j = x * per, e = j + per; j < e; j++) { const v = Math.abs(d[j]); if (v > m) m = v; } s.peaks[x] = m; }
+  }
+  g.fillStyle = "#c9d3de";
+  for (let x = 0; x < w; x++) { const v = s.peaks[x] * (h / 2 - 4); g.fillRect(x, h / 2 - v, 1, Math.max(1, v * 2)); }
+  // สเกลวินาที
+  g.fillStyle = "#93a0b0"; g.font = "10px system-ui";
+  for (let t = 0; t < s.buf.duration; t++) { g.fillRect(t * PX, h - 6, 1, 6); g.fillText(`${t}`, t * PX + 2, h - 8); }
+  if (playing && playing.s === s) {
+    const t = playing.a + (ctx.currentTime - playing.t0);
+    if (t <= playing.b) { g.fillStyle = "#fff"; g.fillRect(t * PX, 0, 2, h); }
+  }
+}
+// ลากบนคลื่นเสียง = ช่วงใหม่ · ลากขอบช่วง = ปรับขอบ · คลิกในช่วง = เลือก + เล่น
+function bindCanvas(s) {
+  const cv = s.cv;
+  let drag = null;
+  const tAt = (e) => { const r = cv.getBoundingClientRect(); return Math.max(0, Math.min(s.buf.duration, (e.clientX - r.left) / PX)); };
+  cv.onmousedown = (e) => {
+    const t = tAt(e), tol = 6 / PX;
+    const edge = s.segs.findIndex((g) => Math.abs(g.a - t) < tol || Math.abs(g.b - t) < tol);
+    if (edge >= 0) { const g = s.segs[edge]; drag = { kind: Math.abs(g.a - t) < tol ? "a" : "b", g }; s.sel = edge; rows(s); return; }
+    const inside = s.segs.findIndex((g) => t > g.a && t < g.b);
+    if (inside >= 0) { s.sel = inside; rows(s); draw(s); const g = s.segs[inside]; play(s, g.a, g.b); return; }
+    const g = { a: t, b: t, use: "none", note: "" }; s.segs.push(g); drag = { kind: "new", g, t0: t };
+  };
+  window.addEventListener("mousemove", (e) => {
+    if (!drag) return;
+    const t = tAt(e);
+    if (drag.kind === "new") { drag.g.a = Math.min(drag.t0, t); drag.g.b = Math.max(drag.t0, t); }
+    else drag.g[drag.kind] = t;
+    draw(s);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!drag) return;
+    const g = drag.g; drag = null;
+    if (g.b - g.a < 0.05) s.segs.splice(s.segs.indexOf(g), 1);
+    s.sel = s.segs.indexOf(g); rows(s); draw(s); persist();
+    if (s.sel >= 0) play(s, g.a, g.b);
+  });
+}
+
+document.getElementById("copy").onclick = () => { const t = document.getElementById("out"); t.select(); navigator.clipboard && navigator.clipboard.writeText(t.value); document.getElementById("msg").textContent = "คัดลอกแล้ว"; };
+document.getElementById("save").onclick = () => {
+  const blob = new Blob([document.getElementById("out").value], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "diego-dino-voice.json"; a.click();
+  document.getElementById("msg").textContent = "บันทึกแล้ว (โฟลเดอร์ดาวน์โหลด)";
+};
+render();
+Promise.all(state.map(async (s) => {
+  const ab = await (await fetch(s.src)).arrayBuffer();
+  s.buf = await ctx.decodeAudioData(ab);
+})).then(render).catch((e) => { document.getElementById("msg").textContent = "โหลดเสียงไม่ได้: " + e; });
+</script>
+</body>
+</html>

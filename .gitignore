@@ -39,3 +39,4 @@ client/public/roadtrip/
 
 # สถิติตัวละครตอนรัน server จากโปรเจกต์ (โปรแกรม ECHO เก็บใน userData แทน — server/charStats.js)
 /data/
+.claude/plans/diego-dino-voice-src/
