@@ -8,7 +8,7 @@
 //  รอบ 2 (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): หมากข้อมูล + ฉากล้อมกิน · เขียนทับคุณสมบัติ · รอยพิกเซล/ขอบกระตุก/วงคลื่นใต้เท้าตัวละคร ·
 //   ระลอกส่งตัวแบบสลายเป็นพิกเซลแล้วประกอบร่าง · โทนสนามตามคุณสมบัติ · ฝนข้อมูล · รอยตารางบิดตามทางว่ายปลาวาฬ · สนามสว่างกลาง ขอบเรือง คลื่นแสงกวาดพื้น
 // ============================================================
-import { P, PS, depthOf, glow, rng, sceneSize } from "../boardGeo";
+import { P, PS, glow, rng, sceneSize } from "../boardGeo";
 import { hash } from "./reef";
 import { fxT, fxOnce } from "./index";
 import { drawThalassaAir, drawThalassaGround, whaleView } from "./thalassaArt";
@@ -32,7 +32,7 @@ let LASTFD = null;
 // พื้นกระจกโปร่งใส (ผู้ใช้ 2026-11-19: "พื้นโปร่งใส เห็นฉากหลัง") — ช่องกระดานเป็นแผ่นกระจกใสลายหมากรุกจางมาก มองทะลุลงห้วงข้อมูลลึก (theme.ground อบ + ground วาดสด)
 const BASE = {
   ground1: "#04263a", ground2: "#01101d", tile: "rgba(170,240,255,.045)", tile2: "rgba(170,240,255,.085)",
-  grid: "rgba(180,248,255,.26)", border: "rgba(200,252,255,.8)", spawn: "rgba(200,250,255,.35)",
+  grid: "rgba(180,248,255,.14)", border: "rgba(200,252,255,.7)", spawn: "rgba(200,250,255,.35)",
   light: ["rgba(140,240,255,.06)", "rgba(0,20,40,.25)"], nightTint: null, shadow: "rgba(0,20,40,.45)",
   sky: ["#22c4d6", "#0d8aa6", "#06395a"], fog: "4,40,60",
 };
@@ -99,40 +99,19 @@ export const theme = {
     // เงาเรือรบข้อมูลไกลๆ (กรมท่า ลายร้าวฟ้า) — ซ้าย 2 ขวา 1
     for (const [ux, uy, sc, fl] of [[0.14, 0.58, 1, 1], [0.3, 0.7, 0.6, 1], [0.84, 0.62, 0.85, -1]]) farShip(g, VX0 + VW * ux, VY0 + (bY - VY0) * uy, (bY - VY0) * 0.16 * sc, fl, ux * 99);
   },
-  // ห้วงข้อมูลใต้พื้นกระจก (อบ): ตารางหลายชั้นซ้อนลึกลงไป (ลึกยิ่งห่างยิ่งจาง) · แสงเรืองก้นเหว · เสาแสงข้อมูลพุ่งจากเบื้องล่าง
+  // ห้วงน้ำลึกสงบใต้พื้นกระจก (อบ · ผู้ใช้ 2026-11-20 เลือก "ห้วงน้ำลึกสงบ" แทนตารางซ้อน/แสงฟุ้ง): เฉดน้ำเงินไล่ลึก ไม่มีเส้น
+  //  แสงรำไร/ฝูงปลาข้อมูล/เงาเรือรบไกลๆ วาดสดใน ground()
   ground(c) {
-    const { g, VX0, VY0, VW, VY1 } = c, { cols, rows } = sceneSize(), cx = cols / 2, cy = rows / 2;
-    const gr = g.createLinearGradient(0, VY0, 0, VY1); gr.addColorStop(0, "rgba(3,26,42,0)"); gr.addColorStop(1, "rgba(2,14,26,.6)");
+    const { g, VX0, VY0, VW, VY1 } = c, { cols, rows } = sceneSize();
+    const gr = g.createLinearGradient(0, VY0, 0, VY1); gr.addColorStop(0, "rgba(4,40,62,0)"); gr.addColorStop(0.5, "rgba(3,30,50,.35)"); gr.addColorStop(1, "rgba(1,12,24,.75)");
     g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
-    g.save(); g.globalCompositeOperation = "lighter";
-    const deep = PS(cx, cy, -9); glow(g, deep[0], deep[1], deep[2] * 14, "50,170,220", 0.22); glow(g, deep[0], deep[1], deep[2] * 5, "200,250,255", 0.16);
-    const levels = [[-10, 3, 0.1], [-6.5, 2, 0.14], [-4, 2, 0.18], [-2.2, 1, 0.16], [-1, 1, 0.1]];
-    for (const [z, step, a] of levels) {
-      const ext = 16 + (-z) * 1.5;
-      g.strokeStyle = `rgba(150,240,255,${a})`; g.lineWidth = 1;
-      for (let x = Math.floor(-ext / step) * step; x <= cols + ext; x += step) { const p0 = PS(x, -ext, z), p1 = PS(x, rows + ext, z); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke(); }
-      for (let y = Math.floor(-ext / step) * step; y <= rows + ext; y += step) { const p0 = PS(-ext, y, z), p1 = PS(cols + ext, y, z); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke(); }
-    }
-    // เสาแสงข้อมูลจากเบื้องล่าง
-    const R = rng(404);
-    for (let i = 0; i < 9; i++) {
-      const x = -6 + R() * (cols + 12), y = -6 + R() * (rows + 12), a = PS(x, y, -11), b = PS(x, y, -1.2);
-      const lg = g.createLinearGradient(a[0], a[1], b[0], b[1]); lg.addColorStop(0, "rgba(120,240,255,0)"); lg.addColorStop(0.7, "rgba(160,245,255,.14)"); lg.addColorStop(1, "rgba(160,245,255,0)");
-      g.strokeStyle = lg; g.lineWidth = Math.max(2, b[2] * (0.08 + R() * 0.12)); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
-    }
-    g.restore();
+    // แสงจางจากเบื้องบนส่องลงน้ำ (ใต้กระดานสว่างกว่าขอบเล็กน้อย)
+    const m = PS(cols / 2, rows / 2, -6), lg = g.createRadialGradient(m[0], m[1], 0, m[0], m[1], VW * 0.55);
+    lg.addColorStop(0, "rgba(40,150,190,.22)"); lg.addColorStop(1, "rgba(40,150,190,0)");
+    g.fillStyle = lg; g.fillRect(VX0, VY0, VW, VY1 - VY0);
   },
-  // ข้างกระดาน: ผลึกข้อมูลลอยไม่กี่ก้อน ห่างกระดาน (ลดความรก)
-  side(c) {
-    const { g, VX0, VX1 } = c, { cols, rows } = sceneSize();
-    const R = rng(77), list = [];
-    for (let i = 0; i < 7; i++) { list.push([-2.5 - R() * 5, R() * rows, R()]); list.push([cols + 1.5 + R() * 5, R() * rows, R()]); }
-    for (let i = 0; i < 4; i++) list.push([R() * cols, -2.5 - R() * 3, R()]);
-    list.sort((a, b) => depthOf(a[0], a[1]) - depthOf(b[0], b[1])).forEach(([x, y, r]) => {
-      const [sx] = PS(x, y); if (sx < VX0 - 100 || sx > VX1 + 100) return;
-      crystal(g, x, y, 0.35 + r * 0.6, 0.18 + r * 0.12, r * 99, 0, 0.6 + r * 2.2);
-    });
-  },
+  // ข้างกระดาน: โล่ง (ลดความรก — ผู้ใช้ไม่ชอบของลอยรก)
+  side() {},
   // แผ่นกระจกลอย: ความหนาขอบกระดาน + ขอบล่างเรือง (แทนเงาทึบใต้กระดาน)
   base(c) {
     const { g } = c, { cols, rows } = c.info, th = -0.22;
@@ -153,40 +132,59 @@ function farShip(g, x, y, s, flip, seed) {
   for (let i = 0; i < 7; i++) { let px = -s * 1.3 + R() * s * 2.8, py = -s * 0.1 - R() * s * 0.3; g.beginPath(); g.moveTo(px, py); for (let j = 0; j < 4; j++) { px += (R() - 0.3) * s * 0.35; py += (R() - 0.5) * s * 0.16; g.lineTo(px, py); } g.stroke(); }
   g.restore();
 }
-// ผลึกข้อมูลใส (ผู้ใช้ 2026-11-19 เลือก "แท่งข้อมูลเป็นผลึกใส"): ปริซึมหกเหลี่ยมปลายแหลม หน้าโปร่งแสง ขอบคม แกนแสงเต้นอยู่ข้างใน
-//  (x, y) = ช่อง · h = สูงตัว · r = รัศมี · zb = ลอยจากพื้น
-function crystal(g, x, y, h, r, seed, now = 0, zb = 0) {
-  const cx = x + 0.5, cy = y + 0.5, N = 6, R = rng(Math.floor(seed * 7) + 3), tw = R() * TAU, tip = h * (0.28 + R() * 0.18), lean = (R() - 0.5) * 0.08;
-  const ring = (z, k) => Array.from({ length: N }, (_, i) => { const a = tw + (i / N) * TAU; return [cx + Math.cos(a) * r * k + lean * z, cy + Math.sin(a) * r * k, z]; });
-  const z0 = zb, z1 = zb + h, bot = ring(z0, 0.82), top = ring(z1, 1), apex = [cx + lean * (z1 + tip), cy, z1 + tip];
-  const cd = depthOf(cx, cy), faces = [];
-  for (let i = 0; i < N; i++) {
-    const j = (i + 1) % N, mx = (top[i][0] + top[j][0]) / 2, my = (top[i][1] + top[j][1]) / 2;
-    faces.push({ pts: [bot[i], bot[j], top[j], top[i]], d: depthOf(mx, my), k: 0.7 + 0.3 * Math.cos(tw + (i + 0.5) / N * TAU - 0.8) });
-    faces.push({ pts: [top[i], top[j], apex], d: depthOf(mx, my) + 0.001, k: 1.05 + 0.25 * Math.cos(tw + (i + 0.5) / N * TAU - 0.8), cap: true });
-  }
-  faces.sort((a, b) => a.d - b.d);
-  const draw = (f) => { const q = f.pts.map((p) => P(p[0], p[1], p[2])); poly(g, q); g.fillStyle = `rgba(${Math.round(90 * f.k)},${Math.round(200 * f.k)},${Math.round(240 * f.k)},${f.cap ? 0.32 : 0.2})`; g.fill(); g.strokeStyle = `rgba(210,252,255,${f.cap ? 0.75 : 0.5})`; g.lineWidth = 1; g.stroke(); };
-  for (const f of faces) if (f.d <= cd) draw(f);
-  // แกนแสงข้างใน
-  const t = now / 1000, pulse = 0.6 + 0.4 * Math.sin(t * 1.7 + seed), a = P(cx, cy, z0 + h * 0.1), b = P(cx + lean * z1, cy, z1 + tip * 0.5);
+// ปะการังข้อมูล (ผู้ใช้ 2026-11-20 เลือกแทนผลึกแก้ว): กิ่งก้านแสงแตกแขนงขึ้นจากฐานหินกรมท่า ปลายกิ่งเป็นจุดข้อมูลเรือง ไหวตามกระแสน้ำ
+//  โครงกิ่งสร้างครั้งเดียวต่อช่อง (แคช) · สีต่อช่อง: ฟ้า / ฟ้าอมเขียว / น้ำเงินอมม่วง (ไม่มีแดง)
+const CORAL_RGB = ["120,240,255", "130,255,215", "160,180,255"];
+const CORAL = new Map();
+function coralOf(x, y) {
+  const k = K(x, y);
+  if (CORAL.has(k)) return CORAL.get(k);
+  const R = rng(x * 131 + y * 71 + 9), segs = [], tips = [];
+  const grow = (px, py, pz, ang, tilt, len, w, depth) => {
+    const dx = Math.cos(ang) * Math.sin(tilt) * len, dy = Math.sin(ang) * Math.sin(tilt) * len, dz = Math.cos(tilt) * len;
+    const nx = px + dx, ny = py + dy, nz = pz + dz;
+    segs.push({ a: [px, py, pz], b: [nx, ny, nz], w, d: depth });
+    if (depth >= 4 || len < 0.12) { tips.push([nx, ny, nz, R()]); return; }
+    const n = depth === 0 ? 3 : R() < 0.55 ? 2 : 3;
+    for (let i = 0; i < n; i++) grow(nx, ny, nz, ang + (i - (n - 1) / 2) * (0.9 + R() * 0.8) + (R() - 0.5) * 0.6, clamp(tilt + 0.25 + R() * 0.35, 0.15, 1.15), len * (0.62 + R() * 0.18), w * 0.66, depth + 1);
+  };
+  const trunks = 1 + Math.floor(R() * 2);
+  for (let i = 0; i < trunks; i++) grow(0.5 + (R() - 0.5) * 0.3, 0.5 + (R() - 0.5) * 0.3, 0.12, R() * TAU, 0.1 + R() * 0.25, 0.42 + R() * 0.18, 1, 0);
+  const o = { segs, tips, col: CORAL_RGB[Math.floor(R() * CORAL_RGB.length) % CORAL_RGB.length], ph: R() * TAU };
+  CORAL.set(k, o);
+  return o;
+}
+function coral(g, x, y, now) {
+  const C = coralOf(x, y), t = now / 1000;
+  // ไหว: ยิ่งสูงยิ่งเอนมาก
+  const sway = (q) => { const k = q[2] * q[2] * 0.035; return P(x + q[0] + Math.sin(t * 0.9 + C.ph + q[2]) * k, y + q[1] + Math.cos(t * 0.7 + C.ph) * k * 0.6, q[2]); };
+  // ฐานหินกรมท่า (เนินมน) + เงาบนกระจก
+  const [sx, sy, s] = P(x + 0.5, y + 0.5, 0.01);
+  g.fillStyle = "rgba(0,14,26,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.42, s * 0.2, 0, 0, TAU); g.fill();
+  const [bx, by, bs] = P(x + 0.5, y + 0.5, 0.06);
+  const bg = g.createRadialGradient(bx - bs * 0.1, by - bs * 0.12, 0, bx, by, bs * 0.34); bg.addColorStop(0, "#2a3f6e"); bg.addColorStop(1, "#0b1530");
+  g.fillStyle = bg; g.beginPath(); g.ellipse(bx, by, bs * 0.34, bs * 0.17, 0, 0, TAU); g.fill();
+  // กิ่ง: เส้นเข้ม (ตัวกิ่ง) แล้วทับเส้นแสงบางตรงกลาง
+  g.lineCap = "round";
+  for (const sg of C.segs) { const a = sway(sg.a), b = sway(sg.b); g.strokeStyle = "rgba(12,30,60,.9)"; g.lineWidth = Math.max(1.2, a[2] * 0.075 * sg.w); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
   g.save(); g.globalCompositeOperation = "lighter";
-  g.strokeStyle = `rgba(200,252,255,${0.55 * pulse})`; g.lineWidth = Math.max(1.5, a[2] * 0.05); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
-  const m = P(cx, cy, z0 + h * 0.55); glow(g, m[0], m[1], m[2] * r * 2.2, CY, 0.22 * pulse);
-  g.restore();
-  for (const f of faces) if (f.d > cd) draw(f);
-  // ประกายบนขอบหน้า
-  const hl = P(top[0][0], top[0][1], z1); g.save(); g.globalCompositeOperation = "lighter"; glow(g, hl[0], hl[1], hl[2] * 0.08, "255,255,255", 0.6 * pulse); g.restore();
+  for (const sg of C.segs) {
+    const a = sway(sg.a), b = sway(sg.b), pulse = 0.55 + 0.45 * Math.sin(t * 2.2 - sg.d * 0.9 + C.ph);
+    g.strokeStyle = `rgba(${C.col},${0.45 + 0.35 * pulse})`; g.lineWidth = Math.max(0.8, a[2] * 0.03 * sg.w); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+  }
+  for (const tp of C.tips) {
+    const q = sway(tp), k = 0.6 + 0.4 * Math.sin(t * 2.6 + tp[3] * 9);
+    glow(g, q[0], q[1], q[2] * 0.09, C.col, 0.55 * k);
+    g.fillStyle = `rgba(235,255,255,${0.85 * k})`; g.fillRect(q[0] - 1.2, q[1] - 1.2, 2.4, 2.4);
+  }
+  g.restore(); g.lineCap = "butt";
 }
 // =================================================================== สิ่งกีดขวาง
 export function drawObstacle(g, t, ctx, now) {
   const { x, y, kind } = t;
   if (kind === "fd_nt_whale" || kind === "fd_nt_ship") return;
   if (kind === "fd_nt_datablock") {
-    const h = 0.8 + hash(x, y) * 0.9, bob = Math.sin(now / 900 + x + y) * 0.05;
-    crystal(g, x, y, h, 0.32 + hash(y, x) * 0.06, x * 31 + y * 7, now, 0);
-    // เศษผลึกเล็กลอยเหนือ
-    if (hash(y, x) < 0.45) crystal(g, x + (hash(x, 5) - 0.5) * 0.3, y, 0.22, 0.09, x * 13 + y, now, h + 0.55 + bob * 2);
+    coral(g, x, y, now);
   } else if (kind === "fd_nt_void") voidTile(g, x, y, now);
   else if (kind === "fd_nt_stone") stone(g, x, y, now);
 }
@@ -241,30 +239,40 @@ export function ground(g, fd, info, now, lowQ) {
   const Z = zones(info), t = now / 1000, cols = info.cols, rows = info.rows;
   const attr = fd && fd.imaginary && fd.imaginary.attr, tint = ATTR_TINT[attr] || CY;
   g.save(); g.globalCompositeOperation = "lighter";
-  // ห้วงลึกใต้กระจก (สด): สายข้อมูลไหลคดเคี้ยว · ฝูงปลาข้อมูลว่ายผ่าน · ละอองแสงลอยขึ้นจากก้นเหว — ทั้งหมดอยู่ใต้ผิวกระจก (z ติดลบ)
+  // ห้วงน้ำลึกใต้กระจก (สด · สงบ): แสงรำไร (caustics) เต้นบนชั้นลึก · ละอองน้อยๆ ลอยช้า · ฝูงปลาข้อมูล · เงาเรือรบข้อมูลไกลๆ ผ่านนานๆ ครั้ง
   if (!lowQ) {
-    for (let i = 0; i < 5; i++) {
-      const z = -2.5 - i * 0.9, y0 = rows * (0.1 + i * 0.2), ph = hash(i, 51) * TAU;
-      g.strokeStyle = `rgba(${tint},${0.16 - i * 0.02})`; g.lineWidth = Math.max(1, P(cols / 2, y0, z)[2] * 0.05); g.setLineDash([P(0, 0, z)[2] * 0.6, P(0, 0, z)[2] * 0.35]); g.lineDashOffset = -t * 40 * (i % 2 ? 1 : -1);
-      g.beginPath(); for (let j = 0; j <= 40; j++) { const u = j / 40, x = -4 + (cols + 8) * u, y = y0 + Math.sin(u * 4 + ph + t * 0.15) * 2.2, p = P(x, y, z); j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke();
+    // เงาเรือรบข้อมูล (ทุก ~50 วิ ล่องผ่านลึกใต้กระดาน)
+    { const per = 50, k = (t % per) / per;
+      if (k < 0.7) { const u = k / 0.7, dir = Math.floor(t / per) % 2 ? 1 : -1, x = dir > 0 ? -10 + (cols + 20) * u : cols + 10 - (cols + 20) * u, y = rows * 0.55, z = -7;
+        const a = P(x - dir * 3.2, y, z), b = P(x + dir * 3.2, y, z), c2 = P(x, y - 0.6, z), d2 = P(x, y + 0.8, z), fa = Math.min(1, u * 5, (1 - u) * 5) * 0.35;
+        g.fillStyle = `rgba(6,16,34,${fa})`; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(c2[0], c2[1] - a[2] * 0.4, b[0], b[1]); g.quadraticCurveTo(d2[0], d2[1], a[0], a[1]); g.fill();
+        g.strokeStyle = `rgba(120,230,255,${fa * 0.6})`; g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(c2[0], c2[1] - a[2] * 0.4, b[0], b[1]); g.stroke(); } }
+    // แสงรำไร: เส้นคลื่นสองชุดสานกันบนชั้นลึก เคลื่อนช้า
+    for (let set = 0; set < 2; set++) for (let i = 0; i < 9; i++) {
+      const z = -3.2, horiz = set === 0, base = -2 + i * ((horiz ? rows : cols) + 4) / 9;
+      g.strokeStyle = `rgba(${tint},${0.07 + 0.03 * Math.sin(t * 0.6 + i)})`; g.lineWidth = Math.max(1, P(cols / 2, rows / 2, z)[2] * 0.035); g.beginPath();
+      for (let j = 0; j <= 30; j++) {
+        const u = j / 30, along = -2 + u * ((horiz ? cols : rows) + 4), off = Math.sin(along * 0.8 + t * 0.5 + i * 1.7) * 0.45 + Math.sin(along * 1.9 - t * 0.35 + i) * 0.2;
+        const p = horiz ? P(along, base + off, z) : P(base + off, along, z); j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]);
+      }
+      g.stroke();
     }
-    g.setLineDash([]);
-    for (let i = 0; i < 36; i++) {
-      const k = (t * (0.05 + hash(i, 61) * 0.06) + hash(i, 62)) % 1, x = -2 + hash(i, 63) * (cols + 4), y = -2 + hash(i, 64) * (rows + 4), p = P(x, y, -7 + k * 6.8), sz = p[2] * 0.05;
-      g.fillStyle = `rgba(210,255,255,${0.45 * Math.sin(k * Math.PI)})`; g.fillRect(p[0] - sz / 2, p[1] - sz / 2, sz, sz);
+    for (let i = 0; i < 14; i++) {
+      const k = (t * (0.025 + hash(i, 61) * 0.03) + hash(i, 62)) % 1, x = hash(i, 63) * cols, y = hash(i, 64) * rows, p = P(x, y, -5 + k * 4.8), sz = p[2] * 0.035;
+      g.fillStyle = `rgba(210,250,255,${0.35 * Math.sin(k * Math.PI)})`; g.beginPath(); g.arc(p[0], p[1], sz, 0, TAU); g.fill();
     }
-    // ฝูงปลาข้อมูล (ทุก ~24 วิ ผ่านใต้กระดาน)
+    // ฝูงปลาข้อมูล (ทุก ~24 วิ)
     const per = 24, k = (t % per) / per;
     if (k < 0.6) {
       const u = k / 0.6, dir = Math.floor(t / per) % 2 ? 1 : -1, bx = dir > 0 ? -6 + (cols + 12) * u : cols + 6 - (cols + 12) * u, by = rows * (0.3 + 0.4 * hash(Math.floor(t / per), 7));
       for (let j = 0; j < 14; j++) {
-        const fx2 = bx - dir * (hash(j, 71) * 3), fy = by + (hash(j, 72) - 0.5) * 3 + Math.sin(t * 2 + j) * 0.2, p = P(fx2, fy, -3 - hash(j, 73) * 1.5), sz = p[2] * 0.14;
-        g.fillStyle = `rgba(${tint},.32)`; g.beginPath(); g.moveTo(p[0] + dir * sz, p[1]); g.lineTo(p[0], p[1] - sz * 0.35); g.lineTo(p[0] - dir * sz * 0.8, p[1]); g.lineTo(p[0], p[1] + sz * 0.35); g.closePath(); g.fill();
+        const fx2 = bx - dir * (hash(j, 71) * 3), fy = by + (hash(j, 72) - 0.5) * 3 + Math.sin(t * 2 + j) * 0.2, p = P(fx2, fy, -2.6 - hash(j, 73) * 1.2), sz = p[2] * 0.14;
+        g.fillStyle = `rgba(${tint},.28)`; g.beginPath(); g.moveTo(p[0] + dir * sz, p[1]); g.lineTo(p[0], p[1] - sz * 0.35); g.lineTo(p[0] - dir * sz * 0.8, p[1]); g.lineTo(p[0], p[1] + sz * 0.35); g.closePath(); g.fill();
       }
     }
   }
   // แสงกลางสนาม + โทนตามคุณสมบัติ (เปลี่ยนนุ่มๆ)
-  { const [cx, cy, s] = P(cols / 2, rows / 2, -1.5); glow(g, cx, cy, s * Math.max(cols, rows) * 0.5, tint, 0.1 + 0.03 * Math.sin(t * 0.8)); }
+  { const [cx, cy, s] = P(cols / 2, rows / 2, -1.5); glow(g, cx, cy, s * Math.max(cols, rows) * 0.6, tint, 0.05 + 0.015 * Math.sin(t * 0.8)); }
   // เงาสะท้อนบนกระจก (แถบแสงเฉียงช้าๆ จางมาก)
   if (!lowQ) for (let i = 0; i < 2; i++) {
     const k = ((t * 0.07 + i * 0.5) % 1) * (cols + rows) - rows;
