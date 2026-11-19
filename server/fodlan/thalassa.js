@@ -13,7 +13,7 @@
 //   ชั้น 2–4 = 1 ท่า/เทิร์น · ชั้น 5 = 2 ท่า + ดาเมจ +1 · เลือดต่ำกว่าครึ่งในชั้น 5 = 3 ท่า
 //   เลือด 30 + 5 ต่อผู้เล่น ไม่มีเกราะ ค้างข้ามรอบโผล่ · ไม่ตีสวน ไม่ติดสถานะ
 // ============================================================
-Object.assign(module.exports, { reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent });
+Object.assign(module.exports, { bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent });
 
 const FIRST_TURN = 10;
 const ON_TURNS = 3;
@@ -208,10 +208,22 @@ function plan(ctx, w) {
     if (m) w.pending.push(m);
   }
   w.lastMove = picks[picks.length - 1] || w.lastMove;
+  if (w.bait) { const b = ctx.match.players[w.bait.id]; if (b && w.pending.length) ctx.fx("whale_bait_lock", { id: b.id }); w.bait = null; } // เหยื่อใช้ได้ครั้งเดียว
   if (w.pending.length) {
     ctx.fx("whale_warn", { moves: w.pending.map((m) => ({ kind: m.kind, dir: m.dir, tiles: m.tiles.length })) });
     ctx.log(`🐋 ทาลัสซาเตรียม${w.pending.map((m) => MOVE_NAMES[m.kind]).join(" + ")}`);
   }
+}
+// เหยื่อล่อทาลัสซา (GRID_PLAN §8.9 ลูกเล่นทุกชั้น): w.bait = { id, round } → แผนท่าถัดไปเล็งคนนั้นก่อน (แล้วหมดผล)
+function targets(ctx, players, n) {
+  const w = W(ctx), b = w && w.bait && players.find((p) => p.id === w.bait.id);
+  if (!b) return ctx.pick(players, n);
+  return [b, ...ctx.pick(players.filter((p) => p !== b), n - 1)];
+}
+function bait(ctx, p, target) {
+  const w = W(ctx); if (!w || !target) return false;
+  w.bait = { id: target.id, by: p.id, round: ctx.match.roundNumber };
+  return true;
 }
 const inB = (map, x, y) => x >= 0 && y >= 0 && x < map.cols && y < map.rows;
 function buildMove(ctx, kind, map) {
@@ -221,22 +233,22 @@ function buildMove(ctx, kind, map) {
   const dir = pos.x < map.cols / 2 ? 1 : -1;
   const row = (y) => Array.from({ length: map.cols }, (_, x) => ({ x, y }));
   if (kind === "tentacle") {
-    const rows = [...new Set(ctx.pick(players, 3).map((p) => p.pos.y))];
+    const rows = [...new Set(targets(ctx, players, 3).map((p) => p.pos.y))];
     return { kind, dir, rows, tiles: rows.flatMap(row) };
   }
   if (kind === "charge") {
-    const t = ctx.pick(players, 1)[0], y0 = Math.max(0, Math.min(map.rows - 3, t.pos.y - 1));
+    const t = targets(ctx, players, 1)[0], y0 = Math.max(0, Math.min(map.rows - 3, t.pos.y - 1));
     const band = [y0, y0 + 1, y0 + 2];
     return { kind, dir, band, tiles: band.flatMap(row) };
   }
   if (kind === "whirl") {
-    const centers = ctx.pick(players, 2).map((p) => ({ x: p.pos.x, y: p.pos.y }));
+    const centers = targets(ctx, players, 2).map((p) => ({ x: p.pos.x, y: p.pos.y }));
     const tiles = [];
     for (const c of centers) for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (inB(map, c.x + dx, c.y + dy)) tiles.push({ x: c.x + dx, y: c.y + dy });
     return { kind, centers, tiles };
   }
   if (kind === "zap") {
-    const t = ctx.pick(players, 1)[0];
+    const t = targets(ctx, players, 1)[0];
     return { kind, at: { x: t.pos.x, y: t.pos.y }, tiles: [{ x: t.pos.x, y: t.pos.y }] };
   }
   if (kind === "song") {
@@ -245,7 +257,7 @@ function buildMove(ctx, kind, map) {
     return { kind, tiles, soft: true };
   }
   if (kind === "swallow") {
-    const t = ctx.pick(players, 1)[0];
+    const t = targets(ctx, players, 1)[0];
     return { kind, at: { x: t.pos.x, y: t.pos.y }, tiles: [{ x: t.pos.x, y: t.pos.y }] };
   }
   return null;
@@ -403,7 +415,7 @@ function publicInfo(ctx) {
   const warn = [];
   for (const m of w.pending || []) if (!m.soft) for (const c of m.tiles) warn.push({ x: c.x, y: c.y, kind: `whale_${m.kind}` });
   return {
-    enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos,
+    enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos, bait: w.bait ? w.bait.id : null,
     nextAt: w.on || w.dead ? null : w.nextAt,
     pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, soft: !!m.soft })),
     warn,

@@ -40,9 +40,35 @@ function keepsTile(ctx, k) { return Ship.keepsTile(ctx, k); }
 function objects(ctx) { return whaleOn(ctx) ? Th.objects(ctx) : []; }
 function ownsObject(id) { return typeof id === "string" && id.startsWith("fd:whale:"); }
 function strikeObject(ctx, p, id) { return whaleOn(ctx) ? Th.strikeObject(ctx, p, id) : false; }
-function hudActions(ctx, p) { return Ship.hudActions(ctx, p); }
+// เหยื่อล่อทาลัสซา (GRID_PLAN §8.9 ลูกเล่นทุกชั้น · ผู้ใช้ "เอาทั้งหมด"): ซื้อที่ร้านเรือ → ปุ่ม "ปาเหยื่อล่อ" ใส่ศัตรูในระยะ 4 (ใช้แทนการตี)
+//  ท่าถัดไปของทาลัสซาเล็งคนนั้นก่อน · ใช้ได้เฉพาะตอนทาลัสซาอยู่บนกระดาน · หลบได้ (ทอยหลบแบบท่าอื่น)
+const BAIT_RANGE = 4, BAIT_SECS = 1.3;
+const baitOf = (p) => (p.inventory || []).find((it) => it && it.type === "whaleBait") || null;
+function baitTargets(ctx, p) { return ctx.alive().filter((u) => u.pos && u.id !== p.id && !(ctx.combat.sameTeam && ctx.combat.sameTeam(u, p)) && Math.max(Math.abs(u.pos.x - p.pos.x), Math.abs(u.pos.y - p.pos.y)) <= BAIT_RANGE); }
+function hudActions(ctx, p) {
+  const out = Ship.hudActions(ctx, p);
+  if (p && p.pos && baitOf(p)) {
+    const w = whaleOn(ctx) && ctx.match.fodlan.whale, t = baitTargets(ctx, p), a = ctx.match.action;
+    const can = ctx.action.canAct(p) && !!a && !a.noStrike && !p.didAttackRound;
+    out.push({ key: "fd:nt:bait", icon: "🥩", name: "ปาเหยื่อล่อ", disabled: !can || !(w && w.on && !w.dead) || !t.length, tiles: t.map((u) => ({ x: u.pos.x, y: u.pos.y })) });
+  }
+  return out;
+}
 function ownsAction(key) { return typeof key === "string" && key.startsWith("fd:nt:"); }
-function charAction(ctx, p, key, tile) { return Ship.charAction(ctx, p, key, tile); }
+function charAction(ctx, p, key, tile) {
+  if (key !== "fd:nt:bait") return Ship.charAction(ctx, p, key, tile);
+  const item = baitOf(p), w = whaleOn(ctx) && ctx.match.fodlan.whale;
+  if (!item || !tile || !(w && w.on && !w.dead) || !ctx.action.canAct(p) || p.didAttackRound) return false;
+  const t = baitTargets(ctx, p).find((u) => u.pos.x === tile.x && u.pos.y === tile.y);
+  if (!t) return false;
+  p.inventory.splice(p.inventory.indexOf(item), 1);
+  const dodged = require("./ntKit").dodges(ctx, t);
+  if (!dodged) Th.bait(ctx, p, t);
+  ctx.fx("nt_bait", { by: p.id, from: { ...p.pos }, to: { x: t.pos.x, y: t.pos.y }, id: t.id, hit: !dodged });
+  ctx.log(dodged ? `💨 ${t.name} หลบเหยื่อล่อได้` : `🥩 ${p.name} ปาเหยื่อล่อใส่ ${t.name} — ทาลัสซาได้กลิ่น!`);
+  ctx.useStrike(p, BAIT_SECS);
+  return true;
+}
 function onUnitEnd(ctx, p) { O2.onUnitEnd(ctx, p); }
 function onEndTurn(ctx) { O2.onEndTurn(ctx); }
 function playerInfo(ctx, p) { return O2.playerInfo(ctx, p); }

@@ -25,6 +25,7 @@ const SHOP_ITEM_INFO = {
   rtRevive: { icon: "🪶", label: () => "ขนนกคืนชีพ", short: "ฟื้นเพื่อนที่ล้ม · เลือดครึ่ง", desc: "ฟื้นเพื่อนที่ล้ม เลือดครึ่ง ข้างตัวคนใช้ · ใช้ได้ตอนสู้และที่จุดพัก" },
   // ถังออกซิเจนสำรอง — ขายเฉพาะร้านเรือ Nautilus (server/fodlan/nautilusO2.js useTank · GRID_PLAN §8.9)
   o2Tank: { icon: "🫧", label: () => "ถังออกซิเจนสำรอง", short: "ออกซิเจน +5", desc: "" },
+  whaleBait: { icon: "🥩", label: () => "เหยื่อล่อทาลัสซา", short: "ระยะ 4", desc: "" },
   rtFish: { icon: "🐟", label: () => "ปลาย่าง", short: "พลังชีวิต +3", desc: "ฟื้นพลังชีวิต 3 · ใช้ได้ตอนสู้และนอกการต่อสู้" },
   // Road Trip: วัตถุดิบ (ซ้อนกองละ 5 · it.qty) + อาหารแคมป์ — ตรงกับ server/roadtrip/food.js (ผู้ใช้สั่ง 2026-11-14)
   ...Object.fromEntries([["ingRice", "🍚", "ข้าว"], ["ingEgg", "🥚", "ไข่"], ["ingVeg", "🥬", "ผัก"], ["ingSpice", "🧂", "เครื่องปรุง"], ["ingMeat", "🥩", "เนื้อ"], ["ingFish", "🐟", "ปลาสด"]]

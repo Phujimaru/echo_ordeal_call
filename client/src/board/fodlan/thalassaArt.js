@@ -223,7 +223,7 @@ function step(fd, info, now, dt) {
 }
 
 // ---------- เหตุการณ์ ----------
-const FXLIST = (fd) => (Array.isArray(fd.fx) ? fd.fx.filter((e) => e && typeof e.kind === "string" && e.kind.startsWith("whale_")) : []);
+const FXLIST = (fd) => (Array.isArray(fd.fx) ? fd.fx.filter((e) => e && typeof e.kind === "string" && (e.kind.startsWith("whale_") || e.kind === "nt_bait")) : []);
 function sounds(e) {
   switch (e.kind) {
     case "whale_flyby": snd("rumble", { gain: 1 }); SND.call({ gain: 0.7, rate: 0.62, delay: 400 }); SND.roar({ gain: 1, rate: 0.7, delay: 3600 });
@@ -238,6 +238,7 @@ function sounds(e) {
     case "whale_zap": snd("echarge", { gain: 0.9 }); snd("blast", { delay: 600 }); snd("crackle", { gain: 0.5, delay: 700 }); break;
     case "whale_song": snd(Math.random() < 0.5 ? "song" : "song2", { rate: 0.9 }); snd("blue", { gain: 0.5, rate: 0.8, delay: 1800 }); break;
     case "whale_swallow": snd("rumble", { gain: 1 }); SND.boom({ delay: 1300 }); snd("splash", { rate: 0.8, delay: 1340 }); SND.roar({ gain: 0.8, rate: 1.2, delay: 1360 }); snd("gulp", { delay: 1700 }); if (e.spit) snd("spit", { delay: 2900 }); break;
+    case "nt_bait": snd("whip", { gain: 0.7 }); snd("squish", { gain: 0.9, delay: 520 }); SND.call({ gain: 0.45, rate: 0.85, delay: 900 }); break;
     case "whale_hit": SND.slap({ gain: 0.8 }); SND.call({ gain: 0.4, rate: 1.2, delay: 80 }); break;
     case "whale_death": SND.roar({ gain: 1, rate: 0.8 }); snd("rumble", { delay: 400 }); SND.call({ gain: 0.8, rate: 0.7, delay: 1600 }); snd("bubbles", { delay: 1400 }); SND.call({ gain: 0.5, rate: 0.55, delay: 3200 }); break;
     default: break;
@@ -296,6 +297,9 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
     else if (e.kind === "whale_hit") { if (k < 0.1) { const [sx, sy] = screenOf(e.x + 0.5, e.y + 0.5, 1); sparks(sx, sy, 20, 260); } }
     else if (e.kind === "whale_death" && k > 0.35) drawHeart(g, e, (k - 0.35) / 0.65, now);
   }
+  // เหยื่อล่อ: ปาโค้งไปติดตัวเป้า · คนที่ติดกลิ่นมีหมอกเลือดวนรอบตัวจนท่าถัดไป
+  for (const e of evs) if (e.kind === "nt_bait") { const k = fxT(e, now, 900); if (k < 1 && e.from && e.to) drawBait(g, e, k); }
+  if (w.bait) { const u = (units || []).find((q) => q.id === w.bait); if (u) bloodAura(g, (u.rx ?? u.x) + 0.5, (u.ry ?? u.y) + 0.5, now); }
   drawParts(g, dt);
   // ฉากจอ: ข่มขวัญ (ตัวมหึมาว่ายผ่านหน้ากล้อง) + จอมืด/แถบดำ
   for (const e of evs) if (e.kind === "whale_flyby") { const k = fxT(e, now, WHALE_FX.whale_flyby); if (k < 1) drawFlyby(g, k, now, view, false); }
@@ -440,6 +444,20 @@ function drawHeart(g, e, k, now) {
   g.globalCompositeOperation = "lighter"; g.fillStyle = gr; g.beginPath(); g.arc(sx, yy, r * 4, 0, TAU); g.fill();
   g.globalCompositeOperation = "source-over"; g.font = `${Math.round(r * 2)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("💙", sx, yy);
   g.restore();
+}
+function drawBait(g, e, k) {
+  const u = easeOut(Math.min(1, k / 0.6)), x = lerp(e.from.x, e.to.x, u) + 0.5, y = lerp(e.from.y, e.to.y, u) + 0.5, z = 0.6 + Math.sin(u * Math.PI) * 1.6;
+  const [sx, sy, s] = screenOf(x, y, z);
+  if (k < 0.6) { g.fillStyle = "#8a2a2a"; g.beginPath(); g.ellipse(sx, sy, s * 0.09, s * 0.06, now0(k), 0, TAU); g.fill(); g.fillStyle = "#e0d0b0"; g.fillRect(sx - s * 0.02, sy - s * 0.08, s * 0.04, s * 0.06); }
+  else if (e.hit) { const q = (k - 0.6) / 0.4, [tx, ty, ts] = screenOf(e.to.x + 0.5, e.to.y + 0.5, 0.6); g.fillStyle = `rgba(150,20,20,${0.5 * (1 - q)})`; g.beginPath(); g.ellipse(tx, ty, ts * (0.2 + q * 0.8), ts * (0.1 + q * 0.4), 0, 0, TAU); g.fill(); }
+}
+const now0 = (k) => k * 12;
+function bloodAura(g, x, y, now) {
+  const t = now / 1000;
+  for (let i = 0; i < 7; i++) {
+    const a = t * 0.8 + i * 0.9, r = 0.35 + 0.12 * Math.sin(t * 2 + i), [sx, sy, s] = screenOf(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.6, 0.5 + 0.2 * Math.sin(t + i));
+    g.fillStyle = `rgba(170,25,30,${0.22 + 0.1 * Math.sin(t * 3 + i)})`; g.beginPath(); g.ellipse(sx, sy, s * 0.16, s * 0.1, a, 0, TAU); g.fill();
+  }
 }
 // ข่มขวัญ: under = เงาใต้กระดาน (ขวา → ซ้าย · 0–44%) · ไม่ใช่ under = ตัวจริงผ่านหน้ากล้อง (ซ้าย → ขวา · 37–100%) + จอมืด/แถบดำ
 function drawFlyby(g, k, now, view, under) {
