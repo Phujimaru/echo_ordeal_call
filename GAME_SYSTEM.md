@@ -1279,6 +1279,24 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 
 **ชั้นรับดาเมจของสนาม (2026-11-10):** `combat.layerAbsorb(p)` ถาม `fodlan.absorbDamage(p)` ก่อนฮุค `absorbDamage` ของตัวละคร (และ `dealDirect` ก็ถาม) → ด่านที่ export `absorbDamage(ctx, st, p)` คืน true = รับดาเมจ 1 หน่วยแทน · สนาม Eos ใช้ให้รถ/โชโกโบะรับแทนคนขับ/คนขี่ (§51)
 
+## 51.1 โหมด Nautilus: ดิ่งใต้ทะเล 5 ชั้นลำดับตายตัว (`server/fodlan.js` ด่าน 7–11 · `server/fodlan/nautilusLayer.js` · GRID_PLAN §8.9)
+- โลก `match.world = "nautilus"` (หมุดที่ 5 บนโลก — แปซิฟิกตะวันออก สีฟ้าอมเขียว · `ModeVote.jsx` SUBS / `NT_MODE_GEO` · `client/src/nautilus/nautilusMeta.js` `NAUTILUS_GEO`) · PVP โหมด ffa / duo / trio ชุดเดียวกับโลก (`lobby.WORLDS` · `modeOptionsFor` ค่าเริ่ม)
+- ใช้ตัวคุมกลางของ Fodlan: `Fodlan.inWorld()` รวม nautilus · `isNautilus()` · ด่าน 7–11 = area 46–50 (`Board.NAUTILUS_AREA = EOS_AREA + 1` · `isNautilusArea` · `areaOf(stage) = 40 + stage − 1` เหมือนเดิม)
+  - เริ่มด่าน 7 เสมอ (`reset`) · `maybeAdvance` ต้นเทิร์น 7/13/19/25 → `nautilusNext(stage) = stage + 1` (ไม่สุ่ม) · ด่าน 11 คืน false = อยู่จนมีผู้ชนะ (`publicInfo.turnsLeft = null`)
+  - ย้ายชั้น = `placeOnBoard` (ทุกคนเกิดใหม่ที่จุดเกิดของชั้นใหม่ แบบ Fodlan) + `journeyScene` mode "advance" (client ยืม `FodlanTravel`)
+  - dev: `ECHO_DEV_START_ROUND=N` = เริ่มที่ชั้นของเทิร์นนั้น (`start` — ทุก 6 เทิร์นลึกลง 1 ชั้น)
+  - สภาพอากาศ: กติกา Fodlan เดิม (50% · เร็วสุดเทิร์น 3 ของชั้น · 3 เทิร์น · ครั้งเดียวต่อชั้น) · ชนิดสุ่มจาก `Nt.WEATHER_POOLS[stage]` (`weatherKindOf`) · ชื่อไทย `Nt.WEATHER_NAMES` (รวมใน `WEATHER_NAMES`) · **ยังไม่มีผล** (ขั้น 4)
+  - `persistAll` วนด่าน 7–11 · `publicInfo` เพิ่ม `nautilus: true` · `depth` (−30 / −200 / −1000 / −3000 / −10000) · `whaleEnabled`
+- ทาลัสซาเปิด/ปิด (โหวต): `selectGameMode { whale }` → `p.ntWhale` → `lobby.ntWhaleOf` = เสียงข้างมากของคนที่โหวต Nautilus (เสมอ/ไม่มีข้อมูล = เปิด · เล่นอีกรอบไม่มีโหวต = ค่าเดิม) → `match.nautilusWhale` → `state.fodlan.whaleEnabled` · client ปุ่ม `.ocl-ntwhale` ในแผงโหวต
+- ผัง `server/fodlan/map7.js` … `map11.js` (20×16 · 7 จุดเกิด · 3 จุดร้าน · ท่าจอดเรือ `DOCK` 6×2 x 7–12 y 0–1 เว้นว่างไว้ให้ขั้น 3) · ชนิดช่อง `fd_nt_*` · จุดฟื้นฟู `healKind` ของชั้น (ฟองอากาศ/ห้องอากาศ/แท่นบูชา)
+  - `scripts/gen-board-rules.js` ฝัง `require("./fodlan/mapNN")` (regex `map\d+`) — แก้ผังแล้วรัน `node scripts/gen-board-rules.js`
+- โมดูลชั้น `server/fodlan/stage7.js` … `stage11.js` = `makeLayer(n)` (`enter` ว่าง · `publicInfo { layer, depth, whale }`) — ฮุคตามตาราง `server/fodlan/README.md` เติมทีละขั้น · ปลาวาฬ (ขั้น 2) เก็บสถานะทั้งแมตช์ที่ `match.fodlan.whale = { present, … }` → ธง `board.whale`
+- client: ภาพกระดาน `client/src/board/fodlan/nautilusArt.js` (`makeNautilusStage(cfg)` — ธีมมืดไล่ตามความลึก · สิ่งกีดขวาง/ช่องพิเศษ `fd_nt_*`) + `stage7.js` … `stage11.js` (ค่าสี/ชนิด) · `index.js` MODS 7–11 (`stageOfArea` ถึง area 50)
+  - ป้ายด่าน: `fodlan/stages.js` `fodlanStage(7–11)` = ข้อมูลชั้น (`NAUTILUS_LAYERS`) · HUD แสดงความลึก (`journey.depth` ใน `SelfHud`)
+  - ฉากเข้า/เปลี่ยนชั้น (ขั้น 1 ยืม): `createFodlanFlight({ geo, ambStage })` ดิ่งลงหมุด Nautilus · ฉากด่าน = `NAUTILUS_SCENE_STAGE` (ด่าน III) · `FodlanCine mark="NAUTILUS"` + ชื่อชั้น · `FodlanTravel` to = 7–11 → เส้นทาง/ฉากยืม (ขั้น 5 แทนด้วยฉากของตัวเอง)
+  - เสียง: บรรยากาศ `nt_amb` (`fodlanAudio` คีย์ `nt_…` → `/nautilus/sfx/<ชื่อ>.mp3` · `fodlanStageInfo`) · เพลง `audioPolicy.nautilusMusic`: ชั้น 7–10 ไม่มีเพลง · `board.whale` (และ `whaleEnabled`) = `nautilus_whale` (`/nautilus/bgm.mp3`) · ชั้น 11 = `nautilus_abyss` (`/nautilus/bgm_abyss.mp3`) ตลอดแม้ปลาวาฬโผล่
+- สื่อ `client/public/nautilus/` (ไม่อยู่ใน git · `server/mediaDirs.js` มี "nautilus") · เทสต์ [tests/nautilus.test.js](tests/nautilus.test.js)
+
 ## 52. รับช่วงการตีปกติ (มินิเกมก่อนตีลง) / ภาพตัวเต็มแทนหมาก (เฟรดดี้ ฟาซแบร์ — `characters/freddy_fazbear.js` · ผู้ใช้สั่ง 2026-11-11)
 
 - **ฮุค `interceptStrike(engine, p, target)`** (`action.strikeTarget` หลังด่านระยะ/มองเห็น ก่อน `attack.boardAttack`) → `{ after }` = ฮุครับช่วงการตีครั้งนี้
