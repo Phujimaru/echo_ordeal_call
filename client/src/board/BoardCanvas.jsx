@@ -1016,9 +1016,12 @@ export default function BoardCanvas(props) {
     const tall = propsRef.current.tallTiles;
     const tk0 = tile ? key(tile.x, tile.y) : null, hl0 = st.hl;
     const actable = tk0 && hl0 && (hl0.move.has(tk0) || hl0.attack.has(tk0) || hl0.skill.has(tk0) || hl0.aoe.has(tk0)); // ช่องที่กดเดิน/ตีได้ ชนะเสมอ
-    if (!unit && !actable && Array.isArray(tall) && tall.length && !(tile && tall.some((t) => t.x === tile.x && t.y === tile.y))) {
+    // ของสูงที่ตีได้ (tallTiles .hit — ลำตัวทาลัสซา Nautilus) อยู่ในระยะตี = ชนะช่องเดินด้านหลัง (กดที่ตัวปลาวาฬ = ตี)
+    const hitTall = Array.isArray(tall) && hl0 ? tall.filter((t) => t.hit && hl0.attack.has(key(t.x, t.y))) : [];
+    const tallNow = actable ? hitTall : tall;
+    if (!unit && Array.isArray(tallNow) && tallNow.length && !(tile && tall.some((t) => t.x === tile.x && t.y === tile.y))) {
       let best = null, bestY = -Infinity;
-      for (const t of tall) {
+      for (const t of tallNow) {
         const [bx, by, s] = projectZ(t.x + 0.5, t.y + 0.5, 0), [, ty] = projectZ(t.x + 0.5, t.y + 0.5, t.h || 1);
         const hw = s * 0.5;
         if (lx >= bx - hw && lx <= bx + hw && ly >= Math.min(by, ty) - hw * 0.3 && ly <= by + hw * 0.35 && by > bestY) { best = t; bestY = by; }

@@ -24,6 +24,12 @@ export default function useTileInfo(ctx) {
       if (vb) for (let y = vb.y0; y <= vb.y1; y++) for (let x = vb.x0; x <= vb.x1; x++) out.push({ x, y, h: 2 });
       return out;
     }
+    // Nautilus: ทาลัสซาว่ายลอยสูงเหนือพื้น → กดที่ตัวปลาวาฬ = ช่องลำตัว (ตีได้) · เดิมกดแล้วได้ช่องพื้นด้านหลัง = ตีไม่ได้ (ผู้ใช้แจ้ง 2026-11-19)
+    if (state.world === "nautilus") {
+      const objs = state.fodlan && state.fodlan.board && state.fodlan.board.objects;
+      const out = (objs || []).filter((o) => o && o.kind === "whale" && Number.isFinite(o.x)).map((o) => ({ x: o.x, y: o.y, h: 2.6, hit: true }));
+      return out.length ? out : null;
+    }
     if (state.world !== "eos" || !map) return null;
     const out = [], seen = new Set();
     const add = (x, y, h) => { const k = `${x},${y}`; if (!seen.has(k)) { seen.add(k); out.push({ x, y, h }); } };
