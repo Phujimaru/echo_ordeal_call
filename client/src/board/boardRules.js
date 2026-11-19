@@ -1150,6 +1150,7 @@ module.exports = {
     fd_nt_void: { name: "ช่องว่างจินตภาพ", icon: "🕳️" },
     fd_nt_ripple: { name: "ระลอกข้อมูล", icon: "🌀", desc: "จบตาบนวง = ถูกส่งไปวงคู่" },
     fd_nt_node: { name: "โหนดข้อมูล", icon: "💠", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_stone: { name: "หมากข้อมูล", icon: "⚫" },
   },
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };

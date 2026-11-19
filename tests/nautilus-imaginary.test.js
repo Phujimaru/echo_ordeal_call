@@ -166,3 +166,106 @@ test('ทาลัสซาชั้น 6: เข้าชั้น = ฟื้�
   assert.equal(w.on, true);
   assert.equal(w.hp, w.hpMax);
 });
+
+// ---------- รอบ 2 (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): หมากโกะ + ล้อมกิน · เขียนทับคุณสมบัติ · ท่าลบข้อมูล/คัดลอก ----------
+const action = require('../server/phases/action.js');
+function act(p) { match.gameState = 'ACTION'; match.actorId = p.id; match.action = { locked: false, from: { ...p.pos } }; p.didAttackRound = false; }
+const keys = (p) => Fodlan.hudActions(p).map((a) => a.key);
+
+test('หมากข้อมูล: วางระยะ 2 = สิ่งกีดขวาง 2 เทิร์น · คนละ 2 เม็ด · ล้อมครบ 4 ทิศ = ล้อมกิน 3 + สตั้น', () => {
+  const P = setup();
+  toLayer6();
+  for (const p of P) { p.pos = null; p.hp = 20; p.armor = 0; p.statuses = {}; p.statusAmt = {}; }
+  P[0].pos = { x: 10, y: 13 }; P[1].pos = { x: 10, y: 10 }; P[2].pos = { x: 10, y: 9 };
+  const s = st().nt12;
+  s.stones.push({ x: 9, y: 10, by: 'p0', until: 99 }, { x: 11, y: 10, by: 'p2', until: 99 });
+  Fodlan.makeCtx().bump();
+  match.roundNumber = 28; // เทิร์น 28
+  act(P[0]);
+  const b = Fodlan.hudActions(P[0]).find((a) => a.key === 'fd:im:stone');
+  assert.ok(b && b.tiles.some((t) => t.x === 10 && t.y === 11));
+  Math.random = () => 0.99;
+  assert.equal(Fodlan.charAction('p0', 'fd:im:stone', { x: 10, y: 11 }), true);
+  assert.equal(action.boardMap().terrain['10,11'], 'fd_nt_stone');
+  assert.equal(P[1].hp, 17, 'ล้อมกิน 3');
+  assert.equal(P[1].statuses.stun, 1);
+  assert.ok(st().fx.some((e) => e.kind === 'nt_capture' && e.id === 'p1'));
+  assert.equal(P[0].didAttackRound, true, 'ใช้แทนการตี');
+  // เม็ดที่ 3 ไม่ได้ (มี 2 แล้ว)
+  act(P[0]);
+  assert.equal(Fodlan.hudActions(P[0]).find((a) => a.key === 'fd:im:stone').disabled, true);
+  // หมดอายุ: วางเทิร์น 28 อยู่ถึงจบเทิร์น 29 (ต้นเทิร์น 29 ยังอยู่ · ต้นเทิร์น 30 หาย)
+  s.stones = s.stones.filter((t) => t.until !== 99);
+  match.roundNumber = 28; Fodlan.preRound();
+  assert.equal(action.boardMap().terrain['10,11'], 'fd_nt_stone');
+  match.roundNumber = 29; Fodlan.preRound();
+  assert.equal(action.boardMap().terrain['10,11'], undefined, 'หมากหาย');
+});
+
+test('ล้อมกินตอนจบตา: เดินไปปิดช่องสุดท้ายแล้วจบตา = กิน · เทิร์นละครั้งต่อคน', () => {
+  const P = setup();
+  toLayer6();
+  for (const p of P) { p.pos = null; p.hp = 20; p.armor = 0; p.statuses = {}; p.statusAmt = {}; }
+  const s = st().nt12;
+  P[1].pos = { x: 10, y: 10 };
+  s.stones.push({ x: 9, y: 10, by: 'p2', until: 99 }, { x: 11, y: 10, by: 'p2', until: 99 }, { x: 10, y: 9, by: 'p2', until: 99 });
+  Fodlan.makeCtx().bump();
+  P[0].pos = { x: 10, y: 11 };
+  Math.random = () => 0.99;
+  Fodlan.onUnitEnd(P[0]);
+  assert.equal(P[1].hp, 17);
+  Fodlan.onUnitEnd(P[0]);
+  assert.equal(P[1].hp, 17, 'ไม่กินซ้ำในเทิร์นเดียว');
+});
+
+test('เขียนทับคุณสมบัติ: ติดเรือ + เหรียญ 3 → เลือก 5 ตัว (ไม่ซ้ำเทิร์นนี้) · ปุ่มเรือซ่อน · เทิร์นหน้าเป็นตามที่เลือก · พัก 3', () => {
+  const P = setup();
+  toLayer6();
+  match.roundNumber = 28; Fodlan.preRound();
+  const s = st().nt12;
+  s.attr = 'alpha';
+  for (const p of P) p.pos = null;
+  P[0].pos = { x: 6, y: 0 }; P[0].gold = 5;
+  act(P[0]);
+  assert.ok(keys(P[0]).includes('fd:im:rw'));
+  assert.equal(Fodlan.charAction('p0', 'fd:im:rw', null), true);
+  const k = keys(P[0]);
+  assert.deepEqual(k, ['fd:im:rw:beta', 'fd:im:rw:gamma', 'fd:im:rw:delta', 'fd:im:rw:epsilon', 'fd:im:rw:zeta', 'fd:im:rwx']);
+  assert.ok(Fodlan.hudActions(P[0]).every((a) => a.key === 'fd:im:rwx' || a.desc), 'ตัวเลือกมีคำอธิบายตอนชี้');
+  assert.equal(Fodlan.charAction('p0', 'fd:im:rw:alpha', null), false, 'ซ้ำเทิร์นนี้ไม่ได้');
+  assert.equal(Fodlan.charAction('p0', 'fd:im:rw:delta', null), true);
+  assert.equal(P[0].gold, 2);
+  assert.equal(P[0].didAttackRound, true);
+  assert.equal(Fodlan.publicInfo().board.imaginary.next, 'δ');
+  match.roundNumber = 29; Fodlan.preRound();
+  assert.equal(s.attr, 'delta');
+  assert.ok(st().fx.some((e) => e.kind === 'nt_attr' && e.by === 'p0'));
+  P[0].gold = 9; act(P[0]);
+  const rw = Fodlan.hudActions(P[0]).find((a) => a.key === 'fd:im:rw');
+  assert.equal(rw.disabled, true); assert.ok(rw.cd > 0);
+  // ไม่ติดเรือ = ไม่มีปุ่ม
+  P[0].pos = { x: 10, y: 10 }; act(P[0]);
+  assert.ok(!keys(P[0]).includes('fd:im:rw'));
+});
+
+test('ทาลัสซาชั้น 6 ท่าใหม่: ลบข้อมูล = แถวกลายเป็นช่องว่าง 1 เทิร์น คนในแถว 3 + ถูกดีดออก · คัดลอก = ร่างเงาฟันเจ้าของ (≥ 2) · มีในชุดท่าเฉพาะชั้น 6', () => {
+  const P = setup({ whale: true });
+  toLayer6();
+  match.roundNumber = 27; Fodlan.preRound(); // โผล่
+  const w = match.fodlan.whale;
+  for (const p of P) { p.pos = null; p.hp = 20; p.armor = 0; p.statuses = {}; p.statusAmt = {}; }
+  P[0].pos = { x: 3, y: 10 }; P[1].pos = { x: 15, y: 13 }; P[2].pos = { x: 18, y: 4 };
+  w.pending = [{ kind: 'erase', row: 10, tiles: Array.from({ length: 20 }, (_, x) => ({ x, y: 10 })) }, { kind: 'copy', id: 'p1', at: { x: 15, y: 13 }, tiles: [{ x: 15, y: 13 }] }];
+  w.calm = true;
+  Math.random = () => 0.99;
+  match.roundNumber = 28; Fodlan.preRound();
+  assert.ok(P[0].hp <= 15, 'ลบข้อมูล 3 + โบนัสชั้น 6');
+  assert.notEqual(P[0].pos.y, 10, 'ถูกดีดออกจากแถว');
+  const map = action.boardMap();
+  assert.equal(map.terrain['0,10'], 'fd_nt_void');
+  assert.ok(P[1].hp <= 16, 'คัดลอกโดน');
+  assert.ok(st().fx.some((e) => e.kind === 'whale_copy' && e.hits.includes('p1')));
+  match.roundNumber = 29; Fodlan.preRound();
+  assert.notEqual(action.boardMap().terrain['0,10'], 'fd_nt_void', 'แถวกลับมา');
+  assert.deepEqual(Th.DATA_MOVES, ['erase', 'copy']);
+});

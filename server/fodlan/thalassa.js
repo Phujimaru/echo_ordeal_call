@@ -13,7 +13,7 @@
 //   ชั้น 2–4 = 1 ท่า/เทิร์น · ชั้น 5 = 2 ท่า + ดาเมจ +1 · เลือดต่ำกว่าครึ่งในชั้น 5 = 3 ท่า
 //   เลือด 30 + 5 ต่อผู้เล่น ไม่มีเกราะ ค้างข้ามรอบโผล่ · ไม่ตีสวน ไม่ติดสถานะ
 // ============================================================
-Object.assign(module.exports, { bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent, moveCount });
+Object.assign(module.exports, { erasedRow, bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent, moveCount });
 
 const FIRST_TURN = 10;
 const ON_TURNS = 3;
@@ -29,14 +29,16 @@ const BODY_LEN = 5, BODY_W = 2;
 const BITE_REACH = 2, BITE_N = 1;
 const HEART = { key: "might", amount: 3, turns: 3 };
 const MOVES = ["tentacle", "charge", "whirl", "zap", "song", "swallow"];
-const MOVE_NAMES = { tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง", ram: "ว่ายชน", bite: "งับ" };
-const DMG = { tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2, ram: 2, bite: 2 };
+// ชั้น 6 เพิ่ม 2 ท่า (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): ลบข้อมูล = แถวของเป้ากลายเป็นช่องว่าง 1 เทิร์น คนในแถวตก 3 + ถูกดีดออก · คัดลอก = ร่างเงาของเป้าฟันเจ้าของ 3×3 รอบจุดที่เตือน (แรงเท่าตีปกติของเป้า อย่างน้อย 2)
+const DATA_MOVES = ["erase", "copy"];
+const MOVE_NAMES = { erase: "ลบข้อมูล", copy: "คัดลอก", tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง", ram: "ว่ายชน", bite: "งับ" };
+const DMG = { erase: 3, copy: 2, tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2, ram: 2, bite: 2 };
 // ความดุ (ผู้ใช้ 2026-11-19 หลัง 6.4.0: "ปลาไม่ดุเลย แทบไม่โจมตีเราเลย"): ท่าที่เตือนต่อเทิร์น ชั้น II–IV 2 · ชั้น V 3 (เลือดต่ำกว่าครึ่ง 4)
 //  + ว่ายชนคนที่ขวางทาง (ดาเมจ ram) + งับคนใกล้ลำตัวทุกเทิร์นที่อยู่ (BITE_REACH ช่อง · BITE_N คน) — หลบได้ทุกท่า
 // เส้นทางว่าย (พิกัดช่อง สัดส่วนของกระดาน — วนรอบ/ตัดผ่าน ออกนอกขอบได้นิดหน่อย) · ปรับตามขนาดกระดานตอนใช้
 const PATH = [[0.1, 0.24], [0.33, 0.2], [0.66, 0.22], [0.92, 0.34], [0.94, 0.66], [0.78, 0.88], [0.52, 0.8], [0.3, 0.58], [0.52, 0.42], [0.74, 0.56], [0.6, 0.9], [0.24, 0.88], [0.06, 0.6]]; // อยู่ในกระดานเกือบตลอด · ไม่ผ่านท่าจอดเรือ (แถวบน) — แก้คู่ client/server
 
-Object.assign(module.exports, { PATH, MOVES, MOVE_NAMES, FIRST_TURN, ON_TURNS, OFF_TURNS, HEART });
+Object.assign(module.exports, { DATA_MOVES, PATH, MOVES, MOVE_NAMES, FIRST_TURN, ON_TURNS, OFF_TURNS, HEART });
 
 const W = (ctx) => ctx.match.fodlan && ctx.match.fodlan.whale;
 function enabled(match) { return match.nautilusWhale !== false; }
@@ -102,6 +104,7 @@ function preRound(ctx) {
   const w = W(ctx), match = ctx.match;
   if (!w || !enabled(match)) return 0;
   const turn = match.roundNumber + 1;
+  if (w.erased && w.erased.until < turn) { w.erased = null; ctx.bump(); } // แถวที่ถูกลบกลับมา
   // ชั้น 6: ตายแล้วฟื้นเป็นร่างข้อมูล
   if (w.dead) {
     if (!isData(ctx) || !w.reviveAt || turn < w.reviveAt) return 0;
@@ -246,7 +249,7 @@ function moveCount(ctx, w) {
 function plan(ctx, w) {
   const map = ctx.map();
   const count = moveCount(ctx, w);
-  const pool = MOVES.slice().filter((m) => m !== w.lastMove);
+  const pool = (isData(ctx) ? [...MOVES, ...DATA_MOVES] : MOVES.slice()).filter((m) => m !== w.lastMove);
   const picks = ctx.pick(pool, count);
   w.pending = [];
   for (const kind of picks) {
@@ -305,6 +308,15 @@ function buildMove(ctx, kind, map) {
   if (kind === "swallow") {
     const t = targets(ctx, players, 1)[0];
     return { kind, at: { x: t.pos.x, y: t.pos.y }, tiles: [{ x: t.pos.x, y: t.pos.y }] };
+  }
+  if (kind === "erase") {
+    const t = targets(ctx, players, 1)[0];
+    return { kind, row: t.pos.y, tiles: row(t.pos.y) };
+  }
+  if (kind === "copy") {
+    const t = targets(ctx, players, 1)[0], tiles = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (inB(map, t.pos.x + dx, t.pos.y + dy)) tiles.push({ x: t.pos.x + dx, y: t.pos.y + dy });
+    return { kind, id: t.id, at: { x: t.pos.x, y: t.pos.y }, tiles };
   }
   return null;
 }
@@ -393,6 +405,20 @@ function resolvePending(ctx, w) {
         if (p.alive) require("./nautilusO2").drain(ctx, p, Math.ceil(require("./nautilusO2").O2_MAX / 2), "swallow"); // ออกซิเจนหายครึ่งถัง
         out.hits.push(p.id);
       }
+    } else if (m.kind === "erase") {
+      out.row = m.row;
+      const turn = ctx.match.roundNumber + 1;
+      w.erased = { row: m.row, until: turn };
+      ctx.bump();
+      const set = new Set(m.tiles.map((c) => `${c.x},${c.y}`));
+      for (const p of ctx.alive().filter((q) => q.pos && q.pos.y === m.row)) {
+        if (hit(ctx, p, DMG.erase, m.kind)) out.hits.push(p.id);
+        if (p.alive && p.pos) { const spot = nearestFree(ctx, p, set); if (spot) { p.pos = { x: spot.x, y: spot.y }; (out.moved ||= []).push({ id: p.id, x: spot.x, y: spot.y }); } }
+      }
+    } else if (m.kind === "copy") {
+      out.at = m.at; out.id = m.id;
+      const p = ctx.alive().find((q) => q.id === m.id && q.pos && Math.abs(q.pos.x - m.at.x) <= 1 && Math.abs(q.pos.y - m.at.y) <= 1);
+      if (p) { out.x = p.pos.x; out.y = p.pos.y; if (hit(ctx, p, Math.max(DMG.copy, strikePower(ctx, p)), m.kind)) out.hits.push(p.id); }
     }
     ctx.fx(`whale_${m.kind}`, out);
   }
@@ -401,10 +427,16 @@ function resolvePending(ctx, w) {
 }
 
 // ---------- ชั้นแผนที่: ลำตัวเป็นสิ่งกีดขวาง ----------
+// ท่าลบข้อมูล: แถวที่ถูกลบเป็นช่องว่างจินตภาพถึงจบเทิร์นที่ยิง
+function erasedRow(ctx) {
+  const w = W(ctx);
+  return w && w.erased && isData(ctx) && ctx.match.roundNumber <= w.erased.until ? w.erased.row : null;
+}
 function layer(ctx, map) {
-  const body = bodyNow(ctx, map);
-  if (!body.length) return map;
+  const body = bodyNow(ctx, map), er = erasedRow(ctx);
+  if (!body.length && er == null) return map;
   const terrain = { ...(map.terrain || {}) };
+  if (er != null) for (let x = 0; x < map.cols; x++) { const k = `${x},${er}`; if (!terrain[k]) terrain[k] = "fd_nt_void"; }
   for (const c of body) {
     const k = c.x + "," + c.y;
     if (!terrain[k]) terrain[k] = "fd_nt_whale";
@@ -466,7 +498,8 @@ function publicInfo(ctx) {
     enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos, bait: w.bait ? w.bait.id : null, appearSeq: w.appearSeq || 0,
     nextAt: w.on || w.dead ? null : w.nextAt,
     data: !!w.data || isData(ctx), reviveAt: w.dead && w.reviveAt ? w.reviveAt : null,
-    pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, soft: !!m.soft })),
+    pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, row: m.row, id: m.id, soft: !!m.soft })),
+    erased: erasedRow(ctx),
     warn,
   };
 }
