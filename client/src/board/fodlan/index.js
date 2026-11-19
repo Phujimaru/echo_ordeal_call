@@ -182,6 +182,7 @@ export function drawFodlanAir(g, fd, info, units, now, lowQ, view) {
   const m = modOfArea(info.area);
   if (m && m.air) m.air(g, fd, info, units, now, lowQ, view);
   drawFog(g, info, fd.vision, now, lowQ, (m && m.fogRGB) || undefined);
+  if (m && m.airTop) m.airTop(g, fd, info, units, now, lowQ, view); // ของที่ต้องเห็นเสมอแม้ในความมืด (ทาลัสซา — Nautilus)
 }
 // ใช้ในไฟล์ด่าน (ไม่ต้อง import boardGeo ซ้ำ)
 export { P, PA };

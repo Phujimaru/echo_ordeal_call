@@ -626,7 +626,6 @@ export function air(g, fd, info, units, now, lowQ, view) {
   shipFx(g, fd, info, now);
   abyssFx(g, fd, info, now, Z);
   entrance(g, info, now, X0, Y0, W, H);
-  drawThalassaAir(g, fd, info, units, now, lowQ, view);
 }
 // ---------- ความมืดห้วงลึก (มาสก์ทั้งจอ เจาะรูนุ่มรอบแหล่งแสง) ----------
 let MASK = null, LAST_VIEW = null, LAST_UNITS = null;
@@ -769,3 +768,5 @@ function eyes(g, Z, info, t) {
 }
 export function bakeSpecial() {}
 export function animSpecial() {}
+// ทาลัสซาวาดหลังหมอกความมืด (index.js drawFodlanAir เรียก airTop ต่อจาก drawFog) — ผู้ใช้ 2026-11-19: ตัวปลาโดนหมอกความมืดบัง
+export const airTop = drawThalassaAir;

@@ -3,4 +3,4 @@
 //  (ผู้ใช้สั่ง 2026-11-19: เลิกใช้ของกลาง nautilusArt แบบวางของซ้ำ — ชั้นนี้วาดเป็นโซนภูมิศาสตร์ของตัวเอง)
 //  ผัง server/fodlan/map7.js · กติกา server/fodlan/stage7.js
 // ============================================================
-export { kinds, tall, fx, fogRGB, theme, drawObstacle, bakeSpecial, animSpecial, items, ground, air } from "./reef";
+export { kinds, tall, fx, fogRGB, theme, drawObstacle, bakeSpecial, animSpecial, items, ground, air, airTop } from "./reef";
