@@ -368,6 +368,7 @@ export function drawFrame(g, st, now) {
   // Road Trip: ร้าน = อาคารมินิมาร์ท/สำนักงานบนแผนที่ (props.js) — ไม่วาดแผงร้านเล็ก/ป้ายร้าน
   if (!colony && !rtOn) for (const sh of shopList) {
     if (sh.kind === "capsule") continue;
+    if (sh.kind === "nautilus") continue; // Nautilus: ร้าน = ตัวเรือที่ท่าจอด (board/fodlan/shipArt.js วาดเอง — ไม่วาดแผงร้านทับ)
     const [w, h] = shopDims(sh);
     if (!onScreen(sh.x + w / 2, sh.y + h / 2, 2.5, Math.max(w, h))) continue;
     let fade = false;
