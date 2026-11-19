@@ -53,6 +53,16 @@ l9_quake|stage/stone_seafloor_earthquake_noaapmel.wav|6.5|5|0.3|1.5|1|-14|highpa
 l9_debris|stage/stone_stone_debris_falling_mixkit403.mp3|0|3.5|0.005|1|1|-15|lowpass=f=3000
 l9_roll|stage/stone_magical_stone_slide_mixkit1528.mp3|0|2.2|0.01|0.5|0.7|-15
 l9_blast|stage/cannon_gun_explosion_long_echo_mixkit1700.mp3|0|4|0.003|1.5|0.8|-14|lowpass=f=2500
+l8_cannon|stage/cannon_gun_explosion_long_echo_mixkit1700.mp3|0|3.5|0.003|1.2|0.9|-14|lowpass=f=3200
+l8_creak|stage/sub_hull_ship_hull_creak_mixkit3076.mp3|0.4|3|0.05|0.8|0.85|-16
+l8_crash|stage/cannon_collapsing_structure_mixkit2958.mp3|0|4.5|0.005|1.2|0.85|-14|lowpass=f=3500
+l8_door|stage/sub_engine_prison_metal_door_close_mixkit201.mp3|0|1.8|0.003|0.5|0.8|-14|lowpass=f=3000
+l8_hiss|stage/sub_engine_hydraulic_door_hiss_mixkit2709.mp3|0|1.7|0.01|0.5|0.8|-17|lowpass=f=2500
+l8_clang|stage/sub_hull_submarine_metal_impact_mixkit783.mp3|0|2.5|0.003|0.8|1|-15
+l8_debris|stage/stone_stone_debris_falling_mixkit403.mp3|0|3|0.005|1|0.8|-15|lowpass=f=2500
+l8_quake|stage/stone_seafloor_earthquake_noaapmel.wav|7.5|5|0.3|1.5|1|-14|highpass=f=25,afftdn=nf=-25
+l8_coins|stage/treasure_clinking_coins_mixkit1993.mp3|0|1|0.003|0.3|1|-16
+l8_lock|stage/treasure_old_medieval_door_lock_mixkit187.mp3|0.5|2|0.005|0.5|0.9|-16
 TABLE
 
 # เสียงบรรยากาศประจำชั้น (ผสมหลายชั้นเสียง · ผู้ใช้: "อย่าให้เสียงสภาพแวดล้อมด้านหลังเบาเกินไป" → -16 LUFS)
@@ -64,3 +74,8 @@ echo "amb_reef ← mix"
 #  ชั้น 3 ปล่องภูเขาไฟ: เสียงหึ่งน้ำลึกต่ำ + ลาวาเดือดปุดๆ (ทุ้มลง) + ครางของแผ่นดินเบาๆ + ฟองเป็นระยะ
 ffmpeg -nostdin -v error -y -i "$SRC/stage/depth_drone_deep_cinematic_wind_hum_mixkit1177.mp3" -stream_loop 1 -i "$SRC/stage/vent_hiss_bubbling_volcano_lava_flow_mixkit2444.mp3" -stream_loop 2 -i "$SRC/bass_rumble_hum_2297.mp3" -stream_loop 13 -i "$SRC/deep_water_bubbles_1321.mp3"   -filter_complex "[0:a]aresample=44100,atrim=0:54,asetpts=PTS-STARTPTS[a];[1:a]aresample=44100,atrim=0:54,asetpts=PTS-STARTPTS,asetrate=44100*0.8,aresample=44100,lowpass=f=1400,volume=0.7[b];[2:a]aresample=44100,atrim=0:54,asetpts=PTS-STARTPTS,volume=0.45[c];[3:a]aresample=44100,atrim=0:54,asetpts=PTS-STARTPTS,volume=0.22[d];[a][b][c][d]amix=inputs=4:normalize=0,atrim=0:54,afade=t=in:d=1,afade=t=out:st=53:d=1,loudnorm=I=-15:TP=-1:LRA=11"   -ar 44100 -b:a 160k "$OUT/amb_vents.mp3"
 echo "amb_vents ← mix"
+#  ชั้น 2 ซากเรือรบ: ห้องมืดทุ้มต่ำ + น้ำลึก + ตัวเรือเหล็กลั่นเป็นระยะ (ช้าลงให้ดูใหญ่) + ฟองรั่วจากรอยแตก
+ffmpeg -nostdin -v error -y -i "$SRC/stage/depth_drone_dark_cinematic_room_tone_mixkit3081.mp3" -i "$SRC/diving_in_deep_water_1312.mp3" -stream_loop 9 -i "$SRC/stage/sub_hull_ship_hull_creak_mixkit3076.mp3" -stream_loop 13 -i "$SRC/deep_water_bubbles_1321.mp3" \
+  -filter_complex "[0:a]aresample=44100,atrim=0:72,asetpts=PTS-STARTPTS[a];[1:a]aresample=44100,atrim=0.3:72.3,asetpts=PTS-STARTPTS,lowpass=f=1500,volume=0.6[b];[2:a]aresample=44100,atrim=0:72,asetpts=PTS-STARTPTS,asetrate=44100*0.7,aresample=44100,lowpass=f=1800,volume=0.4,apulsator=hz=0.06:amount=0.9[c];[3:a]aresample=44100,atrim=0:72,asetpts=PTS-STARTPTS,volume=0.22[d];[a][b][c][d]amix=inputs=4:normalize=0,atrim=0:72,afade=t=in:d=1,afade=t=out:st=71:d=1,loudnorm=I=-16:TP=-1:LRA=11" \
+  -ar 44100 -b:a 160k "$OUT/amb_wreck.mp3"
+echo "amb_wreck ← mix"
