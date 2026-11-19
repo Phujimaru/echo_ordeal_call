@@ -25,6 +25,7 @@
 <canvas id="c"></canvas>
 <div id="bar">
   <button data-a="appear">โผล่</button>
+  <button data-a="scare">ข่มขวัญ</button>
   <button data-a="leave">จากไป</button>
   <button data-a="turn">จบเทิร์น</button>
   <button data-a="free" class="on" id="bFree">ว่ายต่อเนื่อง</button>
@@ -1031,21 +1032,67 @@ function frame(ts) {
   g.setTransform(cam.z, 0, 0, cam.z, cam.fx * (1 - cam.z) + sx, cam.fy * (1 - cam.z) + sy);
   drawBoard(t); drawCracks(); drawTele(); drawFootprint();
   for (const f of FX) if (f.layer === "floor") { const k = (clock - f.t0) / f.dur; if (k >= 0 && k < 1) { g.save(); f.draw(k); g.restore(); } }
+  drawFlybyShadow(t);
   drawUnits(t); drawWhale(t);
   for (const f of FX) if (f.layer === "top") { const k = (clock - f.t0) / f.dur; if (k >= 0 && k < 1) { g.save(); f.draw(k); g.restore(); } }
   for (let i = FX.length - 1; i >= 0; i--) if ((clock - FX[i].t0) / FX[i].dur >= 1) FX.splice(i, 1);
   drawParticles(dt);
   g.setTransform(1, 0, 0, 1, 0, 0);
   drawSnow(dt);
+  drawFlyby(t);
   postFx(); drawHud();
   requestAnimationFrame(frame);
+}
+
+// ================================================================ ข่มขวัญ: ทาลัสซาขนาดมหึมาว่ายผ่านจอ (ผู้ใช้สั่ง 2026-11-19)
+// 1) เงาดำมหึมาเลื่อนผ่านใต้กระดาน (ขวา → ซ้าย) · 2) ตัวจริงว่ายผ่านหน้ากล้อง ใหญ่กว่าจอ (ซ้าย → ขวา) ชิดกล้อง ภาพเบลอแบบระยะชัด
+let FLY = null;
+const FLY_SHADOW = [0, 3600], FLY_PASS = [3000, 8200];
+function flybyPhase(rng) { if (!FLY) return -1; const el = clock - FLY.t0; return el < rng[0] || el > rng[1] ? -1 : (el - rng[0]) / (rng[1] - rng[0]); }
+function flybySprite(t, amp, spd) { const spr = SPR.side; undulate(spr.base, spr.o1, t, amp, spd, spr.SZ, spr.PAD); undulate(spr.glow, spr.o2, t, amp, spd, spr.SZ, spr.PAD); return spr; }
+function drawFlybyShadow(t) {
+  const k = flybyPhase(FLY_SHADOW); if (k < 0 || !WH) return;
+  const spr = flybySprite(t, 26, 1.6);
+  const w = W * 2.4, sc = w / spr.SZ, x = lerp(W * 1.9, -W * 0.9, k), y = H * 0.5 + Math.sin(k * 3) * H * 0.03;
+  const a = Math.sin(Math.PI * k) * 0.75;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.translate(x, y); g.scale(-sc, sc * 0.55); g.translate(-spr.ax * spr.SZ, -(spr.ay * spr.SZ + spr.PAD));
+  g.globalAlpha = a; g.filter = "brightness(0) blur(14px)"; g.drawImage(spr.o1.c, 0, 0); g.filter = "none";
+  g.restore();
+}
+function drawFlyby(t) {
+  const k = flybyPhase(FLY_PASS); if (k < 0 || !WH) return;
+  const spr = flybySprite(t, 30, 1.3);
+  const w = W * 3.2, sc = w / spr.SZ;
+  const kk = k * k * (3 - 2 * k) * 0.35 + k * 0.65; // ช้า-เร็ว-ช้านิดๆ ให้รู้สึกหนัก
+  const x = lerp(-W * 1.5, W * 2.6, kk), y = H * 0.52 + Math.sin(k * Math.PI) * -H * 0.05;
+  const a = clamp(Math.min(k / 0.08, (1 - k) / 0.08), 0, 1);
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.translate(x, y); g.rotate(-0.06 + k * 0.08); g.scale(sc, sc); g.translate(-spr.ax * spr.SZ, -(spr.ay * spr.SZ + spr.PAD));
+  g.globalAlpha = a; g.filter = "brightness(0.75) blur(3px)"; g.drawImage(spr.o1.c, 0, 0); g.filter = "none";
+  g.globalCompositeOperation = "lighter"; g.globalAlpha = a * (0.55 + 0.35 * Math.sin(t * 2.2)); g.drawImage(spr.o2.c, 0, 0);
+  g.restore();
+}
+function flyby(then) {
+  if (FLY) return;
+  FLY = { t0: clock };
+  post.tdim = 0.45; post.tbox = 1;
+  sfx("rumble", 0, 3.5, 0.7); sfx("call", 400, 0.7, 0.62);
+  addFx(FLY_PASS[1], "top", (k) => { const el = k * FLY_PASS[1]; cam.shake = Math.max(cam.shake, el < FLY_SHADOW[1] ? 2 + 3 * Math.sin(Math.PI * el / FLY_SHADOW[1]) : 3 + 9 * Math.sin(Math.PI * clamp((el - FLY_PASS[0]) / (FLY_PASS[1] - FLY_PASS[0]), 0, 1))); });
+  after(FLY_PASS[0] + 600, () => { sfx("roar", 0, 1, 0.75); sfx("rumble", 0, 3, 0.8); sub(AC.currentTime + 0.05, 0.9, 45); });
+  after(FLY_PASS[0] + 1800, () => { sfx("whoosh", 0, 1, 0.55); sfx("rush", 300); for (let i = 0; i < 6; i++) bubbleBurst(rnd(0, W), rnd(H * 0.3, H * 0.8), 8, W * 0.05); });
+  after(FLY_PASS[0] + 2600, () => { sfx("call", 0, 1, 0.5); kick({ shake: 14, blur: 0.4 }); });
+  after(FLY_PASS[1] - 300, () => { post.tdim = 0; post.tbox = 0; });
+  after(FLY_PASS[1], () => { FLY = null; if (then) then(); });
 }
 
 // ================================================================ ปุ่ม
 function busy() { return !!whale.ovr || !whale.visible || whale.dead; }
 const ACT = {
+  scare() { if (FLY) return; audio(); flyby(); },
   appear() {
     if (whale.visible && !whale.dead) return;
+    if (!FLY && !whale._afterFly) { whale.visible = false; whale.dead = false; flyby(() => { whale._afterFly = true; ACT.appear(); whale._afterFly = false; }); return; }
     whale.dead = false; whale.visible = true; whale.hp = whale.hpMax; whale.hpShown = whale.hpMax; whale.glowBoost = 2;
     sfx("appear"); post.tdim = 0.4; after(1600, () => (post.tdim = 0));
     const p0 = pathAt(whale.s), [px, py] = P(p0[0], p0[1]);
@@ -1133,7 +1180,7 @@ document.getElementById("bar").addEventListener("click", (e) => {
   const a = b.dataset.a; if (ATK[a]) attack(a); else ACT[a] && ACT[a]();
 });
 addEventListener("keydown", (e) => { const m = { 1: "tentacle", 2: "charge", 3: "whirl", 4: "zap", 5: "song", 6: "swallow" }[e.key]; if (m) { audio(); attack(m); } });
-window.__thalassa = { ATK, ACT, whale };
+window.__thalassa = { ATK, ACT, whale, get FLY() { return FLY; } };
 
 Promise.all(NAMES.map((n) => new Promise((r) => { const i = new Image(); i.onload = () => { IMG[n] = i; r(); }; i.onerror = () => r(); i.src = MEDIA + n + ".webp"; })))
   .then(() => { if (IMG.whale_side) prep(); requestAnimationFrame(frame); });
