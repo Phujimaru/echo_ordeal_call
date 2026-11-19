@@ -46,7 +46,49 @@ export function shipItems(list, g, fd, info, now, lowQ) {
   if (!s) return;
   const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
   // วาดเป็นชิ้นเดียว (ความลึกตรงกลางเรือ) — ตัวละครยืนข้างเรือยังเรียงถูกเกือบทุกมุม
-  list.push({ d: depthOf(cx, cy), f: () => drawShip(g, fd, s, now, lowQ) });
+  list.push({ d: depthOf(cx, cy), f: () => (shipImg() ? drawShipSprite(g, fd, s, now, lowQ) : drawShip(g, fd, s, now, lowQ)) });
+}
+
+// ---------- ภาพจริงของผู้ใช้ (ผู้ใช้ทัก 2026-11-19: โมเดลกลึง "ไม่ตรงปก") ----------
+//  nautilus_side.webp 1200×325: หัวเจาะทางซ้าย · ตัวเรือ x 0.2–0.97 ของภาพ = ยาวท่าจอด · วางตามแนวท่าบนจอ (หมุนกล้องได้) + ย้อมสีใต้น้ำ
+//  ของขยับซ้อน: ลอยขึ้นลง · หน้าต่างกะพริบ · ไฟหน้าเรือ · ฟองใบพัด · เงาบนพื้น
+let IMG = null, TINT = null;
+function shipImg() {
+  if (TINT) return TINT;
+  if (!IMG && typeof Image !== "undefined") { IMG = new Image(); IMG.onload = () => { const c = document.createElement("canvas"); c.width = IMG.width; c.height = IMG.height; const x = c.getContext("2d"); x.drawImage(IMG, 0, 0); x.globalCompositeOperation = "source-atop"; x.fillStyle = "rgba(10,60,80,.28)"; x.fillRect(0, 0, c.width, c.height); TINT = c; }; IMG.src = "/nautilus/nautilus_side.webp"; }
+  return null;
+}
+const HULL0 = 0.2, HULL1 = 0.97; // ส่วนตัวเรือในภาพ (ไม่รวมหัวเจาะ)
+const PORTS = [0.47, 0.52, 0.57, 0.62, 0.67, 0.72, 0.77, 0.82, 0.87]; // หน้าต่างกลางลำ (สัดส่วนความกว้างภาพ) แถว y 0.53
+function drawShipSprite(g, fd, s, now, lowQ) {
+  const img = TINT, { bob, dx } = shipPose(fd, now), cy = s.y + s.h / 2;
+  const xw = s.x + 0.1 + dx, xe = s.x + s.w - 0.1 + dx, z = 0.3 + bob;
+  const pw = P(xw, cy, z), pe = P(xe, cy, z), cs = (pw[2] + pe[2]) / 2;
+  let vx = pw[0] - pe[0], vy = pw[1] - pe[1], L = Math.hypot(vx, vy);
+  const minL = cs * (s.w - 0.2) * 0.55; if (L < minL) { const k = L > 0.01 ? minL / L : 0; vx = L > 0.01 ? vx * k : -minL; vy *= k; L = minL; }
+  const W = L / (HULL1 - HULL0), H = W * img.height / img.width, flip = vx > 0; // ภาพหัวอยู่ซ้าย: ทิศตะวันตกบนจอไปทางขวา = กลับภาพ
+  const ang = flip ? Math.atan2(vy, vx) : Math.atan2(vy, vx) - Math.PI;
+  const ax = (pw[0] + pe[0]) / 2, ay = (pw[1] + pe[1]) / 2;
+  // เงาบนพื้น
+  const g0 = P((xw + xe) / 2, cy, 0);
+  g.fillStyle = "rgba(0,10,16,.5)"; g.beginPath(); g.ellipse(g0[0], g0[1], L * 0.55, cs * 0.45, Math.atan2(vy, vx), 0, TAU); g.fill();
+  g.save(); g.translate(ax, ay); g.rotate(ang); if (flip) g.scale(-1, 1);
+  // จุดยึด: กลางตัวเรือ (สัดส่วน (HULL0+HULL1)/2) · ท้องเรือที่ y 0.93
+  const ox = -W * (HULL0 + HULL1) / 2, oy = -H * 0.93;
+  g.drawImage(img, ox, oy, W, H);
+  // หน้าต่างกะพริบ (ไฟห้องในเรือ)
+  for (const [i, u] of PORTS.entries()) {
+    const fl = 0.6 + 0.4 * Math.sin(now / 280 + i * 1.9), px = ox + W * u, py = oy + H * 0.53;
+    glow(g, px, py, H * 0.1, "255,214,140", 0.35 * fl);
+  }
+  // ไฟหน้าเรือ (โคมบนเสาหน้า)
+  glow(g, ox + W * 0.49, oy + H * 0.29, H * 0.35, "255,245,210", 0.55 + 0.1 * Math.sin(now / 500));
+  // ฟองจากใบพัดท้าย
+  if (!lowQ) for (let i = 0; i < 10; i++) {
+    const k = ((now / 1000) * 0.9 + i / 10) % 1, px = ox + W * (0.93 + k * 0.12), py = oy + H * (0.75 - k * 1.4);
+    g.strokeStyle = `rgba(210,250,255,${0.65 * (1 - k)})`; g.lineWidth = 1; g.beginPath(); g.arc(px + Math.sin(i * 2 + now / 300) * H * 0.04, py, H * (0.025 + (i % 3) * 0.015), 0, TAU); g.stroke();
+  }
+  g.restore();
 }
 
 function drawShip(g, fd, s, now, lowQ) {
