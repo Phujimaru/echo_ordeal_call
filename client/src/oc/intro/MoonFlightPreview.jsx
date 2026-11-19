@@ -9,9 +9,13 @@ import { useState } from "react";
 import MatchIntro from "./MatchIntro";
 import { MOON_MS } from "./moonFlight";
 import { COLONY_MS } from "./colonyFlight";
+import { NT_GLOBE_MS } from "../../nautilus/ntFlight";
+import NautilusDive from "../../nautilus/NautilusDive";
 
 // ?colony = ฉากเข้าด่าน Colony แทนดวงจันทร์
 const COLONY = new URLSearchParams(location.search).has("colony");
+// ?ntglobe = ฉากลูกโลกของ Nautilus → ต่อฉากดำน้ำ (NautilusDive mode start) ใต้แฟลช เหมือนเกมจริง
+const NTG = new URLSearchParams(location.search).has("ntglobe");
 // ?colony=30000 = ยืดฉากให้ช้าลง (มิลลิวินาที) ไว้ดูทีละช่วง
 const COLONY_D = Number(new URLSearchParams(location.search).get("colony")) || COLONY_MS;
 
@@ -30,16 +34,22 @@ const PLAYERS = [
 
 export default function MoonFlightPreview() {
   const [run, setRun] = useState(0);
+  const [nt, setNt] = useState(0);
+  const [gone, setGone] = useState(false); // ฉากลูกโลกจบ = ถอด MatchIntro (เหมือน App)
   return (
     <div style={{ position: "fixed", inset: 0 }} onDoubleClick={() => setRun((r) => r + 1)} title="ดับเบิลคลิกเพื่อเล่นใหม่">
-      <MatchIntro
+      {!(NTG && nt === run + 1 && gone) && <MatchIntro
         key={run}
         players={PLAYERS}
         area={1}
-        onOutro={() => (COLONY ? { colony: true, durationMs: COLONY_D } : { moon: true, durationMs: MOON_MS })}
+        onOutro={() => {
+          if (NTG) { setTimeout(() => setNt(run + 1), NT_GLOBE_MS - 220); return { nautilus: true, durationMs: NT_GLOBE_MS }; }
+          return COLONY ? { colony: true, durationMs: COLONY_D } : { moon: true, durationMs: MOON_MS };
+        }}
         onHandoff={() => {}}
-        onDone={() => setRun((r) => r + 1)}
-      />
+        onDone={() => { if (!NTG) setRun((r) => r + 1); else setGone(true); }}
+      />}
+      {NTG && nt === run + 1 && <NautilusDive key={nt} mode="start" from={7} to={7} durationMs={9400} onDone={() => { setNt(0); setGone(false); setRun((r) => r + 1); }} />}
     </div>
   );
 }

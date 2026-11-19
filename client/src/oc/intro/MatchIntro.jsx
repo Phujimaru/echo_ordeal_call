@@ -23,6 +23,8 @@
 //       → ฉาก 3 มิติดินแดน Lucis (eos/eosTheatre.js) + ชั้น DOM (eos/EosCine.jsx) → แฟลชขาวส่งต่อ (D − 240)
 //      { roadtrip }: โลกหมุนหาหมุดส้ม Road Trip → ดิ่งชน → แฟลชส้ม-ขาว (roadtrip/rtFlight.js + RtDiveCine) → ส่งต่อ (D − 200)
 //       จอขับ 3D mount ใต้แฟลช แล้วฉากเปิดทริป (roadtrip/RtTransitions.jsx RtIntro) รับแฟลชเดิมต่อ · title = หัวข้อช่วงรวมแถว
+//      { nautilus }: โลกหมุนหาหมุด Nautilus กลางมหาสมุทร → ดิ่งลงผิวทะเล → แฟลชละอองน้ำ (nautilus/ntFlight.js + NtGlobeCine) → ส่งต่อ (D − 200)
+//       App เปิดฉากดำน้ำ (nautilus/NautilusDive.jsx mode "start" เริ่มที่ผิวทะเล) ใต้แฟลช
 // ============================================================
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import GlobeCanvas from "../../globe/GlobeCanvas";
@@ -44,6 +46,8 @@ import { EOS_INTRO_MS } from "../../eos/eosMeta";
 import { createEosFlight } from "../../eos/eosFlight";
 import { createRtFlight, RT_DIVE_T } from "../../roadtrip/rtFlight";
 import { RtDiveCine } from "../../roadtrip/RtTransitions";
+import { createNtFlight } from "../../nautilus/ntFlight";
+import NtGlobeCine from "../../nautilus/NtGlobeCine";
 
 const FINALE_MS = 2900;
 const FIRST_MS = 120;
@@ -144,6 +148,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
   const [eos, setEos] = useState(null);           // ฉากเข้าสนาม Eos { D, live, board, self, night }
   const [rtrip, setRtrip] = useState(null);       // ฉากเข้าโหมด Road Trip { D }
   const [rdash, setRdash] = useState(false);      // Road Trip: ช่วงดิ่ง (เส้นความเร็ว)
+  const [ntrip, setNtrip] = useState(null);       // ฉากเข้าโหมด Nautilus ช่วงลูกโลก { D }
   const prepRef = useRef(fodlanPrep);
   const mapRef = useRef(onFodlanMap); // Fodlan: เห็นแผนที่ทวีปแล้ว (App สลับเพลง)
   useLayoutEffect(() => { mapRef.current = onFodlanMap; });
@@ -205,6 +210,15 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         setRtrip({ D });
         setMode("roadtrip");
         at(RT_DIVE_T.dive * D, () => setRdash(true));
+        at(D - 200, handoff);
+        at(D, done);
+      } else if (spec && spec.nautilus) {
+        // Nautilus: การ์ดไหลออก → โลกหมุนหาหมุด Nautilus → ดิ่งลงผิวทะเล → แฟลชละอองน้ำทึบ → ส่งต่อ (App เปิดฉากดำน้ำใต้แฟลช)
+        const D = Math.max(2400, Number(spec.durationMs) || 3600);
+        tlRef.current.out = true;
+        tlRef.current.ntrip = { at: performance.now(), D };
+        setNtrip({ D });
+        setMode("nautilus");
         at(D - 200, handoff);
         at(D, done);
       } else if (spec && spec.colony) {
@@ -281,6 +295,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     let fodlanCam = null;
     let eosCam = null;
     let rtCam = null;
+    let ntCam = null;
     const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.sceneStage ?? spec.stage), ambStage: spec.title ?? spec.stage, ...(spec.geo ? { geo: spec.geo } : {}), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false, onMap: () => mapRef.current?.() });
     if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
@@ -378,6 +393,13 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         rtCam.frame(clamp01((now - rv.at) / rv.D));
         return;
       }
+      // ---------- Nautilus: หมุน → ดิ่งลงผิวทะเล ----------
+      const nv = tlRef.current.ntrip;
+      if (nv) {
+        if (!ntCam) ntCam = createNtFlight(core, { lowQ, wrapEl: stageEl, start });
+        ntCam.frame(clamp01((now - nv.at) / nv.D));
+        return;
+      }
       // ---------- บินอ้อมโลกไปดวงจันทร์ ----------
       const mv = tlRef.current.moon;
       if (mv) {
@@ -425,6 +447,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       fodlanCam?.dispose();
       eosCam?.dispose();
       rtCam?.dispose();
+      ntCam?.dispose();
       if (core.sand) core.sand.visible = sandShown;
       core.world.rotation.set(0, 0, 0);
     };
@@ -512,6 +535,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
       {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.title ?? fodlan.stage} {...(fodlan.mark ? { mark: fodlan.mark } : {})} />}
       {eos && <EosCine D={eos.D} self={eos.self} />}
+      {ntrip && <NtGlobeCine D={ntrip.D} />}
       {rtrip && (
         <>
           <DiveStreaks show={rdash} seed={4} lowQ={lowQ} />

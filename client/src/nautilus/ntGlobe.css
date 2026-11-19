@@ -1,0 +1,12 @@
+/* ฉากลูกโลก Nautilus (NtGlobeCine.jsx) — ป้าย · ขอบจอน้ำทะเล · แฟลชละอองน้ำ */
+.ntg-dive { position: absolute; inset: 0; pointer-events: none; z-index: 70; overflow: hidden; }
+.ntg-dive > * { position: absolute; }
+.ntg-dive-tag { left: 0; right: 0; top: 18vh; display: flex; align-items: center; justify-content: center; gap: 18px; opacity: 0; animation: ntgTag 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--lock) both; }
+.ntg-dive-tag b { font: italic 700 clamp(22px, 2.4vw, 38px) / 1 "Chakra Petch", Kanit, sans-serif; letter-spacing: 0.14em; color: #fff; text-shadow: 0 0 18px rgba(31, 184, 196, 0.9), 0 2px 8px rgba(0, 0, 0, 0.6); }
+.ntg-dive-tag i { display: block; width: clamp(40px, 8vw, 140px); height: 2px; background: linear-gradient(90deg, transparent, #1fb8c4); }
+.ntg-dive-tag i:last-child { transform: scaleX(-1); }
+@keyframes ntgTag { 0% { opacity: 0; transform: translateY(10px); } 25% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px) scale(1.04); } }
+.ntg-dive-rush { inset: 0; opacity: 0; background: radial-gradient(ellipse at 50% 50%, transparent 34%, rgba(31, 184, 196, 0.22) 68%, rgba(6, 52, 84, 0.65) 100%); animation: ntgFade 900ms ease-in var(--dive) forwards; }
+.ntg-dive-flash { inset: 0; opacity: 0; background: radial-gradient(circle at 50% 52%, #ffffff 0%, #e6fbff 34%, #9fe3ee 70%, #3a9ec0 100%); animation: ntgFlash var(--crash-dur) ease-in var(--crash) forwards; }
+@keyframes ntgFade { to { opacity: 1; } }
+@keyframes ntgFlash { to { opacity: 1; } }

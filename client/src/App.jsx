@@ -18,6 +18,7 @@ import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
 import NautilusDive from "./nautilus/NautilusDive";
+import { NT_GLOBE_MS } from "./nautilus/ntFlight";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
 import { eosAudio, eosBedsFor, eosMusicPicker } from "./eos/eosAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
@@ -532,9 +533,13 @@ export default function App() {
       }
       if (worldRef.current === "nautilus") {
         // ฉากเข้าด่านของ Nautilus เอง (nautilus/NautilusDive.jsx mode "start"): ผิวทะเล → เรือดำลง → −30 ม. → โซนาร์เผยกระดาน — เล่นต่อจากการ์ดเปิดแมตช์
-        const f = fodlanRef.current;
-        setTravel({ seq: `ntstart-${pending.seq}`, nautilus: true, mode: "start", area: f?.stage || 7, fromArea: f?.stage || 7, whale: f?.whaleEnabled !== false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) });
-        return null;
+        //  ผู้ใช้สั่ง 2026-11-19: ก่อนดำน้ำ โลกซูมเข้าหมุด Nautilus (MatchIntro โหมด nautilus · ntFlight.js) → แฟลชละอองน้ำ → ฉากดำน้ำเปิดใต้แฟลช (เวลารวมเท่าเดิม)
+        const f = fodlanRef.current, total = journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS);
+        const G = total >= 9000 ? NT_GLOBE_MS : 0; // เวลาเหลือน้อย (รีคอนเนกต์) = ข้ามช่วงลูกโลก
+        const go = () => setTravel({ seq: `ntstart-${pending.seq}`, nautilus: true, mode: "start", area: f?.stage || 7, fromArea: f?.stage || 7, whale: f?.whaleEnabled !== false, durationMs: total - G });
+        if (!G) { go(); return null; }
+        setTimeout(go, G - 220);
+        return { nautilus: true, durationMs: G };
       }
       return { area: pending.area, durationMs: journeyDurationMs(getTickSeconds(), 7000) };
     }

@@ -11,7 +11,7 @@ import "./ui-theme.css";
 
 // ?moon = หน้าดูฉากบินจากโลกไปดวงจันทร์ (เฉพาะ dev · เก็บไว้ให้โหมดในอนาคต) — ดู oc/intro/MoonFlightPreview.jsx
 // ?colony = หน้าดูฉากเข้าด่าน Colony (หมุนรอบโลกแล้วพุ่งเข้าโคโลนี · ใช้หน้าเดียวกัน)
-const MoonPreview = import.meta.env.DEV && (new URLSearchParams(location.search).has("moon") || new URLSearchParams(location.search).has("colony"))
+const MoonPreview = import.meta.env.DEV && (new URLSearchParams(location.search).has("moon") || new URLSearchParams(location.search).has("colony") || new URLSearchParams(location.search).has("ntglobe"))
   ? React.lazy(() => import("./oc/intro/MoonFlightPreview.jsx"))
   : null;
 // ?arena=1..3 = หน้าดูสนาม 2.5D (เฉพาะ dev) — ดู journey/arena/ArenaPreview.jsx
