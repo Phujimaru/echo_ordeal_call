@@ -303,7 +303,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
   //  ร้านบนกระดาน = state.shops (สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง) — ติดร้านไหนก็เปิดร้านนั้น
   const shopList = Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
-  const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh)) : [];
+  const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh) || (sh.kind === "nautilus" && state.fodlan?.board?.ship?.driver === me.id)) : []; // Nautilus: คนขับยืนบนเรือ = ติดร้านเรือ
   const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (me?.bagSlots || state.bagSlots || 5);
   const openShop = shopId ? shopList.find((sh) => sh.id === shopId) || null : null; // ข้อมูลสดของร้านที่เปิดอยู่ (ร้านหายไป = ปิดเอง)
   // Gate of Babylon (me.remoteShop — กิลกาเมช): ซื้อจากร้านไหนก็ได้บนแผนที่ ไม่ต้องยืนติด

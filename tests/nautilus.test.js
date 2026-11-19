@@ -256,7 +256,7 @@ test('ทาลัสซาเปิด/ปิด: เสียงข้าง�
   assert.equal(Fodlan.publicInfo().whaleEnabled, true);
 });
 
-test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจำชั้น (Great Void Sea Battle I–IV) · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
+test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจำชั้น (Great Void Sea Battle I–IV) · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = เพลงชั้น 5 (ปลาวาฬอยู่ = เพลงปลาวาฬ) · ชั้น 12 ทะเลข้อมูล = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
   const fs = require('node:fs');
   const vm = require('node:vm');
   const policy = vm.createContext({});
@@ -269,8 +269,10 @@ test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจ�
     assert.equal(policy.musicForState(st(s, { whale: { on: false, enabled: true } })).name, `nautilus_layer_${s}`, 'ปลาวาฬพัก = เพลงชั้น');
     assert.equal(policy.musicForState(st(s, { whale: true }, { whaleEnabled: false })).name, `nautilus_layer_${s}`);
   }
-  assert.equal(policy.musicForState(st(11)).name, 'nautilus_abyss');
-  assert.equal(policy.musicForState(st(11, { whale: true })).name, 'nautilus_abyss', 'ชั้น 5 เพลงเดิมแม้ปลาวาฬโผล่');
+  assert.equal(policy.musicForState(st(11)).name, 'nautilus_layer_11');
+  assert.equal(policy.musicForState(st(11, { whale: true })).name, 'nautilus_whale', 'ชั้น 5 ปลาวาฬโผล่ = เพลงปลาวาฬ (ผู้ใช้ 2026-11-19)');
+  assert.equal(policy.musicForState(st(12)).name, 'nautilus_abyss');
+  assert.equal(policy.musicForState(st(12, { whale: true })).name, 'nautilus_abyss', 'ชั้น 6 ทะเลข้อมูล Genjitsu วนตลอดแม้ปลาวาฬอยู่');
   assert.equal(policy.musicForState(st(8, { scene: true }, { scene: { active: true } })).name, 'nautilus_layer_8', 'ฉากเปลี่ยนชั้นใช้เพลงชั้นปลายทาง ไม่ใช่เพลงแผนที่ Fodlan');
   assert.equal(policy.musicForState({ ...st(11), skillMusic: 'ult', skillMusicSeq: 2 }).name, 'ult');
   // Fodlan ไม่เปลี่ยน

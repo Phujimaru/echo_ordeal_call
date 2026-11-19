@@ -103,8 +103,9 @@ export function createPhaseSoundTracker() {
 export function nautilusMusic(fd) {
   if (!fd) return null;
   const stage = Number(fd.stage);
-  if (stage === 11) return "nautilus_abyss";
+  //  แก้ 2026-11-19 (ผู้ใช้): ชั้น 5 (ด่าน 11) = เพลงใหม่ nautilus_layer_11 + ปลาวาฬอยู่ = เพลงปลาวาฬทับ · "Genjitsu" ย้ายไปชั้น 6 ทะเลข้อมูล (ด่าน 12) วนตลอด
+  if (stage === 12) return "nautilus_abyss";
   const w = fd.board && fd.board.whale;
   if (fd.whaleEnabled !== false && (w === true || (w && w.on))) return "nautilus_whale";
-  return stage >= 7 && stage <= 10 ? `nautilus_layer_${stage}` : null;
+  return stage >= 7 && stage <= 11 ? `nautilus_layer_${stage}` : null;
 }

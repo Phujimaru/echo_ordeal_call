@@ -1,6 +1,6 @@
 // โหมด Nautilus ขั้น 2–3: ถังออกซิเจน (server/fodlan/nautilusO2.js) + เรือ Nautilus (server/fodlan/nautilusShip.js) · GRID_PLAN §8.9
 //  ใช้ออกซิเจน 1/2/3 ต่อจบเทิร์นตามความลึก · หมด = เสียหาย 1 (เกราะก่อน · ตายได้) · เติม ฟองอากาศ +4 / เรือเต็มถัง / ถังสำรอง +5 · ค้างข้ามชั้น
-//  เรือจอดที่ DOCK = สิ่งกีดขวาง + ร้านค้า (ถังสำรองขายที่นี่) · ปุ่มเรือ: เติมออกซิเจน · ตอร์ปิโด · หัวเจาะ · ไฟฉาย · ออร์แกน · บังพุ่งทะลวง/เพลงวาฬ
+//  เรือจอดที่ DOCK = สิ่งกีดขวาง + ร้านค้า (ถังสำรองขายที่นี่) · ปุ่มเรือ: ขับเรือ (แล่น/ลง) · เติมออกซิเจน · ตอร์ปิโด · ไฟฉาย · ออร์แกน (หัวเจาะถอดออก 2026-11-19) · บังพุ่งทะลวง/เพลงวาฬ
 process.env.JOURNEY_START_SECONDS = '0';
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -138,7 +138,7 @@ test('เรือจอดที่ DOCK: ช่องเรือ = สิ่�
     assert.equal(map.terrain[K(x, y)], 'fd_nt_ship');
     assert.ok(Board.isObstacle(map, x, y));
   }
-  assert.deepEqual(Fodlan.publicInfo().board.ship, { x: 7, y: 0, w: 6, h: 2, light: null, cd: { ram: 0, light: 0, organ: 0 }, torpedoUsed: [] });
+  assert.deepEqual(Fodlan.publicInfo().board.ship, { x: 7, y: 0, w: 6, h: 2, light: null, cd: { light: 0, organ: 0 }, driver: null, torpedoUsed: [] });
   shop.maybeMoveShop(); // ต้นเทิร์น
   const list = shop.publicShops();
   assert.equal(list.length, 1, 'ร้านเดียว = เรือ');
@@ -194,7 +194,7 @@ test('ถังสำรองขายเฉพาะ Nautilus (ร้าน Fo
 test('ปุ่มเรือขึ้นเฉพาะยืนติดเรือ · เติมออกซิเจน = เต็มถัง ใช้แทนการตี (จบตา)', () => {
   setup(2);
   placeAll([[6, 0], [3, 6]]);
-  assert.deepEqual(keys(0), ['fd:nt:refill', 'fd:nt:torpedo', 'fd:nt:ram', 'fd:nt:light', 'fd:nt:organ']);
+  assert.deepEqual(keys(0), ['fd:nt:drive', 'fd:nt:refill', 'fd:nt:torpedo', 'fd:nt:light', 'fd:nt:organ']);
   assert.deepEqual(keys(1), []);
   act(0);
   assert.equal(btn(0, 'fd:nt:refill').disabled, true, 'ถังเต็ม');
@@ -271,29 +271,51 @@ test('ตอร์ปิโดโดนทาลัสซา = 8 · ฆ่าไ
   assert.equal(P(1).statuses.might, 3);
 });
 
-test('หัวเจาะ: แถวของเรือ 4 ช่อง ดาเมจ 3 + ผลัก 1 · คูลดาวน์ 3 เทิร์น (ใช้ร่วม)', () => {
+test('ขับเรือ: ขึ้นหอบังคับการ · แล่นตามระยะเดิน ลอยข้ามภูมิประเทศ · ชนศัตรู 2 + เบียดออก · ร้าน/ปุ่มเรือใช้จากบนเรือ · ลงเรือ', () => {
   setup(3);
-  placeAll([[9, 2], [14, 1], [19, 15]]);
+  placeAll([[6, 0], [8, 3], [19, 15]]);
   act(0);
-  const b = btn(0, 'fd:nt:ram');
-  assert.ok(b.tiles.some((t) => t.x === 13 && t.y === 0) && b.tiles.some((t) => t.x === 6 && t.y === 1));
+  assert.equal(btn(0, 'fd:nt:drive').disabled, false);
+  assert.equal(Fodlan.charAction('p0', 'fd:nt:drive', null), true);
+  assert.deepEqual(P(0).pos, { x: 9, y: 0 }, 'ยืนหอบังคับการ');
+  assert.equal(Fodlan.publicInfo().board.ship.driver, 'p0');
+  assert.ok(keys(0).includes('fd:nt:sail') && keys(0).includes('fd:nt:leave') && !keys(0).includes('fd:nt:drive'));
+  assert.ok(shop.nearShopOf(P(0), shop.shopById('nautilus')), 'คนขับซื้อของได้');
+  // คนอื่นขับซ้อนไม่ได้
+  placeAll([[9, 0], [8, 3], [6, 1]]);
+  P(0).pos = { x: 9, y: 0 };
+  act(2);
+  assert.ok(!keys(2).includes('fd:nt:drive'));
+  // แล่นลง 2 ช่อง: ทับ p1 ที่ (8,3)
+  act(0);
+  const sail = btn(0, 'fd:nt:sail');
+  assert.ok(sail.tiles.some((t) => t.x === 9 && t.y === 2));
   const before = total(P(1));
   Math.random = () => 0.99;
-  assert.equal(Fodlan.charAction('p0', 'fd:nt:ram', { x: 15, y: 1 }), true);
-  assert.equal(total(P(1)), before - 3);
-  assert.deepEqual(P(1).pos, { x: 15, y: 1 }, 'ผลักออกไป 1 ช่อง');
-  const e = fxOf('nt_ram').at(-1);
-  assert.equal(e.dir, 1); assert.equal(e.side, 'right'); assert.equal(e.dist, 4);
-  assert.deepEqual(e.hits, ['p1']);
-  // คูลดาวน์ใช้ร่วม: อีกคนกดไม่ได้
-  placeAll([[9, 2], [15, 1], [6, 0]]);
-  act(2);
-  assert.equal(btn(2, 'fd:nt:ram').disabled, true);
-  assert.equal(btn(2, 'fd:nt:ram').cd, 3);
-  assert.equal(Fodlan.charAction('p2', 'fd:nt:ram', { x: 13, y: 1 }), false);
-  match.roundNumber += 3;
-  act(2);
-  assert.equal(btn(2, 'fd:nt:ram').disabled, false);
+  assert.equal(Fodlan.charAction('p0', 'fd:nt:sail', { x: 9, y: 2 }), true);
+  const sp = Fodlan.publicInfo().board.ship;
+  assert.deepEqual([sp.x, sp.y], [7, 2]);
+  assert.deepEqual(P(0).pos, { x: 9, y: 2 });
+  assert.equal(total(P(1)), before - 2, 'ศัตรูในทางโดน 2');
+  const f = P(1).pos;
+  assert.ok(!(f.x >= 7 && f.x < 13 && f.y >= 2 && f.y < 4), 'ถูกเบียดออกจากตัวเรือ');
+  assert.equal(match.action.locked, true, 'ใช้การเดินของตา');
+  assert.deepEqual([shop.shopById('nautilus').x, shop.shopById('nautilus').y], [7, 2], 'ร้านไปกับเรือ');
+  for (let y = 2; y < 4; y++) for (let x = 7; x < 13; x++) assert.equal(action.boardMap().terrain[K(x, y)], 'fd_nt_ship');
+  assert.ok(fxOf('nt_sail').length);
+  // ยังตี/ใช้ปุ่มเรือได้หลังแล่น
+  assert.equal(btn(0, 'fd:nt:light').disabled, false);
+  // ลงเรือ ตาถัดไป
+  act(0);
+  const off = btn(0, 'fd:nt:leave').tiles[0];
+  assert.equal(Fodlan.charAction('p0', 'fd:nt:leave', off), true);
+  assert.deepEqual(P(0).pos, off);
+  assert.equal(Fodlan.publicInfo().board.ship.driver, null);
+  // เปลี่ยนชั้น = เรือกลับท่า
+  match.legStart = 1; match.roundNumber = 6;
+  Fodlan.maybeAdvance(() => {}, () => 0);
+  const sp2 = Fodlan.publicInfo().board.ship;
+  assert.deepEqual([sp2.x, sp2.y], [Ship.dockOf(8).x, Ship.dockOf(8).y]);
 });
 
 test('ไฟฉาย: หมุนทิศที่เลือก ค้างจนเปลี่ยนชั้น · ส่องโดนทาลัสซา = ชะงัก 1 ท่า · คูลดาวน์ 2 · ชั้นมืดในลำแสงมองเห็น', () => {

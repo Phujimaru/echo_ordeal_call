@@ -380,7 +380,7 @@ function publicShops() {
   });
 }
 // ผู้เล่นยืนติดร้านนี้ไหม (ตัวใหญ่นับจากขอบตัว)
-function nearShopOf(p, s) { return !!p && !!p.pos && !!s && distToTiles(Board.boxOf(p), tilesOfShop(s)) === 1; }
+function nearShopOf(p, s) { if (!p || !p.pos || !s) return false; const d = distToTiles(Board.boxOf(p), tilesOfShop(s)); return d === 1 || (d === 0 && !!s.ship); } // ร้านเรือ Nautilus: คนขับยืนบนเรือ (ระยะ 0) ก็ซื้อได้
 
 // ---------- กระเป๋า 5 ช่อง ----------
 //  ขนมปังของเอมิลิโกะ (ของประจำตัว) ไม่กินช่อง · ฮุค bagSlots(p) → ความจุเฉพาะตัว (กิลกาเมช Gate of Babylon: 50)
