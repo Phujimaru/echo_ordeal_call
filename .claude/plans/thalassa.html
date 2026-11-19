@@ -207,12 +207,15 @@ function ambient(on) {
 
 // ================================================================ ภาพปลาวาฬ
 const IMG = {};
-const NAMES = ["whale_side", "whale_front", "whale_top_tail", "whale_turn"];
-let WH = null, off1, off2, bodyMask;
+const NAMES = ["whale_side", "whale_side_34", "whale_front", "whale_top_tail", "whale_turn"];
+// สไปรต์หลายมุม — ax/ay = จุดกลางลำตัวในภาพ (สัดส่วน) · mul = ขนาดวาดเทียบภาพด้านข้าง · amp = แรงแกว่งตอนว่าย
+// กลับด้าน (ผู้ใช้ติ 2026-11-19 ว่าพลิกภาพแบนดูตลก): ข้าง → เฉียง 3/4 → หันหน้าเข้ากล้อง → เฉียง 3/4 อีกฝั่ง → ข้างอีกฝั่ง
+let SPR = {}, WH = null;
 function mk(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return { c, g: c.getContext("2d", { willReadFrequently: true }) }; }
-function prep() {
-  const SZ = 720, PAD = 70;
-  const b = mk(SZ, SZ); b.g.drawImage(IMG.whale_side, 0, 0, SZ, SZ);
+function makeSprite(img, SZ, ax, ay, mul, amp) {
+  const PAD = Math.round(SZ * 0.1);
+  const b = mk(SZ, SZ), s = Math.min(SZ / img.width, SZ / img.height), dw = img.width * s, dh = img.height * s, dx = (SZ - dw) / 2, dy = (SZ - dh) / 2;
+  b.g.drawImage(img, dx, dy, dw, dh);
   const d = b.g.getImageData(0, 0, SZ, SZ), m = mk(SZ, SZ), o = m.g.createImageData(SZ, SZ);
   for (let i = 0; i < d.data.length; i += 4) {
     const r = d.data[i], gg = d.data[i + 1], bb = d.data[i + 2], a = d.data[i + 3];
@@ -221,20 +224,26 @@ function prep() {
   }
   m.g.putImageData(o, 0, 0);
   const gl = mk(SZ, SZ);
-  gl.g.filter = "blur(8px)"; gl.g.drawImage(m.c, 0, 0); gl.g.filter = "none";
+  gl.g.filter = `blur(${Math.max(3, Math.round(SZ / 90))}px)`; gl.g.drawImage(m.c, 0, 0); gl.g.filter = "none";
   gl.g.globalCompositeOperation = "lighter"; gl.g.drawImage(m.c, 0, 0);
   const wm = mk(SZ, SZ); wm.g.drawImage(b.c, 0, 0); wm.g.globalCompositeOperation = "source-in"; wm.g.fillStyle = "#e8ffff"; wm.g.fillRect(0, 0, SZ, SZ);
-  WH = { base: b.c, glow: gl.c, white: wm.c, SZ, PAD };
-  off1 = mk(SZ, SZ + PAD * 2); off2 = mk(SZ, SZ + PAD * 2); bodyMask = mk(SZ, SZ + PAD * 2);
+  return { base: b.c, glow: gl.c, white: wm.c, SZ, PAD, ax: (dx + ax * dw) / SZ, ay: (dy + ay * dh) / SZ, mul, amp,
+    o1: mk(SZ, SZ + PAD * 2), o2: mk(SZ, SZ + PAD * 2), om: mk(SZ, SZ + PAD * 2) };
 }
-function undulate(src, dst, t, amp, speed) {
-  const SZ = WH.SZ, n = 80, sw = SZ / n;
+function prep() {
+  SPR.side = makeSprite(IMG.whale_side, 720, 0.62, 0.57, 1, 1);
+  SPR.q = IMG.whale_side_34 ? makeSprite(IMG.whale_side_34, 720, 0.70, 0.64, 1.0, 0.55) : SPR.side;
+  SPR.front = IMG.whale_front ? makeSprite(IMG.whale_front, 360, 0.5, 0.52, 0.6, 0.2) : SPR.q;
+  WH = SPR.side;
+}
+function undulate(src, dst, t, amp, speed, SZ = WH.SZ, PAD = WH.PAD) {
+  const n = 80, sw = SZ / n;
   dst.g.clearRect(0, 0, dst.c.width, dst.c.height);
   for (let i = 0; i < n; i++) {
     const u = (i + 0.5) / n;
     const k = Math.pow(Math.max(0, 1 - u / 0.97), 1.5);
     const dy = amp * k * Math.sin(t * speed - u * 7.5) + amp * 0.25 * Math.sin(t * speed * 0.5 + u * 3);
-    dst.g.drawImage(src, i * sw, 0, sw + 0.8, SZ, i * sw, WH.PAD + dy, sw + 0.8, SZ);
+    dst.g.drawImage(src, i * sw, 0, sw + 0.8, SZ, i * sw, PAD + dy, sw + 0.8, SZ);
   }
 }
 
@@ -263,7 +272,7 @@ function pathAt(s) {
 }
 
 // ================================================================ สถานะ
-const whale = { s: 2, x: 0, y: 0, rot: 0, facing: 1, z: 0.9, alpha: 1, scale: 1, visible: true, glowBoost: 0, flash: 0, hp: 60, hpMax: 60, ovr: null, ovrT0: 0, free: true, tw: null, dead: false, amp: 1, hdx: 1, hdy: 0, rear: 0, arcs: 0, trail: [], ghost: false };
+const whale = { s: 2, x: 0, y: 0, rot: 0, facing: 1, face: 1, turn: null, z: 0.9, alpha: 1, scale: 1, visible: true, glowBoost: 0, flash: 0, hp: 60, hpMax: 60, ovr: null, ovrT0: 0, free: true, tw: null, dead: false, amp: 1, hdx: 1, hdy: 0, rear: 0, arcs: 0, trail: [], ghost: false };
 let fierce = false, now = 0, clock = 0, hitstopUntil = 0;
 // กล้อง + โพสต์
 const cam = { z: 1, tz: 1, fx: 0, fy: 0, tfx: 0, tfy: 0, shake: 0 };
@@ -395,7 +404,7 @@ const ATK = {
       } else if (el < 2600) {
         if (!hitSet.go) { hitSet.go = true; sfx("rush"); sfx("roar", 100, 1, 1.15); kick({ shake: 10, flash: 0.15 }); }
         const k = (el - 1700) / 900, kk = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-        whale.x = lerp(x0, x1, kk); whale.y = yc; whale.z = 0.3; whale.alpha = 1; whale.facing = dir; whale.rot = 0; whale.amp = 2.4; whale.scale = 1.35; whale.ghost = true;
+        whale.x = lerp(x0, x1, kk); whale.y = yc; whale.z = 0.3; whale.alpha = 1; whale.face = whale.facing = dir; whale.turn = null; whale.rot = 0; whale.amp = 2.4; whale.scale = 1.35; whale.ghost = true;
         const [sx, sy] = whaleScreen();
         bubbleBurst(sx - dir * cs * 3, sy + cs * 0.4, 5, cs * 0.9); spray(sx - dir * cs * 1.5, P(0, yc + 1)[1], 3, cs * 3);
         streaks(dir, P(0, y0)[1] - cs, P(0, y0 + 3)[1] + cs, 3);
@@ -819,12 +828,45 @@ function drawUnits(t) {
     g.restore();
   }
 }
-function whaleXform(st) {
+const TURN_MS = 1300;
+function whaleXform(st, spr, face) {
   const [fx, fy] = P(st.x, st.y);
-  const drawW = (5 * cs / 0.74) * WHALE_SIZE * st.scale, k = drawW / WH.SZ;
+  const drawW = (5 * cs / 0.74) * WHALE_SIZE * st.scale * spr.mul, k = drawW / spr.SZ;
   const lift = st.z * cs * 1.3 + Math.sin(clock / 1000 * 1.3) * cs * 0.1;
-  g.translate(fx, fy - lift); g.rotate(st.rot - whale.rear * 0.18 * st.facing); g.scale(st.facing, 1); g.scale(k * (1 + whale.rear * 0.06), k * (1 + whale.rear * 0.06));
-  g.translate(-0.62 * WH.SZ, -(0.57 * WH.SZ + WH.PAD));
+  g.translate(fx, fy - lift); g.rotate(st.rot - whale.rear * 0.18 * face); g.scale(face, 1); g.scale(k * (1 + whale.rear * 0.06), k * (1 + whale.rear * 0.06));
+  g.translate(-spr.ax * spr.SZ, -(spr.ay * spr.SZ + spr.PAD));
+}
+// ท่าที่จะวาดตอนนี้: [สไปรต์, หันซ้าย/ขวา, ความทึบ] — เลี้ยวกลับด้าน = ไล่ข้าง → เฉียง → หน้า → เฉียง → ข้าง (ตัดภาพไวช่วงกลางแต่ละช่วง ไม่ซ้อนนาน)
+function poseFrames() {
+  if (!whale.turn) return [[SPR.side, whale.face, 1]];
+  const from = -whale.turn.to, to = whale.turn.to;
+  const seq = [[SPR.side, from], [SPR.q, from], [SPR.front, to], [SPR.q, to], [SPR.side, to]];
+  const pos = ease(clamp((clock - whale.turn.t0) / TURN_MS, 0, 1)) * 4, i = Math.min(3, Math.floor(pos));
+  const fr = pos - i, f = clamp((fr - 0.3) / 0.4, 0, 1), ff = f * f * (3 - 2 * f);
+  const out = [];
+  if (ff < 1) out.push([seq[i][0], seq[i][1], 1 - ff]);
+  if (ff > 0) out.push([seq[i + 1][0], seq[i + 1][1], ff]);
+  return out;
+}
+function drawSprite(spr, st, face, alpha, t, spd, glow) {
+  const amp = 18 * whale.amp * spr.amp * (spr.SZ / 720);
+  undulate(spr.base, spr.o1, t, amp, spd, spr.SZ, spr.PAD);
+  undulate(spr.glow, spr.o2, t, amp, spd, spr.SZ, spr.PAD);
+  g.save(); whaleXform(st, spr, face);
+  const depthDim = st.z < 0.5 ? clamp(0.4 + st.z, 0.2, 1) : 1;
+  g.globalAlpha = alpha;
+  if (depthDim < 1) g.filter = `brightness(${depthDim}) blur(${(1 - depthDim) * 3}px)`;
+  g.drawImage(spr.o1.c, 0, 0); g.filter = "none";
+  const gl = glow * alpha;
+  g.globalCompositeOperation = "lighter";
+  g.globalAlpha = clamp(gl, 0, 1); g.drawImage(spr.o2.c, 0, 0);
+  if (gl > 1) { g.globalAlpha = clamp(gl - 1, 0, 1); g.drawImage(spr.o2.c, 0, 0); }
+  if (gl > 2) { g.globalAlpha = clamp(gl - 2, 0, 1); g.drawImage(spr.o2.c, 0, 0); }
+  if (whale.flash > 0) {
+    undulate(spr.white, spr.om, t, amp, spd, spr.SZ, spr.PAD);
+    g.globalCompositeOperation = "source-over"; g.globalAlpha = whale.flash * 0.8 * alpha; g.drawImage(spr.om.c, 0, 0);
+  }
+  g.restore();
 }
 function drawWhale(t) {
   if (!WH || !whale.visible || whale.alpha <= 0.01) return;
@@ -834,28 +876,17 @@ function drawWhale(t) {
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(0,0,0,${0.6 * whale.alpha * sh})`); gr.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
   const swim = whale.free || whale.tw ? 1 : 0.6, spd = 3.2 * swim * (whale.amp > 1.5 ? 2 : 1);
-  undulate(WH.base, off1, t, 18 * whale.amp, spd);
-  undulate(WH.glow, off2, t, 18 * whale.amp, spd);
+  const glow = 0.2 + 0.15 * Math.sin(t * 1.6) + whale.glowBoost + (fierce ? 0.35 : 0);
   // เงาซ้อนตอนพุ่ง
-  if (whale.ghost) for (const [i, st] of whale.trail.entries()) {
-    g.save(); whaleXform(st); g.globalAlpha = 0.08 * (i + 1) / whale.trail.length; g.drawImage(off1.c, 0, 0);
-    g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.25 * (i + 1) / whale.trail.length; g.drawImage(off2.c, 0, 0); g.restore();
+  if (whale.ghost) {
+    const spr = SPR.side;
+    undulate(spr.base, spr.o1, t, 18 * whale.amp, spd, spr.SZ, spr.PAD); undulate(spr.glow, spr.o2, t, 18 * whale.amp, spd, spr.SZ, spr.PAD);
+    for (const [i, st] of whale.trail.entries()) {
+      g.save(); whaleXform(st, spr, st.facing); g.globalAlpha = 0.08 * (i + 1) / whale.trail.length; g.drawImage(spr.o1.c, 0, 0);
+      g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.25 * (i + 1) / whale.trail.length; g.drawImage(spr.o2.c, 0, 0); g.restore();
+    }
   }
-  g.save(); whaleXform(whale);
-  const depthDim = whale.z < 0.5 ? clamp(0.4 + whale.z, 0.2, 1) : 1;
-  g.globalAlpha = whale.alpha;
-  if (depthDim < 1) g.filter = `brightness(${depthDim}) blur(${(1 - depthDim) * 3}px)`;
-  g.drawImage(off1.c, 0, 0); g.filter = "none";
-  const glow = (0.2 + 0.15 * Math.sin(t * 1.6) + whale.glowBoost + (fierce ? 0.35 : 0)) * whale.alpha;
-  g.globalCompositeOperation = "lighter";
-  g.globalAlpha = clamp(glow, 0, 1); g.drawImage(off2.c, 0, 0);
-  if (glow > 1) { g.globalAlpha = clamp(glow - 1, 0, 1); g.drawImage(off2.c, 0, 0); }
-  if (glow > 2) { g.globalAlpha = clamp(glow - 2, 0, 1); g.drawImage(off2.c, 0, 0); }
-  if (whale.flash > 0) {
-    undulate(WH.white, bodyMask, t, 18 * whale.amp, spd);
-    g.globalCompositeOperation = "source-over"; g.globalAlpha = whale.flash * 0.8; g.drawImage(bodyMask.c, 0, 0);
-  }
-  g.restore();
+  for (const [spr, face, a] of poseFrames()) drawSprite(spr, whale, face, a * whale.alpha, t, spd, glow);
   // ประกายไฟฟ้าวิ่งรอบตัวตอนสะสม
   if (whale.arcs > 0) {
     const [wx, wy] = whaleScreen(); const R = cs * 3 * WHALE_SIZE;
@@ -962,10 +993,12 @@ function update(dt, t) {
     if (!whale.free && !whale.tw) { whale.x += Math.sin(t * 0.9) * 0.08; whale.y += Math.cos(t * 0.7) * 0.05; }
     whale.z = lerp(whale.z, 0.9 + (whale.rear < 0 ? -whale.rear * 0.8 : 0), Math.min(1, dt * 3));
     const a = Math.atan2(whale.hdy * SQ, whale.hdx);
-    let tf, tr; if (Math.cos(a) >= 0) { tf = 1; tr = a; } else { tf = -1; tr = a > 0 ? a - Math.PI : a + Math.PI; }
-    tr = clamp(tr, -0.55, 0.55);
-    whale.facing += (tf - whale.facing) * Math.min(1, dt * 2.5);
-    if (Math.abs(whale.facing) < 0.12) whale.facing = 0.12 * (tf || 1);
+    const c = Math.cos(a);
+    if (!whale.turn) { if ((whale.face > 0 && c < -0.2) || (whale.face < 0 && c > 0.2)) whale.turn = { t0: clock, to: -whale.face }; }
+    else if (clock - whale.turn.t0 >= TURN_MS) { whale.face = whale.turn.to; whale.turn = null; }
+    whale.facing = whale.face;
+    let tr = whale.face > 0 ? a : (a > 0 ? a - Math.PI : a + Math.PI);
+    tr = whale.turn ? 0 : clamp(tr, -0.55, 0.55);
     whale.rot += (tr - whale.rot) * Math.min(1, dt * 3);
   }
   if (whale.ghost) { whale.trail.push({ x: whale.x, y: whale.y, z: whale.z, rot: whale.rot, facing: whale.facing, scale: whale.scale }); if (whale.trail.length > 6) whale.trail.shift(); } else whale.trail.length = 0;
