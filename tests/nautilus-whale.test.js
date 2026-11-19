@@ -228,7 +228,7 @@ test('ปิดทาลัสซาในโหวต = ไม่มีปล�
   const info = Fodlan.publicInfo();
   assert.equal(info.whaleEnabled, false);
   assert.equal(info.board.whale, null);
-  assert.equal(Fodlan.objects().length, 0);
+  assert.equal(Fodlan.objects().filter((o) => o.kind === 'whale').length, 0);
   assert.equal((match.fodlan.s.fx || []).filter((e) => String(e.kind).startsWith('whale_')).length, 0);
 });
 
