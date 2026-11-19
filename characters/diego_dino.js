@@ -90,7 +90,7 @@ const SKILLS = {
     },
     secondary: {
       name: "เข้าร่วมเผ่าพันธุ์", img: IMG.possess, cost: POSSESS.cost, area: { kind: "target", range: 99, hostile: true },
-      desc: `ศัตรู 1 คนทั้งกระดานที่มีไวรัสบรรพกาล ${POSSESS.need}: ล้างไวรัส · ตาเดินถัดไปของเป้า ดิเอโก้ควบคุมแทน (เดิน/สกิล/ตีปกติ · ใช้ไอเทมไม่ได้ · เป้าเป็นฝ่ายเดียวกับดิเอโก้) จบตานั้นแล้วหมดผล`,
+      desc: `ศัตรู 1 ตัวทั้งกระดานที่มีไวรัสบรรพกาล ${POSSESS.need} (ไม่ใช่ยูนิตอัญเชิญ): ล้างไวรัส · ตาเดินถัดไปของเป้า ดิเอโก้ควบคุมแทน (เดิน/สกิล/ตีปกติ · ใช้ไอเทมไม่ได้ · เป้าเป็นฝ่ายเดียวกับดิเอโก้) จบตานั้นแล้วหมดผล`,
     },
     ultimate: {
       name: "ฉันจะฆ่าแก", img: IMG.swarm, cost: SWARM.cost, area: { kind: "line", len: SWARM.len, width: 1, hostile: true },
@@ -556,7 +556,8 @@ module.exports = {
       if (tier === "basic") return true;
       if (tier === "secondary") {
         const t = engine.players[(targets || [])[0]];
-        return !!t && foe(engine, p, t) && !t.summon && !t.duoOf && !t.duoWith && virusOf(t) >= POSSESS.need;
+        // ผู้เล่นจริง + ตัวของระบบคู่ (เคท/เอมิลิโกะ — คุมเฉพาะช่วงของตัวนั้นในตาของคู่) · ยูนิตอัญเชิญไม่มีตาเดินของตัวเอง = ไม่ได้
+        return !!t && foe(engine, p, t) && !t.summon && virusOf(t) >= POSSESS.need;
       }
       if (tier === "ultimate") return !s.mounted && cdLeft(s.swarmReady, r) === 0;
       return false;

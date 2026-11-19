@@ -137,6 +137,7 @@ function startTurn(owner, units) {
 }
 function canSwitchTo(u) {
   const d = match.duo;
+  if (require("./possess").acting(match.players[match.actorId])) return false; // ตัวที่กำลังถูกควบคุมร่าง (เข้าร่วมเผ่าพันธุ์) สลับหนีไม่ได้
   return !!(d && u && u.id !== match.actorId && sideKey(u) === d.ownerId && !d.done[u.id] && u.alive && u.pos && !stuck(u));
 }
 function otherUnit(p) { return unitsOf(p).find((u) => u.id !== p.id) || null; }

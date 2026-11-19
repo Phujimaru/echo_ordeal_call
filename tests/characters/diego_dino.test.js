@@ -288,3 +288,44 @@ test("ลบสกิลติดตัว: ไม่ติดไวรัส ·
   p.dino.frenzy = 5;
   assert.strictEqual(dd.charAction(engine, p, "mutate"), false);
 });
+
+test("เข้าร่วมเผ่าพันธุ์ใส่ตัวคู่ (เอมิลิโกะ): ช่วงของเอมิลิโกะในตาของคู่ = ดิเอโก้คุม · เจ้าของ (เคท) สั่งไม่ได้ · สลับตัวหนีไม่ได้ · ช่วงของเคทเจ้าของคุมตามปกติ", () => {
+  const { resolveRound } = require("../../server.js");
+  for (const k of Object.keys(engine.players)) delete engine.players[k];
+  const mk = (id, characterId) => (engine.players[id] = { id, name: id, characterId, avatar: 0, ready: true, skillPoints: 0, alive: true, statuses: {}, statusAmt: {}, cards: [], inventory: [], cutsceneShown: {}, gold: 0, img: "" });
+  mk("a", "diego_dino"); mk("k", "kate"); mk("c", "dummy");
+  engine.setGameMode("ffa");
+  engine.startMatch(); engine.clearPhaseTimer();
+  const a = engine.players.a, k = engine.players.k, emi = engine.players[k.duoWith];
+  assert.ok(emi, "มีเอมิลิโกะ");
+  a.dino.mounted = false;
+  a.cards = [{ value: 10, suit: "H" }]; k.cards = [{ value: 5, suit: "S" }]; engine.players.c.cards = [{ value: 2, suit: "S" }];
+  resolveRound(); engine.clearPhaseTimer();
+  for (let i = 0; i < 3 && engine.actorId !== "a"; i++) { engine.finishActor(); engine.clearPhaseTimer(); }
+  assert.strictEqual(engine.actorId, "a");
+  clear(8, 8, 8);
+  a.pos = { x: 6, y: 6 }; k.pos = { x: 9, y: 6 }; emi.pos = { x: 9, y: 8 };
+  a.skillPoints = 8;
+  emi.statuses.dinoVirus = 3;
+  engine.useSkill("a", "secondary", [emi.id]);
+  assert.strictEqual(a.skillPoints, 5);
+  assert.ok(Possess.entryOf(emi));
+  // ตาของคู่: ช่วงเคท = เจ้าของคุม
+  for (let i = 0; i < 3 && engine.actorId !== "k" && engine.actorId !== emi.id; i++) { engine.finishActor(); engine.clearPhaseTimer(); }
+  if (engine.actorId === "k") {
+    assert.strictEqual(Duo.controlledId("k"), "k");
+    assert.strictEqual(Duo.controlledId("a"), "a");
+    engine.finishActor(); engine.clearPhaseTimer();
+  }
+  // ช่วงเอมิลิโกะ = ดิเอโก้คุม
+  assert.strictEqual(engine.actorId, emi.id);
+  assert.strictEqual(Duo.controlledId("a"), emi.id);
+  assert.ok(Duo.controlledId("k").startsWith(Possess.LOCKED_PREFIX), "เจ้าของสั่งไม่ได้");
+  assert.ok(engine.sameTeam(emi, a));
+  assert.ok(!engine.sameTeam(emi, k), "ตีเคทได้");
+  assert.strictEqual(Duo.canSwitchTo(k), false, "สลับตัวหนีไม่ได้");
+  // เอมิลิโกะเดินต่อหลังจบตาได้ (canto) — ยังเป็นช่วงของเอมิลิโกะ ดิเอโก้คุมต่อ
+  for (let i = 0; i < 3 && engine.actorId === emi.id; i++) { engine.finishActor(); engine.clearPhaseTimer(); if (engine.actorId === emi.id) assert.strictEqual(Duo.controlledId("a"), emi.id); }
+  assert.ok(!Possess.entryOf(emi), "จบช่วงของเอมิลิโกะ = หมดผล");
+  engine.clearPhaseTimer();
+});
