@@ -6,6 +6,8 @@
 //  ชื่อไทย = ชื่อโฟลเดอร์เพลงที่ผู้ใช้ส่งมา (2026-10-27) · ด่าน V ผู้ใช้เรียก "หลุมศพ" (โฟลเดอร์ "การ์เร็ก มัค")
 // ============================================================
 
+import { isNautilusStage, nautilusLayer } from "../nautilus/nautilusMeta";
+
 export const FODLAN_STAGES = [
   { id: 1, numeral: "I", name: "แม่น้ำแอร์มิด", latin: "AIRMID RIVER", color: "#6fb8c9", glow: "#c8f0ff", uv: [0.655, 0.565], amb: "amb_river", wx: "wx_rain" },
   { id: 2, numeral: "II", name: "เรเมียร์", latin: "REMIRE", color: "#8f7bd6", glow: "#d9ccff", uv: [0.37, 0.515], amb: "amb_fog", wx: "wx_miasma" },
@@ -20,7 +22,9 @@ export function clampFodlanStage(s) {
   const n = Math.round(Number(s) || 1);
   return Math.min(FODLAN_STAGE_COUNT, Math.max(1, n));
 }
-export const fodlanStage = (s) => FODLAN_STAGES[clampFodlanStage(s) - 1];
+export const fodlanStage = (s) => (isNautilusStage(s) ? nautilusLayer(s) : FODLAN_STAGES[clampFodlanStage(s) - 1]);
+// ข้อมูลด่านตามเลขจริง (ไม่หนีบ) — เสียงบรรยากาศ: 1–5 Fodlan · 7–11 ชั้นของ Nautilus · อื่นๆ = null
+export const fodlanStageInfo = (s) => (isNautilusStage(s) ? nautilusLayer(s) : FODLAN_STAGES[Number(s) - 1] || null);
 
 // หมุด Fodlan บนลูกโลก (หน้าเลือกสนาม + ฉากดิ่งตอนเริ่มแมตช์ต้องตรงกัน) — ทะเลซีกใต้ ห่างหมุด Origin (ภูมิภาค I) ~70° ให้เห็นพร้อมกันได้
 export const FODLAN_GEO = { lon: 68, lat: -28 };

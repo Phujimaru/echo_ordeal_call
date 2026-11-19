@@ -16,7 +16,7 @@
 //  ทุกอย่างห่อ try/catch — เสียงพังห้ามทำให้ฉากพัง
 // ============================================================
 import { masterGain, channelGain, onVolumeChange, isMusicSuspended, onMusicSuspend } from "../audio";
-import { FODLAN_STAGES } from "./stages";
+import { fodlanStageInfo } from "./stages";
 
 const BED_BASE = 0.5;    // ไฟล์เสียงพื้น −22 LUFS (−6 dB ≈ −28) · เพลงด่าน −11.3 × MUSIC_BASE 0.75 ≈ −13.8 → เพลงดังกว่าเสียงพื้นชัดเจน ~14 dB (ซ้อนฝน/ลมอีกชั้นยังห่าง ~11 dB)
 //  ผู้ใช้ลองแล้ว (2026-10-27): ที่ 1.4 "แทบไม่ได้ยินเพลง เสียงฉากดังกว่า" — ฝน/ลมเป็นเสียงกว้างทั้งย่าน ฟังดังกว่าตัวเลข LUFS
@@ -24,7 +24,8 @@ const SFX_BASE = 0.8;    // เสียงครั้งเดียวขอ�
 const CAMPFIRE_GAIN = 0.35;
 const THUNDER_GAIN = 0.6;
 const HOLD_OUT = 0.12, HOLD_IN = 0.8; // วินาที: เงียบเร็วตอนวีดีโอเริ่ม · ค่อยๆ กลับหลังวีดีโอจบ
-const url = (key) => `/fodlan/sfx/${key}.mp3`;
+// คีย์ nt_… = เสียงของโหมด Nautilus (GRID_PLAN §8.9) อยู่ที่ /nautilus/sfx/<ชื่อหลัง nt_>.mp3
+const url = (key) => (key.startsWith("nt_") ? `/nautilus/sfx/${key.slice(3)}.mp3` : `/fodlan/sfx/${key}.mp3`);
 
 let instance = null;
 
@@ -145,9 +146,9 @@ export function fodlanAudio() {
       stageKey = k;
       if (!ensure()) return;
       const want = new Map();
-      const st = stageId == null ? null : FODLAN_STAGES[stageId - 1];
+      const st = stageId == null ? null : fodlanStageInfo(stageId);
       if (st) {
-        if (st.amb) want.set(st.amb, 1);
+        if (st.amb) want.set(st.amb, st.ambGain || 1);
         if (weather && st.wx) want.set(st.wx, 1);
         if (st.id === 4 && !weather) want.set("campfire", CAMPFIRE_GAIN);
       }

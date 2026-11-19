@@ -995,7 +995,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           : state.fodlan && state.world === "eos" && (phase === "PLAYING" || inBoardTurn) // Eos (§8.6): ชื่อสนาม + สภาพอากาศ
             ? (() => { const sit = eosSituation(state).filter((s) => s.key !== "diff"); return { numeral: "✦", color: "#2f5f9c", glow: "#9fe2ff", name: "Eos", eos: true, sit, alert: sitCount(sit) }; })()
           : state.fodlan && (phase === "PLAYING" || inBoardTurn) // Fodlan: ป้ายด่าน + สภาพอากาศ (ไม่มีหน้าผลภูมิภาค)
-            ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather }
+            ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather, depth: state.fodlan.depth } // Nautilus: + ความลึก
             : null}
         onJourney={state.world === "eos" ? () => { clickSound(); setEosSitOpen(true); } : state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}

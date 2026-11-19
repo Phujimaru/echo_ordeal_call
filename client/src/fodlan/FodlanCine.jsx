@@ -3,12 +3,13 @@
 //  เวลาเป็นสัดส่วนของ --D ตาม FODLAN_T (fodlanFlight.js) · ข้อความมีแค่ชื่อ (กฎ UI)
 //  <FodlanCine D={ms} stage={1..5} travel={false} />
 //   travel = ฉากเปลี่ยนแผนที่กลางเกม (ไม่มีช่วงดิ่งโลก/ชื่อทวีป · จังหวะ FODLAN_TRAVEL_T)
+//   mark = ชื่อสนามตอนแฟลช (ค่าเริ่ม FÓDLAN · Nautilus §8.9 ยืมฉากนี้ = "NAUTILUS" + ป้ายชื่อชั้น 7–11)
 // ============================================================
 import { fodlanStage, FODLAN_TRAVEL_T } from "./stages";
 import { FODLAN_T } from "./fodlanFlight";
 import "./fodlan.css";
 
-export default function FodlanCine({ D, stage, travel = false }) {
+export default function FodlanCine({ D, stage, travel = false, mark = "FÓDLAN" }) {
   const s = fodlanStage(stage);
   const T = travel ? FODLAN_TRAVEL_T : FODLAN_T;
   const ms = (k) => `${Math.round(k * D)}ms`;
@@ -30,7 +31,7 @@ export default function FodlanCine({ D, stage, travel = false }) {
       {!travel && (
         <div className="fdc-mark">
           <i className="fdc-rule" />
-          <b className="oc-latin">FÓDLAN</b>
+          <b className="oc-latin">{mark}</b>
           <i className="fdc-rule" />
         </div>
       )}

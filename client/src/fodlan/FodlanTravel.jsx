@@ -13,10 +13,14 @@ import { clampFodlanStage, FODLAN_TRAVEL_MS, FODLAN_TRAVEL_T as T } from "./stag
 import { span, easeInOut, easeOut, easeIn, smooth, clamp01 } from "./kit";
 import { fodlanAudio } from "./fodlanAudio";
 import { playMusic } from "../audio";
+import { isNautilusStage, NAUTILUS_SCENE_FROM, NAUTILUS_SCENE_STAGE } from "../nautilus/nautilusMeta";
 
 // music = false: เกมจริงให้ audioPolicy เลือกเพลง (fodlan_map ระหว่างฉาก) · true = พรีวิวสั่งเล่นเอง
+// Nautilus (§8.9 ขั้น 1): to = ชั้น 7–11 → ยืมเส้นทาง/ฉากด่าน Fodlan (NAUTILUS_SCENE_FROM → NAUTILUS_SCENE_STAGE) · ป้ายชื่อ/เสียงบรรยากาศ = ชั้นจริง (ขั้น 5 ทำฉากดิ่งของตัวเอง)
 export default function FodlanTravel({ from = 1, to = 2, weather = false, durationMs, lowQ = false, music = true, onDone }) {
-  const a = clampFodlanStage(from), b = clampFodlanStage(to);
+  const nt = isNautilusStage(to);
+  const a = nt ? NAUTILUS_SCENE_FROM : clampFodlanStage(from), b = nt ? NAUTILUS_SCENE_STAGE : clampFodlanStage(to);
+  const ambId = nt ? Number(to) : b;
   const D = Math.max(5000, Number(durationMs) || FODLAN_TRAVEL_MS);
   const ref = useRef(null);
   const doneRef = useRef(onDone);
@@ -49,11 +53,11 @@ export default function FodlanTravel({ from = 1, to = 2, weather = false, durati
     const cam = new THREE.Vector3(), at = new THREE.Vector3(), MA = new THREE.Vector3(), MB = new THREE.Vector3(), tok = new THREE.Vector3(), tmp = new THREE.Vector3();
     const swoop = { from: new THREE.Vector3(), look: new THREE.Vector3(), set: false };
     const cues = [
-      [0.001, () => { if (music) playMusic("fodlan_map", performance.now()); }], // เพลงฉากแผนที่ระหว่างเปลี่ยนด่าน (เริ่มต้นเพลงทุกครั้ง)
+      [0.001, () => { if (music && !nt) playMusic("fodlan_map", performance.now()); }], // เพลงฉากแผนที่ระหว่างเปลี่ยนด่าน (เริ่มต้นเพลงทุกครั้ง)
       [0.02, () => audio.sfx("cine_map", { gain: 0.8 })],
       [T.route, () => audio.sfx("war_horn", { gain: 0.55 })],
       [T.swoop, () => audio.sfx("cine_swoop")],
-      [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(b, { weather, fade: 3 }); audio.thunder(b === 1 && weather); if (music) playMusic(`fodlan_${b}${weather ? "_wx" : ""}`); }],
+      [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(ambId, { weather, fade: 3 }); audio.thunder(!nt && b === 1 && weather); if (music && !nt) playMusic(`fodlan_${b}${weather ? "_wx" : ""}`); }],
     ];
 
     theatre.ready.then(() => {
@@ -133,7 +137,7 @@ export default function FodlanTravel({ from = 1, to = 2, weather = false, durati
   return (
     <div style={{ position: "absolute", inset: 0, background: "#1a0d06" }}>
       <canvas ref={ref} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-      {started && <FodlanCine D={D} stage={b} travel />}
+      {started && <FodlanCine D={D} stage={nt ? Number(to) : b} travel />}
     </div>
   );
 }

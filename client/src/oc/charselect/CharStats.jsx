@@ -13,7 +13,7 @@ const BAL_MIN = 5;
 const BAL_GAP = 15;
 const pctText = (r) => (r == null ? "—" : `${r % 1 === 0 ? r : r.toFixed(1)}%`);
 const MODE_LABEL = { ffa: "อิสระ", duo: "คู่หู", trio: "สหายทั้ง 3 เอ๋ย", moon: "Moon Cell" };
-const WORLD_LABEL = { earth: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์" };
+const WORLD_LABEL = { earth: "Origin", fodlan: "Fodlan", colony: "Colony", moon: "ดวงจันทร์", nautilus: "Nautilus" };
 
 // ข้อมูลเก่า (ก่อนมีประวัติ) = { [id]: stats } ตรงๆ
 function normalize(data) {

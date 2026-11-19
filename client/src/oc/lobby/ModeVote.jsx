@@ -17,6 +17,7 @@ import { createMoonModel } from "../../globe/moonModel";
 import { JOURNEY_AREAS, JOURNEY_TURNS_PER_AREA as T } from "../../journey/areas";
 import { FODLAN_GEO, FODLAN_STAGES } from "../../fodlan/stages";
 import { EOS_GEO } from "../../eos/eosMeta";
+import { NAUTILUS_GEO, NAUTILUS_COLOR, NAUTILUS_LAYERS } from "../../nautilus/nautilusMeta";
 import { OcButton, OcPanel } from "../ui";
 import { DIFFS as RT_DIFFS, RT_GEO } from "../../roadtrip/rtMeta";
 import { tip as rtTip } from "../../roadtrip/rtTip";
@@ -45,12 +46,17 @@ const EOS_MODE_GEO = { eos: [EOS_GEO.lon + 2, EOS_GEO.lat - 6] };
 // Road Trip (GRID_PLAN §8.8 · PVE ไม่มีจุดจบ): หมุดที่ 4 บนโลก (ซีกตะวันตกเฉียงเหนือ) — โหมดเดียว "roadtrip" + ความยาก 3 ระดับ
 // RT_GEO (หมุด Road Trip) อยู่ใน roadtrip/rtMeta.js — ฉากดิ่งเข้าโหมด (rtFlight.js) ใช้จุดเดียวกัน
 const RT_MODE_GEO = { roadtrip: [RT_GEO.lon + 3, RT_GEO.lat - 7] };
-const SUBS = ["origin", "fodlan", "eos", "roadtrip"];
-const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat], roadtrip: [RT_GEO.lon, RT_GEO.lat] };
+// Nautilus (GRID_PLAN §8.9): หมุดที่ 5 บนโลก (ทะเลเปิดซีกตะวันตก · ฟ้าอมเขียว) — PVP ffa/duo/trio หมุดโหมดรอบหมุดแบบ Fodlan
+const NT_MODE_GEO = { ffa: [NAUTILUS_GEO.lon - 8, NAUTILUS_GEO.lat + 8], duo: [NAUTILUS_GEO.lon, NAUTILUS_GEO.lat - 12], trio: [NAUTILUS_GEO.lon + 20, NAUTILUS_GEO.lat - 2] }; // ทั้ง 3 หมุดอยู่ในทะเล (ไม่ทับทวีป)
+// ชั้นหมุดสนามย่อยบนโลก: กล้องหันไปกลางช่วงลองจิจูดของหมุดริมสุดสองข้าง (Nautilus ↔ Fodlan)
+//  เดิมใช้ค่าเฉลี่ยเวกเตอร์ของหมุดทุกอัน — พอมีหมุด Nautilus แล้วหมุด Fodlan ไปอยู่ริมขอบโลก
+const EARTH_VIEW = [(NAUTILUS_GEO.lon + FODLAN_GEO.lon) / 2, -4];
+const SUBS = ["origin", "fodlan", "eos", "roadtrip", "nautilus"];
+const SUB_GEO = { origin: [20, 22], fodlan: [FODLAN_GEO.lon, FODLAN_GEO.lat], eos: [EOS_GEO.lon, EOS_GEO.lat], roadtrip: [RT_GEO.lon, RT_GEO.lat], nautilus: [NAUTILUS_GEO.lon, NAUTILUS_GEO.lat] };
 const FODLAN_GOLD = 0xe0a63a;
 const EOS_BLUE = 0x7fd4ff;
 const RT_ORANGE = 0xf08a4b;
-const SUB_COLORS = { fodlan: FODLAN_GOLD, eos: EOS_BLUE, roadtrip: RT_ORANGE };
+const SUB_COLORS = { fodlan: FODLAN_GOLD, eos: EOS_BLUE, roadtrip: RT_ORANGE, nautilus: NAUTILUS_COLOR };
 // ภูมิภาคของ Road Trip (server/roadtrip — เปลี่ยนทุก 100 กม. แล้ววนรอบ)
 const RT_REGIONS = [
   { id: "plains", name: "ทุ่งหญ้า", color: "#7cc46a" },
@@ -67,17 +73,19 @@ const EOS_ZONES = [
   { id: "lake", name: "Cleigne", color: "#5a9fd6" },
   { id: "altissia", name: "Altissia", color: "#9fe0e8" },
 ];
+// ไอคอนปลาวาฬ (ปุ่มเปิด/ปิดทาลัสซา)
+const WHALE_ICO = <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13c0-3.3 3.6-6 8.5-6 4 0 6.5 1.8 7.5 4l2-2.5v6L19 13c-1 2.6-4 4.5-8 4.5C6.6 17.5 3 15.6 3 13z" /><circle cx="7.5" cy="11.5" r=".9" /><path d="M10 6c0-1.4 1-2.5 2-2.5M10 6c0-1.4-1-2.5-2-2.5" /></svg>;
 const ORDER = ["ffa", "duo", "trio"];
 const PIN_MODES = [...ORDER, "eos", "roadtrip"]; // หมุดโหมดบนลูกโลก — eos มีเฉพาะชุด eos (geo ชุดอื่นไม่มี = ข้าม) · Colony ใช้ ORDER
 const WORLDS = ["earth", "colony", "moon"];
-const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", colony: "Colony", moon: "ดวงจันทร์" };
-const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "roadtrip", "colony"]);
+const WORLD_TITLES = { earth: "โลก", origin: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", nautilus: "Nautilus", colony: "Colony", moon: "ดวงจันทร์" };
+const LATIN_WORLDS = new Set(["origin", "fodlan", "eos", "roadtrip", "nautilus", "colony"]);
 // ชื่อสนามตามที่ server เก็บ (ผลโหวต): earth = Origin
-const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", colony: "Colony", moon: "ดวงจันทร์" };
+const VOTE_WORLD_TITLES = { earth: "Origin", fodlan: "Fodlan", eos: "Eos", roadtrip: "Road Trip", nautilus: "Nautilus", colony: "Colony", moon: "ดวงจันทร์" };
 // world ฝั่ง client → world ที่ส่งให้ server
 const serverWorld = (w) => (w === "origin" || w === "earth" || !w ? "earth" : w);
-const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan" || w === "eos" || w === "roadtrip";
-const EARTH_SUBS = new Set(["fodlan", "eos", "roadtrip"]); // สนามย่อยบนโลกที่ server เก็บเป็น world ของตัวเอง
+const onEarth = (w) => w === "earth" || w === "origin" || w === "fodlan" || w === "eos" || w === "roadtrip" || w === "nautilus";
+const EARTH_SUBS = new Set(["fodlan", "eos", "roadtrip", "nautilus"]); // สนามย่อยบนโลกที่ server เก็บเป็น world ของตัวเอง
 const LATIN_MODES = new Set(["moon", "roadtrip"]);
 // บอสของ Moon Cell (server/moonCell.js) — ชื่อ + พลังชีวิต/เกราะ
 const MOON_BOSSES = [
@@ -172,12 +180,21 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   // ความยากของ Eos (ผู้ใช้สั่ง 2026-11-10 — เลือกในหน้าโหวต): ส่งไปพร้อมโหวต · โหวตแล้วเปลี่ยนความยาก = ส่งโหวตซ้ำ
   //  Road Trip ใช้ค่าเดียวกัน (ง่าย/ปกติ/ยาก — ไม่มี Lament)
   const [eosDiff, setEosDiff] = useState("normal");
-  const vote = (mode, diff = eosDiff) => {
+  // Nautilus (GRID_PLAN §8.9 · ผู้ใช้สั่ง 2026-11-19): เปิด/ปิดปลาวาฬทาลัสซา ส่งไปพร้อมโหวต (ค่าเริ่ม = เปิด) · โหวตแล้วกดสลับ = ส่งโหวตซ้ำ
+  const [ntWhale, setNtWhale] = useState(true);
+  const vote = (mode, diff = eosDiff, whale = ntWhale) => {
     const opt = optsRef.current.find((o) => o.mode === mode);
     if (!opt || !opt.enabled || opt.suspended) return;
     uiSound("confirm");
     const d = mode === "roadtrip" && diff === "lament" ? "hard" : diff;
-    socket.emit("selectGameMode", { mode, world: serverWorld(world), ...(mode === "eos" || mode === "roadtrip" ? { diff: d } : null) });
+    const w = serverWorld(world);
+    socket.emit("selectGameMode", { mode, world: w, ...(mode === "eos" || mode === "roadtrip" ? { diff: d } : null), ...(w === "nautilus" ? { whale: !!whale } : null) });
+  };
+  const toggleWhale = () => {
+    const on = !ntWhale;
+    setNtWhale(on);
+    const me = state.players.find((p) => p.id === state.youId);
+    if (me && me.modeVote && me.modeWorld === "nautilus") vote(me.modeVote, eosDiff, on); else clickSound();
   };
   const pickDiff = (d, mode = "eos") => {
     setEosDiff(d);
@@ -234,10 +251,10 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
       return { g, stem, head, ring, hit, dir, k };
     };
     // หมุดโหมดสองชุด: Origin (ตำแหน่งเดิม) / Fodlan (รอบหมุด Fodlan)
-    const modeSets = { origin: {}, fodlan: {}, eos: {}, roadtrip: {} };
-    const hitsBy = { origin: [], fodlan: [], eos: [], roadtrip: [] };
+    const modeSets = { origin: {}, fodlan: {}, eos: {}, roadtrip: {}, nautilus: {} };
+    const hitsBy = { origin: [], fodlan: [], eos: [], roadtrip: [], nautilus: [] };
     for (const mode of PIN_MODES) {
-      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO], ["roadtrip", RT_MODE_GEO]]) {
+      for (const [set, geo] of [["origin", MODE_GEO], ["fodlan", FODLAN_MODE_GEO], ["eos", EOS_MODE_GEO], ["roadtrip", RT_MODE_GEO], ["nautilus", NT_MODE_GEO]]) {
         if (!geo[mode]) continue;
         const m = makePin(geo[mode], COLORS.azure, { mode });
         modeSets[set][mode] = m;
@@ -401,7 +418,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
         const m = s.subs[sub];
         const p = core.project(m.g.localToWorld(tmp.set(0, 0.27, 0)));
         el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -120%)`;
-        el.classList.toggle("back", w !== "earth" || core.facing(m.dir) < 0.12);
+        el.classList.toggle("back", w !== "earth" || core.facing(m.dir) < 0.05); // หมุด 5 สนามกว้างเกือบครึ่งโลก (Nautilus ↔ Fodlan) — ป้ายของหมุดใกล้ขอบโลกยังต้องขึ้น (เดิม 0.12)
       }
       const we = worldRefs.current;
       if (we.earth) {
@@ -504,7 +521,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
     for (const [k, pins] of Object.entries(s.modeSets)) for (const [mode, m] of Object.entries(pins)) m.ring.material.opacity = mode === focus && world === k ? 0.9 : 0;
     const set = s.modeSets[world];
     if (set) { core.setAutoSpin(0); core.focusDir((set[focus] || (EARTH_SUBS.has(world) ? s.subs[world] : set.ffa)).dir); }
-    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(s.subs.origin.dir.clone().add(s.subs.fodlan.dir).add(s.subs.eos.dir).add(s.subs.roadtrip.dir).normalize()); } // เห็น Origin · Fodlan · Eos · Road Trip
+    else if (world === "earth") { core.setAutoSpin(0); core.focusDir(dirFromLonLat(...EARTH_VIEW)); } // เห็น Origin · Fodlan · Eos · Road Trip · Nautilus (หมุดริมขอบโลก — ป้ายยังขึ้น ดูเกณฑ์ facing ของป้ายสนามย่อย)
     else { core.focusDir(null); core.setAutoSpin(world === "colony" || world === "moon" ? 0.04 : 0.07); }
     if (s.route) { s.root.remove(s.route); s.route.geometry.dispose(); s.route.material.dispose(); s.route = null; }
     s.curve = null;
@@ -532,6 +549,7 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
   }, [focus, world, core]);
 
   const panelOpt = options.find((o) => o.mode === shown) || null;
+  const ntVoters = state.players.filter((p) => p.modeVote && p.modeWorld === "nautilus");
   const votedCount = state.players.filter((p) => p.modeVote).length;
   const blocked = (o) => !o.enabled || o.suspended;
   // ป้ายโลกนับรวมทั้ง Origin และ Fodlan (สองสนามอยู่บนโลก) · ป้ายสนามย่อยนับแยก
@@ -685,6 +703,30 @@ export default function ModeVote({ state, core, interceptRef, focus, onFocus, wo
                     </li>
                   ))}
                 </ul>
+              </section>
+              </>
+            ) : world === "nautilus" ? (
+              <>
+              <section className="ocl-sec">
+                <div className="ocl-seclabel">ชั้น</div>
+                <ol className="ocl-nt-layers">
+                  {NAUTILUS_LAYERS.map((l) => (
+                    <li key={l.id} style={{ "--c": l.color }}>
+                      <span className="ocl-jr-badge oc-latin">{l.numeral}</span>
+                      <b>{l.name}</b>
+                      <span className="ocl-nt-depth">{l.depth.toLocaleString("en-US").replace("-", "−")}<small>ม.</small></span>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+              <section className="ocl-sec">
+                {/* ทาลัสซาเปิด/ปิด — ชื่อ + สถานะ (ไม่มีคำอธิบาย · CLAUDE.md) · จุดสี = คนที่โหวต Nautilus (จาง = ปิด) */}
+                <button type="button" role="switch" aria-checked={ntWhale} className="ocl-ntwhale" data-on={ntWhale ? "true" : "false"} onClick={toggleWhale}>
+                  <span className="ocl-ntw-ico" aria-hidden="true">{WHALE_ICO}</span>
+                  <b>ทาลัสซา</b>
+                  {ntVoters.length > 0 && <span className="ocl-dots">{ntVoters.map((p) => <i key={p.id} style={{ background: p.color, opacity: p.ntWhale === false ? 0.3 : 1 }} />)}</span>}
+                  <span className="ocl-ntw-knob" aria-hidden="true"><i /></span>
+                </button>
               </section>
               </>
             ) : world === "fodlan" ? (

@@ -362,6 +362,49 @@
       }
     },
     {
+      "name": "server-nautilus",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3031,
+      "env": {
+        "PORT": "3031",
+        "ECHO_DEV_ACTION_TIME": "600"
+      }
+    },
+    {
+      "name": "server-nautilus-deep",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3031,
+      "env": {
+        "PORT": "3031",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_START_ROUND": "25"
+      }
+    },
+    {
+      "name": "client-nautilus",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5195",
+        "--strictPort"
+      ],
+      "port": 5195,
+      "env": {
+        "ECHO_SERVER_PORT": "3031"
+      }
+    },
+    {
       "name": "server-whistle",
       "runtimeExecutable": "node",
       "runtimeArgs": [

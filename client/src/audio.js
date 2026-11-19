@@ -77,6 +77,10 @@ const FILES = {
   fodlan_4_wx: "/fodlan/music/stage4_wx.mp3",
   fodlan_5: "/fodlan/music/stage5.mp3",
   fodlan_5_wx: "/fodlan/music/stage5_wx.mp3",
+  // Nautilus (GRID_PLAN §8.9 · ไฟล์จากผู้ใช้ 2026-11-19 — ไม่อยู่ใน git): ชั้น 1–4 ไม่มีเพลง (เสียงบรรยากาศ /nautilus/sfx/amb.mp3 ผ่าน fodlanAudio)
+  //  nautilus_whale "To the Surface, Nautilus!" = เฉพาะตอนทาลัสซาอยู่บนกระดาน (ชั้น 1–4 · ขั้น 2) · nautilus_abyss "Genjitsu" = ชั้น 5 วนจนจบเกม
+  nautilus_whale: "/nautilus/bgm.mp3",
+  nautilus_abyss: "/nautilus/bgm_abyss.mp3",
   // สนาม Colony (GRID_PLAN §8.3 · ไฟล์จากผู้ใช้): เพลงตามปล้อง I/II/III · นับถอยหลังระเบิดตัวเอง = colony_alert
   colony_1: "/colony/colony_phase1.mp3",
   colony_2: "/colony/colony_phase2.mp3",
@@ -748,6 +752,9 @@ const LOUDNESS_GAIN = {
   "/fodlan/music/stage3_wx.mp3": 0.7, // -8.2 LUFS
   "/fodlan/music/stage4_wx.mp3": 0.83, // -9.7 LUFS
   "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
+  // Nautilus (ffmpeg ebur128 ทั้งไฟล์ 2026-11-19 · เป้า -14 LUFS)
+  "/nautilus/bgm.mp3": 0.59, // -9.4 LUFS
+  "/nautilus/bgm_abyss.mp3": 0.52, // -8.3 LUFS
   // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
   // Road Trip (ยังไม่มีไฟล์ — วัด ffmpeg ebur128 แล้วใส่ค่าจริงเมื่อผู้ใช้ส่งมา · เป้า -14 LUFS)
   "/roadtrip/music/stop_day.mp3": 1,

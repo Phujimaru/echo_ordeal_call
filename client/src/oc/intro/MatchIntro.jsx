@@ -180,7 +180,8 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
       if (spec && spec.fodlan) {
         // Fodlan: การ์ดไหลออก → ดิ่งลงหมุด Fodlan → แผนที่ทวีป → ฉากเข้าด่าน → แฟลชขาวส่งต่อ
         const D = Math.max(6000, Number(spec.durationMs) || FODLAN_INTRO_MS);
-        const f = { at: performance.now(), D, stage: clampFodlanStage(spec.stage), weather: !!spec.weather, music: spec.music };
+        // Nautilus (§8.9 ขั้น 1): ยืมฉาก Fodlan — ฉากด่าน = sceneStage · ป้ายชื่อ/เสียงบรรยากาศ = ชั้นจริง (spec.stage 7–11) · ดิ่งลงหมุด Nautilus
+        const f = { at: performance.now(), D, stage: clampFodlanStage(spec.sceneStage ?? spec.stage), title: spec.stage, geo: spec.geo || null, mark: spec.mark || null, weather: !!spec.weather, music: spec.music };
         tlRef.current.out = true;
         tlRef.current.fodlan = f;
         setFodlan(f);
@@ -280,7 +281,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
     let fodlanCam = null;
     let eosCam = null;
     let rtCam = null;
-    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.stage), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false, onMap: () => mapRef.current?.() });
+    const makeFodlan = (spec) => createFodlanFlight(core, { stage: clampFodlanStage(spec.sceneStage ?? spec.stage), ambStage: spec.title ?? spec.stage, ...(spec.geo ? { geo: spec.geo } : {}), weather: !!spec.weather, lowQ, wrapEl: stageEl, start, music: spec.music !== false, onMap: () => mapRef.current?.() });
     if (prepRef.current) fodlanCam = makeFodlan(prepRef.current);
     const P = new THREE.Vector3();
     const ring = { cx: 0, cy: 0, r: 1 };
@@ -509,7 +510,7 @@ export default function MatchIntro({ players, area = 1, lowQ = false, fodlan: fo
         </>
       )}
       {diving && <DiveImpact area={A} lowQ={lowQ} />}
-      {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.stage} />}
+      {fodlan && <FodlanCine D={fodlan.D} stage={fodlan.title ?? fodlan.stage} {...(fodlan.mark ? { mark: fodlan.mark } : {})} />}
       {eos && <EosCine D={eos.D} self={eos.self} />}
       {rtrip && (
         <>

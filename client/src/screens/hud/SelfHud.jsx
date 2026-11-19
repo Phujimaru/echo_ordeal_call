@@ -609,7 +609,7 @@ function MoonChip({ moon, round, players }) {
   );
 }
 // Fodlan: ไอคอนสภาพอากาศของด่าน (server/fodlan.js WEATHER_KINDS)
-const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲" };
+const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲", nt_storm: "🌀", nt_sharks: "🦈", nt_silt: "🟤", nt_eruption: "🌋", nt_quake: "💥", nt_maelstrom: "🌀", nt_cold: "🥶", nt_dark: "🌑" };
 // Road Trip (state.roadtrip — GRID_PLAN §8.8): แทนป้ายภูมิภาค — ภูมิภาค/รอบวน · กม. · HP รถ · น้ำมัน (+ รอบที่รอด/ประตูท้ายตอนสู้บนรถ) — roadtrip/VanStatus.jsx
 //  roadtrip = { rt: state.roadtrip, myTurn } · กลางวัน/กลางคืนตาม rt.night (ไม่ใช่ cycle ของเกมเดิม)
 export function HudTopBar({ night, round, timer, journey, onJourney, colony, moon, roadtrip, players, zoom = 1 }) {
@@ -655,7 +655,7 @@ export function HudTopBar({ night, round, timer, journey, onJourney, colony, moo
                   {journey.alert > 0 && <span className="hud-top-eosbadge">{journey.alert}</span>}
                 </span>
               ) : (
-                <span className="hud-top-sub">{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
+                <span className="hud-top-sub">{Number.isFinite(journey.depth) && `−${Math.abs(journey.depth).toLocaleString("en-US")} ม. · `}{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
               )}
             </span>
           </button>

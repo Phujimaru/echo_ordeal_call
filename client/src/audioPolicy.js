@@ -13,7 +13,8 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
     return roadtripMusic(state.roadtrip, rtFiles);
   }
   // Fodlan (GRID_PLAN §8.5): ฉากเปิดแมตช์ — การ์ด/ลูกโลกหมุนดิ่ง = เพลงห้องรอเดิม · เห็นแผนที่ทวีปแล้ว (fodlanMap) = เพลงฉากแผนที่ (ผู้ใช้สั่ง)
-  if (intro) return { name: state?.world === "eos" ? "eos_intro" : state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" }; // Eos: ฉากเปิด = Somnus
+  // Nautilus (§8.9): ฉากเปิดยืมฉาก Fodlan แต่ไม่มีเพลงแผนที่ — ห้องรอเงียบลงตอนเห็นแผนที่ (ชั้น 1 ไม่มีเพลง)
+  if (intro) return { name: state?.world === "eos" ? "eos_intro" : state?.world === "nautilus" && fodlanMap ? null : state?.fodlan && fodlanMap ? "fodlan_map" : "lobby5" }; // Eos: ฉากเปิด = Somnus
   if (phase === "GAMEOVER" && state?.world === "eos") return { name: "eos_end" }; // Eos: หน้าจบเกม = Omnis Lacrima
   const cs = phase === "CUTSCENE" ? state.cutscene : null;
   if (cs && (!lowQ || cs.announce)) return { name: null };
@@ -29,7 +30,11 @@ export function musicForState(state, { lowQ = false, cycleSeq = 0, attackSeq = 0
   // Fodlan: ฉากเปลี่ยนแผนที่ = เพลงฉากแผนที่ · บนกระดาน = เพลงประจำด่าน (สภาพอากาศ = เพลงอีกแบบของด่านนั้น) — เพลงท่าไม้ตายทับได้
   //  Eos (§8.6) ใช้ state.fodlan ร่วม แต่มีเพลงของตัวเอง (eos/eosAudio.js setMusic — App.jsx เลือกตาม state) → เพลงหลักเงียบ · เพลงท่าไม้ตายยังทับได้
   if (state?.world === "eos" && state?.fodlan?.board && isMatchPhase(phase) && !state?.skillMusic) return { name: null };
-  const fodlan = state?.world === "eos" ? null : state?.fodlan;
+  // Nautilus (GRID_PLAN §8.9 · ผู้ใช้สั่ง 2026-11-19): ชั้น 1–4 ไม่มีเพลง (เสียงบรรยากาศใต้น้ำจาก fodlanAudio) · ทาลัสซาอยู่ (state.fodlan.board.whale · ขั้น 2)
+  //  = nautilus_whale ทับเฉพาะชั้น 1–4 · ชั้น 5 = nautilus_abyss ตลอดจนจบเกม (ปลาวาฬโผล่ก็ไม่เปลี่ยน) · ปิดทาลัสซาในโหวต (whaleEnabled false) = ไม่มีเพลงปลาวาฬ
+  //  ฉากเปลี่ยนชั้นไม่มีเพลงของตัวเอง (ใช้เพลงของชั้นปลายทาง) · เพลงท่าไม้ตายทับได้
+  if (state?.world === "nautilus" && state?.fodlan && isMatchPhase(phase) && !state?.skillMusic) return { name: nautilusMusic(state.fodlan) };
+  const fodlan = state?.world === "eos" || state?.world === "nautilus" ? null : state?.fodlan;
   if (fodlan && isMatchPhase(phase)) {
     if (fodlan.scene?.active) return { name: "fodlan_map" };
     if (!state?.skillMusic) return { name: `fodlan_${fodlan.stage}${fodlan.weather ? "_wx" : ""}` };
@@ -89,4 +94,13 @@ export function createPhaseSoundTracker() {
     if (attack) lastAttack = state.attack.id;
     return { roundEnded, attack: !!attack };
   };
+}
+
+// Nautilus (GRID_PLAN §8.9): เพลงตามชั้น — ด่าน 11 (ชั้นสุดท้าย) = nautilus_abyss เสมอ · ชั้น 7–10 = nautilus_whale เฉพาะตอนทาลัสซาอยู่ (board.whale · ปิดในโหวต = ไม่มี) · ไม่งั้นเงียบ
+//  (ไฟล์นี้ห้าม import — tests/audio-policy.test.js โหลดผ่าน vm)
+export function nautilusMusic(fd) {
+  if (!fd) return null;
+  if (Number(fd.stage) === 11) return "nautilus_abyss";
+  if (fd.whaleEnabled !== false && fd.board && fd.board.whale) return "nautilus_whale";
+  return null;
 }

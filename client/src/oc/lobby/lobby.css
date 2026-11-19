@@ -480,3 +480,25 @@
   color: #fff; background: #e0702e; box-shadow: 0 0 0 3px var(--oc-paper, #fff); animation: ocl-rt-loop 4s linear infinite; }
 @keyframes ocl-rt-loop { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ocl-rt-loop span { animation: none; } }
+
+/* Nautilus (GRID_PLAN §8.9): หมุดสนาม + สวิตช์ทาลัสซา */
+.ocl-worldtag[data-world="nautilus"] { --a: #1fb8c4; }
+.ocl-ntwhale { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  border: 1.5px solid var(--oc-line, rgba(127,127,127,.35)); background: transparent; color: inherit; font: inherit; text-align: left; }
+.ocl-ntwhale:hover { border-color: #1fb8c4; }
+.ocl-ntwhale b { flex: 1; }
+.ocl-ntw-ico { display: inline-flex; width: 26px; height: 26px; }
+.ocl-ntw-ico svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ocl-ntw-knob { position: relative; width: 38px; height: 20px; border-radius: 999px; background: rgba(127,127,127,.35); transition: background .2s; flex: none; }
+.ocl-ntw-knob i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.ocl-ntwhale[data-on="true"] { border-color: #1fb8c4; background: rgba(31,184,196,.12); }
+.ocl-ntwhale[data-on="true"] .ocl-ntw-ico { color: #1fb8c4; }
+.ocl-ntwhale[data-on="true"] .ocl-ntw-knob { background: #1fb8c4; }
+.ocl-ntwhale[data-on="true"] .ocl-ntw-knob i { transform: translateX(18px); }
+.ocl-ntwhale[data-on="false"] .ocl-ntw-ico { opacity: .45; }
+.ocl-nt-layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ocl-nt-layers li { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 8px; border-left: 3px solid var(--c); background: rgba(127,127,127,.06); }
+.ocl-nt-layers li b { flex: 1; font-weight: 600; font-size: 13px; }
+.ocl-nt-layers .ocl-jr-badge { width: 26px; height: 28px; font-size: 11px; }
+.ocl-nt-depth { font: 600 12px/1 var(--oc-f-ui); opacity: .75; white-space: nowrap; }
+.ocl-nt-depth small { margin-left: 2px; font-size: 10px; }

@@ -21,10 +21,17 @@ import * as S3 from "./stage3";
 import * as S4 from "./stage4";
 import * as S5 from "./stage5";
 import * as S6 from "./stage6"; // สนาม Eos (GRID_PLAN §8.6) — "ด่าน 6" area 45
+// Nautilus (GRID_PLAN §8.9) — ชั้นใต้ทะเล 1–5 = "ด่าน 7–11" area 46–50 (ของกลาง ./nautilusArt.js)
+import * as S7 from "./stage7";
+import * as S8 from "./stage8";
+import * as S9 from "./stage9";
+import * as S10 from "./stage10";
+import * as S11 from "./stage11";
 
 export const FODLAN_AREA = 40;
-const MODS = { 1: S1, 2: S2, 3: S3, 4: S4, 5: S5, 6: S6 };
-export const stageOfArea = (area) => (Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + 6 ? Number(area) - FODLAN_AREA + 1 : 0);
+const MODS = { 1: S1, 2: S2, 3: S3, 4: S4, 5: S5, 6: S6, 7: S7, 8: S8, 9: S9, 10: S10, 11: S11 };
+const LAST_STAGE = 11;
+export const stageOfArea = (area) => (Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + LAST_STAGE ? Number(area) - FODLAN_AREA + 1 : 0);
 const modOfArea = (area) => MODS[stageOfArea(area)] || null;
 // ชนิด fd_… ของด่านปัจจุบันก่อน (ชื่อซ้ำข้ามด่านได้ — เช่น fd_fire) · ไม่รู้ area = ด่านแรกที่มีชื่อนี้
 const modOfKind = (kind, area) => {

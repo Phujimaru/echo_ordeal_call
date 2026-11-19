@@ -10,7 +10,7 @@
 import { dirFromLonLat } from "../globe/globeCore";
 import { createDiveCamera, createMarker, aimAngles, setAim, nearYaw } from "../oc/intro/diveKit";
 import { createFodlanTheatre } from "./fodlanTheatre";
-import { FODLAN_GEO } from "./stages";
+import { FODLAN_GEO, fodlanStageInfo } from "./stages";
 import { span, easeInOut, easeOut, easeIn, smooth, clamp01 } from "./kit";
 import { fodlanAudio } from "./fodlanAudio";
 import { playMusic } from "../audio";
@@ -30,14 +30,18 @@ const T = FODLAN_T;
 
 // music = false: เกมจริงให้ audioPolicy เลือกเพลงเอง (fodlan_map ระหว่างฉาก → เพลงด่านเมื่อเข้ากระดาน) · true = พรีวิวสั่งเล่นเอง
 //  onMap = เรียกครั้งเดียวตอนแฟลชเปลี่ยนจากลูกโลกเป็นแผนที่ทวีป (เกมจริง: App สลับเพลงห้องรอ → เพลงแผนที่ — ผู้ใช้สั่ง)
-export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = false, wrapEl = null, start = 0, music = true, onMap = null } = {}) {
+//  geo = หมุดที่ดิ่งลง (ค่าเริ่ม = หมุด Fodlan) · ambStage = ด่านของเสียงบรรยากาศตอนเข้าฉากด่าน (ค่าเริ่ม = stage)
+//   Nautilus (§8.9 ขั้น 1) ยืมฉากนี้: geo = หมุด Nautilus · stage = ฉากด่าน Fodlan ที่ยืม · ambStage = ชั้นจริง (7–11)
+export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = false, wrapEl = null, start = 0, music = true, onMap = null, geo = FODLAN_GEO, ambStage = null } = {}) {
+  const ambId = ambStage ?? stage;
+  const ambInfo = fodlanStageInfo(ambId);
   const { THREE, camera } = core;
   const theatre = createFodlanTheatre(core, { stage, weather, lowQ });
   const audio = fodlanAudio();
   const info = theatre.stageInfo;
-  audio.preload(["cine_dive", "cine_clouds", "cine_reveal", "cine_map", "cine_swoop", "cine_stage", info.amb, info.wx, ...(stage === 4 ? ["campfire"] : [])].filter(Boolean));
+  audio.preload(["cine_dive", "cine_clouds", "cine_reveal", "cine_map", "cine_swoop", "cine_stage", ambInfo ? ambInfo.amb : info.amb, info.wx, ...(stage === 4 ? ["campfire"] : [])].filter(Boolean));
 
-  const dir = dirFromLonLat(FODLAN_GEO.lon, FODLAN_GEO.lat);
+  const dir = dirFromLonLat(geo.lon, geo.lat);
   let diveCam = null, marker = null, yaw0 = null, pitch0 = 0;
   const P = new THREE.Vector3();
   const cam = new THREE.Vector3(), at = new THREE.Vector3(), M = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -57,7 +61,7 @@ export function createFodlanFlight(core, { stage = 1, weather = false, lowQ = fa
     [T.reveal, () => audio.sfx("cine_reveal")],
     [T.reveal + 0.02, () => audio.sfx("cine_map", { gain: 0.8 })],
     [T.swoop, () => audio.sfx("cine_swoop")],
-    [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(stage, { weather, fade: 3 }); if (stage === 1 && weather) audio.thunder(true); if (music) playMusic(`fodlan_${stage}${weather ? "_wx" : ""}`); }],
+    [T.stage - 0.01, () => { audio.sfx("cine_stage"); audio.setStage(ambId, { weather, fade: 3 }); if (ambId === 1 && weather) audio.thunder(true); if (music) playMusic(`fodlan_${stage}${weather ? "_wx" : ""}`); }],
   ];
 
   return {

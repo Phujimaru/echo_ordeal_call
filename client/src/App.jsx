@@ -17,6 +17,7 @@ import { COLONY_MS } from "./oc/intro/colonyFlight";
 import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
+import { NAUTILUS_GEO, NAUTILUS_SCENE_STAGE } from "./nautilus/nautilusMeta";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
 import { eosAudio, eosBedsFor, eosMusicPicker } from "./eos/eosAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
@@ -28,6 +29,8 @@ import { SharedGlobeStage } from "./globe/SharedGlobe";
 import { GLOBE_SCREENS } from "./components/TransitionCurtain";
 import { rosterOf } from "./duo";
 
+// Nautilus (GRID_PLAN §8.9 ขั้น 1): ฉากเปิดแมตช์ยืมฉาก Fodlan — ดิ่งลงหมุด Nautilus · ฉากด่านที่ยืม · ป้ายชื่อ/เสียง = ชั้นจริง
+const nautilusIntro = (f) => ({ stage: (f && f.stage) || 7, sceneStage: NAUTILUS_SCENE_STAGE, geo: NAUTILUS_GEO, mark: "NAUTILUS" });
 const SESSION_KEY = 'echo_session';
 
 function savedSessionToken() {
@@ -166,7 +169,7 @@ export default function App() {
         journeySeqRef.current = jScene.seq;
         if (jScene.mode === "start") pendingJourneyRef.current = jScene;
         else if (jScene.mode === "rebirth") setRebirth({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, endsInMs: (Number(s.timeLeft) || 18) * 1000 });
-        else if (s.world === "fodlan") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
+        else if (s.world === "fodlan" || s.world === "nautilus") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
         else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
       if (s.roadtrip && Number.isFinite(s.roadtrip.now)) noteServerNow(s.roadtrip.now);
@@ -178,7 +181,8 @@ export default function App() {
         setIntro({
           key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1,
           // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = MatchIntro สร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร (เพลงคุมโดย audioPolicy)
-          fodlan: s.world === "fodlan" && s.fodlan ? { stage: s.fodlan.stage, weather: !!s.fodlan.weather, music: false } : null,
+          fodlan: s.world === "fodlan" && s.fodlan ? { stage: s.fodlan.stage, weather: !!s.fodlan.weather, music: false }
+            : s.world === "nautilus" && s.fodlan ? { ...nautilusIntro(s.fodlan), weather: false, music: false } : null, // Nautilus (§8.9 ขั้น 1): ยืมฉาก Fodlan
           title: s.world === "roadtrip" ? "เริ่มการเดินทาง" : null,
         });
         setShowIntro(true);
@@ -525,6 +529,9 @@ export default function App() {
       if (worldRef.current === "fodlan") {
         const f = fodlanRef.current;
         return { fodlan: true, stage: f?.stage || 1, weather: !!f?.weather, music: false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) };
+      }
+      if (worldRef.current === "nautilus") {
+        return { fodlan: true, ...nautilusIntro(fodlanRef.current), weather: false, music: false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) };
       }
       return { area: pending.area, durationMs: journeyDurationMs(getTickSeconds(), 7000) };
     }
