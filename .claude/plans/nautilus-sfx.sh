@@ -42,4 +42,8 @@ impact|impact_water_cinematic_water_metal_hit_mixkit1306.mp3|0|4|0.003|1|0.9|-14
 deepimpact|impact_water_cinematic_whoosh_deep_impact_mixkit1143.mp3|0|4.1|0.005|1|1|-14
 echarge|electric_underwater_electric_whoosh_mixkit2596.mp3|0|3.1|0.01|0.6|1|-16
 crackle|electric_underwater_electric_welding_sparkles_mixkit2603.mp3|0|2.5|0.01|0.6|1|-17
+swim|swashing_sea_water_1179.mp3|0.9|1.4|0.25|0.8|0.6|-18|lowpass=f=700
+swim2|swashing_sea_water_1179.mp3|5.4|1.4|0.25|0.8|0.6|-18|lowpass=f=700
+tailslap|impact_water_humpback_tail_slaps_nps.mp3|10.6|1|0.01|0.5|0.7|-16|highpass=f=40,lowpass=f=1500,afftdn=nf=-22
+waves|swashing_sea_water_1179.mp3|0.2|11|0.6|0.8|1|-22
 TABLE
