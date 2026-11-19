@@ -11,6 +11,7 @@ import { SkillSlot } from "./SkillSlot";
 import { StatRow, VitalExtras } from "./StatRow";
 import { measureHud } from "./hudMeasure";
 import NautilusGuide from "../../nautilus/NautilusGuide";
+import NtWhaleBar from "../../nautilus/NtWhaleBar";
 
 const COLS = ["#3d8bd9", "#9b4f96", "#e0812f", "#2fa39a", "#d2455b", "#6b7fd6", "#c49a2c"];
 const MOCK_STATUS = [
@@ -128,6 +129,7 @@ export default function HudPreview() {
             onJourney={() => {}}
             onGuide={() => setNtGuide(ntGuide || 11)}
           />
+          {q.get("whale") != null && <NtWhaleBar whale={{ on: true, hp: Number(q.get("whale")) || 42, hpMax: 60 }} zoom={hudK} />}
           {ntGuide > 0 && <NautilusGuide state={{ fodlan: { stage: ntGuide, name: ["", "", "", "", "", "", "", "แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"][ntGuide] } }} onClose={() => setNtGuide(0)} />}
           {target && (
             <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-40 text-center text-hard whitespace-nowrap">

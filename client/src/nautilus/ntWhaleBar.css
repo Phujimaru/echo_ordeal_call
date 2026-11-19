@@ -1,0 +1,24 @@
+/* แถบพลังชีวิตทาลัสซา (NtWhaleBar.jsx) — กลางจอบน */
+.nt-whalebar {
+  position: fixed; left: 50%; top: calc(16px * var(--k, 1)); z-index: 40; pointer-events: none;
+  width: calc(520px * var(--k, 1)); transform: translateX(-50%);
+  font-family: "Kanit", sans-serif; color: #e8fbff; animation: ntWbIn .5s cubic-bezier(.2, .9, .3, 1) both;
+  padding: calc(8px * var(--k, 1)) calc(14px * var(--k, 1)) calc(11px * var(--k, 1)); border-radius: calc(12px * var(--k, 1));
+  background: linear-gradient(180deg, rgba(6, 26, 44, .9), rgba(3, 14, 26, .86)); box-shadow: 0 6px 22px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(150, 235, 255, .22);
+}
+.nt-whalebar-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px calc(4px * var(--k, 1)); text-shadow: 0 2px 6px rgba(0, 10, 20, .85); }
+.nt-whalebar-head b { font-size: calc(19px * var(--k, 1)); font-weight: 700; letter-spacing: .04em; color: #bff6ff; }
+.nt-whalebar-head span { font-size: calc(17px * var(--k, 1)); font-weight: 700; font-variant-numeric: tabular-nums; }
+.nt-whalebar-head i { font-style: normal; opacity: .65; font-size: .85em; }
+.nt-whalebar-track {
+  position: relative; height: calc(14px * var(--k, 1)); border-radius: 999px; overflow: hidden;
+  background: rgba(4, 18, 32, .82); box-shadow: 0 0 0 1.5px rgba(150, 235, 255, .55), 0 4px 16px rgba(0, 0, 0, .5), 0 0 22px rgba(31, 184, 196, .35);
+}
+.nt-whalebar-track > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; }
+.nt-whalebar-lag { background: rgba(255, 255, 255, .85); transition: width .5s ease-in; }
+.nt-whalebar-fill { background: linear-gradient(180deg, #b8f6fb, #1fb8c4 55%, #0c7f99); transition: width .25s ease-out; }
+.nt-whalebar-track > i { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(2, 20, 34, .55); }
+.nt-whalebar-flash { position: absolute; inset: 0; background: #fff; animation: ntWbHit .35s ease-out forwards; }
+.nt-whalebar[data-low] .nt-whalebar-fill { background: linear-gradient(180deg, #ffd3d3, #e0566a 55%, #9c2335); }
+@keyframes ntWbIn { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes ntWbHit { 0% { opacity: .75; } 100% { opacity: 0; } }

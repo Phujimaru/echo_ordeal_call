@@ -4,6 +4,7 @@ import EosGuide from "../eos/EosGuide";
 import EosSituation from "../eos/EosSituation";
 import NautilusWeather from "../nautilus/NautilusWeather";
 import NautilusGuide from "../nautilus/NautilusGuide";
+import NtWhaleBar from "../nautilus/NtWhaleBar";
 import EosAlerts from "../eos/EosAlerts";
 import { eosSituation, SIT_COUNT as sitCount } from "../eos/eosSitData";
 import EosZoneCard from "../eos/EosZoneCard";
@@ -979,6 +980,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {eosSitOpen && state.world === "eos" && <EosSituation state={state} onClose={() => setEosSitOpen(false)} />}
       {ntWxOpen && state.world === "nautilus" && <NautilusWeather state={state} onClose={() => setNtWxOpen(false)} />}
       {ntGuideOpen && state.world === "nautilus" && <NautilusGuide state={state} onClose={() => setNtGuideOpen(false)} />}
+      {state.world === "nautilus" && !fcOpen && <NtWhaleBar whale={state.fodlan?.board?.whale} zoom={hudZ} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
       {state.world === "eos" && state.board && <EosScoreboard state={state} />}
