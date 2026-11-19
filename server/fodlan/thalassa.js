@@ -13,7 +13,7 @@
 //   ชั้น 2–4 = 1 ท่า/เทิร์น · ชั้น 5 = 2 ท่า + ดาเมจ +1 · เลือดต่ำกว่าครึ่งในชั้น 5 = 3 ท่า
 //   เลือด 30 + 5 ต่อผู้เล่น ไม่มีเกราะ ค้างข้ามรอบโผล่ · ไม่ตีสวน ไม่ติดสถานะ
 // ============================================================
-Object.assign(module.exports, { reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt });
+Object.assign(module.exports, { reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent });
 
 const FIRST_TURN = 10;
 const ON_TURNS = 3;
@@ -35,8 +35,10 @@ function enabled(match) { return match.nautilusWhale !== false; }
 
 function reset(match, playerCount) {
   const hpMax = HP_BASE + HP_PER_PLAYER * Math.max(1, playerCount | 0);
-  match.fodlan.whale = { on: false, left: 0, nextAt: FIRST_TURN, hp: hpMax, hpMax, dead: false, s: 0, pending: [], killer: null, appearSeq: 0 };
+  match.fodlan.whale = { on: false, present: false, left: 0, nextAt: FIRST_TURN, hp: hpMax, hpMax, dead: false, s: 0, pending: [], killer: null, appearSeq: 0, calm: false };
 }
+// ธงเพลง (nautilusLayer.whalePresent → board.whale ของ client) = อยู่บนกระดานตอนนี้
+function syncPresent(w) { if (w) w.present = !!(w.on && !w.dead); return w; }
 
 // ---------- เส้นทาง ----------
 let PATH_CACHE = null;
@@ -78,9 +80,11 @@ function footprint(pos, cols, rows) {
   }
   return out;
 }
-function bodyNow(ctx) {
-  const w = W(ctx), map = ctx.map();
+// map = ขนาดกระดาน (ฮุค layer ส่ง map ที่กำลังสร้างมา — ห้ามเรียก ctx.map() ในนั้น: boardMap → layer วนไม่จบ)
+function bodyNow(ctx, map = null) {
+  const w = W(ctx);
   if (!w || !w.on || w.dead) return [];
+  map = map || ctx.map();
   return footprint(posAt(w.s, map.cols, map.rows), map.cols, map.rows);
 }
 
@@ -98,7 +102,9 @@ function preRound(ctx) {
       if (!w.dead) leave(ctx, w, turn);
       return secs;
     }
-    swim(ctx, w);
+    // ออร์แกนของเรือ (server/fodlan/nautilusShip.js): สงบ 1 เทิร์น = ไม่ว่าย (ท่าที่เตือนไว้ถูกล้างไปแล้วตอนเล่น)
+    if (w.calm) { w.calm = false; ctx.fx("whale_calm", posAt(w.s, ctx.map().cols, ctx.map().rows)); }
+    else swim(ctx, w);
     plan(ctx, w);
     return Math.max(secs, 2);
   }
@@ -109,8 +115,9 @@ function preRound(ctx) {
   }
   return 0;
 }
+// [แก้ 2026-11-19] เดิม left = ON_TURNS + 1 → อยู่ 10–13 พัก 14–16 · ที่ถูก: โผล่ A ยิง A+1, A+2 · A+3 ยิงท่าสุดท้ายแล้วจากไป → left = ON_TURNS
 function appear(ctx, w, turn) {
-  w.on = true; w.left = ON_TURNS + 1; w.appearSeq = (w.appearSeq || 0) + 1;
+  w.on = true; w.present = true; w.left = ON_TURNS; w.calm = false; w.appearSeq = (w.appearSeq || 0) + 1;
   const map = ctx.map();
   w.s = Math.random() * pathPts(map.cols, map.rows).len;
   ctx.fx("whale_flyby", {});
@@ -120,11 +127,37 @@ function appear(ctx, w, turn) {
   void turn;
 }
 function leave(ctx, w, turn) {
-  w.on = false; w.pending = [];
+  w.on = false; w.present = false; w.pending = []; w.calm = false;
   w.nextAt = turn + OFF_TURNS;
   const map = ctx.map();
   ctx.fx("whale_leave", posAt(w.s, map.cols, map.rows));
   ctx.log("🐋 ทาลัสซาดำลับไปในความมืด");
+  ctx.bump(); // ลำตัวหายจากชั้นแผนที่ (เดิมไม่ bump = ช่องลำตัวค้างเป็นสิ่งกีดขวางในแผนที่ที่แคชไว้)
+}
+// เปลี่ยนชั้นระหว่างที่โผล่ (ตามลงไปด้วย นับเทิร์นต่อ): ท่าที่เตือนไว้บนชั้นเดิมยกเลิก · เบียดคนที่เกิดใต้ลำตัวออก
+function enterLayer(ctx) {
+  const w = W(ctx);
+  if (!w || !w.on || w.dead) return;
+  w.pending = [];
+  shoveOffBody(ctx);
+}
+// ไฟฉายของเรือส่องโดน = ชะงัก 1 ท่า (ท่าแรกที่เตือนไว้ถูกยกเลิก) · คืน true = มีท่าให้ยกเลิก
+function stun(ctx) {
+  const w = W(ctx);
+  if (!w || !w.on || w.dead) return false;
+  const m = (w.pending || []).shift();
+  ctx.fx("whale_stun", { move: m ? m.kind : null, ...posAt(w.s, ctx.map().cols, ctx.map().rows) });
+  if (m) ctx.log(`🔦 ทาลัสซาชะงัก — ${MOVE_NAMES[m.kind]}ถูกยกเลิก`);
+  return !!m;
+}
+// ออร์แกนของกัปตัน: สงบ 1 เทิร์น = ท่าที่เตือนไว้ยกเลิกทั้งหมด + ต้นเทิร์นหน้าไม่ว่าย
+function calm(ctx) {
+  const w = W(ctx);
+  if (!w || !w.on || w.dead) return false;
+  w.pending = [];
+  w.calm = true;
+  ctx.log("🎹 ทาลัสซาสงบลงชั่วครู่");
+  return true;
 }
 function swim(ctx, w) {
   const map = ctx.map();
@@ -231,7 +264,9 @@ function dodges(ctx, p) {
 }
 function hit(ctx, p, n, kind, extra = {}) {
   if (!p || !p.alive || !p.pos) return false;
-  if (dodges(ctx, p)) { ctx.log(`💨 ${p.name} หลบ${MOVE_NAMES[kind]}ได้`); ctx.fx("whale_dodge", { id: p.id, kind }); return false; }
+  // ตัวเรือ Nautilus บังพุ่งทะลวง/เพลงวาฬ: ยืนติดเรือ = ไม่โดน (GRID_PLAN §8.9 — ทำแบบง่าย ไม่ดูฝั่ง)
+  if ((kind === "charge" || kind === "song") && require("./nautilusShip").shelters(ctx, p)) { ctx.fx("whale_dodge", { id: p.id, move: kind, ship: true }); return false; }
+  if (dodges(ctx, p)) { ctx.log(`💨 ${p.name} หลบ${MOVE_NAMES[kind]}ได้`); ctx.fx("whale_dodge", { id: p.id, move: kind }); return false; }
   const bonus = ctx.stage >= 11 ? 1 : 0;
   const dealt = ctx.damage(p, n + bonus, extra);
   ctx.log(`🐋 ${MOVE_NAMES[kind]} → ${p.name} -${dealt}`);
@@ -252,7 +287,7 @@ function resolvePending(ctx, w) {
   if (!moves.length) return 0;
   const map = ctx.map();
   for (const m of moves) {
-    const out = { kind: m.kind, dir: m.dir, hits: [] };
+    const out = { move: m.kind, dir: m.dir, hits: [] }; // [แก้ 2026-11-19] เดิม kind: m.kind → ทับ kind "whale_…" ของเหตุการณ์ (ctx.fx กระจาย data ทับ) = client ไม่เห็นท่า
     if (m.kind === "tentacle") {
       out.rows = m.rows;
       for (const y of m.rows) for (const p of ctx.alive().filter((q) => q.pos && q.pos.y === y)) if (hit(ctx, p, DMG.tentacle, m.kind)) { push(ctx, p, m.dir, 0); out.hits.push(p.id); }
@@ -268,7 +303,7 @@ function resolvePending(ctx, w) {
       out.centers = m.centers;
       for (const c of m.centers) for (const p of ctx.alive().filter((q) => q.pos && Math.abs(q.pos.x - c.x) <= 1 && Math.abs(q.pos.y - c.y) <= 1)) {
         const core = p.pos.x === c.x && p.pos.y === c.y;
-        if (hit(ctx, p, core ? DMG.whirlCore : DMG.whirlRing, m.kind)) { element(ctx, p, "water"); out.hits.push(p.id); }
+        if (hit(ctx, p, core ? DMG.whirlCore : DMG.whirlRing, m.kind)) { element(ctx, p, "water"); require("./nautilusO2").drain(ctx, p, 1, "whirl"); out.hits.push(p.id); }
       }
     } else if (m.kind === "zap") {
       const first = at(ctx, m.at.x, m.at.y);
@@ -296,6 +331,7 @@ function resolvePending(ctx, w) {
         const spot = spots.length ? ctx.pick(spots, 1)[0] : null;
         if (p.alive && spot) { p.pos = { x: spot.x, y: spot.y }; out.spit = spot; }
         if (p.alive) ctx.Status.applyDebuff(p, "stun", null, 1);
+        if (p.alive) require("./nautilusO2").drain(ctx, p, Math.ceil(require("./nautilusO2").O2_MAX / 2), "swallow"); // ออกซิเจนหายครึ่งถัง
         out.hits.push(p.id);
       }
     }
@@ -307,7 +343,7 @@ function resolvePending(ctx, w) {
 
 // ---------- ชั้นแผนที่: ลำตัวเป็นสิ่งกีดขวาง ----------
 function layer(ctx, map) {
-  const body = bodyNow(ctx);
+  const body = bodyNow(ctx, map);
   if (!body.length) return map;
   const terrain = { ...(map.terrain || {}) };
   for (const c of body) {
@@ -336,12 +372,18 @@ function strikeObject(ctx, p, id) {
   const w = W(ctx);
   if (!w || !w.on || w.dead || !String(id).startsWith("fd:whale:")) return false;
   const n = strikePower(ctx, p);
-  w.hp = Math.max(0, w.hp - n);
   const [x, y] = String(id).slice(9).split(",").map(Number);
-  ctx.fx("whale_hit", { x, y, n, by: p.id, hp: w.hp });
-  ctx.log(`⚔️ ${p.name} ฟันทาลัสซา -${n} (เหลือ ${w.hp}/${w.hpMax})`);
+  return damageWhale(ctx, p, n, { x, y, src: "strike" });
+}
+// ความเสียหายใส่ทาลัสซา (ตีปกติ · ตอร์ปิโดของเรือ) → วินาทีของฉาก · ตาย = ผู้ทำได้หัวใจของท้องทะเล
+function damageWhale(ctx, p, n, { x, y, src = "strike" } = {}) {
+  const w = W(ctx);
+  if (!w || !w.on || w.dead || !(n > 0)) return false;
+  w.hp = Math.max(0, w.hp - n);
+  ctx.fx("whale_hit", { x, y, n, by: p.id, hp: w.hp, src });
+  ctx.log(`${src === "torpedo" ? "🚀" : "⚔️"} ${p.name} ${src === "torpedo" ? "ยิงตอร์ปิโดใส่" : "ฟัน"}ทาลัสซา -${n} (เหลือ ${w.hp}/${w.hpMax})`);
   if (w.hp <= 0) {
-    w.dead = true; w.on = false; w.pending = []; w.killer = p.id;
+    w.dead = true; w.on = false; w.present = false; w.pending = []; w.killer = p.id;
     ctx.Status.applyBuff(p, HEART.key, HEART.amount, HEART.turns);
     const map = ctx.map();
     ctx.fx("whale_death", { ...posAt(w.s, map.cols, map.rows), by: p.id });

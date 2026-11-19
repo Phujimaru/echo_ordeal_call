@@ -22,10 +22,12 @@ Object.assign(module.exports, {
   inWorld, isEos, isNautilus, active, start, reset, stageNow, areaOf, weatherNow, startWeather, maybeAdvance, onEndTurn, publicInfo,
   mapLayer, keepsTile, incomingDamage, rangeMod, critPct, strikePierces, onStrikeLanded, layerVer, preRound, onUnitEnd, hudActions, charAction, objects, strikeObject, canHitObject,
   movMod, flatWalk, carWalk, carSeats, carDriver, noSkill, onKill, eosWinner, eosOutcome, shields, absorbDamage, atkBonus, preventDeath, hides, vision, playerInfo, makeCtx, stageState, maxHpBonus,
+  emitFx,
 });
 
 const Board = require("./board");
 const Nt = require("./fodlan/nautilusLayer");
+const NtMode = require("./fodlan/nautilus"); // ของกลางทั้งโหมด Nautilus: ทาลัสซา · เรือ · ถังออกซิเจน (เรียกเพิ่มจากฮุคของชั้น)
 const Journey = require("../characters/_journey");
 const Status = require("../characters/_universal_status");
 const match = require("./match");
@@ -197,17 +199,33 @@ function persistAll(name, ...args) {
   return out;
 }
 const NT_STAGES = Array.from({ length: Nt.LAYERS }, (_, i) => Nt.FIRST_STAGE + i);
+// Nautilus: ของกลางทั้งโหมด (server/fodlan/nautilus.js) — เรียกเพิ่มจากฮุคของชั้น เฉพาะโลก nautilus · error ห้ามทำเกมพัง
+function ntCall(name, fallback, ...args) {
+  if (!isNautilus() || !active()) return fallback;
+  const fn = NtMode[name];
+  if (typeof fn !== "function") return fallback;
+  try { return fn(makeCtx(), ...args); }
+  catch (err) { console.error(`[fodlan] nautilus.${name} โยน error — ข้าม:`, err); return fallback; }
+}
+// เหตุการณ์ให้ client จากนอกไฟล์ด่าน (shop.viewShop: เปิดร้านเรือ Nautilus)
+function emitFx(kind, data = {}) { return active() ? makeCtx().fx(kind, data) : 0; }
 const sumOf = (list) => list.reduce((a, v) => a + (Number(v) || 0), 0);
 
 // เข้าด่าน (เริ่มแมตช์ / เปลี่ยนด่าน): สถานะใหม่ของการมาเยือน → ฮุค enter
 function enterStage() {
   match.fodlan.s = { ver: 0, fx: [], fxSeq: 0, weather: match.fodlan.weather, wxDone: !!match.fodlan.weather };
   call("enter", undefined);
+  ntCall("enter", undefined); // Nautilus: ร้านเรือย้ายมาท่าจอดของชั้นนี้ · ตอร์ปิโดคืน · ทาลัสซาตามลงมา
 }
 
 // เริ่มแมตช์ในสนาม Fodlan (lobby.startMatch)
 function start() {
   reset();
+  // Nautilus: ถังออกซิเจนเต็ม · ทาลัสซา (เลือด 30 + 5 ต่อผู้เล่นจริง — ไม่นับตัวที่สองของระบบคู่/ยูนิตที่ถูกเรียก) · เรือรีเซ็ต
+  if (isNautilus()) {
+    const real = Object.values(match.players).filter((p) => p && !p.summon && !p.duoOf).length;
+    try { NtMode.reset(makeCtx(), real); } catch (err) { console.error("[fodlan] nautilus.reset โยน error:", err); }
+  }
   // Nautilus เริ่มกลางเกม (dev: ECHO_DEV_START_ROUND) = ชั้นที่ตรงกับเทิร์นนั้น (ทุก 6 เทิร์นลึกลง 1 ชั้น)
   if (isNautilus() && match.roundNumber > 0) {
     const s = Math.min(Nt.LAST_STAGE, Nt.FIRST_STAGE + Math.floor(match.roundNumber / Journey.AREA_TURNS));
@@ -233,6 +251,7 @@ function onEndTurn(random = Math.random) {
   if (!active()) return;
   call("onEndTurn", undefined);
   persistAll("onEndTurn");
+  ntCall("onEndTurn", undefined); // Nautilus: ถังออกซิเจนลดตามความลึก · หมด = เสียหาย 1
   const w = match.fodlan.weather;
   if (w && w.left > 0) {
     w.left -= 1;
@@ -300,13 +319,17 @@ function rangeMod(p, r) { const v = call("rangeMod", r, p, r); return Array.isAr
 function critPct(p) { return Number(call("critPct", 0, p)) || 0; }
 function strikePierces(p, t) { return !!call("strikePierces", false, p, t); }
 function onStrikeLanded(p, t) { return call("onStrikeLanded", null, p, t); }
-function keepsTile(k) { return !!call("keepsTile", false, k); }
-function mapLayer(map) { return call("layer", map, map) || map; }
+function keepsTile(k) { return !!call("keepsTile", false, k) || !!ntCall("keepsTile", false, k); }
+function mapLayer(map) {
+  const m = call("layer", map, map) || map;
+  return ntCall("layer", m, m) || m; // Nautilus: เรือ + ลำตัวทาลัสซาทับชั้นของด่าน
+}
 function layerVer() {
   if (!active()) return "";
   const st = stageState();
   const extra = call("layerVer", "");
-  return `f${stageNow()}.${st ? st.ver || 0 : 0}${extra ? `.${extra}` : ""}`;
+  const nt = ntCall("layerVer", "");
+  return `f${stageNow()}.${st ? st.ver || 0 : 0}${extra ? `.${extra}` : ""}${nt ? `.${nt}` : ""}`;
 }
 // ต้นเทิร์น (phases/draw.js dealRound — ก่อนแจกไพ่): เหตุการณ์ของด่าน · คืน true = พักเกมให้เล่นฉากแล้ว (resume ต่อเมื่อครบเวลา)
 function preRound(resume) {
@@ -315,7 +338,8 @@ function preRound(resume) {
   const turn = match.roundNumber + 1;
   if (!st || st.preRoundDone === turn) return false;
   st.preRoundDone = turn;
-  const secs = Number(call("preRound", 0)) || 0;
+  // Nautilus: เหตุการณ์ของชั้น + ทาลัสซา (ยิงท่าที่เตือน/ว่าย/โผล่/จากไป) รวมกัน ไม่เกิน 10 วินาที
+  const secs = (Number(call("preRound", 0)) || 0) + (Number(ntCall("preRound", 0)) || 0);
   if (!(secs > 0)) return false;
   match.cutsceneInfo = null;
   match.gameState = "CUTSCENE";
@@ -323,11 +347,11 @@ function preRound(resume) {
   view.broadcastState();
   return true;
 }
-function onUnitEnd(p) { call("onUnitEnd", undefined, p); }
+function onUnitEnd(p) { call("onUnitEnd", undefined, p); ntCall("onUnitEnd", undefined, p); }
 // ปุ่ม HUD ของเจ้าตัว (view.js) — key ขึ้นต้น "fd:" เสมอ
 function hudActions(p) {
   if (!active() || !p || !p.alive || !p.pos) return [];
-  const list = call("hudActions", [], p) || [];
+  const list = [...(call("hudActions", [], p) || []), ...(ntCall("hudActions", [], p) || [])]; // Nautilus: ปุ่มเรือ (ยืนติดเรือ)
   return list.filter((a) => a && typeof a.key === "string" && a.key.startsWith("fd:"));
 }
 // socket charAction (key "fd:…") → ฮุคของด่าน · ฮุคบรอดแคสต์เองหรือคืน true แล้วที่นี่บรอดแคสต์ให้
@@ -335,12 +359,12 @@ function charAction(id, key, tile) {
   const p = match.players[id];
   const vote = typeof key === "string" && key.startsWith("fd:perk:"); // โหวตการ์ดทีม Eos: คนที่ล้มอยู่ก็โหวตได้ (ผู้ใช้ 2026-11-14 — เดิมโหวตไม่ได้แต่ระบบรอ)
   if (!active() || !p || (!p.alive && !vote)) return false;
-  const ok = combat.withEffectSource(p, () => call("charAction", false, p, key, tile));
+  const ok = combat.withEffectSource(p, () => (NtMode.ownsAction(key) ? ntCall("charAction", false, p, key, tile) : call("charAction", false, p, key, tile)));
   if (ok) view.broadcastState(); // ทุกช่วง (โหวตการ์ดทีม Eos กดได้ตอนจั่วการ์ดด้วย — เดิมเฉพาะ ACTION = หน้าจอไม่อัปเดต)
   return !!ok;
 }
 // ของบนกระดานของด่าน (ตีได้ = strike: true) — id "fd:…"
-function objects() { return call("objects", []) || []; }
+function objects() { return [...(call("objects", []) || []), ...(ntCall("objects", []) || [])]; } // + ลำตัวทาลัสซา (Nautilus)
 function objectOf(id) { return objects().find((o) => o && o.id === id) || null; }
 function canHitObject(p, id) {
   const o = objectOf(id);
@@ -349,7 +373,7 @@ function canHitObject(p, id) {
 // ตีปกติใส่ของของด่าน → วินาทีของฉาก (false = ตีไม่ได้) · action.strikeTarget จัดการล็อกตา/จบตา
 function strikeObject(p, id) {
   if (!canHitObject(p, id)) return false;
-  const secs = call("strikeObject", false, p, id);
+  const secs = NtMode.ownsObject(id) ? ntCall("strikeObject", false, p, id) : call("strikeObject", false, p, id);
   return secs === false ? false : Math.max(0.6, Number(secs) || 1);
 }
 function movMod(p) { return Number(call("movMod", 0, p)) || 0; }
@@ -376,12 +400,18 @@ function atkBonus(p, target = null) { return (Number(call("atkBonus", 0, p, targ
 function preventDeath(p) { return !!call("preventDeath", false, p) || persistAll("preventDeath", p).some(Boolean); }
 // เลือดสูงสุดเพิ่ม (combat.maxHpOf) — ร่างอสูรศิลาตรา +5
 function maxHpBonus(p) { return p && !p.summon ? sumOf(persistAll("maxHpBonus", p)) : 0; }
-function hides(viewer, target) { return !!call("hides", false, viewer, target); }
-function vision(viewer) { const v = call("vision", null, viewer); return Array.isArray(v) ? v : null; }
+// Nautilus ชั้นมืด: ยืนในลำแสงไฟฉายเรือ = ทุกคนเห็น · ช่องในลำแสงต่อเข้ากับช่องที่มองเห็น
+function hides(viewer, target) { return !!call("hides", false, viewer, target) && !ntCall("lit", false, target); }
+function vision(viewer) {
+  const v = call("vision", null, viewer);
+  if (!Array.isArray(v)) return null;
+  const lit = ntCall("litKeys", []) || [];
+  return lit.length ? [...new Set([...v, ...lit])] : v;
+}
 function playerInfo(p) {
   if (!active()) return undefined;
   const own = call("playerInfo", undefined, p) || undefined;
-  const extra = persistAll("playerInfo", p).filter(Boolean); // ผลค้างข้ามด่าน → ต่อ badges
+  const extra = [...persistAll("playerInfo", p), ntCall("playerInfo", undefined, p)].filter(Boolean); // ผลค้างข้ามด่าน → ต่อ badges · Nautilus: ถังออกซิเจน { o2, o2Max }
   if (!extra.length) return own;
   const out = { ...(own || {}) };
   for (const e of extra) for (const [k, v] of Object.entries(e)) {
@@ -412,7 +442,7 @@ function publicInfo() {
     scene: scene ? { seq: scene.seq, active: !!scene.active, mode: scene.mode, stage: scene.area, fromStage: scene.fromArea } : null,
     // ของด่านปัจจุบัน: ข้อมูลวาด (ฮุค publicInfo) + ของที่ตีได้ + เหตุการณ์ล่าสุด
     board: active() && s ? {
-      ...(call("publicInfo", {}) || {}),
+      ...(() => { const b = call("publicInfo", {}) || {}; return isNautilus() ? { ...b, ...(ntCall("publicInfo", {}, b) || {}) } : b; })(), // Nautilus: + whale · ship · ช่องเตือนทาลัสซาใน warn
       objects: objects().map((o) => ({ ...o })),
       fx: (s.fx || []).slice(),
     } : null,

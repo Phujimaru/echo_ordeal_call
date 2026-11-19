@@ -14,7 +14,7 @@ const Journey = require("../characters/_journey");
 const {
   BAG_SLOTS, BATTERY_MAX, BATTERY_REGEN, FORTUNE_MAX, GOLD_MAX, SHOP_ARMOR_AMOUNT, SHOP_ARMOR_PRICE, SHOP_BATTERY_PRICE,
   SHOP_CARD_COLOR_PRICE, SHOP_CARD_CUT_PRICE, SHOP_CLEANSE_PRICE, SHOP_FORTUNE_AMOUNT, SHOP_FORTUNE_PRICE, SHOP_INTERVAL_TURNS,
-  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE, SHOP_BARRICADE_PRICE, SHOP_EOS_REVIVE_PRICE,
+  SHOP_RESIST_PRICE, SHOP_RESIST_TURNS, SHOP_STOCK_MAX, SHOP_STOCK_MIN, SHOP_TORCH_PRICE, SHOP_GYSAHL_PRICE, SHOP_PILLAR_WARD_PRICE, SHOP_BARRICADE_PRICE, SHOP_EOS_REVIVE_PRICE, SHOP_O2_TANK_PRICE,
   SHOP_LIFE_CRYSTAL_PRICE, SHOP_ARMOR_CRYSTAL_PRICE, SHOP_WIND_BOOTS_PRICE, WIND_BOOTS_MOV, SHOP_ELEM_BOMB_PRICE, ELEM_BOMB_SIZE,
 } = require("./constants");
 const { BASIC_DEBUFF_CLEAR, SOFT_DEBUFF_STEP } = require("../characters/_universal_status");
@@ -55,13 +55,13 @@ function addGold(p, n) {
 //  ขนาดร้าน (ผู้ใช้สั่ง 2026-11-09 — 2×2 ใหญ่เกิน): ร้านปกติ 1 ช่อง · ร้านพิเศษ 2×1 = SHOP_DIMS · แคปซูลทุกชนิด 1×1
 //  ทุกร้านกินช่องทั้งก้อน · ซื้อได้เมื่อยืนติดขอบร้าน (ระยะ 1) · ร้านถูกพัง = หายจนถึงรอบปรากฏถัดไปของร้านนั้น
 //  ของในร้าน: ชนิดละช่องเดียว ไม่ซ้ำ · สุ่มจำนวนที่ซื้อได้ต่อช่อง (ของกลาง ใครถึงก่อนได้ก่อน)
-const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง", rtmart: "มินิมาร์ท", rtoffice: "สำนักงานโมเต็ล", rtfood: "แผงวัตถุดิบ", rtcart: "แผงวัตถุดิบ", rtsnack: "รถฟู้ดทรัค", rtsupply: "แผงของแคมป์" }; // rt* = Road Trip: ร้านคืออาคารบนแผนที่ (server/roadtrip/stop.js)
+const SHOP_NAMES = { apoth: "ร้านยาเจริญชัย", forge: "โรงช่างลุงเริง", cara: "พ่อค้าเร่", capsule: "แคปซูลเสบียง", rtmart: "มินิมาร์ท", rtoffice: "สำนักงานโมเต็ล", rtfood: "แผงวัตถุดิบ", rtcart: "แผงวัตถุดิบ", rtsnack: "รถฟู้ดทรัค", rtsupply: "แผงของแคมป์", nautilus: "นอติลุส" }; // rt* = Road Trip · nautilus = เรือ Nautilus (โหมด Nautilus — server/fodlan/nautilusShip.js: ร้าน = ตัวเรือ 6×2 ที่ท่าจอด): ร้านคืออาคารบนแผนที่ (server/roadtrip/stop.js)
 const SHOP_ITEMS = {
   apoth: ["fortune", "cardColor", "cardCut", "armor", "cleanse", "resist"],
   forge: ["windBoots", "battery", "elemBomb"],
   cara: ["lifeCrystal", "armorCrystal"],
 };
-const SHOP_DIMS = { apoth: [1, 1], forge: [1, 1], cara: [2, 1], capsule: [1, 1] };
+const SHOP_DIMS = { apoth: [1, 1], forge: [1, 1], cara: [2, 1], capsule: [1, 1], nautilus: [6, 2] };
 const MERCHANT_PCT = 25;
 const MERCHANT_TURNS = 2;
 const MERCHANT_STOCK = [1, 2];
@@ -111,6 +111,7 @@ function shopItemName(item) {
   if (item.type === "eosRevive") return "ขนนกคืนชีพ";
   if (item.type === "rtRevive") return "ขนนกคืนชีพ"; // Road Trip (server/roadtrip)
   if (item.type === "rtFish") return "ปลาย่าง";      // Road Trip: บ่อตกปลา
+  if (item.type === "o2Tank") return "ถังออกซิเจนสำรอง"; // Nautilus: ร้านเรือ
   const rtFood = require("./roadtrip/food").itemName(item); // Road Trip: วัตถุดิบ/อาหาร (แคมป์)
   if (rtFood) return rtFood;
   return "สินค้า";
@@ -188,6 +189,7 @@ function openShop() {
 function refreshShopForJourney() {
   syncStageItems();
   for (const s of shopsList()) for (const it of s.items || []) {
+    if (it.type === "o2Tank") { it.sold = false; continue; } // ถังออกซิเจนสำรอง (Nautilus): ซื้อได้ไม่จำกัด
     if (it.type === "torch" || it.type === "gysahl" || it.type === "pillarWard" || it.type === "barricade" || it.type === "eosRevive" || (it.type === "rtRevive" && it.unlimited)) { it.sold = false; continue; } // คบเพลิง (Fodlan ด่าน II) / ผักกิซาล (Eos): ซื้อได้ไม่จำกัด
     if (it.bought == null) it.bought = it.sold ? 1 : 0;
     if (it.stockBase == null) it.stockBase = 1;
@@ -209,6 +211,11 @@ function syncStageItems() {
       if (!(s.items || []).some((it) => it.type === "rtFish")) s.items.push({ id: `${s.id}_rtfish_${match.shopRoundSeq}`, type: "rtFish", price: Math.ceil(2 * rtPriceMul()), sold: false, soldTo: null, bought: 0, stockBase: 3 });
     }
     return;
+  }
+  // Nautilus (GRID_PLAN §8.9): ถังออกซิเจนสำรองขายเฉพาะร้านเรือ Nautilus (ร้านนี้มีแค่ในโหมด Nautilus)
+  for (const s of shopsList()) {
+    if (s.kind !== "nautilus" || (s.items || []).some((it) => it.type === "o2Tank")) continue;
+    s.items.unshift({ id: `${s.id}_o2_${match.shopRoundSeq}`, type: "o2Tank", price: SHOP_O2_TANK_PRICE, sold: false, soldTo: null, bought: 0 });
   }
   const want = require("./fodlan/stage2").torchOnSale();
   for (const s of shopsList()) {
@@ -315,13 +322,22 @@ function tickMerchant() {
 function maybeMoveShop() {
   if (rtActive()) { refreshShopForJourney(); return; } // Road Trip: ร้านมีเฉพาะที่จุดพัก (server/roadtrip/stop.js เปิด/ปิดเอง)
   if (Colony.active()) { refreshShopForJourney(); return; } // Colony: ร้าน = แคปซูลเสบียง (server/colony.js ตั้ง/เก็บเอง)
+  if (ntShipShop()) { refreshShopForJourney(); return; } // Nautilus: ร้าน = เรือ Nautilus ที่ท่าจอดของชั้น (ไม่มีแผงร้าน ไม่ย้าย · ของใหม่ทุกชั้น)
   if (shopDue()) relocateShop();
   tickMerchant();
   refreshShopForJourney();
 }
+// Nautilus: ตั้งร้านเรือที่ท่าจอดของชั้นนี้ (มีอยู่แล้วที่ท่าเดิม = ไม่แตะ) → true = อยู่ในโหมด Nautilus
+function ntShipShop() {
+  const F = require("./fodlan");
+  if (!F.isNautilus() || !F.active()) return false;
+  try { require("./fodlan/nautilusShip").ensureShop(F.makeCtx()); } catch (err) { console.error("[shop] ร้านเรือ Nautilus:", err); }
+  return true;
+}
 // อีกกี่เทิร์นร้านนี้อยู่ (นับเทิร์นนี้ด้วย — 1 = เทิร์นสุดท้าย)
 function shopTurnsLeftOf(s) {
   if (!s) return 0;
+  if (s.ship) return 0; // เรือ Nautilus: จอดทั้งชั้น ไม่มีนับถอยหลัง
   if (s.rt) return 0; // Road Trip จุดพัก: ร้านอยู่จนออกจากจุดพัก (นับเวลาที่แถบจุดพัก) — ไม่มีเทิร์นให้นับ
   const now = match.roundNumber;
   if (s.capsule || s.kind === "capsule") return Math.max(1, (s.openedRound || now) + (s.kind === "cara" ? 2 : SHOP_INTERVAL_TURNS) - now);
@@ -467,8 +483,10 @@ function viewShop(id, shopId) {
   if (!action.canAct(p)) return;
   if (remoteShop(p)) { if (!shopId || !shopById(shopId)) return; view.broadcastState(); return; } // ซื้อจากระยะไกล = ไม่ล็อกการเดิน
   if (match.action.locked) return;
-  if (!adjacentShop(p, shopId)) return;
+  const sh = adjacentShop(p, shopId);
+  if (!sh) return;
   action.lockMove(p, "shop");
+  if (sh.ship) require("./fodlan").emitFx("nt_shop_open", { id: p.id, shopId: sh.id }); // เรือ Nautilus: เปิดประตูเรือ (ภาพ client)
   view.broadcastState();
 }
 function buyShopItem(id, shopId, itemId) {
@@ -492,6 +510,7 @@ function buyShopItem(id, shopId, itemId) {
   if (item.type === "torch" && !require("./fodlan/stage2").torchOnSale()) return; // คบเพลิง: ขายเฉพาะ Fodlan ด่าน II
   if ((item.type === "gysahl" || item.type === "pillarWard" || item.type === "barricade") && !require("./fodlan/stage6").gysahlOnSale()) return; // ผักกิซาล / เกราะเสา: ขายเฉพาะ Eos
   if (item.type === "eosRevive" && !require("./fodlan/stage6").reviveOnSale()) return; // ขนนกคืนชีพ: เฉพาะ Lament
+  if (item.type === "o2Tank" && !require("./fodlan").isNautilus()) return; // ถังออกซิเจนสำรอง: เฉพาะ Nautilus
   item.bought = (item.bought || 0) + 1; // ช่องละหลายชิ้น (refreshShopForJourney คิด stock/sold ใหม่)
   item.soldTo = p.id;
   refreshShopForJourney();
@@ -625,6 +644,10 @@ function useInventoryItem(id, uid, opts = {}) {
     const spot = RT.placeSpot(p.pos, t.id) || (require("./roadtrip/fight").onvanNow() ? null : action.nearFreeTile(p.pos)); // บนรถตู้ = ในรถเท่านั้น
     if (!spot) return;
     RT.raise(t, 0.5, spot);
+  } else if (item.type === "o2Tank") {
+    // ถังออกซิเจนสำรอง (Nautilus — server/fodlan/nautilusO2.js): ออกซิเจน +5 · ถังเต็ม/นอกโหมด = ใช้ไม่ได้ ไม่เสียของ
+    const F = require("./fodlan");
+    if (!F.isNautilus() || !F.active() || !require("./fodlan/nautilusO2").useTank(F.makeCtx(), p)) return;
   } else if (item.type === "rtFish") {
     // ปลาย่าง (Road Trip): ฟื้นพลังชีวิต 3
     if (p.hp >= combat.maxHpOf(p)) return;

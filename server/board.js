@@ -367,6 +367,8 @@ const NAUTILUS_STAGES = 5;
 const NAUTILUS_NAMES = ["แนวปะการัง", "ซากเรือรบ", "ปล่องภูเขาไฟใต้ทะเล", "นครจมบาดาล", "ร่องลึกก้นสมุทร"];
 //  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
 const NAUTILUS_DEFS = [require("./fodlan/map7"), require("./fodlan/map8"), require("./fodlan/map9"), require("./fodlan/map10"), require("./fodlan/map11")];
+// ชั้นที่ตัวคุมวางทับทุกชั้น (server/fodlan/nautilus.js layer): ลำตัวทาลัสซา + เรือ Nautilus ที่ท่าจอด (DOCK ของ mapN.js) — สิ่งกีดขวาง
+Object.assign(TERRAIN_INFO, { fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" }, fd_nt_ship: { name: "นอติลุส", icon: "🚢" } });
 NAUTILUS_DEFS.forEach((def, i) => {
   Object.assign(TERRAIN_INFO, def.TERRAIN || {});
   MAPS[NAUTILUS_AREA + i] = buildMap({ ...def.map, area: NAUTILUS_AREA + i, name: NAUTILUS_NAMES[i] });

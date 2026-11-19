@@ -1,0 +1,60 @@
+// ============================================================
+//  ของกลางทั้งโหมด Nautilus (GRID_PLAN §8.9 ขั้น 2–3) — ตัวคุม server/fodlan.js เรียกไฟล์นี้ "เพิ่ม" จากฮุคของชั้น (stage7–11.js) เฉพาะโลก nautilus
+//   ทาลัสซา (thalassa.js · match.fodlan.whale) · เรือ Nautilus (nautilusShip.js · match.fodlan.ship) · ถังออกซิเจน (nautilusO2.js · match.fodlan.o2)
+//   ทุกอย่างค้างข้ามชั้น · match.nautilusWhale === false (โหวตปิด) = ไม่มีทาลัสซาเลย (ไม่มีสถานะ · board.whale = null)
+//  ลำดับชั้นแผนที่: ชั้นของด่าน → เรือ (fd_nt_ship) → ลำตัวทาลัสซา (fd_nt_whale — ไม่ทับช่องที่มีของอยู่แล้ว)
+// ============================================================
+const Th = require("./thalassa");
+const Ship = require("./nautilusShip");
+const O2 = require("./nautilusO2");
+
+const whaleOn = (ctx) => Th.enabled(ctx.match) && !!(ctx.match.fodlan && ctx.match.fodlan.whale);
+
+// เริ่มแมตช์ (Fodlan.start ก่อน placeOnBoard): ถังเต็มทุกคน · ทาลัสซาตามจำนวนผู้เล่นจริง · เรือรีเซ็ต
+function reset(ctx, playerCount) {
+  O2.reset(ctx);
+  ctx.match.fodlan.ship = { cd: {}, torpedo: {}, light: null };
+  if (Th.enabled(ctx.match)) Th.reset(ctx.match, playerCount);
+  else ctx.match.fodlan.whale = null;
+}
+// เข้าชั้น (หลัง placeOnBoard · หลังฮุค enter ของชั้น)
+function enter(ctx) {
+  Ship.enter(ctx);
+  if (whaleOn(ctx)) Th.enterLayer(ctx);
+}
+function preRound(ctx) {
+  if (!whaleOn(ctx)) return 0;
+  const secs = Number(Th.preRound(ctx)) || 0;
+  Th.syncPresent(ctx.match.fodlan.whale);
+  return secs;
+}
+function layer(ctx, map) {
+  const m = Ship.layer(ctx, map);
+  return whaleOn(ctx) ? Th.layer(ctx, m) : m;
+}
+function layerVer(ctx) {
+  const w = whaleOn(ctx) ? ctx.match.fodlan.whale : null;
+  return w && w.on && !w.dead ? `w${w.appearSeq}.${Math.round(w.s * 100)}` : "";
+}
+function keepsTile(ctx, k) { return Ship.keepsTile(ctx, k); }
+function objects(ctx) { return whaleOn(ctx) ? Th.objects(ctx) : []; }
+function ownsObject(id) { return typeof id === "string" && id.startsWith("fd:whale:"); }
+function strikeObject(ctx, p, id) { return whaleOn(ctx) ? Th.strikeObject(ctx, p, id) : false; }
+function hudActions(ctx, p) { return Ship.hudActions(ctx, p); }
+function ownsAction(key) { return typeof key === "string" && key.startsWith("fd:nt:"); }
+function charAction(ctx, p, key, tile) { return Ship.charAction(ctx, p, key, tile); }
+function onUnitEnd(ctx, p) { O2.onUnitEnd(ctx, p); }
+function onEndTurn(ctx) { O2.onEndTurn(ctx); }
+function playerInfo(ctx, p) { return O2.playerInfo(ctx, p); }
+// ชั้นมืด: ช่องในลำแสงไฟฉายเรือ ทุกคนมองเห็น (ต่อเข้ากับ vision/hides ของชั้น — ขั้น 4 ทำความมืด)
+function litKeys(ctx) { return ctx.stage >= Ship.DARK_FROM ? Ship.lightTiles(ctx).map((t) => `${t.x},${t.y}`) : []; }
+function lit(ctx, p) { return !!(p && p.pos) && Ship.inLight(ctx, p.pos.x, p.pos.y); }
+
+// state.fodlan.board: whale (null = ปิด) · ship · warn (ช่องเตือนท่าทาลัสซา ต่อท้าย warn ของชั้น)
+function publicInfo(ctx, base = {}) {
+  const w = whaleOn(ctx) ? Th.publicInfo(ctx) : null;
+  const warn = [...(Array.isArray(base.warn) ? base.warn : []), ...(w ? w.warn : [])];
+  return { whale: w, ship: Ship.publicInfo(ctx), ...(warn.length || base.warn ? { warn } : {}) };
+}
+
+module.exports = { reset, enter, preRound, layer, layerVer, keepsTile, objects, ownsObject, strikeObject, hudActions, ownsAction, charAction, onUnitEnd, onEndTurn, playerInfo, litKeys, lit, publicInfo };
