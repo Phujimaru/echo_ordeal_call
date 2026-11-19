@@ -42,7 +42,10 @@ function controlFor(playerId) {
   const e = actorEntry();
   if (!e) return null;
   if (e.by === playerId) return match.actorId;
-  if (playerId === match.actorId) return LOCKED_PREFIX + playerId;
+  // เจ้าของตัว (ระบบคู่: เจ้าของของเอมิลิโกะ = ผู้เล่นเคท) สั่งอะไรไม่ได้
+  const a = match.players[match.actorId];
+  const owner = (a && a.duoOf) || match.actorId;
+  if (playerId === owner) return LOCKED_PREFIX + playerId;
   return null;
 }
 // ฝ่ายของ u ตอนนี้ (กำลังถูกคุม = ผู้คุม)
