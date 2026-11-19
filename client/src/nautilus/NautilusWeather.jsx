@@ -5,6 +5,7 @@
 // ============================================================
 import { useEffect } from "react";
 import "../eos/eosSituation.css";
+import "./ntPanel.css";
 
 export const NT_WEATHER = {
   nt_storm: { icon: "🌀", name: "พายุใต้ทะเล", text: "ทุกจบเทิร์น ทุกคนถูกกระแสน้ำพัด 2 ช่องตามลูกศรบนพื้น (ตกหลุมน้ำเงิน/ถูกหอยมุกงับได้) · ตะกอนฟุ้ง มองเห็นแค่ระยะ 4 จากตัวเองและเพื่อน" },
@@ -27,7 +28,7 @@ export default function NautilusWeather({ state, onClose }) {
   const w = fd.weather, info = w && NT_WEATHER[w.kind];
   return (
     <div className="eos-sit-back" onClick={onClose}>
-      <div className="eos-sit" role="dialog" aria-label="สภาพอากาศ" onClick={(e) => e.stopPropagation()}>
+      <div className="eos-sit nt-panel" role="dialog" aria-label="สภาพอากาศ" onClick={(e) => e.stopPropagation()}>
         <header><b>{fd.name || "Nautilus"}</b><span>{Number.isFinite(fd.depth) ? `−${Math.abs(fd.depth).toLocaleString("en-US")} ม.` : ""}</span><button type="button" aria-label="ปิด" onClick={onClose}>✕</button></header>
         <ul>
           {info ? (

@@ -3,6 +3,7 @@ import EosMap from "../eos/EosMap";
 import EosGuide from "../eos/EosGuide";
 import EosSituation from "../eos/EosSituation";
 import NautilusWeather from "../nautilus/NautilusWeather";
+import NautilusGuide from "../nautilus/NautilusGuide";
 import EosAlerts from "../eos/EosAlerts";
 import { eosSituation, SIT_COUNT as sitCount } from "../eos/eosSitData";
 import EosZoneCard from "../eos/EosZoneCard";
@@ -129,6 +130,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   //  (เช่น จบคัตซีนท่าไม้ตาย)
   //  ถ้าไม่กันไว้ ฉากจะเด้งซ้อนกันทุกครั้งที่กลับเข้า phase เดิม
   const announced = useRef({ draw: 0, atk: 0 });
+  const [ntGuideOpen, setNtGuideOpen] = useState(false); // Nautilus: แผงอธิบายลูกเล่นของชั้น (ปุ่ม "?" มุมซ้ายบน — ผู้ใช้สั่ง)
   const [ntWxOpen, setNtWxOpen] = useState(false); // Nautilus: แผงอ่านสภาพอากาศ (กดป้ายชั้นมุมซ้ายบน — ผู้ใช้สั่ง)
   const [eosSitOpen, setEosSitOpen] = useState(false); // สนาม Eos: แผงสถานการณ์ตอนนี้ (eos/EosSituation.jsx)
   const [eosGuideOpen, setEosGuideOpen] = useState(false); // สนาม Eos: คู่มือ (eos/EosGuide.jsx — ผู้ใช้สั่ง 2026-11-10)
@@ -975,6 +977,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {eosGuideOpen && state.world === "eos" && <EosGuide onClose={() => setEosGuideOpen(false)} />}
       {eosSitOpen && state.world === "eos" && <EosSituation state={state} onClose={() => setEosSitOpen(false)} />}
       {ntWxOpen && state.world === "nautilus" && <NautilusWeather state={state} onClose={() => setNtWxOpen(false)} />}
+      {ntGuideOpen && state.world === "nautilus" && <NautilusGuide state={state} onClose={() => setNtGuideOpen(false)} />}
       {/* สนาม Eos: ป้ายเข้าพื้นที่ เมื่อตัวเราเดินเข้าโซนใหม่ (eos/EosZoneCard.jsx) */}
       {state.world === "eos" && state.board && <EosZoneCard state={state} />}
       {state.world === "eos" && state.board && <EosScoreboard state={state} />}
@@ -1001,6 +1004,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
             ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather, depth: state.fodlan.depth } // Nautilus: + ความลึก
             : null}
         onJourney={state.world === "eos" ? () => { clickSound(); setEosSitOpen(true); } : state.world === "nautilus" ? () => { clickSound(); setNtWxOpen(true); } : state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
+        onGuide={state.world === "nautilus" ? () => { clickSound(); setNtGuideOpen(true); } : undefined}
         colony={state.colony && (phase === "PLAYING" || inBoardTurn) ? state.colony : null}
         moon={state.moon && (phase === "PLAYING" || inBoardTurn) ? state.moon : null}
         roadtrip={rtOn ? { rt: state.roadtrip, myTurn: myTurn && !canto && rtCanRear(state.roadtrip, state.youId) } : null}

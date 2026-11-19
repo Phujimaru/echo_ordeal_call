@@ -612,7 +612,7 @@ function MoonChip({ moon, round, players }) {
 const WEATHER_ICON = { storm: "⛈️", miasma: "☠️", tsunami: "🌊", blizzard: "🌨️", aura: "✳️", eos_storm: "⛈️", eos_fog: "🌫️", eos_sand: "🌪️", eos_snow: "🌨️", eos_magnet: "🧲", nt_storm: "🌀", nt_sharks: "🦈", nt_silt: "🟤", nt_eruption: "🌋", nt_quake: "💥", nt_maelstrom: "🌀", nt_cold: "🥶", nt_dark: "🌑" };
 // Road Trip (state.roadtrip — GRID_PLAN §8.8): แทนป้ายภูมิภาค — ภูมิภาค/รอบวน · กม. · HP รถ · น้ำมัน (+ รอบที่รอด/ประตูท้ายตอนสู้บนรถ) — roadtrip/VanStatus.jsx
 //  roadtrip = { rt: state.roadtrip, myTurn } · กลางวัน/กลางคืนตาม rt.night (ไม่ใช่ cycle ของเกมเดิม)
-export function HudTopBar({ night, round, timer, journey, onJourney, colony, moon, roadtrip, players, zoom = 1 }) {
+export function HudTopBar({ night, round, timer, journey, onJourney, onGuide, colony, moon, roadtrip, players, zoom = 1 }) {
   if (round == null && !journey && !colony && !moon && !roadtrip) return null;
   const nightNow = roadtrip ? !!roadtrip.rt.night : night;
   return (
@@ -659,6 +659,8 @@ export function HudTopBar({ night, round, timer, journey, onJourney, colony, moo
               )}
             </span>
           </button>
+          {/* Nautilus: ปุ่มอ่านคำอธิบายลูกเล่นของชั้น (ผู้ใช้สั่ง 2026-11-19 — แค่ "?") */}
+          {onGuide && <button type="button" className="hud-top-guide" onClick={onGuide} aria-label="ลูกเล่น">?</button>}
         </>
       )}
     </div>

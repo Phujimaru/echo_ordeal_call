@@ -10,6 +10,7 @@ import { SelfHud, HudPanel, HudStatusDrawer, HudCenter, HudRight, HudTopBar } fr
 import { SkillSlot } from "./SkillSlot";
 import { StatRow, VitalExtras } from "./StatRow";
 import { measureHud } from "./hudMeasure";
+import NautilusGuide from "../../nautilus/NautilusGuide";
 
 const COLS = ["#3d8bd9", "#9b4f96", "#e0812f", "#2fa39a", "#d2455b", "#6b7fd6", "#c49a2c"];
 const MOCK_STATUS = [
@@ -70,6 +71,7 @@ export default function HudPreview() {
   const busted = q.get("bust") === "1";
   const nCards = Math.min(6, Math.max(0, num("cards", 3)));
   const [target, setTarget] = useState(q.get("target") === "1");
+  const [ntGuide, setNtGuide] = useState(q.get("ntguide") != null ? Number(q.get("ntguide")) || 11 : 0); // ?ntguide=7..11 แผงลูกเล่น Nautilus
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
     const on = () => setVp({ w: window.innerWidth, h: window.innerHeight });
@@ -124,7 +126,9 @@ export default function HudPreview() {
             timer={<MockTimer />}
             journey={{ ...a, name: a.name, turnsLeft: 3 }}
             onJourney={() => {}}
+            onGuide={() => setNtGuide(ntGuide || 11)}
           />
+          {ntGuide > 0 && <NautilusGuide state={{ fodlan: { stage: ntGuide, name: ["", "", "", "", "", "", "", "แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"][ntGuide] } }} onClose={() => setNtGuide(0)} />}
           {target && (
             <div className="absolute top-[22%] left-1/2 -translate-x-1/2 z-40 text-center text-hard whitespace-nowrap">
               <span className="text-xl font-black text-echo-hp animate-pulse bg-black/60 rounded-full px-5 py-1.5">🔪 คลิกเลือกเป้าหมาย นายมีฝีมือแค่ไหนหรอ?</span>

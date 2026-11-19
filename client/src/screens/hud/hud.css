@@ -279,6 +279,13 @@
   cursor: pointer;
 }
 .hud-top-region:hover .hud-top-name { color: #bee3f8; }
+/* Nautilus: ปุ่ม "?" อ่านลูกเล่นของชั้น */
+.hud-top-guide {
+  flex: none; width: calc(28px * var(--hud-k, 1)); height: calc(28px * var(--hud-k, 1)); margin-left: 4px; padding: 0;
+  border-radius: 50%; border: 1.5px solid currentColor; background: none; color: inherit; opacity: 0.8;
+  font: 700 calc(16px * var(--hud-k, 1)) / 1 "Kanit", sans-serif; cursor: pointer;
+}
+.hud-top-guide:hover { opacity: 1; color: #1fb8c4; }
 .hud-top-gem {
   flex: none;
   width: 30px;
