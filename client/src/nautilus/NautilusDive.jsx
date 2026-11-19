@@ -43,7 +43,7 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
     const g = cv.getContext("2d");
     const D = Math.max(3000, durationMs), t0 = performance.now();
     const fromD = mode === "start" ? 0 : nautilusLayer(from).depth, toL = nautilusLayer(to), toD = toL.depth;
-    let raf = 0, done = false;
+    let raf = 0, done = false, tintCv = null;
     const cues = mode === "start"
       ? [[0, () => { snd("waves", 0.8); snd("cine_engine", 0.7); }], [0.12, () => { snd("cine_hiss", 0.9); snd("splash", 0.8); snd("bubbles", 1); }], [0.3, () => snd("cine_riser", 0.6)], [0.78, () => snd("cine_sonar", 1)]]
       : [[0, () => { snd("cine_klaxon", 1); snd("cine_engine", 0.7); }], [0.1, () => { snd("cine_hiss", 1); snd("bubbles", 0.9); }], [0.25, () => snd("cine_creak", 0.9)], [0.35, () => snd("cine_riser", 0.7)],
@@ -107,9 +107,14 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
           const lg = g.createLinearGradient(lx, ly, lx - sw * 0.9, ly + sh * 1.6); lg.addColorStop(0, `rgba(255,245,210,${0.45 * lamp})`); lg.addColorStop(1, "rgba(255,245,210,0)");
           g.save(); g.globalCompositeOperation = "lighter"; g.fillStyle = lg; g.beginPath(); g.moveTo(lx, ly); g.lineTo(lx - sw * 0.95, ly + sh * 0.6); g.lineTo(lx - sw * 0.6, ly + sh * 2.2); g.closePath(); g.fill(); g.restore();
         }
-        g.drawImage(ship, -sw / 2, -sh / 2, sw, sh);
-        // ย้อมสีตามความลึก (เรือมืดลงตามน้ำ)
-        g.globalCompositeOperation = "source-atop"; g.fillStyle = rgb(c2, clamp(Math.abs(depth) / 6000, 0.12, 0.55)); g.fillRect(-sw / 2, -sh / 2, sw, sh); g.globalCompositeOperation = "source-over";
+        // ย้อมสีตามความลึก (เรือมืดลงตามน้ำ) — ย้อมบนแคนวาสแยกเฉพาะเนื้อภาพเรือ แล้วค่อยวาง
+        //  (เดิม source-atop บนจอหลักย้อมพื้นหลังทั้งสี่เหลี่ยมด้วย = เห็นกล่องเหลี่ยมรอบเรือ — ผู้ใช้ทัก 2026-11-19)
+        if (!tintCv) tintCv = document.createElement("canvas");
+        if (tintCv.width !== ship.naturalWidth) { tintCv.width = ship.naturalWidth; tintCv.height = ship.naturalHeight; }
+        const tg = tintCv.getContext("2d");
+        tg.globalCompositeOperation = "source-over"; tg.clearRect(0, 0, tintCv.width, tintCv.height); tg.drawImage(ship, 0, 0);
+        tg.globalCompositeOperation = "source-atop"; tg.fillStyle = rgb(c2, clamp(Math.abs(depth) / 6000, 0.12, 0.55)); tg.fillRect(0, 0, tintCv.width, tintCv.height);
+        g.drawImage(tintCv, -sw / 2, -sh / 2, sw, sh);
         // หน้าต่างเรืองแสง
         for (let i = 0; i < 9; i++) { const px = -sw / 2 + sw * (0.47 + i * 0.05), py = -sh / 2 + sh * 0.53, a = (0.5 + 0.5 * Math.sin(t * 3 + i)) * (mode === "start" ? lamp : 1); const rg = g.createRadialGradient(px, py, 0, px, py, sh * 0.12); rg.addColorStop(0, `rgba(255,214,140,${0.6 * a})`); rg.addColorStop(1, "rgba(255,214,140,0)"); g.fillStyle = rg; g.beginPath(); g.arc(px, py, sh * 0.12, 0, TAU); g.fill(); }
         // ฟองจากท้ายเรือ + ฟองระบายถังถ่วงตอนเริ่มดำ
