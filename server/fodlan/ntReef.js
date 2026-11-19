@@ -156,13 +156,45 @@ function onEndTurn(ctx, st) {
   const now = ctx.match.roundNumber, due = (s.respawn || []).filter((r) => r <= now);
   s.respawn = (s.respawn || []).filter((r) => r > now);
   for (let i = 0; i < due.length; i++) spawnPuffer(ctx, s);
+  storm(ctx, st, s);
   ctx.bump();
+}
+
+// ---------- สภาพอากาศ: พายุใต้ทะเล (nt_storm · GRID_PLAN §8.9) ----------
+//  [Claude] ทุกจบเทิร์นระหว่างพายุ: ทุกคนถูกพัด 2 ช่องตามทิศที่ประกาศไว้ (ลงหลุม/หอยได้) แล้วสุ่มทิศใหม่ของเทิร์นหน้า (เห็นล่วงหน้า)
+//   ตะกอนฟุ้ง: มองเห็นแค่ระยะ 4 จากตัวเอง/เพื่อนร่วมทีม
+const STORM_PUSH = 2, STORM_SIGHT = 4;
+const stormOn = (st) => !!(st && st.weather && st.weather.kind === "nt_storm" && st.weather.left > 0);
+function weatherStart(ctx, st) {
+  const s = S(st); if (!s) return;
+  s.stormDir = ctx.pick(kit.DIRS, 1)[0];
+  ctx.fx("nt_storm", { dir: { x: s.stormDir[0], y: s.stormDir[1] } });
+  ctx.log("🌪️ พายุใต้ทะเล! กระแสน้ำปั่นป่วน");
+}
+function storm(ctx, st, s) {
+  if (!stormOn(st) || !s.stormDir) return;
+  const [dx, dy] = s.stormDir, moves = [];
+  const order = ctx.alive().filter((u) => u.pos).sort((a, b) => (b.pos.x - a.pos.x) * dx + (b.pos.y - a.pos.y) * dy);
+  for (const u of order) { const from = { ...u.pos }; const r = kit.shove(ctx, u, dx, dy, STORM_PUSH, hazardAt, null); if (r.moved || r.hazard) moves.push({ id: u.id, from, to: u.pos ? { ...u.pos } : null }); }
+  ctx.fx("nt_storm_push", { dir: { x: dx, y: dy }, moves });
+  s.stormDir = ctx.pick(kit.DIRS, 1)[0];
+}
+const teamOf = (ctx, viewer) => ctx.alive().filter((u) => u.pos && (u.id === viewer.id || (ctx.combat.sameTeam && ctx.combat.sameTeam(u, viewer))));
+function vision(ctx, st, viewer) {
+  if (!stormOn(st) || !viewer) return null;
+  const map = ctx.map(), eyes = teamOf(ctx, viewer), out = [];
+  for (let y = 0; y < map.rows; y++) for (let x = 0; x < map.cols; x++) if (eyes.some((e) => kit.cheb(e.pos, { x, y }) <= STORM_SIGHT)) out.push(K(x, y));
+  return out;
+}
+function hides(ctx, st, viewer, target) {
+  if (!stormOn(st) || !viewer || !target || !target.pos) return false;
+  return !teamOf(ctx, viewer).some((e) => kit.cheb(e.pos, target.pos) <= STORM_SIGHT);
 }
 
 // ---------- ข้อมูลให้ client ----------
 function publicInfo(ctx, st) {
   const s = S(st); if (!s) return {};
-  return { reef: { puffers: s.puffers.map((f) => ({ id: f.id, x: f.x, y: f.y })), valves: VALVES, valveDir: s.valveDir, broken: s.broken.slice(), pearls: s.pearls.slice(), urchin: { ...s.urchin } } };
+  return { reef: { puffers: s.puffers.map((f) => ({ id: f.id, x: f.x, y: f.y })), valves: VALVES, valveDir: s.valveDir, broken: s.broken.slice(), pearls: s.pearls.slice(), urchin: { ...s.urchin }, stormDir: stormOn(st) && s.stormDir ? { x: s.stormDir[0], y: s.stormDir[1] } : null } };
 }
 
-module.exports = { enter, hazardAt, hudActions, charAction, objects, strikeObject, layer, layerVer, onUnitEnd, onEndTurn, publicInfo, VALVES };
+module.exports = { enter, hazardAt, hudActions, charAction, objects, strikeObject, layer, layerVer, onUnitEnd, onEndTurn, publicInfo, weatherStart, vision, hides, VALVES };

@@ -12,7 +12,7 @@
 import { P, PS, depthOf, faceVisible, glow, rng, sceneSize } from "../boardGeo";
 import { drawThalassaAir, drawThalassaGround } from "./thalassaArt";
 import { shipFx, shipItems } from "./shipArt";
-import { reefFx, reefItems } from "./reefFx";
+import { reefFx, reefItems, reefStorm, reefStormFx } from "./reefFx";
 
 const TAU = Math.PI * 2;
 export const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -538,6 +538,8 @@ export function air(g, fd, info, units, now, lowQ, view) {
   vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,12,20,.55)"); g.fillStyle = vg; g.fillRect(X0, Y0, W, H);
   shipFx(g, fd, info, now);
   reefFx(g, fd, info, now);
+  reefStormFx(g, fd, now);
+  reefStorm(g, fd, info, now, view);
   drawThalassaAir(g, fd, info, units, now, lowQ, view);
 }
 export function bakeSpecial() {}

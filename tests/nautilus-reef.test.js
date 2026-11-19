@@ -130,3 +130,18 @@ test('ผลักเข้าหอยมุก: งับ ดาเมจ 2 + 
   assert.equal(st().nt7.pearls.length, 1);
   assert.ok((b.gold || 0) > 0);
 });
+
+test('พายุใต้ทะเล: ทุกคนถูกพัด 2 ช่องตามทิศที่ประกาศ · ทิศเทิร์นหน้าเห็นล่วงหน้า · มองเห็นแค่ระยะ 4', () => {
+  const [a, b] = setup();
+  a.pos = { x: 8, y: 10 }; b.pos = { x: 15, y: 4 };
+  Fodlan.startWeather('nt_storm');
+  const s = st().nt7;
+  s.stormDir = [1, 0];
+  const dir = Fodlan.publicInfo().board.reef.stormDir;
+  assert.deepEqual(dir, { x: 1, y: 0 });
+  R.onEndTurn(ctx(), st());
+  assert.deepEqual(a.pos, { x: 10, y: 10 });
+  const vis = Fodlan.vision(a);
+  assert.ok(vis.includes('10,10') && !vis.includes('0,0'), 'เห็นแค่ใกล้ตัว');
+  assert.equal(Fodlan.hides(a, b), true, 'ไกลเกิน 4 = ไม่เห็น');
+});

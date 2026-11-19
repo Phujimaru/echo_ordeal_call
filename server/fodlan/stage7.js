@@ -20,4 +20,7 @@ module.exports = {
   onUnitEnd: R.onUnitEnd,
   onEndTurn: R.onEndTurn,
   hazardAt: R.hazardAt,
+  weatherStart: R.weatherStart,
+  vision: R.vision,
+  hides: R.hides,
 };

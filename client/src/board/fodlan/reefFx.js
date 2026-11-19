@@ -173,3 +173,40 @@ function drawDodge(g, e, k) {
   for (let i = 0; i < 3; i++) { const x = sx - s * 0.3 - k * s * 0.4 - i * s * 0.12; g.beginPath(); g.moveTo(x, sy - s * 0.2 + i * s * 0.15); g.lineTo(x + s * 0.25, sy - s * 0.2 + i * s * 0.15); g.stroke(); }
   void clamp;
 }
+
+// ---------- พายุใต้ทะเล (fd.weather.kind nt_storm · fd.reef.stormDir = ทิศที่จะพัดตอนจบเทิร์น) ----------
+//  ตะกอนพุ่งเป็นสายตามทิศ · ลูกศรใหญ่ไหลบนพื้นบอกทิศเทิร์นนี้ (สัญลักษณ์) · มืดลง · เสียงน้ำซัดเป็นระยะ
+let STORM_SND = 0;
+export function reefStorm(g, fd, info, now, view) {
+  const on = fd && fd.weather && fd.weather.kind === "nt_storm";
+  for (const e of fd.fx || []) if ((e.kind === "nt_storm" || e.kind === "nt_storm_push") && fxOnce(e)) { snd("rush", 1); snd("swirl", 0.7, 200); }
+  if (!on) return;
+  const d = (fd.reef && fd.reef.stormDir) || { x: 1, y: 0 }, t = now / 1000;
+  if (now - STORM_SND > 6000) { STORM_SND = now; snd("rush", 0.55); }
+  const X0 = view ? view.x0 : 0, W = view ? view.x1 - view.x0 : 1280, Y0 = view ? view.y0 : 0, H = view ? view.y1 - view.y0 : 720;
+  g.fillStyle = "rgba(20,40,40,.28)"; g.fillRect(X0, Y0, W, H);
+  // ลูกศรไหลบนพื้นทั้งกระดาน
+  g.save(); g.globalCompositeOperation = "lighter";
+  for (let y = 1; y < info.rows; y += 3) for (let x = 1; x < info.cols; x += 3) {
+    const u = ((t * 0.8 + (x + y) * 0.13) % 1), cx = x + 0.5 + d.x * (u - 0.5), cy = y + 0.5 + d.y * (u - 0.5);
+    const a = P(cx - d.x * 0.35 - d.y * 0.25, cy - d.y * 0.35 + d.x * 0.25, 0.03), b = P(cx + d.x * 0.35, cy + d.y * 0.35, 0.03), c = P(cx - d.x * 0.35 + d.y * 0.25, cy - d.y * 0.35 - d.x * 0.25, 0.03);
+    g.strokeStyle = `rgba(200,240,240,${0.35 * Math.sin(u * Math.PI)})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.stroke();
+  }
+  g.restore();
+  // ตะกอนพุ่งเป็นสายตามทิศ (บนจอ)
+  const p0 = P(info.cols / 2, info.rows / 2), p1 = P(info.cols / 2 + d.x, info.rows / 2 + d.y), sx = p1[0] - p0[0], sy = p1[1] - p0[1], L = Math.hypot(sx, sy) || 1, ux = sx / L, uy = sy / L;
+  g.strokeStyle = "rgba(190,200,180,.45)"; g.lineWidth = 1.4;
+  for (let i = 0; i < 160; i++) {
+    const k = (t * (0.6 + (i % 7) * 0.08) + i * 0.137) % 1, h1 = Math.sin(i * 12.9898) * 43758.5453, r = h1 - Math.floor(h1);
+    const x = X0 + ((r * W + ux * k * W * 1.2) % W + W) % W, y = Y0 + ((((i * 0.6180339) % 1) * H + uy * k * H * 1.2) % H + H) % H;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x - ux * 14, y - uy * 14); g.stroke();
+  }
+}
+// เส้นพัดตอนจบเทิร์น
+export function reefStormFx(g, fd, now) {
+  for (const e of fd.fx || []) {
+    if (e.kind !== "nt_storm_push") continue;
+    const k = fxT(e, now, 1000); if (k >= 1) continue;
+    for (const m of e.moves || []) streak(g, m, e.dir ? (e.dir.x || e.dir.y) : 1, k);
+  }
+}
