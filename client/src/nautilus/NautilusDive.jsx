@@ -92,7 +92,7 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
       const ws = img("whale_side");
       if (mode === "advance" && whale && toL.id >= 8 && ws) {
         const k = span(u, 0.38, 0.78);
-        if (k > 0 && k < 1) { const w = W * 1.6, h = w * ws.height / ws.width, x = lerp(W * 1.2, -W * 1.4, k), y = H * 0.62; g.save(); g.globalAlpha = Math.sin(k * Math.PI) * 0.55; g.filter = "brightness(0) blur(6px)"; g.drawImage(ws, x, y - h / 2, w, h); g.restore(); }
+        if (k > 0 && k < 1) { const w = W * 1.6, h = w * ws.height / ws.width, x = lerp(W * 1.2, -W * 1.4, k), y = H * 0.62; g.save(); g.globalAlpha = Math.sin(k * Math.PI) * 0.55; g.filter = "brightness(0) blur(6px)"; g.translate(x + w / 2, y); g.scale(-1, 1); g.drawImage(ws, -w / 2, -h / 2, w, h); g.restore(); } // ว่ายขวา → ซ้าย = กลับภาพให้หัว (ขวาของภาพ) หันซ้ายไปทางที่ว่าย (ผู้ใช้ทักว่ายถอยหลัง)
       }
       // เรือ Nautilus ดำลงเฉียง หัวเรือก้มลง โคมหน้าเรือส่องทาง
       const ship = img("nautilus_side");
