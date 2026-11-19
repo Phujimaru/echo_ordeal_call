@@ -149,6 +149,7 @@ export default function HudPreview() {
                 vitals={
                   <div className="hud-vitals">
                     <StatRow big kind="hp" value={4} max={7} extra={1} extraLabel="เลือดชั่วคราว" />
+                    {q.get("ntguide") != null && <StatRow big kind="o2" value={6} max={10} />}
                     <StatRow big kind="ar" value={2} max={3} />
                     <VitalExtras p={{ shield: 2 }} className="pc-extra-inline" />
                   </div>
