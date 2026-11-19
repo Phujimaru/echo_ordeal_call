@@ -17,7 +17,7 @@ import { COLONY_MS } from "./oc/intro/colonyFlight";
 import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
-import { NAUTILUS_GEO, NAUTILUS_SCENE_STAGE } from "./nautilus/nautilusMeta";
+import NautilusDive from "./nautilus/NautilusDive";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
 import { eosAudio, eosBedsFor, eosMusicPicker } from "./eos/eosAudio";
 import { FODLAN_INTRO_MS, FODLAN_TRAVEL_MS } from "./fodlan/stages";
@@ -30,7 +30,6 @@ import { GLOBE_SCREENS } from "./components/TransitionCurtain";
 import { rosterOf } from "./duo";
 
 // Nautilus (GRID_PLAN §8.9 ขั้น 1): ฉากเปิดแมตช์ยืมฉาก Fodlan — ดิ่งลงหมุด Nautilus · ฉากด่านที่ยืม · ป้ายชื่อ/เสียง = ชั้นจริง
-const nautilusIntro = (f) => ({ stage: (f && f.stage) || 7, sceneStage: NAUTILUS_SCENE_STAGE, geo: NAUTILUS_GEO, mark: "NAUTILUS" });
 const SESSION_KEY = 'echo_session';
 
 function savedSessionToken() {
@@ -169,7 +168,8 @@ export default function App() {
         journeySeqRef.current = jScene.seq;
         if (jScene.mode === "start") pendingJourneyRef.current = jScene;
         else if (jScene.mode === "rebirth") setRebirth({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, endsInMs: (Number(s.timeLeft) || 18) * 1000 });
-        else if (s.world === "fodlan" || s.world === "nautilus") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
+        else if (s.world === "nautilus") setTravel({ seq: jScene.seq, nautilus: true, mode: "advance", area: jScene.area, fromArea: jScene.fromArea, whale: s.fodlan?.whaleEnabled !== false, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) }); // ฉากดำน้ำของ Nautilus เอง (nautilus/NautilusDive.jsx)
+        else if (s.world === "fodlan") setTravel({ seq: jScene.seq, fodlan: true, area: jScene.area, fromArea: jScene.fromArea, weather: !!s.fodlan?.weather, durationMs: journeyDurationMs(s.timeLeft, FODLAN_TRAVEL_MS) });
         else setTravel({ seq: jScene.seq, area: jScene.area, fromArea: jScene.fromArea, route: jScene.route, durationMs: journeyDurationMs(s.timeLeft, 8400) });
       }
       if (s.roadtrip && Number.isFinite(s.roadtrip.now)) noteServerNow(s.roadtrip.now);
@@ -182,7 +182,7 @@ export default function App() {
           key: Date.now(), players: rosterOf(s.players), area: s.journey?.scene?.area || 1,
           // Fodlan: รู้ด่าน/สภาพอากาศตั้งแต่ต้น = MatchIntro สร้างแผนที่/ฉากด่านระหว่างการ์ดโคจร (เพลงคุมโดย audioPolicy)
           fodlan: s.world === "fodlan" && s.fodlan ? { stage: s.fodlan.stage, weather: !!s.fodlan.weather, music: false }
-            : s.world === "nautilus" && s.fodlan ? { ...nautilusIntro(s.fodlan), weather: false, music: false } : null, // Nautilus (§8.9 ขั้น 1): ยืมฉาก Fodlan
+            : null, // Nautilus: ไม่ยืมฉาก Fodlan แล้ว — ฉากเข้าด่านของตัวเอง (nautilus/NautilusDive.jsx)
           title: s.world === "roadtrip" ? "เริ่มการเดินทาง" : null,
         });
         setShowIntro(true);
@@ -531,7 +531,10 @@ export default function App() {
         return { fodlan: true, stage: f?.stage || 1, weather: !!f?.weather, music: false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) };
       }
       if (worldRef.current === "nautilus") {
-        return { fodlan: true, ...nautilusIntro(fodlanRef.current), weather: false, music: false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) };
+        // ฉากเข้าด่านของ Nautilus เอง (nautilus/NautilusDive.jsx mode "start"): ผิวทะเล → เรือดำลง → −30 ม. → โซนาร์เผยกระดาน — เล่นต่อจากการ์ดเปิดแมตช์
+        const f = fodlanRef.current;
+        setTravel({ seq: `ntstart-${pending.seq}`, nautilus: true, mode: "start", area: f?.stage || 7, fromArea: f?.stage || 7, whale: f?.whaleEnabled !== false, durationMs: journeyDurationMs(getTickSeconds(), FODLAN_INTRO_MS) });
+        return null;
       }
       return { area: pending.area, durationMs: journeyDurationMs(getTickSeconds(), 7000) };
     }
@@ -632,6 +635,9 @@ export default function App() {
           onDone={finishIntro}
         />
       )}
+      {travel && travel.nautilus && !intro && stage === "connected" && (
+        <NautilusDive key={travel.seq} mode={travel.mode} from={travel.fromArea} to={travel.area} whale={travel.whale} durationMs={travel.durationMs} lowQ={lowQ} onDone={finishTravel} />
+      )}
       {travel && travel.fodlan && !intro && stage === "connected" && (
         <FodlanTravel
           key={travel.seq}
@@ -644,7 +650,7 @@ export default function App() {
           onDone={finishTravel}
         />
       )}
-      {travel && !travel.fodlan && !intro && stage === "connected" && (
+      {travel && !travel.fodlan && !travel.nautilus && !intro && stage === "connected" && (
         <RegionTravel
           key={travel.seq}
           from={travel.fromArea}
