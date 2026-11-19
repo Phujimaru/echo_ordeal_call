@@ -758,9 +758,9 @@ const LOUDNESS_GAIN = {
   "/fodlan/music/stage4_wx.mp3": 0.83, // -9.7 LUFS
   "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
   // Nautilus (ffmpeg ebur128 ทั้งไฟล์ 2026-11-19 · เป้า -14 LUFS)
-  // Nautilus: เพลงเบากว่าเสียงบรรยากาศ (ผู้ใช้สั่ง 2026-11-19) — ชั้น 1–4 ≈ −24 LUFS · ปลาวาฬ/ชั้น 5 ≈ −20 LUFS
+  // Nautilus: ชั้น 1–4 เพลงเบากว่าเสียงบรรยากาศ ≈ −24 LUFS · ปลาวาฬ ≈ −20 · ชั้น 5 ดังกว่าเสียงเอฟเฟกต์ ≈ −12.7 (ผู้ใช้สั่ง 2026-11-19)
   "/nautilus/bgm.mp3": 0.3, // -9.4 LUFS → −20
-  "/nautilus/bgm_abyss.mp3": 0.26, // -8.3 LUFS → −20
+  "/nautilus/bgm_abyss.mp3": 0.6, // -8.3 LUFS → ≈ −12.7 · ชั้น 5 เพลงดังกว่าเสียงเอฟเฟกต์/บรรยากาศ (ผู้ใช้สั่ง 2026-11-19)
   "/nautilus/bgm_1.mp3": 0.6, // -19.5 LUFS → −24
   "/nautilus/bgm_2.mp3": 0.43, // -16.6 LUFS → −24
   "/nautilus/bgm_3.mp3": 0.22, // -10.9 LUFS → −24
