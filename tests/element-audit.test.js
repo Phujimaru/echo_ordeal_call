@@ -106,6 +106,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'emiya_kiritsugu', 'inui_takumi', 'daisuke', 'yaguruma', 'tsurugi', 'kusakabe_shinra',
     'master', // Master: ตี/สกิลเฟส 1 พิษ · เฟส 2 แสง · Knockdown ลม→แสง · Smite สายฟ้า→มืด — tests/characters/master.test.js
     'magna', // แม็กน่า สวิง: ไฟทุกการกระทำ — tests/characters/magna.test.js
+    'diego_dino', // ดิเอโก้ อสูรกายดึกดำบรรพ์: ตีปกติพิษ (ลบสกิลติดตัว = ปกติ) · ร่างไดโนเสาร์ทุกสกิล + ฉันจะฆ่าแก พิษ — tests/characters/diego_dino.test.js
     'midoriya_izuku']); // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));

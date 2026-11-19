@@ -771,6 +771,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
           const fp = Rules.footprint(a.x, a.y, pickInfo.foot).map((t) => key(t.x, t.y));
           h.aoe = fp;
           if (pickInfo.foot > 1) h.ghost = fp;
+          // ระเบิดรอบจุดลง (ดิเอโก้ ย่ำกระหม่อม: ข้าวหลามตัดรัศมี blast)
+          if (pick.blast > 0) h.aoe = [...fp, ...Rules.aoeTiles(map, a.x, a.y, pick.blast, 1).map((t) => key(t.x, t.y))];
         }
         // เลือกหลายช่อง (ลอว์: Shambles / Shamble): ช่องที่เลือกไว้แล้ว = กรอบทองค้าง
         if (multiIds.length) h.aoe = [...new Set([...(h.aoe || []), ...multiIds])];
@@ -884,7 +886,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
-      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.master ? p.master.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ: ภาพตัวเต็มแทนหมาก
+      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
+      // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
+      dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
+      dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,
+      possessed: !mk && !!p.possessedBy,
       master: !mk && p.master ? { phase: p.master.phase || 1, down: !!p.master.down, summon: p.master.summon || null } : null, // Master (masterFx.js): ออร่า/ท่าทาง
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)

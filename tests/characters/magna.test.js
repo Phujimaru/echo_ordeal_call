@@ -139,6 +139,12 @@ test("OverHeat: 3+ ระยะตี [1, 2] · ไม่สร้างคว�
   const { p } = setup();
   st(p).heat = 3;
   assert.deepEqual(engine.rangeOf(p), [1, 2]);
+  // ตีเทิร์นนี้ → จบเทิร์นนี้ + เทิร์นถัดไปยังไม่ลด · ไม่ตีครบเทิร์นเต็ม → ลด 1 ทุกเทิร์น
+  st(p).dealtRound = match.roundNumber;
+  nextRound();
+  assert.equal(st(p).heat, 3);
+  nextRound();
+  assert.equal(st(p).heat, 3);
   nextRound();
   assert.equal(st(p).heat, 2);
   assert.deepEqual(engine.rangeOf(p), [1, 1]);
@@ -415,4 +421,14 @@ test("โซ่กับตัวที่สองของระบบคู�
   assert.equal(Object.getOwnPropertyDescriptor(own, "skillPoints").get, undefined);
   assert.equal(own.skillPoints + p.skillPoints, 1);
   delete engine.players.b2;
+});
+
+test("โซ่: เปลี่ยนพื้นที่ (แผนที่ใหม่) = คู่โซ่ถูกดึงมาติดตัวแม็กน่า", () => {
+  const { p, t } = chainUp();
+  assert.ok(Chain.linked(p));
+  engine.placeOnBoard(match.board.area);
+  assert.ok(p.pos && t.pos);
+  const d = Math.abs(p.pos.x - t.pos.x) + Math.abs(p.pos.y - t.pos.y);
+  assert.ok(d <= Chain.LEASH, `ระยะ ${d}`);
+  assert.ok(Chain.linked(p));
 });

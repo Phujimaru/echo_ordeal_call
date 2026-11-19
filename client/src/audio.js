@@ -631,6 +631,15 @@ const FILES = {
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
   // แม็กน่า สวิง (GRID_PLAN §7.35): สังเคราะห์ .claude/plans/magna-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · ตีปกติ: จุดปะทะ 0.29 วิ (MAGNA_HIT_P)
   ...Object.fromEntries(["swing", "knuckle", "ball", "bat", "bat_hit", "boost", "throw", "arm", "pull", "fin_hit", "chain_break"].map((k) => [`magna_${k}`, `/effect_sound/magna/magna_${k}.m4a`])),
+  // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์ · characters/diego_dino.js) — เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/diego-dino-sfx.py (ยังไม่มีคนฟัง)
+  //  เสียงพากย์ตัดจากไฟล์ผู้ใช้ (Downloads\diego_update) → characters/diego_dino/voice — หน้าฟัง .claude/plans/diego-dino-voice.html
+  ...Object.fromEntries(["claw", "bite", "crack", "virus", "possess", "charge", "slam", "leap", "drain", "revert"].map((k) => [`dino_${k}`, `/effect_sound/diego_dino/dino_${k}.m4a`])),
+  ...Object.fromEntries([
+    ...Array.from({ length: 16 }, (_, i) => `h${String(i + 1).padStart(2, "0")}`),
+    ...Array.from({ length: 9 }, (_, i) => `e${String(i + 1).padStart(2, "0")}`),
+    ...Array.from({ length: 6 }, (_, i) => `d${String(i + 1).padStart(2, "0")}`),
+    "t01", "t02",
+  ].map((k) => [`dino_v_${k}`, `/characters/diego_dino/voice/${k}.m4a`])),
   // Master (GRID_PLAN §7.34): ไฟล์จากผู้ใช้ (แปลง wav → m4a · ยังไม่ปรับความดัง) · เพลงเฟส 1/2 วนจนเปลี่ยนเฟส/ตาย (state.skillMusic)
   ...Object.fromEntries(["melee", "slash", "wave", "revive", "roar", "death", "shockwave", "thunder", "raider", "meteor", "choir", "summon", "swing", "stomp"].map((k) => [`master_${k}`, `/characters/master/master_${k}.m4a`])),
   master_phase1: "/characters/master/phase1.ogg",

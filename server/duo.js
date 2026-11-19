@@ -113,6 +113,9 @@ function teardown() {
 // ---------- ตาเดิน ----------
 // ตัวที่ socket ของผู้เล่นคนนี้สั่งอยู่ตอนนี้ (ตาของฝ่ายนี้ = ตัวที่กำลังคุม · ไม่ใช่ = ตัวแรกที่ยังมีชีวิต)
 function controlledId(playerId) {
+  // ควบคุมร่าง (server/possess.js — เข้าร่วมเผ่าพันธุ์ของดิเอโก้): ผู้คุมได้ตัวเป้า · เป้าเองได้ id ปลอม (สั่งไม่ได้)
+  const pz = require("./possess").controlFor(playerId);
+  if (pz) return pz;
   const d = match.duo;
   if (d && d.ownerId === playerId && match.actorId) return match.actorId;
   const p = match.players[playerId];

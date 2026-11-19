@@ -23,6 +23,7 @@ import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
 import { RolandEgo } from "./hud/RolandHud";
+import { MagnaHeat } from "./hud/MagnaHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
@@ -607,7 +608,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       //  orient = แนวกำแพงน้ำแข็งของเซลิน (place "wall" · "h" | "v")
       //  place "list" = ช่องที่เลือกได้มาจาก server (area.tiles มุมบนซ้าย · foot = ขนาดกรอบ — กล่องของลาพลัส 2×2)
       //  place "list" + count (ลอว์: Shambles / Shamble เลือก 2 อย่าง) = เลือกครบแล้วส่ง tiles ทีเดียว
-      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, band: a.band || 0, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
+      else if (a.kind === "tile") boardPick = { kind: "tile", range: a.range || 0, place: a.place || "any", square: a.square || 0, rect: a.rect || null, band: a.band || 0, blast: a.blast || 0, ...(a.place === "list" ? { tiles: Array.isArray(a.tiles) ? a.tiles : [], foot: Math.max(1, a.foot | 0), count } : {}), label, onPick: (tile, dir, orient) => { socket.emit("useSkill", { tier, ...(Array.isArray(tile) ? { tiles: tile } : { tile }), ...(dir ? { dir } : {}), ...(orient ? { orient } : {}), ...f }); done(); }, onCancel: done };
     } else if (pickReq.kind === "ride") {
       // ยูนะ: ขอขี่คนที่อยู่ติดกัน (server/ride.js) — เจ้าของคนนั้นต้องกดยินยอม
       boardPick = { kind: "target", range: [1, 1], allow: (p) => p.id !== me.id && !p.ride && !p.summon && (p.size || 1) <= 1 && !(state.players || []).some((o) => o.ride === p.id), label: "ขี่", onPick: (id) => { socket.emit("rideAsk", { targetId: id }); done(); }, onCancel: done };
@@ -1220,6 +1221,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {me?.shinra && !hudAway && !rtTravel && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
       {/* โรลันด์: แถบ EGO Page — Emotion + บัฟที่เลือกแล้ว (×ซ้อน) */}
       {me?.roland && !hudAway && !rtTravel && <RolandEgo roland={me.roland} lowQ={lowQ} />}
+      {/* แม็กน่า สวิง: แถบ OverHeat */}
+      {me?.magna && !hudAway && !rtTravel && <MagnaHeat magna={me.magna} lowQ={lowQ} />}
       {me?.dio && !rtTravel && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={rtTravel ? null : me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />

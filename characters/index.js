@@ -46,6 +46,7 @@ const kagami = require("./kagami");
 const tsurugi = require("./tsurugi");
 const gilgamesh_fake = require("./gilgamesh_fake"); // กิลกาเมช (Fake) — มหันตภัย · unique (EA · Gate of Babylon ปืนกลสมบัติ · Enuma Elish · กระเป๋า 50)
 const kurenai_otoya = require("./kurenai_otoya");
+const diego_dino = require("./diego_dino"); // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์) — ยาก · โหมดของ diego_alt ในหน้าเลือกตัว (ไวรัสบรรพกาล / ร่างไดโนเสาร์ / ควบคุมร่าง server/possess.js)
 const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
@@ -89,6 +90,7 @@ const CHARACTER_MODULES = [
   midoriya_izuku,
   master,
   magna,
+  diego_dino,
 ];
 
 const CHAR_HOOKS = {};

@@ -20,6 +20,7 @@ import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
 import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
+import { dinoAuraBack, dinoAuraFront, drawDinoStandee, isDinoStandee } from "./dinoFx";
 import { kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { otoUnitBack, otoUnitFront } from "./otoyaFx";
 import { elemUnitBack, elemUnitFront } from "./elementFx";
@@ -293,6 +294,7 @@ function drawUnit(g, u, now, boxes) {
   if (auraAt) kiraAuraBack(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   // คุซาคาเบะ ชินระ (shinraFx.js): ไอพ่นใต้เท้า (ฮีโร่) / เพลิงท่วมตัว (อุ่นเครื่องพอแล้ว)
   if (u.magna) magnaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: OverHeat/Fire Boost
+  if (u.dino) dinoAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.dino); // ดิเอโก้ อสูรกายดึกดำบรรพ์: เงาหาง/ไอรอบเท้า
   if (u.aura === "midoriyaCowl") midoriyaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // มิโดริยะ Full Cowl
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
@@ -367,7 +369,7 @@ function drawUnit(g, u, now, boxes) {
   let hy = (UNIT_FRAME.uiPiece && pitchOf() >= 80 ? by : u.inCar ? by - s * 0.5 * K : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
   //  เฟรดดี้ ฟาซแบร์ (freddyFx.js): ภาพตัวเต็มแทนหมาก — ไม่มีเสา/หกเหลี่ยม เหมือนร่างรถ
-  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? (u.master ? drawMasterUnit(g, u, now, wx, wy, u.hz || 0) : drawStandee(g, u, now, wx, wy, u.hz || 0)) : null;
+  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? (u.master ? drawMasterUnit(g, u, now, wx, wy, u.hz || 0) : isDinoStandee(u) ? drawDinoStandee(g, u, now, wx, wy, u.hz || 0) : drawStandee(g, u, now, wx, wy, u.hz || 0)) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_FRAME.uiK) - 4 * UNIT_FRAME.uiK - hexR * 0.87 - 4 * UNIT_FRAME.uiK;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));
@@ -444,6 +446,7 @@ function drawUnit(g, u, now, boxes) {
   g.restore();
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   if (u.magna) magnaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: บอลไฟวนรอบตัว / Fire Knuckle
+  if (u.dino || u.dvirus || u.possessed) dinoAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u); // ไอหายใจ / สปอร์ไวรัส / ถูกควบคุมร่าง (ใครก็ติดได้)
   if (u.aura === "midoriyaCowl") midoriyaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);

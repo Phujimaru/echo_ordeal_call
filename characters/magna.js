@@ -264,6 +264,20 @@ function pullSpot(engine, p, t) {
   opts.sort((a, b) => (Math.abs(a.x - t.pos.x) + Math.abs(a.y - t.pos.y)) - (Math.abs(b.x - t.pos.x) + Math.abs(b.y - t.pos.y)));
   return opts[0] || null;
 }
+// ช่องติดตัวเต็ม → ช่องว่างที่ใกล้แม็กน่าที่สุดในระยะสายจูง (ไล่วงข้าวหลามตัด)
+function nearSpot(engine, p, t) {
+  if (Board.dist(boxOf(p), boxOf(t)) <= Chain.LEASH) return null;
+  for (let r = 2; r <= Chain.LEASH; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const w = r - Math.abs(dy);
+      for (const dx of w ? [-w, w] : [0]) {
+        const c = { x: Board.wx ? Board.wx(p.pos.x + dx) : p.pos.x + dx, y: p.pos.y + dy };
+        if (engine.tileFree(c.x, c.y, t.id)) return c;
+      }
+    }
+  }
+  return null;
+}
 function finisherHit(engine, p, t, mode) {
   if (!p.alive || !t || !t.alive || !t.pos) { endChain(engine, p, "finisher"); return; }
   const burn = (t.statuses && t.statuses.hburn) || 0;
@@ -466,14 +480,26 @@ module.exports = {
     for (const p of Object.values(engine.players)) {
       if (!isMe(p)) continue;
       const s = st(p);
-      // OverHeat −1 เมื่อทั้งเทิร์นไม่ได้สร้างความเสียหาย
-      if (p.alive && passiveOn(p) && s.heat > 0 && s.dealtRound !== engine.roundNumber) {
+      // OverHeat −1 เมื่อไม่ได้สร้างความเสียหายครบ 1 เทิร์นเต็ม (ผู้ใช้ 2026-11-19: เทิร์นถัดจากที่ตียังไม่ลด)
+      //  ตีเทิร์น r → จบ r และจบ r+1 ไม่ลด → จบ r+2 (ยังไม่ตี) ลด 1 แล้วลดต่อทุกเทิร์น
+      if (p.alive && passiveOn(p) && s.heat > 0 && s.dealtRound < engine.roundNumber - 1) {
         s.heat--;
         engine.log(`🔥 ${p.name} ${PASSIVE} — OverHeat ${s.heat}`);
       }
       // โซ่ครบ 5 เทิร์น (Finisher กดแล้ว = รอจนทำงาน)
       if (s.chainWith && !s.fin && engine.roundNumber >= s.chainEnd - 1) endChain(engine, p, "time");
       else if (s.chainWith && !Chain.linked(p)) endChain(engine, p, "death");
+    }
+  },
+  // เปลี่ยนพื้นที่ (แผนที่ใหม่): ทุกคนได้จุดเกิดใหม่ → โซ่ดึงคู่โซ่มาติดตัวแม็กน่า (กันห่างเกินสายจูง)
+  onBoardPlaced(engine) {
+    for (const p of Object.values(engine.players)) {
+      if (!isMe(p) || !p.alive || !p.pos) continue;
+      const s = st(p);
+      const t = s.chainWith && engine.players[s.chainWith];
+      if (!t || !t.alive || !t.pos || !Chain.linked(p)) continue;
+      const to = pullSpot(engine, p, t) || nearSpot(engine, p, t);
+      if (to) t.pos = { ...to };
     }
   },
   onDeath(engine, dead) {
@@ -501,6 +527,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     return {
       heat: s.heat, balls: s.balls, chained: chained(p),
+      cool: s.heat > 0 && s.dealtRound < r - 1, sealed: !passiveOn(p), // HUD: จบเทิร์นนี้จะลด 1 ถ้ายังไม่ตี · สกิลติดตัวถูกปิด
       knuckle: knuckleOn(p, r) ? s.knuckleEnd - r : 0,
       boost: boostOn(p, r) ? s.boostEnd - r : 0,
       chain: chained(p) ? Math.max(1, s.chainEnd - r) : 0,

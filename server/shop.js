@@ -500,6 +500,7 @@ function buyShopItem(id, shopId, itemId) {
   if (!p || !p.alive || (p.summon && !p.summon.controlled)) return; // ร่างแยกที่คุมได้ซื้อให้เจ้าของได้ (เหรียญ/กระเป๋าใช้ร่วม — ผู้ใช้สั่ง 2026-10-21) · ตัวเหมือนซื้อไม่ได้
   const rtFree = require("./roadtrip").freeShop(p); // Road Trip จุดพัก: ซื้อได้นอกตาเดิน (ยืนติดร้าน)
   if (!rtFree && !action.canAct(p)) return; // ซื้อได้เฉพาะตาเดินของตัวเอง
+  if (require("./possess").blocksItems(p)) return; // ถูกควบคุมร่าง: ซื้อของไม่ได้ (server/possess.js)
   if (asleep(p)) return; // หลับไหล: ซื้อของไม่ได้
   const sh = shopId ? shopById(shopId) : shopsList().find((s) => (s.items || []).some((it) => it.id === itemId));
   const remote = remoteShop(p);
@@ -534,10 +535,17 @@ function cardLabel(c) {
   if (c.special) return { king: "ราชา", queen: "ราชินี", joker: "โจ๊กเกอร์" }[c.special] || c.special;
   return String(c.value);
 }
+// ใช้ไอเทมไม่ได้: ถูกควบคุมร่าง (server/possess.js) · ฮุค noItems(p) ของตัวละคร (ดิเอโก้ อสูรกายดึกดำบรรพ์: ร่างไดโนเสาร์)
+function itemsBlocked(p) {
+  if (require("./possess").blocksItems(p)) return true;
+  const hook = CHAR_HOOKS[p.characterId];
+  return !!(hook && hook.noItems && hook.noItems(p));
+}
 function useInventoryItem(id, uid, opts = {}) {
   const p = match.players[id];
   if (!p || !p.alive || p.summon) return; // ยูนิตที่ถูกเรียก (ร่างแยก) ใช้ไอเทมไม่ได้
   if (!action.canAct(p)) return; // ใช้ของได้เฉพาะตาเดินของตัวเอง — ใช้แล้วเดินไม่ได้อีก (GRID_PLAN §8.1)
+  if (itemsBlocked(p)) return; // ถูกควบคุมร่าง (server/possess.js) · ฮุค noItems (ดิเอโก้ร่างไดโนเสาร์)
   if (asleep(p)) return; // หลับไหล: ใช้ไอเทมไม่ได้เลย (ยาโชคลาภ/ต้านสถานะ/แต้มสกิล/เกราะ เดิมไม่เช็ค p.locked จึงรั่ว)
   const idx = (p.inventory || []).findIndex((it) => it.uid === uid);
   if (idx < 0) return;
@@ -710,6 +718,7 @@ function useDrawItem(id, uid, opts = {}) {
   if (idx < 0) return;
   const item = p.inventory[idx];
   if (require("./soulChain").itemBlocked(p, item)) return; // โซ่ Soul Chain: ยาเปลี่ยนสีการ์ด/ยาโชคลาภ/กรรไกรตัดไพ่ ใช้ไม่ได้
+  if (itemsBlocked(p)) return; // ฮุค noItems (ดิเอโก้ อสูรกายดึกดำบรรพ์: ร่างไดโนเสาร์)
   if (item.type === "fortune") {
     if ((p.statuses.fortune || 0) >= FORTUNE_MAX) return; // เต็มเพดานแล้ว ไม่เสียของ
     p.statuses.fortune = Math.min(FORTUNE_MAX, (p.statuses.fortune || 0) + SHOP_FORTUNE_AMOUNT);

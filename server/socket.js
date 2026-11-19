@@ -313,7 +313,10 @@ io.on('connection', (socket) => {
     const sessionToken = crypto.randomBytes(32).toString('base64url');
     // โหมดของตัวละคร (characters.js modes) — ไม่รู้จัก/ไม่ส่ง = โหมดแรก (ค่าเริ่มต้น)
     const modes = Array.isArray(ch.modes) ? ch.modes : null;
-    const charMode = modes ? (modes.find((m) => m.key === mode) || modes[0]).key : null;
+    const picked = modes ? (modes.find((m) => m.key === mode) || modes[0]) : null;
+    // โหมดที่เป็นตัวละครอีกตัว (modes[].char — ดิเอโก้: อสูรกายดึกดำบรรพ์ = diego_dino) → เล่นเป็นตัวนั้น
+    if (picked && picked.char && CHAR_BY_ID[picked.char]) ch = CHAR_BY_ID[picked.char];
+    const charMode = picked && !picked.char ? picked.key : null;
     match.players[playerId] = newPlayerRecord({ playerId, sessionToken, socketId: socket.id, name, color, pos, ch, mode: charMode });
     sessions.set(sessionToken, playerId);
     bindPlayerSocket(socket, playerId);

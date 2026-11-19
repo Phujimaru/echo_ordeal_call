@@ -537,7 +537,9 @@ const CHARACTERS = [
     // ---------- ดิเอโก้ แบรนโด (โลกคู่ขนาน) — ระดับยาก — ดู characters/diego_alt.js (GRID_PLAN §7.12) · หยุดเวลา server/timeStop.js ----------
     id: "diego_alt",
     gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
-    name: "ดิเอโก้ แบรนโด (โลกคู่ขนาน)",
+    name: "ดิเอโก้ แบรนโด", // หน้าเลือกตัวเหลือการ์ดเดียว (ผู้ใช้สั่ง 2026-11-18) · โหมดบอกร่าง
+    // สองโหมดในหน้าเลือกตัว — อสูรกายดึกดำบรรพ์ = ตัวละคร diego_dino (join สลับ characterId · GRID_PLAN §7.36)
+    modes: [{ key: "parallel", name: "โลกคู่ขนาน" }, { key: "primordial", name: "อสูรกายดึกดำบรรพ์", char: "diego_dino" }],
     avatar: 0,
     difficulty: "hard",
     img: "/characters/diego_alt/diego.png",
@@ -575,6 +577,59 @@ const CHARACTERS = [
       area: { kind: "self" },
       cost: 0,
       img: "/characters/diego_alt/diego_skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+    // ---------- ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์) — ยาก — ดู characters/diego_dino.js (GRID_PLAN §7.36) ----------
+  //  ไม่มีการ์ดแยกในหน้าเลือกตัว (modeOf → โหมดของ diego_alt) · ยังขึ้นในสมุดไดอารี่ของ Echo
+  //  ปุ่มด้านล่าง = ร่างคน · ร่างไดโนเสาร์ทับด้วย skillPub/skillArea/skillCost (characters/diego_dino.js SKILLS.dino)
+  {
+    id: "diego_dino",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์)",
+    modeOf: "diego_alt",
+    avatar: 0,
+    difficulty: "hard",
+    img: "/characters/diego_dino/cover.jpg",
+    mov: 5,
+    range: [1, 1],
+    passive: {
+      name: "ไวรัสบรรพกาล",
+      desc: "ตีปกติเป็นธาตุพิษ · ตีปกติ/สกิลโดน = ไวรัสบรรพกาล +1 (ต้านได้ · สูงสุด 3) · ได้เพิ่มนับเวลาใหม่ · ไม่ได้เพิ่ม 3 เทิร์นลดลง 1",
+    },
+    passive2: {
+      name: "นักล่าดึกดำบรรพ์",
+      desc: "ไวรัสติด 1 หน่วย = ความบ้าคลั่ง +1 (สูงสุด 5) · ปุ่มการกลายพันธุ์ (เปิด/ปิดเทิร์นละครั้ง · แปลงต้องมีความบ้าคลั่ง 2): ร่างไดโนเสาร์ เดิน 6 · ต้นตาเดินใช้ความบ้าคลั่ง 1 (ไม่พอ = คืนร่าง) · เกราะสูงสุด +6 · แปลงร่างเกราะ +3 · ต้นเทิร์นเกราะ +1 · เกราะลด 1 = ฟื้นพลังชีวิต 1 · ใช้ไอเทม/ขี่ม้าไม่ได้",
+    },
+    passive3: {
+      name: "ม้าซิลเวอร์ บูลเล็ต",
+      desc: "ขึ้น/ลงม้า (0 แต้ม · ไม่ล็อกการเดิน): ขี่ม้า เดิน 6 · ม้าพลังชีวิต 5 รับดาเมจก่อนเกราะ (ทะลุเกราะ = ทะลุม้า · ไม่ฟื้นเอง) · ม้าตาย = เรียกไม่ได้ 3 เทิร์น แล้วกลับมาเต็ม 5 · ขี่ม้าอยู่ใช้ฉันจะฆ่าแกและการกลายพันธุ์ไม่ได้",
+    },
+    basic: {
+      name: "อย่ามาดูถูกกันนะ",
+      desc: "เกราะ −2 → ฟื้นพลังชีวิต 2 (เกราะไม่ถึง 2 = เกราะ +1 แทน) · 2 เทิร์น: ตีปกติ/สกิลโดน = ไวรัสบรรพกาล +2 ต่อครั้ง",
+      area: { kind: "self" },
+      cost: 3,
+      img: "/characters/diego_dino/skill1.jpg",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "เข้าร่วมเผ่าพันธุ์",
+      desc: "ศัตรู 1 คนทั้งกระดานที่มีไวรัสบรรพกาล 3: ล้างไวรัส · ตาเดินถัดไปของเป้า ดิเอโก้ควบคุมแทน (เดิน/สกิล/ตีปกติ · ใช้ไอเทมไม่ได้ · เป้าเป็นฝ่ายเดียวกับดิเอโก้) จบตานั้นแล้วหมดผล",
+      area: { kind: "target", range: 99, hostile: true },
+      cost: 3,
+      img: "/characters/diego_dino/skill2.jpg",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ฉันจะฆ่าแก",
+      desc: "ธาตุพิษ · เลือกทิศ แนว 4×1: ฝูงไดโนเสาร์ชนศัตรูคนแรก ความเสียหาย 1 + ถูกตรึงจนจบเทิร์นนี้ · ตีปกติใส่คนนั้น (ครั้งเดียว) = ความเสียหาย 3 + พิษร้าย 2 + เลือดไหล 1 แล้วปลดตรึง · ใช้แล้วยังเดินได้ · ขี่ม้าใช้ไม่ได้ (คูลดาวน์ 3 เทิร์น)",
+      area: { kind: "line", len: 4, width: 1, hostile: true },
+      cost: 6,
+      img: "/characters/diego_dino/skill3.jpg",
       instant: true,
       effect: null,
     },
@@ -1862,7 +1917,7 @@ function publicRoster() {
     avatar: c.avatar,
     img: c.cover || c.img, // ภาพปก (เคท & เอมิลิโกะ) ใช้แทนบนหน้าเลือกตัวละคร
     locked: !!c.locked,
-    hidden: !!c.hidden,
+    hidden: !!c.hidden || !!c.modeOf, // modeOf = โหมดของตัวอื่น (ดิเอโก้ อสูรกายดึกดำบรรพ์) — ไม่ขึ้นเป็นการ์ดแยก
     difficulty: c.difficulty || "easy", // ความยากในการเล่น (ใช้แบ่งหน้าเลือกตัวละคร)
     passive: c.passive ? { name: c.passive.name, desc: c.passive.desc } : null,
     passive2: c.passive2 ? { name: c.passive2.name, desc: c.passive2.desc } : null,
@@ -1874,14 +1929,16 @@ function publicRoster() {
     ultimate: pub(c.ultimate),
     // โหมดในหน้าเลือกตัว (นักบินปริศนา: สายลับ/ผู้กอบกู้) — โหมดที่มีร่าง = ชื่อ/รูป/สกิลของร่างนั้นบนแผง
     modes: Array.isArray(c.modes) ? c.modes.map((m) => {
-      const f = m.form && c.forms && c.forms[m.form];
+      // โหมดที่เป็นตัวละครอีกตัว (char — ดิเอโก้: อสูรกายดึกดำบรรพ์) = ชื่อการ์ดเดิม + ภาพ/สกิลของตัวนั้น
+      const f = (m.char && CHAR_BY_ID[m.char] && { ...CHAR_BY_ID[m.char], name: c.rosterName || c.name, img: CHAR_BY_ID[m.char].cover || CHAR_BY_ID[m.char].img })
+        || (m.form && c.forms && c.forms[m.form]);
       return {
         key: m.key, name: m.name,
         ...(f ? {
           charName: f.name, img: f.img,
           passive: f.passive ? { name: f.passive.name, desc: f.passive.desc } : null,
           passive2: f.passive2 ? { name: f.passive2.name, desc: f.passive2.desc } : null,
-          passive3: null,
+          passive3: f.passive3 ? { name: f.passive3.name, desc: f.passive3.desc } : null,
           basic: pub(f.basic), secondary: pub(f.secondary), ultimate: pub(f.ultimate),
         } : null),
       };
