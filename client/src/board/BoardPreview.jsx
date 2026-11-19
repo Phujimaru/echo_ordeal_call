@@ -304,6 +304,9 @@ export default function BoardPreview() {
     window.__eosMe = (x, y) => setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, x, y } : u))); // ย้ายตัวเรา (จุดหมุนกล้อง RTS)
     return () => { delete window.__eosFd; delete window.__eosFx; delete window.__eosMe; };
   }, []);
+  // Nautilus (?area=46–50): ทาลัสซาจำลอง (server/fodlan/thalassa.js publicInfo) · window.__ntWhale({ on, s, hp }) แก้ · เหตุการณ์ใช้ window.__eosFx([{ kind: "whale_tentacle", rows: [5], dir: 1 }])
+  const [ntWhale, setNtWhale] = useState(() => ({ enabled: true, on: Q.get("whale") !== "0", s: 3, hp: 60, hpMax: 60 }));
+  useEffect(() => { window.__ntWhale = (v) => setNtWhale((o) => ({ ...o, ...(v || {}) })); return () => { delete window.__ntWhale; }; }, []);
   // ยูนะ: window.__boardSongs([{ kind: "delete"|"smile"|"idol", x, y, r }]) = วงเพลงบนพื้น (prop songs)
   const [songsMock, setSongsMock] = useState(null);
   // ไจโร (?gyro=1): ลูกเหล็กบนพื้นจำลอง [{ owner, color, x, y, seq }] (prop gyroBalls)
@@ -552,7 +555,7 @@ export default function BoardPreview() {
         law={LAW_DEV ? lawDev : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
-        fodlan={map.area === 45 ? { ...eosFd, night } : null}
+        fodlan={map.area === 45 ? { ...eosFd, night } : map.area >= 46 && map.area <= 50 ? { ...eosFd, stage: map.area - 39, night, whale: ntWhale } : null}
         rts={map.area === 45 && Q.get("rts") === "1"}
         selfPos={map.area === 45 && Q.get("rts") === "1" ? (units.find((u) => u.id === "me") || null) : null}
         onAnimDone={onAnimDone}

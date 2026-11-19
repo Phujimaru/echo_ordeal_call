@@ -152,12 +152,30 @@ test('สภาพอากาศ: กติกาเดียวกับ Fodla
   assert.ok(Nt.WEATHER_POOLS[9].includes(Fodlan.weatherNow().kind));
 });
 
+test('ชั้น 1 แนวปะการัง: ทุกช่องที่เดินได้ต่อถึงกัน (สันปะการัง/ซุ้มหิน/หลุมน้ำเงินไม่ตัดพื้นที่) · ถ้ำในซุ้มหินเข้าได้', () => {
+  const M = Board.MAPS[Board.NAUTILUS_AREA];
+  const seen = new Set([Board.key(M.spawns[0].x, M.spawns[0].y)]), q = [M.spawns[0]];
+  while (q.length) {
+    const c = q.shift();
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const x = c.x + dx, y = c.y + dy, k = Board.key(x, y);
+      if (seen.has(k) || Board.isObstacle(M, x, y)) continue;
+      seen.add(k); q.push({ x, y });
+    }
+  }
+  let free = 0;
+  for (let y = 0; y < M.rows; y++) for (let x = 0; x < M.cols; x++) if (!Board.isObstacle(M, x, y)) free++;
+  assert.equal(seen.size, free);
+  assert.ok(seen.has('17,12'), 'ฟองอากาศในถ้ำ');
+});
+
 test('ชั้นแผนที่: 7 จุดเกิด · 3 จุดร้านค้า · ท่าจอดเรือ 6×2 ว่าง · ชนิดช่องใหม่ขึ้นต้น fd_ และมีป้ายชื่อ/ไอคอน', () => {
   for (let i = 0; i < 5; i++) {
     const m = Board.MAPS[Board.NAUTILUS_AREA + i];
     const def = require(`../server/fodlan/map${7 + i}.js`);
     assert.equal(m.spawns.length, 7);
-    assert.equal(m.shopSpots.length, 3);
+    // ชั้น 1 ทำภูมิประเทศใหม่แล้ว: ร้าน = เรือ Nautilus ที่ท่าจอด (ผู้ใช้: แผงร้านเดิม "ไม่เข้าเลย") → ไม่มีจุดร้านค้า · ชั้นอื่นยังผังขั้น 1
+    assert.equal(m.shopSpots.length, i === 0 ? 0 : 3);
     const D = def.DOCK;
     for (let x = D.x; x < D.x + D.w; x++) for (let y = D.y; y < D.y + D.h; y++) {
       const k = Board.key(x, y);
