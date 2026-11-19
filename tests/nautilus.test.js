@@ -152,6 +152,8 @@ test('สภาพอากาศ: กติกาเดียวกับ Fodla
   assert.ok(Nt.WEATHER_POOLS[9].includes(Fodlan.weatherNow().kind));
 });
 
+const REWORKED = new Set([7, 8]); // ชั้นที่ทำภูมิประเทศใหม่ (ร้าน = เรือ Nautilus · ไม่มีจุดร้านค้า)
+
 test('ชั้น 1 แนวปะการัง: ทุกช่องที่เดินได้ต่อถึงกัน (สันปะการัง/ซุ้มหิน/หลุมน้ำเงินไม่ตัดพื้นที่) · ถ้ำในซุ้มหินเข้าได้', () => {
   const M = Board.MAPS[Board.NAUTILUS_AREA];
   const seen = new Set([Board.key(M.spawns[0].x, M.spawns[0].y)]), q = [M.spawns[0]];
@@ -174,8 +176,8 @@ test('ชั้นแผนที่: 7 จุดเกิด · 3 จุดร�
     const m = Board.MAPS[Board.NAUTILUS_AREA + i];
     const def = require(`../server/fodlan/map${7 + i}.js`);
     assert.equal(m.spawns.length, 7);
-    // ชั้น 1 ทำภูมิประเทศใหม่แล้ว: ร้าน = เรือ Nautilus ที่ท่าจอด (ผู้ใช้: แผงร้านเดิม "ไม่เข้าเลย") → ไม่มีจุดร้านค้า · ชั้นอื่นยังผังขั้น 1
-    assert.equal(m.shopSpots.length, i === 0 ? 0 : 3);
+    // ชั้นที่ทำภูมิประเทศใหม่แล้ว (REWORKED): ร้าน = เรือ Nautilus ที่ท่าจอด (ผู้ใช้: แผงร้านเดิม "ไม่เข้าเลย") → ไม่มีจุดร้านค้า · ชั้นอื่นยังผังขั้น 1
+    assert.equal(m.shopSpots.length, REWORKED.has(7 + i) ? 0 : 3);
     const D = def.DOCK;
     for (let x = D.x; x < D.x + D.w; x++) for (let y = D.y; y < D.y + D.h; y++) {
       const k = Board.key(x, y);
@@ -254,20 +256,22 @@ test('ทาลัสซาเปิด/ปิด: เสียงข้าง�
   assert.equal(Fodlan.publicInfo().whaleEnabled, true);
 });
 
-test('เพลง (audioPolicy): ชั้น 7–10 เงียบ · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
+test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจำชั้น (Great Void Sea Battle I–IV) · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
   const fs = require('node:fs');
   const vm = require('node:vm');
   const policy = vm.createContext({});
   vm.runInContext(fs.readFileSync(require.resolve('../client/src/audioPolicy.js'), 'utf8').replace(/^export /gm, ''), policy);
   const st = (stage, board = {}, extra = {}) => ({ gameState: 'PLAYING', world: 'nautilus', fodlan: { stage, board, whaleEnabled: true, ...extra } });
   for (const s of [7, 8, 9, 10]) {
-    assert.equal(policy.musicForState(st(s)).name, null, `ชั้น ${s} ไม่มีเพลง`);
+    assert.equal(policy.musicForState(st(s)).name, `nautilus_layer_${s}`, `ชั้น ${s} เพลงประจำชั้น`);
     assert.equal(policy.musicForState(st(s, { whale: true })).name, 'nautilus_whale');
-    assert.equal(policy.musicForState(st(s, { whale: true }, { whaleEnabled: false })).name, null);
+    assert.equal(policy.musicForState(st(s, { whale: { on: true, enabled: true } })).name, 'nautilus_whale', 'ข้อมูลปลาวาฬขั้น 2');
+    assert.equal(policy.musicForState(st(s, { whale: { on: false, enabled: true } })).name, `nautilus_layer_${s}`, 'ปลาวาฬพัก = เพลงชั้น');
+    assert.equal(policy.musicForState(st(s, { whale: true }, { whaleEnabled: false })).name, `nautilus_layer_${s}`);
   }
   assert.equal(policy.musicForState(st(11)).name, 'nautilus_abyss');
   assert.equal(policy.musicForState(st(11, { whale: true })).name, 'nautilus_abyss', 'ชั้น 5 เพลงเดิมแม้ปลาวาฬโผล่');
-  assert.equal(policy.musicForState(st(8, { scene: true }, { scene: { active: true } })).name, null, 'ฉากเปลี่ยนชั้นไม่ใช่เพลงแผนที่ Fodlan');
+  assert.equal(policy.musicForState(st(8, { scene: true }, { scene: { active: true } })).name, 'nautilus_layer_8', 'ฉากเปลี่ยนชั้นใช้เพลงชั้นปลายทาง ไม่ใช่เพลงแผนที่ Fodlan');
   assert.equal(policy.musicForState({ ...st(11), skillMusic: 'ult', skillMusicSeq: 2 }).name, 'ult');
   // Fodlan ไม่เปลี่ยน
   assert.equal(policy.musicForState({ gameState: 'PLAYING', world: 'fodlan', fodlan: { stage: 2, board: {} } }).name, 'fodlan_2');

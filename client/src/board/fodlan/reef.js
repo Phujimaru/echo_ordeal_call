@@ -14,7 +14,7 @@ import { drawThalassaAir, drawThalassaGround } from "./thalassaArt";
 import { shipFx, shipItems } from "./shipArt";
 
 const TAU = Math.PI * 2;
-const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
+export const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
 const K = (x, y) => `${x},${y}`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -49,10 +49,10 @@ function zones(info) {
   return ZCACHE;
 }
 // ระยะถึงชนิดที่ใกล้สุด (ช่อง) — ใช้ผสมสีพื้นให้กลืนกันเป็นโซน
-function nearDist(list, x, y) { let d = 99; for (const t of list) { const v = Math.hypot(t.x + 0.5 - x, t.y + 0.5 - y); if (v < d) d = v; } return d; }
+export function nearDist(list, x, y) { let d = 99; for (const t of list) { const v = Math.hypot(t.x + 0.5 - x, t.y + 0.5 - y); if (v < d) d = v; } return d; }
 
 // ---------- รูปทรงพื้นฐาน ----------
-function blobAt(g, x, y, r, z = 0, n = 18, seed = 1, wob = 0.18) {
+export function blobAt(g, x, y, r, z = 0, n = 18, seed = 1, wob = 0.18) {
   g.beginPath();
   for (let i = 0; i <= n; i++) {
     const a = (i / n) * TAU, rr = r * (1 + (hash(seed, i % n) - 0.5) * 2 * wob);
@@ -61,7 +61,7 @@ function blobAt(g, x, y, r, z = 0, n = 18, seed = 1, wob = 0.18) {
   }
   g.closePath();
 }
-function mix(a, b, t) {
+export function mix(a, b, t) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
   const r = Math.round(((pa >> 16) & 255) * (1 - t) + ((pb >> 16) & 255) * t), gg = Math.round(((pa >> 8) & 255) * (1 - t) + ((pb >> 8) & 255) * t), bb = Math.round((pa & 255) * (1 - t) + (pb & 255) * t);
   return `rgb(${r},${gg},${bb})`;
@@ -258,7 +258,7 @@ function coralTop(g, x, y, s, seed, a = 1) {
   }
   g.globalAlpha = 1;
 }
-function branch(g, x, y, h, col, R, sway) {
+export function branch(g, x, y, h, col, R, sway) {
   g.strokeStyle = col; g.lineCap = "round";
   const tw = (x0, y0, len, ang, w, d) => {
     const x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
@@ -268,7 +268,7 @@ function branch(g, x, y, h, col, R, sway) {
   tw(x, y, h * 0.42, -Math.PI / 2 + (R() - 0.5) * 0.3 + sway, Math.max(1.2, h * 0.09), 2);
   g.lineCap = "butt";
 }
-function fan(g, x, y, h, col, sway) {
+export function fan(g, x, y, h, col, sway) {
   g.fillStyle = col; g.globalAlpha *= 0.85;
   g.beginPath(); g.moveTo(x, y);
   for (let i = 0; i <= 10; i++) { const a = -Math.PI * (0.15 + 0.7 * i / 10) + sway; g.lineTo(x + Math.cos(a) * h * 0.55, y + Math.sin(a) * h); }

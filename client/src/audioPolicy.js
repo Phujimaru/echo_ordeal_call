@@ -98,9 +98,13 @@ export function createPhaseSoundTracker() {
 
 // Nautilus (GRID_PLAN §8.9): เพลงตามชั้น — ด่าน 11 (ชั้นสุดท้าย) = nautilus_abyss เสมอ · ชั้น 7–10 = nautilus_whale เฉพาะตอนทาลัสซาอยู่ (board.whale · ปิดในโหวต = ไม่มี) · ไม่งั้นเงียบ
 //  (ไฟล์นี้ห้าม import — tests/audio-policy.test.js โหลดผ่าน vm)
+//  แก้ 2026-11-19 (ผู้ใช้ส่งเพลงครบ): ชั้น 7–10 มีเพลงประจำชั้น nautilus_layer_N (เบากว่าเสียงบรรยากาศ) · ปลาวาฬอยู่ = nautilus_whale ทับ
+//  board.whale = ข้อมูลปลาวาฬ { on, … } (ขั้น 2) หรือ true (ขั้น 1) — นับว่าอยู่เมื่อ on
 export function nautilusMusic(fd) {
   if (!fd) return null;
-  if (Number(fd.stage) === 11) return "nautilus_abyss";
-  if (fd.whaleEnabled !== false && fd.board && fd.board.whale) return "nautilus_whale";
-  return null;
+  const stage = Number(fd.stage);
+  if (stage === 11) return "nautilus_abyss";
+  const w = fd.board && fd.board.whale;
+  if (fd.whaleEnabled !== false && (w === true || (w && w.on))) return "nautilus_whale";
+  return stage >= 7 && stage <= 10 ? `nautilus_layer_${stage}` : null;
 }

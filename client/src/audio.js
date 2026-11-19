@@ -81,6 +81,11 @@ const FILES = {
   //  nautilus_whale "To the Surface, Nautilus!" = เฉพาะตอนทาลัสซาอยู่บนกระดาน (ชั้น 1–4 · ขั้น 2) · nautilus_abyss "Genjitsu" = ชั้น 5 วนจนจบเกม
   nautilus_whale: "/nautilus/bgm.mp3",
   nautilus_abyss: "/nautilus/bgm_abyss.mp3",
+  // ชั้น 1–4: เพลงประจำชั้น (ผู้ใช้ส่ง 2026-11-19 "Great Void Sea Battle I–IV") · โหมดนี้เพลงเบากว่าเสียงบรรยากาศ (ผู้ใช้สั่ง)
+  nautilus_layer_7: "/nautilus/bgm_1.mp3",
+  nautilus_layer_8: "/nautilus/bgm_2.mp3",
+  nautilus_layer_9: "/nautilus/bgm_3.mp3",
+  nautilus_layer_10: "/nautilus/bgm_4.mp3",
   // สนาม Colony (GRID_PLAN §8.3 · ไฟล์จากผู้ใช้): เพลงตามปล้อง I/II/III · นับถอยหลังระเบิดตัวเอง = colony_alert
   colony_1: "/colony/colony_phase1.mp3",
   colony_2: "/colony/colony_phase2.mp3",
@@ -753,8 +758,13 @@ const LOUDNESS_GAIN = {
   "/fodlan/music/stage4_wx.mp3": 0.83, // -9.7 LUFS
   "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
   // Nautilus (ffmpeg ebur128 ทั้งไฟล์ 2026-11-19 · เป้า -14 LUFS)
-  "/nautilus/bgm.mp3": 0.59, // -9.4 LUFS
-  "/nautilus/bgm_abyss.mp3": 0.52, // -8.3 LUFS
+  // Nautilus: เพลงเบากว่าเสียงบรรยากาศ (ผู้ใช้สั่ง 2026-11-19) — ชั้น 1–4 ≈ −24 LUFS · ปลาวาฬ/ชั้น 5 ≈ −20 LUFS
+  "/nautilus/bgm.mp3": 0.3, // -9.4 LUFS → −20
+  "/nautilus/bgm_abyss.mp3": 0.26, // -8.3 LUFS → −20
+  "/nautilus/bgm_1.mp3": 0.6, // -19.5 LUFS → −24
+  "/nautilus/bgm_2.mp3": 0.43, // -16.6 LUFS → −24
+  "/nautilus/bgm_3.mp3": 0.22, // -10.9 LUFS → −24
+  "/nautilus/bgm_4.mp3": 0.19, // -9.4 LUFS → −24
   // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
   // Road Trip (ยังไม่มีไฟล์ — วัด ffmpeg ebur128 แล้วใส่ค่าจริงเมื่อผู้ใช้ส่งมา · เป้า -14 LUFS)
   "/roadtrip/music/stop_day.mp3": 1,
