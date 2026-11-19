@@ -5,7 +5,7 @@
 //  ชั้น 7–11 เรียก: drawThalassaGround (ใต้ตัวละคร — เงา/วังน้ำวน/พื้นไฟฟ้า) · drawThalassaAir (ทับตัวละคร — ตัวปลา/ท่า/ฉากจอ)
 //  fd.whale = server thalassa.publicInfo · fd.fx = เหตุการณ์ whale_* (seq ของตัวคุมกลาง)
 // ============================================================
-import { P } from "../boardGeo";
+import { P, pitchOf } from "../boardGeo";
 import { fxT, fxOnce } from "./index";
 import { playSfx, registerSounds } from "../../audio";
 
@@ -36,7 +36,7 @@ export function registerThalassaSounds() {
 }
 function snd(k, { gain = 1, rate = 1, delay = 0 } = {}) {
   registerThalassaSounds();
-  const go = () => { const a = playSfx(`nt_${k}`, { gain }); if (a && rate !== 1) { a.preservesPitch = false; a.playbackRate = rate; } };
+  const go = () => { const a = playSfx(`nt_${k}`, { gain: gain * 1.6 }); /* ดังขึ้น 2026-11-19 */ if (a && rate !== 1) { a.preservesPitch = false; a.playbackRate = rate; } };
   if (delay > 0) setTimeout(go, delay); else go();
 }
 const SND = {
@@ -70,14 +70,16 @@ function makeSprite(img, SZ, ax, ay, mul, amp) {
 function loadSprites() {
   if (SPR || LOADING || typeof document === "undefined") return;
   LOADING = true;
-  const names = ["whale_side", "whale_side_34", "whale_front"];
+  const names = ["whale_side", "whale_side_34", "whale_front", "whale_top_tail"];
   Promise.all(names.map((n) => new Promise((res) => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => res(); i.src = `${MEDIA}${n}.webp`; })))
     .then(() => {
       if (!IMG.whale_side) return;
       const side = makeSprite(IMG.whale_side, 640, 0.62, 0.57, 1, 1);
       const q = IMG.whale_side_34 ? makeSprite(IMG.whale_side_34, 640, 0.70, 0.64, 1, 0.55) : side;
       const front = IMG.whale_front ? makeSprite(IMG.whale_front, 320, 0.5, 0.52, 0.6, 0.2) : q;
-      SPR = { side, q, front };
+      // มุมบน (ผู้ใช้ 2026-11-19: "มุมบนทำไมไม่มี ฉันให้ไป 7 ภาพ") — whale_top_tail หางอยู่บน หัว+หนวดอยู่ล่าง
+      const top = IMG.whale_top_tail ? makeSprite(IMG.whale_top_tail, 640, 0.5, 0.5, 1, 0) : null;
+      SPR = { side, q, front, top };
     });
 }
 function undulate(spr, src, dst, t, amp, speed) {
@@ -186,8 +188,28 @@ function drawBody(g, now, fierce) {
   g.save(); g.translate(fx, fy); g.scale(cs * 2.8 * SIZE * V.scale, cs * 0.8 * SIZE * V.scale);
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(0,0,0,${0.55 * V.alpha * clamp(1 - Math.abs(V.z - 1.2) * 0.3, 0.2, 1)})`); gr.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
-  for (const [i, st] of V.ghost.entries()) drawSprite(g, SPR.side, st, st.face, 0.1 * (i + 1) / V.ghost.length, t, spd, glow * 0.5);
-  for (const [spr, face, a] of poseFrames(now)) drawSprite(g, spr, V, face, a * V.alpha, t, spd, glow);
+  // มุมสูง (bird's-eye) = ภาพมุมบนหมุนตามทิศว่าย · มุมกลาง = ไล่ความทึบระหว่างภาพข้างกับภาพบน
+  const topMix = SPR.top ? clamp((pitchOf() - 52) / 26, 0, 1) : 0;
+  if (topMix < 1) {
+    for (const [i, st] of V.ghost.entries()) drawSprite(g, SPR.side, st, st.face, 0.1 * (i + 1) / V.ghost.length * (1 - topMix), t, spd, glow * 0.5);
+    for (const [spr, face, a] of poseFrames(now)) drawSprite(g, spr, V, face, a * V.alpha * (1 - topMix), t, spd, glow);
+  }
+  if (topMix > 0) drawTop(g, V, V.alpha * topMix, t, glow);
+}
+function drawTop(g, st, alpha, t, glow) {
+  const spr = SPR.top, cs = whaleCs(st.x, st.y);
+  const [ax, ay] = screenOf(st.x, st.y, st.z * 0.3);
+  const drawL = (5 * cs / 0.62) * SIZE * st.scale, k = drawL / spr.SZ;
+  g.save();
+  g.translate(ax, ay);
+  g.rotate((V.ang ?? 0) - Math.PI / 2 + Math.sin(t * 1.6) * 0.05); // ภาพ: หัวชี้ลง (+y) → หมุนให้หัวชี้ทิศว่าย
+  g.scale(k * (1 + V.rear * 0.06), k * (1 + V.rear * 0.06));
+  g.translate(-spr.ax * spr.SZ, -spr.ay * spr.SZ);
+  g.globalAlpha = alpha; g.drawImage(spr.base, 0, 0);
+  g.globalCompositeOperation = "lighter";
+  g.globalAlpha = clamp(glow * alpha, 0, 1); g.drawImage(spr.glow, 0, 0);
+  if (V.flash > 0) { g.globalCompositeOperation = "source-over"; g.globalAlpha = V.flash * 0.8 * alpha; g.drawImage(spr.white, 0, 0); }
+  g.restore();
 }
 
 // ตัวปลาวาฬห้ามทับตัวละคร (ผู้ใช้ 2026-11-19: "อย่าให้ภาพซ้อนกับปลา") — วาดลงแคนวาสแยก แล้วเจาะช่องโปร่งรอบตัวละครทุกตัว
@@ -239,6 +261,9 @@ function step(fd, info, now, dt) {
     tr = V.turn ? 0 : clamp(tr, -0.5, 0.5);
     V.rot += (tr - V.rot) * Math.min(1, dt * 3);
   }
+  // ทิศว่ายบนจอ (มุมบน: หมุนภาพหัวไปทางนี้) — หมุนนุ่มทางสั้นสุด
+  if (V.ang == null) V.ang = a;
+  else { let d = a - V.ang; d = Math.atan2(Math.sin(d), Math.cos(d)); V.ang += d * Math.min(1, dt * 2.5); }
   V.glow = Math.max(0, V.glow - dt * 1.1); V.flash = Math.max(0, V.flash - dt * 3);
   // เสียงว่าย: ทุกรอบตวัดหาง
   if (V.alpha > 0.3) {

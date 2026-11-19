@@ -15,9 +15,11 @@ const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 
 export const SHIP_FX = { nt_refill: 1600, nt_torpedo: 1800, nt_ram: 1500, nt_light: 2600, nt_organ: 3200 };
 let SND = false;
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(["ping", "boom", "impact", "rush", "whoosh", "bubbles", "splash", "deepimpact"].map((n) => [`nts_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`nts_${k}`, { gain });
+  const go = () => playSfx(`nts_${k}`, { gain: gain * NT_SFX_BOOST });
   if (delay > 0) setTimeout(go, delay); else go();
 }
 
