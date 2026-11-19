@@ -38,6 +38,10 @@ const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
 export default function NautilusDive({ mode = "advance", from = 7, to = 8, durationMs = 9000, whale = true, lowQ = false, onDone }) {
   const ref = useRef(null);
+  // onDone มาใหม่ทุกครั้งที่ App วาดใหม่ (ทุก state จาก server) → เก็บใน ref ไม่ใส่ใน deps
+  //  เดิมใส่ใน deps = ฉากเริ่มใหม่ทุกครั้งที่ state มา → ฉากเปลี่ยนชั้นเล่นซ้ำไม่หยุด (ผู้ใช้แจ้ง 2026-11-19 หลัง 6.4.0)
+  const doneRef = useRef(onDone);
+  useEffect(() => { doneRef.current = onDone; }, [onDone]);
   useEffect(() => {
     const cv = ref.current; if (!cv) return undefined;
     const g = cv.getContext("2d");
@@ -51,7 +55,7 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
     const fired = new Set();
     const resize = () => { const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px"; };
     resize(); window.addEventListener("resize", resize);
-    const finish = () => { if (done) return; done = true; cancelAnimationFrame(raf); onDone && onDone(); };
+    const finish = () => { if (done) return; done = true; cancelAnimationFrame(raf); doneRef.current && doneRef.current(); };
     const frame = (now) => {
       const u = clamp((now - t0) / D, 0, 1), W = cv.width, H = cv.height, t = (now - t0) / 1000, S = Math.min(W, H) / 720;
       cues.forEach(([at, fn], i) => { if (u >= at && !fired.has(i)) { fired.add(i); try { fn(); } catch { /* ไม่มีเสียง */ } } });
@@ -150,6 +154,6 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
     };
     raf = requestAnimationFrame(frame);
     return () => { done = true; cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, [mode, from, to, durationMs, whale, lowQ, onDone]);
+  }, [mode, from, to, durationMs, whale, lowQ]); // App ใส่ key = seq ต่อฉาก — ฉากเดิมไม่เริ่มใหม่
   return <canvas ref={ref} style={{ position: "fixed", inset: 0, zIndex: 60, pointerEvents: "none" }} />;
 }
