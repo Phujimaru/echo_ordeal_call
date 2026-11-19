@@ -16,14 +16,16 @@ const USE = { 7: 1, 8: 1, 9: 2, 10: 2, 11: 3 };
 
 const store = (ctx) => (ctx.match.fodlan ? (ctx.match.fodlan.o2 ||= {}) : {});
 const hasTank = (p) => !!p && !p.summon;
+// ชั้น 6 ทะเลข้อมูล (ด่าน 12): ไม่ใช้ออกซิเจน (ผู้ใช้ 2026-11-19) — ไม่มีถัง ไม่ลด ไม่ขาดอากาศ · ค่าที่ค้างไว้คงเดิม
+const NO_O2_STAGE = 12;
 function get(ctx, p) {
-  if (!hasTank(p)) return null;
+  if (!hasTank(p) || ctx.stage === NO_O2_STAGE) return null;
   const s = store(ctx);
   if (s[p.id] == null) s[p.id] = O2_MAX;
   return s[p.id];
 }
 function set(ctx, p, n) {
-  if (!hasTank(p)) return 0;
+  if (!hasTank(p) || ctx.stage === NO_O2_STAGE) return 0;
   store(ctx)[p.id] = Math.max(0, Math.min(O2_MAX, Math.round(n)));
   return store(ctx)[p.id];
 }
@@ -58,6 +60,7 @@ function onUnitEnd(ctx, p) {
 
 // จบเทิร์น: ทุกคนใช้ออกซิเจนตามความลึก → ถังหมด = เสียหาย 1 (เกราะก่อน)
 function onEndTurn(ctx) {
+  if (ctx.stage === NO_O2_STAGE) return;
   const use = useOf(ctx.stage);
   for (const p of Object.values(ctx.match.players)) {
     if (!hasTank(p) || !p.alive || !p.pos) continue;

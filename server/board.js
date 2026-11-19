@@ -360,13 +360,13 @@ MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
 const isEosArea = (area) => Number(area) === EOS_AREA;
 
 // ---------- Nautilus (GRID_PLAN §8.9) ----------
-//  area 46–50 = ชั้นใต้ทะเล 1–5 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
+//  area 46–51 = ชั้นใต้ทะเล 1–5 + ชั้น 6 ทะเลข้อมูลจินตภาพ (ชั้น 5 ครบ 3 เทิร์นแล้วกลายร่าง — ผู้ใช้ 2026-11-19) (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
 //  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
 const NAUTILUS_AREA = EOS_AREA + 1;
-const NAUTILUS_STAGES = 5;
-const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19
+const NAUTILUS_STAGES = 6;
+const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง", "ทะเลข้อมูลจินตภาพ"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19 · ชั้น 6 [Claude]
 //  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
-const NAUTILUS_DEFS = [require("./fodlan/map7"), require("./fodlan/map8"), require("./fodlan/map9"), require("./fodlan/map10"), require("./fodlan/map11")];
+const NAUTILUS_DEFS = [require("./fodlan/map7"), require("./fodlan/map8"), require("./fodlan/map9"), require("./fodlan/map10"), require("./fodlan/map11"), require("./fodlan/map12")];
 // ชั้นที่ตัวคุมวางทับทุกชั้น (server/fodlan/nautilus.js layer): ลำตัวทาลัสซา + เรือ Nautilus ที่ท่าจอด (DOCK ของ mapN.js) — สิ่งกีดขวาง
 Object.assign(TERRAIN_INFO, { fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" }, fd_nt_ship: { name: "นอติลุส", icon: "🚢" } });
 NAUTILUS_DEFS.forEach((def, i) => {

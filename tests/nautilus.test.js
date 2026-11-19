@@ -80,7 +80,7 @@ test('เริ่มแมตช์: ชั้น 1 = ด่าน 7 · area 46
   assert.equal(info.board.whale.on, false); // ขั้น 2: ข้อมูลทาลัสซา (server/fodlan/thalassa.js publicInfo)
 });
 
-test('ลำดับชั้นตายตัว 7→8→9→10→11 ที่จบเทิร์น 6/12/18/24 (= ต้นเทิร์น 7/13/19/25) · ย้ายกระดาน + ฉาก advance · ชั้น 11 ไม่เปลี่ยนอีก', () => {
+test('ลำดับชั้นตายตัว 7→8→9→10→11 ที่จบเทิร์น 6/12/18/24 (= ต้นเทิร์น 7/13/19/25) · ย้ายกระดาน + ฉาก advance · ชั้น 11 อยู่ 3 เทิร์นแล้วเป็นชั้น 12 · ชั้น 12 ไม่เปลี่ยนอีก', () => {
   setup();
   match.legStart = 1;
   let started = 0;
@@ -104,14 +104,21 @@ test('ลำดับชั้นตายตัว 7→8→9→10→11 ที�
   }
   assert.equal(started, 4);
   assert.deepEqual(match.fodlan.route, [7, 8, 9, 10, 11]);
+  // ชั้น 5 อยู่ 3 เทิร์น (25–27) แล้วกลายร่างเป็นชั้น 6 ทะเลข้อมูล (ผู้ใช้ 2026-11-19)
+  match.roundNumber = 25;
+  assert.equal(Fodlan.publicInfo().turnsLeft, 3, 'เทิร์น 25 = เหลือ 25–27');
+  assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false);
+  match.roundNumber = 27;
+  assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), true);
+  assert.equal(Fodlan.stageNow(), 12);
+  assert.equal(match.board.area, 51);
   assert.equal(Fodlan.publicInfo().turnsLeft, null, 'ชั้นสุดท้ายไม่มีนับถอยหลัง');
   for (const round of [30, 36, 42, 60]) {
     match.roundNumber = round;
-    assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false, `เทิร์น ${round}: อยู่ชั้น 11 ต่อ`);
-    assert.equal(Fodlan.stageNow(), 11);
-    assert.equal(match.board.area, 50);
+    assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false, `เทิร์น ${round}: อยู่ชั้น 12 ต่อ`);
+    assert.equal(Fodlan.stageNow(), 12);
   }
-  assert.equal(started, 4);
+  assert.equal(started, 5);
 });
 
 test('สภาพอากาศ: กติกาเดียวกับ Fodlan (ไม่เกิดตอนเข้าชั้น · เร็วสุดเทิร์น 3 · 3 เทิร์น) · ชนิดมาจากชุดของชั้น', () => {
