@@ -77,7 +77,7 @@ test('เริ่มแมตช์: ชั้น 1 = ด่าน 7 · area 46
   assert.equal(info.turnsLeft, 6);
   assert.deepEqual(info.route, [7]);
   assert.deepEqual(info.board.layer, 1);
-  assert.equal(info.board.whale, false);
+  assert.equal(info.board.whale.on, false); // ขั้น 2: ข้อมูลทาลัสซา (server/fodlan/thalassa.js publicInfo)
 });
 
 test('ลำดับชั้นตายตัว 7→8→9→10→11 ที่จบเทิร์น 6/12/18/24 (= ต้นเทิร์น 7/13/19/25) · ย้ายกระดาน + ฉาก advance · ชั้น 11 ไม่เปลี่ยนอีก', () => {
