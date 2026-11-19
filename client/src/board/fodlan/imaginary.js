@@ -37,6 +37,7 @@ const BASE = {
   sky: ["#22c4d6", "#0d8aa6", "#06395a"], fog: "4,40,60",
 };
 const PAL = { day: BASE, night: BASE };
+const SKY_LIFT = 70; // ยกฉากหลัง (ท้องฟ้าข้อมูล ตาราง ริ้วแสง เรือไกล) ขึ้นเหนือขอบไกลของกระดาน
 function poly(g, pts) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); }
 
 let SND = false;
@@ -70,7 +71,8 @@ export const theme = {
   pal: PAL,
   // ท้องฟ้าข้อมูล: ฟ้าเรืองสว่าง แสงขาวกลาง · ตารางลู่ไปขอบฟ้า · ริ้วแสงโค้ง · เงาเรือรบข้อมูลไกลๆ
   back(c) {
-    const { g, C, bY, VX0, VW, VY0 } = c;
+    // ผู้ใช้ 2026-11-20 "ขยับขึ้น ไม่ใช่ลบออก": ฉากหลังทั้งชุดยกขึ้นเหนือขอบไกลของกระดาน (LIFT px) ให้กระดานไม่ชนท้องฟ้า
+    const { g, C, VX0, VW, VY0 } = c, bY = c.bY - SKY_LIFT;
     const gr = g.createLinearGradient(0, VY0, 0, bY + 40);
     gr.addColorStop(0, "#0b5a78"); gr.addColorStop(0.45, C.sky[0]); gr.addColorStop(0.8, C.sky[1]); gr.addColorStop(1, C.sky[2]);
     g.fillStyle = gr; g.fillRect(VX0, VY0, VW, bY + 40 - VY0);
@@ -105,10 +107,16 @@ export const theme = {
     const { g, VX0, VY0, VW, VY1 } = c, { cols, rows } = sceneSize();
     // พื้นน้ำลึกแผ่ออกไปรอบกระดานจนถึงขอบฟ้า (ผู้ใช้ 2026-11-20: "กระดานยาวไปโดนฉากหลัง" — เดิมไม่มีพื้นรอบนอก ขอบไกลของกระดานชนท้องฟ้า)
     //  วงซ้อนไล่จากไกล (สีเดียวกับขอบฟ้า) → ใกล้ (น้ำลึกเข้ม) · กระดานโปร่งใสจึงเห็นน้ำนี้ข้างใต้
+    //  ผู้ใช้ 2026-11-20 "ฉากหลังหายไปไหน": น้ำต้องไม่ทับท้องฟ้า → ตัดแค่เหนือขอบไกลของกระดานนิดเดียว (bY − 34) แล้วไล่หมอกกลืนเข้าท้องฟ้า
+    const bY = c.bY - SKY_LIFT, top = bY + 30; // ขอบฟ้า (ยกขึ้นแล้ว) → น้ำเริ่มใต้ท้องฟ้าพอดี
+    g.save(); g.beginPath(); g.rect(VX0, top, VW, VY1 - top); g.clip();
     for (let d = 26; d >= 0; d--) {
       const e = 0.6 + d * 1.6, pts = [PS(-e, -e), PS(cols + e, -e), PS(cols + e, rows + e * 0.5), PS(-e, rows + e * 0.5)];
       g.fillStyle = mix("#04304a", "#0a5470", Math.min(1, Math.pow(d / 26, 1.6))); poly(g, pts); g.fill();
     }
+    const hz = g.createLinearGradient(0, top, 0, top + 60); hz.addColorStop(0, "rgba(13,138,166,1)"); hz.addColorStop(0.45, "rgba(13,120,150,.55)"); hz.addColorStop(1, "rgba(10,84,112,0)");
+    g.fillStyle = hz; g.fillRect(VX0, top, VW, 60);
+    g.restore();
     const gr = g.createLinearGradient(0, VY0, 0, VY1); gr.addColorStop(0, "rgba(4,40,62,0)"); gr.addColorStop(0.5, "rgba(3,30,50,.35)"); gr.addColorStop(1, "rgba(1,12,24,.75)");
     g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
     // แสงจางจากเบื้องบนส่องลงน้ำ (ใต้กระดานสว่างกว่าขอบเล็กน้อย)
