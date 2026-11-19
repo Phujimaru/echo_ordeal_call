@@ -555,7 +555,7 @@ export default function BoardPreview() {
         law={LAW_DEV ? lawDev : null}
         emiya={EMIYA_DEV ? { ubw: emDev.ubw, units: emDev.weapon ? [{ id: "me", weapon: emDev.weapon }] : [] } : null}
         cinema={cinema}
-        fodlan={map.area === 45 ? { ...eosFd, night } : map.area >= 46 && map.area <= 50 ? { ...eosFd, stage: map.area - 39, night, whale: ntWhale } : null}
+        fodlan={map.area === 45 ? { ...eosFd, night } : map.area >= 46 && map.area <= 50 ? { ...eosFd, stage: map.area - 39, night, whale: ntWhale, ship: { x: 7, y: 0, w: 6, h: 2 } } : null}
         rts={map.area === 45 && Q.get("rts") === "1"}
         selfPos={map.area === 45 && Q.get("rts") === "1" ? (units.find((u) => u.id === "me") || null) : null}
         onAnimDone={onAnimDone}
