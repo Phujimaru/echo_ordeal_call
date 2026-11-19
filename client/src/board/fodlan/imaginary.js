@@ -9,7 +9,7 @@
 //   ระลอกส่งตัวแบบสลายเป็นพิกเซลแล้วประกอบร่าง · โทนสนามตามคุณสมบัติ · ฝนข้อมูล · รอยตารางบิดตามทางว่ายปลาวาฬ · สนามสว่างกลาง ขอบเรือง คลื่นแสงกวาดพื้น
 // ============================================================
 import { P, PS, glow, rng, sceneSize } from "../boardGeo";
-import { hash } from "./reef";
+import { hash, mix } from "./reef";
 import { fxT, fxOnce } from "./index";
 import { drawThalassaAir, drawThalassaGround, whaleView } from "./thalassaArt";
 import { SHIP_FX, shipFx, shipItems } from "./shipArt";
@@ -103,6 +103,12 @@ export const theme = {
   //  แสงรำไร/ฝูงปลาข้อมูล/เงาเรือรบไกลๆ วาดสดใน ground()
   ground(c) {
     const { g, VX0, VY0, VW, VY1 } = c, { cols, rows } = sceneSize();
+    // พื้นน้ำลึกแผ่ออกไปรอบกระดานจนถึงขอบฟ้า (ผู้ใช้ 2026-11-20: "กระดานยาวไปโดนฉากหลัง" — เดิมไม่มีพื้นรอบนอก ขอบไกลของกระดานชนท้องฟ้า)
+    //  วงซ้อนไล่จากไกล (สีเดียวกับขอบฟ้า) → ใกล้ (น้ำลึกเข้ม) · กระดานโปร่งใสจึงเห็นน้ำนี้ข้างใต้
+    for (let d = 26; d >= 0; d--) {
+      const e = 0.6 + d * 1.6, pts = [PS(-e, -e), PS(cols + e, -e), PS(cols + e, rows + e * 0.5), PS(-e, rows + e * 0.5)];
+      g.fillStyle = mix("#04304a", "#0a5470", Math.min(1, Math.pow(d / 26, 1.6))); poly(g, pts); g.fill();
+    }
     const gr = g.createLinearGradient(0, VY0, 0, VY1); gr.addColorStop(0, "rgba(4,40,62,0)"); gr.addColorStop(0.5, "rgba(3,30,50,.35)"); gr.addColorStop(1, "rgba(1,12,24,.75)");
     g.fillStyle = gr; g.fillRect(VX0, VY0, VW, VY1 - VY0);
     // แสงจางจากเบื้องบนส่องลงน้ำ (ใต้กระดานสว่างกว่าขอบเล็กน้อย)
