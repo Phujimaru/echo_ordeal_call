@@ -18,7 +18,7 @@ export const NAUTILUS_LAYERS = [
   { id: 8, numeral: "II", name: "สุสานเรือรบ", latin: "ชั้นที่ II", depth: -200, color: "#3f8fb8", glow: "#bfe6ff", amb: "nt_amb_wreck", ambGain: 1 },
   { id: 9, numeral: "III", name: "หุบปล่องเพลิง", latin: "ชั้นที่ III", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb_vents", ambGain: 1 },
   { id: 10, numeral: "IV", name: "นครบาดาลที่สาบสูญ", latin: "ชั้นที่ IV", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb_city", ambGain: 1 },
-  { id: 11, numeral: "V", name: "ห้วงเหวไร้แสง", latin: "ชั้นที่ V", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb", ambGain: 1.1 },
+  { id: 11, numeral: "V", name: "ห้วงเหวไร้แสง", latin: "ชั้นที่ V", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb_abyss", ambGain: 1 },
 ];
 export const isNautilusStage = (s) => Number(s) >= NAUTILUS_FIRST && Number(s) <= NAUTILUS_LAST;
 export const nautilusLayer = (s) => NAUTILUS_LAYERS.find((l) => l.id === Number(s)) || NAUTILUS_LAYERS[0];

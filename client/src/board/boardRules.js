@@ -753,7 +753,7 @@ const isEosArea = (area) => Number(area) === EOS_AREA;
 //  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
 const NAUTILUS_AREA = EOS_AREA + 1;
 const NAUTILUS_STAGES = 5;
-const NAUTILUS_NAMES = ["แนวปะการัง", "ซากเรือรบ", "ปล่องภูเขาไฟใต้ทะเล", "นครจมบาดาล", "ร่องลึกก้นสมุทร"];
+const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19
 //  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
 const NAUTILUS_DEFS = [(() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 1 "แนวปะการัง" −30 ม. (area 46 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage7.js)
 //  ผู้ใช้สั่ง 2026-11-19: "ต้องเป็นภูมิประเทศจริง ไม่ใช่เอาของชิ้นเดิมวางกระจาย" → แบ่งโซนภูมิศาสตร์ (ภาพ client/src/board/fodlan/reef.js):
@@ -815,29 +815,31 @@ module.exports = {
   // ท่าจอดเรือ Nautilus (ขั้น 3): มุมบนซ้าย + ขนาด
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 2 "ซากเรือรบ" −200 ม. (area 47 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage8.js · ภาพ client/src/board/fodlan/wreck.js)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 2 "ซากเรือรบ" −200 ม. (area 47 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage8.js + ntWreck.js · ภาพ client/src/board/fodlan/wreck.js)
 //  ภูมิประเทศ (ผู้ใช้สั่ง: เป็นภูมิศาสตร์จริง ไม่ใช่ของวางกระจาย): เรือรบยักษ์ลำเดียวหักกลางลำ จมนอนบนพื้นตะกอน
-//   ตะวันตกเฉียงเหนือ = ส่วนหัวเรือ (H ตัวเรือเหล็ก · ห้องในเรือดาดฟ้าผุ d · ห้องอากาศค้าง h · ปืนใหญ่ข้างกราบ C) ทางเข้าตะวันออก (x7 y5) + ใต้ (x5 y7)
-//   ตะวันออกเฉียงใต้ = ส่วนท้ายเรือ (ห้องเครื่อง) ทางเข้าบน (x16 y9) · ตะวันตก (x12 y11) · ใต้ (x15 y13)
-//   กลาง = ทุ่งซากระหว่างสองท่อน (X เศษซาก เดิน 2 ก้าว · T หีบสมบัติ) · ตะวันตก = เสากระโดงหลักล้มขวางแถว 8 (M)
-//   ตะวันออกเฉียงเหนือ = สมอยักษ์ปักพื้น (a) · พื้นตะกอนหนา (s) เป็นแอ่งรอบซาก · ท่าจอด Nautilus กลางบน (N)
+//   ตะวันตกเฉียงเหนือ = ส่วนหัวเรือ (H ตัวเรือเหล็ก · ห้องในเรือดาดฟ้าผุ d · ห้องอากาศค้าง h · ปืนใหญ่ข้างกราบ C) ประตูกั้นน้ำตะวันออก (D x7 y5) + ใต้ (D x5 y7)
+//   ตะวันออกเฉียงใต้ = ส่วนท้ายเรือ (ห้องเครื่อง) ประตูบน (x16 y9) · ตะวันตก (x12 y11) · ใต้ (x15 y13)
+//   กลาง = ทุ่งซากระหว่างสองท่อน (X เศษซาก เดิน 2 ก้าว · T หีบสมบัติ · K ถังดินปืนที่หกจากคลังกระสุน)
+//   ปั้นจั่นรอกเก่า (P เสา) แขวนลังสินค้าเหนือทางเข้าห้องเรือ 3 จุด: หน้าประตูหัวเรือตะวันออก · หน้าประตูหัวเรือใต้ · หน้าประตูท้ายเรือตะวันตก
+//   ตะวันตก = เสากระโดงหลักล้มขวางแถว 8 (M) · ตะวันออกเฉียงเหนือ = สมอยักษ์ปักพื้น (a) + กว้านโซ่สมอ (w)
+//   รูปลาไหลมอเรย์ (E = ผนังเรือที่มีรู) 4 จุดรอบซาก · พื้นตะกอนหนา (s) เป็นแอ่งรอบซาก · ท่าจอด Nautilus กลางบน (N)
 //  ร้านค้า = เรือ Nautilus (shopSpots ว่าง)
 //   x  01234567890123456789
 const ROWS = [
   ".......NNNNNN.......", // y0
   "..S....NNNNNN....S..", // y1
   ".....ss......ss.....", // y2
-  ".HHHHHHH...X....a...", // y3   หัวเรือ · สมอ
-  ".HddCddH..X.X...a...", // y4
-  "SHdhddd...XX......S.", // y5   ห้องอากาศ (x3) · ทางเข้าตะวันออก (x7)
-  ".HddCddH...X..T.....", // y6   หีบ
-  ".HHHH.HH..........ss", // y7   ทางเข้าใต้ (x5)
-  "MMMMM....X..X.......", // y8   เสากระโดงล้ม
-  "....T....XX.HHHH.HHH", // y9   ท้ายเรือ · ทางเข้าบน (x16)
-  "..ss.....X..HddddCdH", // y10
-  "S........T..dddhdddH", // y11  ทางเข้าตะวันตก (x12) · ห้องอากาศ (x15)
+  ".HHEHHHHP..X....a...", // y3   หัวเรือ · รูปลาไหล (x3) · ปั้นจั่น 1 (x8 → ลัง x8–9 y4–5) · สมอ
+  ".HddCddH..X.X..wa...", // y4   กว้านโซ่สมอ (x15)
+  "SHdhdddD..XXKK....S.", // y5   ห้องอากาศ (x3) · ประตูตะวันออก (x7) · ถังดินปืน
+  ".HddCddE...X.KT.....", // y6   รูปลาไหล (x7) · หีบ
+  ".HHHHDHH..........ss", // y7   ประตูใต้ (x5)
+  "MMMMM..P.X..X.......", // y8   เสากระโดงล้ม · ปั้นจั่น 3 (x7 → ลัง x5–6 y8–9)
+  "....T....XXPEHHHDHHH", // y9   ปั้นจั่น 2 (x11 → ลัง x10–11 y10–11) · รูปลาไหล (x12) · ท้ายเรือ · ประตูบน (x16)
+  "..ss..K..X..HddddCdH", // y10  ถังดินปืน
+  "S......K.T..DddhdddH", // y11  ประตูตะวันตก (x12) · ห้องอากาศ (x15)
   "...X........HddCdddH", // y12
-  "..XX..S.....HHH.HHHH", // y13  ทางเข้าใต้ (x15)
+  "..XX..S...KKHHHDHHEH", // y13  ถังดินปืน · ประตูใต้ (x15) · รูปลาไหล (x18)
   ".ss.......ss.....S..", // y14
   "....ss........ss....", // y15
 ];
@@ -850,8 +852,11 @@ const at = (...chs) => {
 module.exports = {
   map: {
     cols: 20, rows: 16,
-    terrain: { fd_nt_hull: at("H"), fd_nt_cannon: at("C"), fd_nt_mast: at("M"), fd_nt_anchor: at("a") },
-    special: { fd_nt_deck: at("d"), fd_nt_debris: at("X"), fd_nt_chest: at("T"), fd_nt_silt: at("s") },
+    terrain: {
+      fd_nt_hull: at("H"), fd_nt_cannon: at("C"), fd_nt_mast: at("M"), fd_nt_anchor: at("a"),
+      fd_nt_eelhole: at("E"), fd_nt_winch: at("w"), fd_nt_crane: at("P"), fd_nt_keg: at("K"),
+    },
+    special: { fd_nt_deck: at("d"), fd_nt_debris: at("X"), fd_nt_chest: at("T"), fd_nt_silt: at("s"), fd_nt_door: at("D") },
     heal: at("h"), healKind: "fd_nt_airpocket",
     spawns: at("S"),
     shopSpots: [],
@@ -861,151 +866,238 @@ module.exports = {
     fd_nt_cannon: { name: "ปืนใหญ่เก่า", icon: "💣" },
     fd_nt_mast: { name: "เสากระโดงล้ม", icon: "🪵" },
     fd_nt_anchor: { name: "สมอยักษ์", icon: "⚓" },
+    fd_nt_eelhole: { name: "รูปลาไหลมอเรย์", icon: "🐍" },
+    fd_nt_winch: { name: "กว้านโซ่สมอ", icon: "⛓️" },
+    fd_nt_crane: { name: "ปั้นจั่นรอก", icon: "🏗️" },
+    fd_nt_keg: { name: "ถังดินปืน", icon: "🛢️" },
     fd_nt_deck: { name: "ดาดฟ้าผุ", icon: "🟫", desc: "เดิน 2 ก้าว", cost: 2 },
     fd_nt_debris: { name: "ซากเรือ", icon: "🪵", desc: "เดิน 2 ก้าว", cost: 2 },
     fd_nt_chest: { name: "หีบสมบัติ", icon: "🧰" },
     fd_nt_silt: { name: "ตะกอน", icon: "🟤" },
+    fd_nt_door: { name: "ประตูกั้นน้ำ", icon: "🚪" },
     fd_nt_airpocket: { name: "ห้องอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
     fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" },
+    // ช่องที่เกิดระหว่างเกม (ntWreck.layer)
+    fd_nt_doorshut: { name: "ประตูกั้นน้ำ (ปิด)", icon: "🚪" },
+    fd_nt_collapse: { name: "ตัวเรือถล่ม", icon: "🧱" },
+    fd_nt_cargo: { name: "ลังสินค้าแตก", icon: "📦", desc: "เดิน 2 ก้าว", cost: 2 },
+    fd_nt_mound: { name: "เนินตะกอน", icon: "🟤", desc: "เดิน 2 ก้าว", cost: 2 },
   },
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
+  // ห้องในเรือ (ประตู + พื้นในห้อง) · ปั้นจั่น (เสา + มุมบนซ้ายของลัง 2×2) · รูปลาไหล — ntWreck.js ใช้
+  ROOMS: [
+    { id: "bow", doors: [[7, 5], [5, 7]], box: [2, 4, 6, 6] },
+    { id: "stern", doors: [[16, 9], [12, 11], [15, 13]], box: [13, 10, 18, 12] },
+  ],
+  CRANES: [
+    { id: 1, post: [8, 3], area: [8, 4] },
+    { id: 2, post: [11, 9], area: [10, 10] },
+    { id: 3, post: [7, 8], area: [5, 8] },
+  ],
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 3 "ปล่องภูเขาไฟใต้ทะเล" −1,000 ม. (area 48 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage9.js)
-//  พื้นหินบะซอลต์ดำ รอยแตกเรืองส้ม · ปล่องควันดำ (V) 5 ปล่อง (ขั้น 4 พ่นน้ำเดือด) · หินบะซอลต์ (R) เป็นแนว
-//  ดงหนอนท่อ (w — ซ่อนตัว เดิน 2 ก้าว) รอบปล่อง · ฟองอากาศ (h) = จุดฟื้นฟู
-//   V ปล่องควันดำ (fd_nt_vent)  R หินบะซอลต์ (fd_nt_basalt)  w ดงหนอนท่อ (fd_nt_tubeworm)  h ฟองอากาศ  S จุดเกิด  $ จุดร้านค้า
-//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 3 "ปล่องภูเขาไฟใต้ทะเล" −1,000 ม. (area 48 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage9.js · ลูกเล่น ntVents.js)
+//  พื้นทะเลภูเขาไฟจริง แบ่งโซนภูมิศาสตร์ (ภาพ client/src/board/fodlan/vents.js) — ชั้นแรกที่มืด (เห็นแค่ระยะเดิน + ทีม + แสงลาวา):
+//   ตะวันตกเฉียงเหนือ = ที่ราบบะซอลต์เย็น (C เสาหินบะซอลต์หกเหลี่ยม · ฟองอากาศ h) + หินลาวาค้างขอบที่ราบ (o)
+//   เหนือกลาง        = ท่าจอดเรือ Nautilus (N 6×2 — เรือจอด = ร้านค้า/เติมอากาศ)
+//   ตะวันออกเฉียงเหนือ = ทุ่งปล่องควันดำ (V) ล้อมด้วยดงหนอนท่อ (w ซ่อนตัว/หลบหลีก) ที่กินความร้อนจากปล่อง
+//   กลาง             = แอ่งปากปล่อง (caldera): ทะเลสาบลาวา (L) · รอยแยกลาวาเรือง (f) แผ่ออกเป็นแฉก · หินลาวาบนขอบแอ่ง (o)
+//   ตะวันตก          = สันลาวาหมอน (P) เป็นแนวเฉียง มีช่องผ่าน · ปล่องควันดำโดดเดี่ยว
+//   ตะวันออก         = ปล่องแรงดัน (p) บนพื้นหินร้อน + ปล่องควันดำ
+//   ตะวันตกเฉียงใต้   = ลาดเถ้าภูเขาไฟ (a เดิน 2 ก้าว)
+//   ใต้กลาง          = รอยแยกใหญ่ลากจากแอ่งลงขอบใต้ (f) + ปล่องควันดำในดงหนอนท่อ
+//   ตะวันออกเฉียงใต้   = หลุมยุบ (H — ผลัก/ตกลง = ดาเมจ + ออกซิเจนหาย) + ลาวาหมอน
+//  ร้านค้า = เรือ Nautilus ที่ท่าจอด · shopSpots ว่าง
+//   x  01234567890123456789
 const ROWS = [
-  "R......NNNNNN......R", // y0
-  "..S....NNNNNN...S...", // y1
-  ".....w..........w...", // y2
-  "...ww.R......R.wVw..", // y3
-  "...wVw.R....R...w...", // y4
-  "S...w...........$..S", // y5
-  "......RR....RR......", // y6
-  "..R......wVw.....R..", // y7
-  "..R...h..wVw..h..R..", // y8
-  "......RR.....R......", // y9
-  ".$..w...........w...", // y10
-  "...wVw..R....R.wVw..", // y11
-  "....w..R......R.w...", // y12
-  "..........$.........", // y13
-  ".S...R..........R.S.", // y14
-  "R........S.........R", // y15
+  "CC.C...NNNNNN..w.ww.", // y0   ที่ราบบะซอลต์ · ท่าจอด · ทุ่งปล่องควันดำ
+  "C..S...NNNNNN.S.wVw.", // y1
+  "CC...h.........w.ww.", // y2   ฟองอากาศบนที่ราบ
+  "C.....o.......wVw...", // y3   หินลาวาขอบที่ราบ
+  "PP...........f.w....", // y4
+  "PP..S..ff..o.ff.w..S", // y5   ขอบแอ่งเหนือ
+  ".P.P..ffLLf.f.....p.", // y6   ทะเลสาบลาวา · ปล่องแรงดัน
+  "..P..ffLLLLf..Vw....", // y7
+  "S.P.V.fLLLLffow.p...", // y8
+  "..P.wo.fLLf...ww..V.", // y9
+  ".PPwww..ff.f...h.www", // y10  ฟองอากาศตะวันออก
+  "aa...w...f..f..p..w.", // y11  ลาดเถ้า
+  "aaa..p...f.f..HH...P", // y12  หลุมยุบ
+  "aaaa.....fwVw.HHH.PP", // y13
+  "aaaaa..S.f.w...HH.SP", // y14
+  "aaaaaa...f.........P", // y15  รอยแยกออกขอบใต้
 ];
-const at = (ch) => {
+const at = (...chs) => {
   const out = [];
-  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (chs.includes(c)) out.push([x, y]); }));
   return out;
 };
 
 module.exports = {
   map: {
     cols: 20, rows: 16,
-    terrain: { fd_nt_vent: at("V"), fd_nt_basalt: at("R") },
-    special: { fd_nt_tubeworm: at("w") },
+    terrain: { fd_nt_vent: at("V"), fd_nt_column: at("C"), fd_nt_pillow: at("P"), fd_nt_lava: at("L"), fd_nt_pit: at("H") },
+    special: { fd_nt_fissure: at("f"), fd_nt_tubeworm: at("w"), fd_nt_ash: at("a"), fd_nt_pvent: at("p") },
     heal: at("h"), healKind: "fd_nt_bubble",
     spawns: at("S"),
-    shopSpots: at("$"),
+    shopSpots: [],
   },
   TERRAIN: {
     fd_nt_vent: { name: "ปล่องควันดำ", icon: "🌋" },
-    fd_nt_basalt: { name: "หินบะซอลต์", icon: "🪨" },
-    fd_nt_tubeworm: { name: "ดงหนอนท่อ", icon: "🪱", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
+    fd_nt_column: { name: "เสาบะซอลต์", icon: "🪨" },
+    fd_nt_pillow: { name: "ลาวาหมอน", icon: "🪨" },
+    fd_nt_lava: { name: "ทะเลสาบลาวา", icon: "🔥" },
+    fd_nt_pit: { name: "หลุมยุบ", icon: "🕳️" },
+    fd_nt_crack: { name: "รอยแยกยุบ", icon: "🕳️" },
+    fd_nt_lavarock: { name: "หินลาวา", icon: "☄️" },
+    fd_nt_fissure: { name: "รอยแยกลาวา", icon: "🔥", desc: "จบตา ลุกไหม้ 1" },
+    fd_nt_tubeworm: { name: "ดงหนอนท่อ", icon: "🪱", desc: "หลบหลีก +20% · ซ่อนตัว", evade: 20, bush: true },
+    fd_nt_ash: { name: "ลาดเถ้า", icon: "🌫️", desc: "เดิน 2 ก้าว", cost: 2 },
+    fd_nt_pvent: { name: "ปล่องแรงดัน", icon: "💨" },
     fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" },
   },
+  // ท่าจอดเรือ Nautilus (ขั้น 3): มุมบนซ้าย + ขนาด
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 4 "นครจมบาดาล" −3,000 ม. (area 49 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage10.js)
-//  ซากนครหินสลัก: วิหารกลาง (กำแพง W ล้อม เปิดประตูบน/ล่าง/ซ้าย/ขวา) · เสาหินเรียงแถว (P) · รูปปั้นเรืองแสง (U — ขั้น 2 ตีแตกได้)
-//  อักขระบนพื้น (r — ขั้น 2 เหยียบแล้วเปิดกับดัก/บัฟ · ตอนนี้แค่ลาย) · แท่นบูชา (h) = จุดฟื้นฟู
-//   W กำแพงหินสลัก (fd_nt_citywall)  P เสาหิน (fd_nt_column)  U รูปปั้น (fd_nt_statue)  r อักขระ (fd_nt_rune)  h แท่นบูชา  S จุดเกิด  $ จุดร้านค้า
-//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 4 "นครจมบาดาล" −3,000 ม. (area 49 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage10.js + ntCity.js)
+//  ผู้ใช้สั่ง 2026-11-19: "ต้องเป็นภูมิประเทศจริง ไม่ใช่เอาของชิ้นเดิมวางกระจาย" → นครหินที่จมทั้งเมือง แบ่งโซนจริง (ภาพ client/src/board/fodlan/city.js):
+//   เหนือ    = ท่าจอดเรือ Nautilus (N 6×2) ปลายถนนเสาเรียงสายเหนือ (P เสาหิน · X แผ่นกดกับดัก) · ท่อส่งน้ำโบราณพาดตะวันออก–ตะวันตก
+//              (Q ตอม่อ · a ใต้ซุ้มโค้ง เดินลอดได้ · r ช่วงที่พังถล่ม) · รูปปั้นล้ม (T)
+//   กลาง     = ลานยกสูง (=) ล้อมวิหารขั้นบันได (Z ซิกกูแรต 4×3) · รูปปั้นเทพ 4 มุมลาน (G — หมุนแล้วตายิงลำแสง) · โดมอากาศในซอกวิหาร (h)
+//   ตะวันตก  = ย่านบ้านเรือนพังถล่ม (W ผนังบ้าน · T รูปปั้นล้ม · r กองซาก หลบได้ · R อักขระบนพื้น) · กำแพงย่านมีประตูหิน (D) + คันโยก (L)
+//   ตะวันออก = อัฒจันทร์น้ำท่วม (t ขั้นอัฒจันทร์ · w ลานน้ำท่วม) ประตูหิน (D) + คันโยก (L) ฝั่งลาน
+//   ใต้      = ถนนเสาเรียงสายตะวันออก–ตะวันตก (y10–11) · วงอักขระศักดิ์สิทธิ์ (o วงอักขระ · i ลานในวง · O หินตั้ง 4 มุม · A แท่นบูชาทะเลกลางวง)
+//              ย่านพังตะวันออกเฉียงใต้ (รูปปั้นยักษ์ล้ม) · รูปปั้นเรืองแสง (U — ตีแตกเป็นแสง) 3 ตัวกระจายตามย่าน
+//  ร้านค้า = เรือ Nautilus ที่ท่าจอด (shopSpots ว่าง)
+//   x  01234567890123456789
 const ROWS = [
-  "P......NNNNNN......P", // y0
-  "..S....NNNNNN....S..", // y1
-  "..P..P........P..P..", // y2
-  "......WWW..WWW......", // y3
-  ".S....W..r...W..$...", // y4
-  "..P...W.r.r..W...P..", // y5
-  "......r..h...r......", // y6
-  "S.U.......U.......U.", // y7
-  "......r...h..r......", // y8
-  "..P...W..r.r.W...P..", // y9
-  "......W...r..W....S.", // y10
-  "..$...WWW..WWW......", // y11
-  "..P..P........P..P..", // y12
-  "....r....$.....r....", // y13
-  ".S................S.", // y14
-  "P........r.........P", // y15
+  "W....S.NNNNNN.S....W", // y0   ท่าจอด
+  "..R..T.NNNNNN.T..R..", // y1
+  "aQaQaQ.P.X..P.QarrQa", // y2   ท่อส่งน้ำ (ตะวันออกพัง x16–17) · ถนนเสาเรียงเหนือ · แผ่นกด (9,2)
+  "...r...........r..U.", // y3
+  "WW.W..RP..X.P..tttt.", // y4   แผ่นกด (10,4) · อัฒจันทร์เหนือ
+  "W.T..WG======GWtwwtt", // y5   รูปปั้นเทพ (6,5)(13,5)
+  "...W.L==ZZZZ==Lwwwwt", // y6   คันโยก (5,6)(14,6)
+  "S.RW.D=hZZZZh=Dwwwwt", // y7   ประตูหิน (5,7)(14,7) · โดมอากาศ (7,7)(12,7)
+  ".WWW.W==ZZZZ==Wwwwwt", // y8
+  ".U..r.G======G.tXwtt", // y9   รูปปั้นเทพ (6,9)(13,9) · แผ่นกดกลางลาน (16,9)
+  "...RX..........ttttS", // y10  ถนนใหญ่ · แผ่นกด (4,10)
+  "W.P.P...OoooO.P.P.r.", // y11  เสาเรียงใต้ · วงอักขระ
+  "..WW.S..oiiio..W.T..", // y12
+  "R.W...R.oiAio.RWrT..", // y13  แท่นบูชาทะเล (10,13)
+  "....T.U.oiiio.....R.", // y14
+  "W.S..r..OoooO..S...W", // y15
 ];
-const at = (ch) => {
+const at = (...chs) => {
   const out = [];
-  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (chs.includes(c)) out.push([x, y]); }));
   return out;
 };
 
 module.exports = {
   map: {
     cols: 20, rows: 16,
-    terrain: { fd_nt_citywall: at("W"), fd_nt_column: at("P"), fd_nt_statue: at("U") },
-    special: { fd_nt_rune: at("r") },
-    heal: at("h"), healKind: "fd_nt_altar",
+    terrain: {
+      fd_nt_citywall: at("W"), fd_nt_citycol: at("P"), fd_nt_ziggurat: at("Z"), fd_nt_godstatue: at("G"), fd_nt_toppled: at("T"),
+      fd_nt_aqpier: at("Q"), fd_nt_citylever: at("L"), fd_nt_lightstatue: at("U"), fd_nt_pylon: at("O"), fd_nt_seaaltar: at("A"),
+    },
+    special: {
+      fd_nt_plaza: at("="), fd_nt_aqspan: at("a"), fd_nt_cityrubble: at("r"), fd_nt_tier: at("t"), fd_nt_flood: at("w"),
+      fd_nt_floorrune: at("R"), fd_nt_plate: at("X"), fd_nt_citygate: at("D"), fd_nt_runering: at("o"), fd_nt_sanctum: at("i"),
+    },
+    heal: at("h"), healKind: "fd_nt_airdome",
     spawns: at("S"),
-    shopSpots: at("$"),
+    shopSpots: [],
   },
   TERRAIN: {
-    fd_nt_citywall: { name: "กำแพงหินสลัก", icon: "🧱" },
-    fd_nt_column: { name: "เสาหิน", icon: "🏛️" },
-    fd_nt_statue: { name: "รูปปั้นเรืองแสง", icon: "🗿" },
-    fd_nt_rune: { name: "อักขระโบราณ", icon: "🔣" },
-    fd_nt_altar: { name: "แท่นบูชาทะเล", icon: "🔱", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_citywall: { name: "ผนังบ้านหินพัง", icon: "🧱" },
+    fd_nt_citycol: { name: "เสาหินสลัก", icon: "🏛️" },
+    fd_nt_ziggurat: { name: "วิหารขั้นบันได", icon: "🛕" },
+    fd_nt_godstatue: { name: "รูปปั้นเทพ", icon: "🗿" },
+    fd_nt_toppled: { name: "รูปปั้นล้ม", icon: "🪨" },
+    fd_nt_aqpier: { name: "ตอม่อท่อส่งน้ำ", icon: "🏛️" },
+    fd_nt_citylever: { name: "คันโยกประตูหิน", icon: "🕹️" },
+    fd_nt_lightstatue: { name: "รูปปั้นเรืองแสง", icon: "🗿" },
+    fd_nt_pylon: { name: "หินตั้งอักขระ", icon: "🪨" },
+    fd_nt_seaaltar: { name: "แท่นบูชาทะเล", icon: "🔱" },
+    fd_nt_gateshut: { name: "ประตูหิน", icon: "🚪" },
+    fd_nt_plaza: { name: "ลานวิหาร", icon: "🟫" },
+    fd_nt_aqspan: { name: "ใต้ซุ้มท่อส่งน้ำ", icon: "🌉" },
+    fd_nt_cityrubble: { name: "กองซากหิน", icon: "🪨", desc: "หลบหลีก +20%", evade: 20 },
+    fd_nt_fallen: { name: "เสาล้ม", icon: "🪨", desc: "เดิน 2 ก้าว · หลบหลีก +20%", cost: 2, evade: 20 },
+    fd_nt_tier: { name: "อัฒจันทร์", icon: "🏟️", desc: "หลบหลีก +10%", evade: 10 },
+    fd_nt_flood: { name: "ลานน้ำท่วม", icon: "🌊" },
+    fd_nt_floorrune: { name: "อักขระบนพื้น", icon: "🔣" },
+    fd_nt_plate: { name: "แผ่นกด", icon: "⬛" },
+    fd_nt_citygate: { name: "ประตูหิน", icon: "⛩️" },
+    fd_nt_runering: { name: "วงอักขระ", icon: "🔯" },
+    fd_nt_sanctum: { name: "ลานในวงอักขระ", icon: "🔯" },
+    fd_nt_shards: { name: "เศษรูปปั้น", icon: "✨" },
+    fd_nt_airdome: { name: "โดมอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" },
   },
+  // ท่าจอดเรือ Nautilus (ขั้น 3): มุมบนซ้าย + ขนาด
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };
-  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 5 "ร่องลึกก้นสมุทร" −10,000 ม. (area 50 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage11.js)
-//  ก้นร่องมืดสนิท: หินร่องลึก (R) เป็นแนวผา · หลุมดิ่ง (O — ขั้น 2 ตกแล้วหายจากกระดาน · ตอนนี้เป็นสิ่งกีดขวาง)
-//  แพลงก์ตอนเรืองแสง (p — ขั้น 2 เหยียบแล้วตัวสว่าง · ตอนนี้แค่ลาย) · ฟองอากาศ (h) 2 จุด = จุดฟื้นฟู
-//   R หินร่องลึก (fd_nt_trenchrock)  O หลุมดิ่ง (fd_nt_pit)  p แพลงก์ตอนเรืองแสง (fd_nt_plankton)  h ฟองอากาศ  S จุดเกิด  $ จุดร้านค้า
-//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 5 "ร่องลึกก้นสมุทร" −10,000 ม. (area 50 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage11.js · ลูกเล่น ntAbyss.js)
+//  ภูมิประเทศจริง (ไม่ใช่ของวางกระจาย · ภาพ client/src/board/fodlan/abyss.js):
+//   เหนือ    = ชั้นหินบะซอลต์ท่าจอดเรือ Nautilus (N 6×2) · ผาดิ่งสองข้าง (C) · ดงแพลงก์ตอนเรืองแสง 2 ดง (p) · ยานสำรวจตกเก่า (L — ยิงพลุ)
+//   กลาง     = ร่องลึกดำสนิท (X) ผ่ากระดานจากตะวันตกไปตะวันออก — ข้ามได้ 3 ทาง:
+//              สะพานหินแคบตะวันตก (= x3 · ทุบพังได้) · กระดูกสันหลังเลวีอาธาน (| x10 · พังไม่ได้ = ทางที่เหลือเสมอ) · สะพานหินตะวันออก (= x16 · ทุบพังได้)
+//   โครงกระดูกเลวีอาธานยักษ์นอนคร่อมร่อง: กะโหลก (K 2×2) ทางเหนือ · กระดูกสันหลังพาดข้ามร่อง · ซี่โครง (r) โค้งสูงข้ามหัว ฐานปักสองฝั่ง x7/x13
+//   ใต้      = แอ่งก้นร่อง: บ่อน้ำเกลือ (b — ทะเลสาบใต้ทะเล เดินช้า จบตา = พิษ) 2 บ่อ · หลุมดิ่ง (O) · ดงแพลงก์ตอน · ยานสำรวจลำที่ 2 · ผาดิ่งขอบใต้
+//   หินแหลมร่องลึก (R) กระจายตามขอบ · ฟองอากาศ (h) แค่ 2 จุด (ลึกสุด = น้อยสุด)
+//  ปลาตกเบ็ด 3 ตัวซุ่มในร่อง (ข้อมูลใน ntAbyss.js LURES — แสงล่อห้อยเหนือช่องริมร่อง (1,5) (8,9) (17,8))
+//  ร้านค้า = เรือ Nautilus ที่ท่าจอด · shopSpots ว่าง
+//   x  01234567890123456789
 const ROWS = [
-  "RR.....NNNNNN.....RR", // y0
-  "R..S...NNNNNN...S..R", // y1
-  "..........p.........", // y2
-  "...RR..p......RR....", // y3
-  ".S..R...OO......R.$.", // y4
-  "....p...OO....p.....", // y5
-  "S.R.........R.......", // y6
-  ".RR...h..p...RR..p..", // y7
-  "..R....RR........h..", // y8
-  ".....p.R...OO.......", // y9
-  "..$........OO..p..S.", // y10
-  "....RR.........RR...", // y11
-  ".p...R...p......R...", // y12
-  "........R...$....p..", // y13
-  ".S....p.R.........S.", // y14
-  "RR.................R", // y15
+  "CCC....NNNNNN...CCCC", // y0   ท่าจอดเรือ · ผาดิ่ง
+  "CC..S..NNNNNN..S..CC", // y1
+  "C..ppp...KK.....pp.C", // y2   ดงแพลงก์ตอน · กะโหลกเลวีอาธาน
+  "C.pp...r.KK..rL..p.C", // y3   ซี่โครงคู่แรก · ยานสำรวจ
+  ".....h....|....R..S.", // y4   กระดูกสันหลังเริ่ม · ฟองอากาศ
+  "....R..r..|..r.X=...", // y5   ซี่โครงคู่ที่ 2 · ปากร่องตะวันออก
+  "XX....XX..|.XXXX=XXX", // y6   ร่องลึก
+  "XXX=XXXXXX|XXXXX=XXX", // y7   สะพานหิน x3 · สันหลัง x10 · สะพานหิน x16
+  ".XX=XXXXXX|XX.....XX", // y8
+  "....XX....|.........", // y9
+  ".S.....r..|..r..R.S.", // y10  ซี่โครงฝั่งใต้
+  "..bb.....p|p....bb..", // y11  บ่อน้ำเกลือ
+  ".bbb.LOr.....r.bbb..", // y12  ยานสำรวจ 2 · หลุมดิ่ง
+  "R.b.....pp.h..OOb..R", // y13
+  "C..S....p.....O.S..C", // y14
+  "CCC..R.........R.CCC", // y15  ผาดิ่งขอบใต้
 ];
-const at = (ch) => {
+const at = (...chs) => {
   const out = [];
-  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (chs.includes(c)) out.push([x, y]); }));
   return out;
 };
 
 module.exports = {
+  ROWS,
   map: {
     cols: 20, rows: 16,
-    terrain: { fd_nt_trenchrock: at("R"), fd_nt_pit: at("O") },
-    special: { fd_nt_plankton: at("p") },
+    terrain: { fd_nt_chasm: at("X"), fd_nt_cliff: at("C"), fd_nt_trenchrock: at("R"), fd_nt_skull: at("K"), fd_nt_rib: at("r"), fd_nt_probe: at("L"), fd_nt_pit: at("O") },
+    special: { fd_nt_bridge: at("="), fd_nt_spine: at("|"), fd_nt_plankton: at("p"), fd_nt_brine: at("b") },
     heal: at("h"), healKind: "fd_nt_bubble",
     spawns: at("S"),
-    shopSpots: at("$"),
+    shopSpots: [],
   },
   TERRAIN: {
+    fd_nt_chasm: { name: "ร่องลึก", icon: "🕳️" },
+    fd_nt_cliff: { name: "ผาดิ่ง", icon: "🪨" },
     fd_nt_trenchrock: { name: "หินร่องลึก", icon: "🪨" },
+    fd_nt_skull: { name: "กะโหลกเลวีอาธาน", icon: "💀" },
+    fd_nt_rib: { name: "ซี่โครงเลวีอาธาน", icon: "🦴" },
+    fd_nt_probe: { name: "ยานสำรวจ", icon: "🛰️" },
     fd_nt_pit: { name: "หลุมดิ่ง", icon: "🕳️" },
+    fd_nt_bridge: { name: "สะพานหิน", icon: "🌉" },
+    fd_nt_spine: { name: "กระดูกสันหลัง", icon: "🦴" },
     fd_nt_plankton: { name: "แพลงก์ตอนเรืองแสง", icon: "✨" },
+    fd_nt_brine: { name: "บ่อน้ำเกลือ", icon: "🧪", desc: "เดิน 2 ก้าว · จบตา พิษ", cost: 2 },
     fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" },
   },
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };
