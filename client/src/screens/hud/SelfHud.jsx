@@ -655,7 +655,7 @@ export function HudTopBar({ night, round, timer, journey, onJourney, onGuide, co
                   {journey.alert > 0 && <span className="hud-top-eosbadge">{journey.alert}</span>}
                 </span>
               ) : (
-                <span className="hud-top-sub">{Number.isFinite(journey.depth) && `−${Math.abs(journey.depth).toLocaleString("en-US")} ม. · `}{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}</span>
+                <span className="hud-top-sub">{journey.depthText ? `${journey.depthText} ม. · ` : Number.isFinite(journey.depth) && `−${Math.abs(journey.depth).toLocaleString("en-US")} ม. · `}{journey.turnsLeft != null ? `อีก ${journey.turnsLeft} เทิร์น` : "ปลายทางสุดท้าย"}{journey.weather && ` · ${WEATHER_ICON[journey.weather.kind] || "🌦️"} ${journey.weather.left}`}{journey.attr && <b className="hud-top-attr"> · {journey.attr}</b>}</span>
               )}
             </span>
           </button>

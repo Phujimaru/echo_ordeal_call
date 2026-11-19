@@ -9,7 +9,8 @@
 export const NAUTILUS_GEO = { lon: -64, lat: -18 };
 export const NAUTILUS_COLOR = 0x1fb8c4; // ฟ้าอมเขียวน้ำลึก (หมุด)
 export const NAUTILUS_FIRST = 7;
-export const NAUTILUS_LAST = 11;
+export const NAUTILUS_LAST = 12;
+export const NAUTILUS_DATA = 12; // ชั้น 6 ทะเลข้อมูลจินตภาพ — ชั้น 5 ครบ 3 เทิร์นแล้วกลายร่าง (ผู้ใช้ 2026-11-19)
 
 // amb = เสียงบรรยากาศ (fodlanAudio: คีย์ nt_… → /nautilus/sfx/…) · ambGain = คูณเพิ่ม (ไฟล์ทำที่ -16/-18 LUFS — ผู้ใช้: อย่าให้เสียงบรรยากาศเบาเกินไป 2026-11-19)
 // ชื่อชั้นภาษาไทยทั้งหมด (ผู้ใช้สั่ง 2026-11-19 "ชื่อด่านขอเป็นภาษาไทยดีๆ") · latin = ชื่อรอง "ชั้นที่ I–V" (เลขโรมัน — ผู้ใช้สั่ง)
@@ -19,6 +20,8 @@ export const NAUTILUS_LAYERS = [
   { id: 9, numeral: "III", name: "หุบปล่องเพลิง", latin: "ชั้นที่ III", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb_vents", ambGain: 1 },
   { id: 10, numeral: "IV", name: "นครบาดาลที่สาบสูญ", latin: "ชั้นที่ IV", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb_city", ambGain: 1 },
   { id: 11, numeral: "V", name: "ห้วงเหวไร้แสง", latin: "ชั้นที่ V", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb_abyss", ambGain: 1 },
+  // ชั้น 6: ความลึกไร้ความหมาย (depthText) · เสียงบรรยากาศใช้ของห้วงเหวเบาลง (Genjitsu ดังทับ)
+  { id: 12, numeral: "VI", name: "ทะเลข้อมูลจินตภาพ", latin: "ชั้นที่ VI", depth: -10000, depthText: "−∞", color: "#2fd8ea", glow: "#e2fdff", amb: "nt_amb_abyss", ambGain: 0.5 },
 ];
 export const isNautilusStage = (s) => Number(s) >= NAUTILUS_FIRST && Number(s) <= NAUTILUS_LAST;
 export const nautilusLayer = (s) => NAUTILUS_LAYERS.find((l) => l.id === Number(s)) || NAUTILUS_LAYERS[0];

@@ -543,6 +543,27 @@ export function nextTurn(prev) {
   return s;
 }
 
+// dev: ?ntarea=46..51 = กระดานชั้นของ Nautilus (51 = ชั้น 6 ทะเลข้อมูล) · &attr=alpha..zeta · ปลาวาฬร่างข้อมูล + เรือ — ตัวละครย้ายไปจุดเกิดของแผนที่นั้น
+function ntArea(s) {
+  if (typeof location === "undefined") return;
+  const q = new URLSearchParams(location.search), area = Number(q.get("ntarea"));
+  if (!(area >= 46 && area <= 51)) return;
+  const stage = area - 39, b = boardPublic(area), sp = [...(b.spawns || [])];
+  s.board = b; s.world = "nautilus";
+  s.players.forEach((p, i) => { if (p.pos && sp[i]) p.pos = { x: sp[i].x ?? sp[i][0], y: sp[i].y ?? sp[i][1] }; });
+  const SYM = { alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", zeta: "ζ" }, attr = SYM[q.get("attr")] ? q.get("attr") : "zeta";
+  const ripples = stage === 12 ? [[{ x: 6, y: 2 }, { x: 17, y: 12 }], [{ x: 16, y: 2 }, { x: 2, y: 12 }], [{ x: 2, y: 6 }, { x: 17, y: 6 }]] : [];
+  s.fodlan = {
+    stage, name: stage === 12 ? "ทะเลข้อมูลจินตภาพ" : "Nautilus", nautilus: true, depth: -10000, turnsLeft: null, weather: null,
+    board: {
+      layer: stage - 6, ship: { x: 7, y: 0, w: 6, h: 2, light: null, cd: {}, driver: null, torpedoUsed: [] },
+      whale: { enabled: true, on: true, dead: false, hp: 50, hpMax: 60, s: 6, pos: null, pending: [], warn: [], appearSeq: 1, data: stage === 12 },
+      ...(stage === 12 ? { imaginary: { attr, sym: SYM[attr], ripples } } : {}),
+      fx: [],
+    },
+  };
+}
+
 // opts = { scn, area (1..7), night, team, shopNear }
 export function buildMockState(opts) {
   const scn = SCENARIOS.some((x) => x.id === opts.scn) ? opts.scn : "playing";
@@ -646,6 +667,7 @@ export function buildMockState(opts) {
     return r;
   }
   if (scn === "collide") return simulateAttack(s, ME, "p4");
+  ntArea(s);
   return s;
 }
 

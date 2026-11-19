@@ -18,6 +18,7 @@ import { MOON_MS } from "./oc/intro/moonFlight";
 import RegionTravel from "./oc/intro/RegionTravel";
 import FodlanTravel from "./fodlan/FodlanTravel";
 import NautilusDive from "./nautilus/NautilusDive";
+import NtDataSurge from "./nautilus/NtDataSurge"; // ชั้น 5 → ชั้น 6 ทะเลข้อมูล: ออร่าจากร่องลึกกลืนสนาม
 import { NT_GLOBE_MS } from "./nautilus/ntFlight";
 import { fodlanAudio } from "./fodlan/fodlanAudio";
 import { eosAudio, eosBedsFor, eosMusicPicker } from "./eos/eosAudio";
@@ -641,7 +642,9 @@ export default function App() {
         />
       )}
       {travel && travel.nautilus && !intro && stage === "connected" && (
-        <NautilusDive key={travel.seq} mode={travel.mode} from={travel.fromArea} to={travel.area} whale={travel.whale} durationMs={travel.durationMs} lowQ={lowQ} onDone={finishTravel} />
+        travel.mode === "advance" && Number(travel.area) === 12
+          ? <NtDataSurge key={travel.seq} to={travel.area} durationMs={travel.durationMs} lowQ={lowQ} onDone={finishTravel} />
+          : <NautilusDive key={travel.seq} mode={travel.mode} from={travel.fromArea} to={travel.area} whale={travel.whale} durationMs={travel.durationMs} lowQ={lowQ} onDone={finishTravel} />
       )}
       {travel && travel.fodlan && !intro && stage === "connected" && (
         <FodlanTravel

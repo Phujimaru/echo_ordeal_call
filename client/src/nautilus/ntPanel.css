@@ -1,3 +1,6 @@
 /* แผง Nautilus (ลูกเล่น · สภาพอากาศ) — เลื่อนได้แต่ไม่แสดงแถบเลื่อน (ผู้ใช้สั่ง 2026-11-19) */
 .nt-panel ul { scrollbar-width: none; -ms-overflow-style: none; }
 .nt-panel ul::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* ชั้น 6 ทะเลข้อมูล: สัญลักษณ์คุณสมบัติจินตภาพ (แผงสภาพอากาศ + แถบซ้ายบน) */
+.nt-panel .nt-attr-sym { font-family: "Times New Roman", serif; font-weight: 700; font-size: 1.5em; color: #bff8ff; text-shadow: 0 0 10px rgba(120, 240, 255, .8); }
+.hud-top-attr { font-family: "Times New Roman", serif; font-weight: 700; color: #bff8ff; text-shadow: 0 0 8px rgba(120, 240, 255, .8); }

@@ -5,7 +5,7 @@
 //  ชั้น 7–11 เรียก: drawThalassaGround (ใต้ตัวละคร — เงา/วังน้ำวน/พื้นไฟฟ้า) · drawThalassaAir (ทับตัวละคร — ตัวปลา/ท่า/ฉากจอ)
 //  fd.whale = server thalassa.publicInfo · fd.fx = เหตุการณ์ whale_* (seq ของตัวคุมกลาง)
 // ============================================================
-import { P, pitchOf } from "../boardGeo";
+import { P, pitchOf, viewAxes } from "../boardGeo";
 import { fxT, fxOnce } from "./index";
 import { playSfx, registerSounds } from "../../audio";
 
@@ -70,16 +70,17 @@ function makeSprite(img, SZ, ax, ay, mul, amp) {
 function loadSprites() {
   if (SPR || LOADING || typeof document === "undefined") return;
   LOADING = true;
-  const names = ["whale_side", "whale_side_34", "whale_front", "whale_top_tail"];
+  const names = ["whale_side", "whale_side_34", "whale_front", "whale_back", "whale_top_tail"];
   Promise.all(names.map((n) => new Promise((res) => { const i = new Image(); i.onload = () => { IMG[n] = i; res(); }; i.onerror = () => res(); i.src = `${MEDIA}${n}.webp`; })))
     .then(() => {
       if (!IMG.whale_side) return;
       const side = makeSprite(IMG.whale_side, 640, 0.62, 0.57, 1, 1);
       const q = IMG.whale_side_34 ? makeSprite(IMG.whale_side_34, 640, 0.70, 0.64, 1, 0.55) : side;
       const front = IMG.whale_front ? makeSprite(IMG.whale_front, 320, 0.5, 0.52, 0.6, 0.2) : q;
+      const back = IMG.whale_back ? makeSprite(IMG.whale_back, 320, 0.5, 0.52, 0.6, 0.2) : side; // ว่ายหนีกล้อง (ผู้ใช้ 2026-11-19: ปลาหันตามกล้อง — มีหลายมุมให้ใช้)
       // มุมบน (ผู้ใช้ 2026-11-19: "มุมบนทำไมไม่มี ฉันให้ไป 7 ภาพ") — whale_top_tail หางอยู่บน หัว+หนวดอยู่ล่าง
       const top = IMG.whale_top_tail ? makeSprite(IMG.whale_top_tail, 640, 0.5, 0.5, 1, 0) : null;
-      SPR = { side, q, front, top };
+      SPR = { side, q, front, back, top };
     });
 }
 function undulate(spr, src, dst, t, amp, speed) {
@@ -146,7 +147,29 @@ function drawParts(g, dt) {
 }
 
 // ---------- วาดตัวปลา ----------
+// ภาพตามทิศว่ายเทียบกับกล้อง (ผู้ใช้ 2026-11-19: "ปลามันหันตามการหันมุมกล้องตลอด ซึ่งไม่ควร ตัวมันมีตั้งหลายมุม")
+//  V.rel = มุมทิศว่ายในกรอบกล้อง: 0 = ว่ายไปทางขวาจอ · +90° = ว่ายเข้าหากล้อง · ±180° = ไปทางซ้าย · −90° = ว่ายหนีกล้อง
+//  คีย์เฟรมรอบวง ไล่ความทึบระหว่างภาพข้างเคียง — หมุนกล้องแล้วเห็นอีกด้านของปลาจริง ไม่หันข้างให้กล้องตลอด
+const D2R = Math.PI / 180;
+function viewKeys() {
+  return [[0, SPR.side, 1], [45, SPR.q, 1], [90, SPR.front, 1], [135, SPR.q, -1], [180, SPR.side, -1], [-135, SPR.side, -1], [-90, SPR.back, 1], [-45, SPR.side, 1]];
+}
+function viewFrames(rel) {
+  const keys = viewKeys().map(([d, spr, f]) => [d * D2R, spr, f]).sort((a, b) => a[0] - b[0]);
+  const r = Math.atan2(Math.sin(rel), Math.cos(rel));
+  let i = keys.length - 1;
+  for (let j = 0; j < keys.length; j++) if (keys[j][0] <= r) i = j;
+  const a = keys[i], b = keys[(i + 1) % keys.length];
+  let span = b[0] - a[0]; if (span <= 0) span += TAU;
+  let u = r - a[0]; if (u < 0) u += TAU;
+  const f = clamp((u / span - 0.3) / 0.4, 0, 1), ff = f * f * (3 - 2 * f), out = [];
+  if (a[1] === b[1] && a[2] === b[2]) return [[a[1], a[2], 1]];
+  if (ff < 1) out.push([a[1], a[2], 1 - ff]);
+  if (ff > 0) out.push([b[1], b[2], ff]);
+  return out;
+}
 function poseFrames(now) {
+  if (!V.override && V.rel != null) return viewFrames(V.rel);
   if (!V.turn) return [[SPR.side, V.face, 1]];
   const from = -V.turn.to, to = V.turn.to;
   const seq = [[SPR.side, from], [SPR.q, from], [SPR.front, to], [SPR.q, to], [SPR.side, to]];
@@ -215,10 +238,11 @@ function drawTop(g, st, alpha, t, glow) {
 // ตัวปลาวาฬห้ามทับตัวละคร (ผู้ใช้ 2026-11-19: "อย่าให้ภาพซ้อนกับปลา") — วาดลงแคนวาสแยก แล้วเจาะช่องโปร่งรอบตัวละครทุกตัว
 //  (ตัวหมาก + ป้ายชื่อ/หลอดเลือดเหนือหัว) ก่อนวางทับกระดาน → ตัวละครโผล่ทะลุตัวปลาวาฬเสมอ
 let BODY_CV = null;
-function drawBodyClear(g, now, fierce, units) {
+// data = ร่างข้อมูล (ชั้น 6 ทะเลข้อมูล — server whale.data): ย้อมฟ้าเรือง + เส้นสแกน + รอยร้าวแสง + ชิ้นเหลื่อม (glitch) บนตัวปลา
+function drawBodyClear(g, now, fierce, units, data = false) {
   if (!SPR || V.alpha <= 0.01) return;
   const live = (units || []).filter((u) => u && u.alive !== false && Number.isFinite(u.rx ?? u.x));
-  if (!live.length || typeof document === "undefined" || !g.getTransform) { drawBody(g, now, fierce); return; }
+  if ((!live.length && !data) || typeof document === "undefined" || !g.getTransform) { drawBody(g, now, fierce); return; }
   const W0 = g.canvas.width, H0 = g.canvas.height;
   if (!BODY_CV) BODY_CV = document.createElement("canvas");
   if (BODY_CV.width !== W0 || BODY_CV.height !== H0) { BODY_CV.width = W0; BODY_CV.height = H0; }
@@ -226,6 +250,7 @@ function drawBodyClear(g, now, fierce, units) {
   o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = "source-over"; o.globalAlpha = 1; o.clearRect(0, 0, W0, H0);
   o.setTransform(g.getTransform());
   drawBody(o, now, fierce);
+  if (data) dataSkin(o, W0, H0, now);
   o.globalCompositeOperation = "destination-out";
   for (const u of live) {
     const h = Math.max(1, u.size | 0) / 2, x = (u.rx ?? u.x) + h, y = (u.ry ?? u.y) + h;
@@ -236,6 +261,25 @@ function drawBodyClear(g, now, fierce, units) {
     o.fillStyle = gr; o.beginPath(); o.arc(0, 0, 1, 0, TAU); o.fill(); o.restore();
   }
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.drawImage(BODY_CV, 0, 0); g.restore();
+}
+
+function dataSkin(o, W0, H0, now) {
+  const t = now / 1000;
+  o.save(); o.setTransform(1, 0, 0, 1, 0, 0);
+  o.globalCompositeOperation = "source-atop";
+  o.fillStyle = "rgba(30,200,240,.32)"; o.fillRect(0, 0, W0, H0);
+  o.fillStyle = "rgba(200,250,255,.14)";
+  for (let y = (t * 40) % 6; y < H0; y += 6) o.fillRect(0, y, W0, 1.5);
+  // ชิ้นเหลื่อม: แถบแนวนอนเลื่อนข้างเป็นช่วงๆ
+  const slot = Math.floor(t * 3);
+  for (let i = 0; i < 3; i++) {
+    const r = Math.sin(slot * 12.9 + i * 78.2) * 43758.5453, f = r - Math.floor(r);
+    if (f < 0.45) continue;
+    const y = f * H0, h = 4 + f * 18, dx = (f - 0.7) * 30;
+    o.globalCompositeOperation = "source-atop"; o.drawImage(o.canvas, 0, y, W0, h, dx, y, W0, h);
+    o.fillStyle = "rgba(180,250,255,.35)"; o.fillRect(0, y, W0, 1);
+  }
+  o.restore();
 }
 
 // ---------- การเคลื่อนไหวต่อเฟรม ----------
@@ -253,12 +297,18 @@ function step(fd, info, now, dt) {
   if (!V.override) { V.x = x; V.y = y; }
   // ทิศบนจอ → หันซ้าย/ขวา + เอียง · เลี้ยวกลับด้าน = ไล่ภาพหลายมุม
   const p0 = screenOf(b[0], b[1]), p1 = screenOf(q[0], q[1]);
-  const a = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]), c = Math.cos(a);
+  const a = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
   if (!V.override) {
-    if (!V.turn) { if ((V.face > 0 && c < -0.2) || (V.face < 0 && c > 0.2)) V.turn = { t0: now, to: -V.face }; }
-    else if (now - V.turn.t0 >= TURN_MS) { V.face = V.turn.to; V.turn = null; }
+    // ทิศว่ายในพิกัดกระดาน → กรอบกล้อง (viewAxes: r = ขวาจอ · f = เข้าหากล้อง) · หมุนนุ่มทางสั้นสุด
+    const ax = viewAxes(), dx = q[0] - b[0], dy = q[1] - b[1];
+    const rel = Math.atan2(dx * ax.fx + dy * ax.fy, dx * ax.rx + dy * ax.ry);
+    if (V.rel == null) V.rel = rel;
+    else { let d = rel - V.rel; d = Math.atan2(Math.sin(d), Math.cos(d)); V.rel += d * Math.min(1, dt * 3); }
+    V.turn = null;
+    V.face = Math.cos(V.rel) >= 0 ? 1 : -1;
+    // เอียงตามทิศบนจอเฉพาะตอนเห็นด้านข้าง (หน้า/หลังตรง = ไม่เอียง)
     let tr = V.face > 0 ? a : a > 0 ? a - Math.PI : a + Math.PI;
-    tr = V.turn ? 0 : clamp(tr, -0.5, 0.5);
+    tr = clamp(tr, -0.5, 0.5) * Math.abs(Math.cos(V.rel));
     V.rot += (tr - V.rot) * Math.min(1, dt * 3);
   }
   // ทิศว่ายบนจอ (มุมบน: หมุนภาพหัวไปทางนี้) — หมุนนุ่มทางสั้นสุด
@@ -343,7 +393,7 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
   step(fd, info, now, dt);
   // เงาข่มขวัญใต้กระดาน (ก่อนตัวปลา)
   for (const e of evs) if (e.kind === "whale_flyby") { const k = fxT(e, now, WHALE_FX.whale_flyby); if (k < 1) drawFlyby(g, k, now, view, true); }
-  drawBodyClear(g, now, info && info.stage >= 11, units);
+  drawBodyClear(g, now, info && info.stage >= 11, units, !!w.data);
   for (const e of evs) {
     const k = fxT(e, now, WHALE_FX[e.kind] || 1500);
     if (k >= 1) continue;
