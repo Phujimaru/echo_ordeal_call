@@ -339,6 +339,7 @@ function buildStateInner(viewerId) {
         modeWorld: p.modeVote ? p.modeWorld || "earth" : null,
         eosDiff: p.modeVote ? p.eosDiff || null : null, // ความยากที่โหวต (สนาม Eos)
         rtDiff: p.modeVote ? p.rtDiff || null : null, // ความยากที่โหวต (Road Trip)
+        ntWhale: p.modeVote && typeof p.ntWhale === "boolean" ? p.ntWhale : null, // Nautilus: เปิด/ปิดทาลัสซาที่โหวต
         colony: Colony.playerInfo(p), // Colony: { jumpCd }
         fodlan: Fodlan.playerInfo(p), // Fodlan: ความอบอุ่น · ศิลาตรา · ชีพจรเทพ … (server/fodlan/stageN.js playerInfo)
         iceHurt: CHAR_HOOKS.ice_spike && CHAR_HOOKS.ice_spike.isIceSpike(p) ? (p.iceHurt || 0) : undefined, // Ice Spike: ดาเมจสะสม (ครบ 3 = ระเบิด)

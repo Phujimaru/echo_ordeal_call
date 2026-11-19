@@ -748,6 +748,252 @@ Object.assign(TERRAIN_INFO, EOS_DEF.TERRAIN || {});
 MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
 const isEosArea = (area) => Number(area) === EOS_AREA;
 
+// ---------- Nautilus (GRID_PLAN §8.9) ----------
+//  area 46–50 = ชั้นใต้ทะเล 1–5 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
+//  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
+const NAUTILUS_AREA = EOS_AREA + 1;
+const NAUTILUS_STAGES = 5;
+const NAUTILUS_NAMES = ["แนวปะการัง", "ซากเรือรบ", "ปล่องภูเขาไฟใต้ทะเล", "นครจมบาดาล", "ร่องลึกก้นสมุทร"];
+//  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
+const NAUTILUS_DEFS = [(() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 1 "แนวปะการัง" −30 ม. (area 46 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage7.js)
+//  ลานทรายใต้แสงแดดรำไร · ดงปะการังเป็นหย่อม (เดินได้ หลบหลีก +20%) ล้อมหินปะการังก้อนใหญ่ · ฟองอากาศ 4 จุดกลางกระดาน = จุดฟื้นฟู
+//  ผัง 20×16 (x = 0..19 ซ้าย→ขวา · y = 0..15 เหนือ→ใต้):
+//   R หินปะการัง (fd_nt_reefrock — สิ่งกีดขวาง)  c ดงปะการัง (fd_nt_coral)  h ฟองอากาศ (จุดฟื้นฟู)  S จุดเกิด  $ จุดร้านค้า
+//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1) — ตอนนี้เป็นพื้นธรรมดา · ขั้น 3 เรือจอดตรงนี้ (DOCK)
+const ROWS = [
+  "RR.....NNNNNN.....RR", // y0
+  "R..S...NNNNNN...S..R", // y1
+  "..cc....c..c....cc..", // y2
+  "..cR...........$Rc..", // y3
+  ".....ccc....ccc.....", // y4
+  "S...cRRc....cRRc...S", // y5
+  ".....cc..hh..cc.....", // y6
+  "..c.......RR......c.", // y7
+  ".ccc..$..cRRc.....cc", // y8
+  "..c.....cc..cc......", // y9
+  ".....cc..hh..cc..$..", // y10
+  "....cRRc....cRRc....", // y11
+  "..R..cc......cc..R..", // y12
+  "..cc..............cc", // y13
+  ".R..S...........S.R.", // y14
+  "RR.......S........RR", // y15
+];
+const at = (ch) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  return out;
+};
+
+module.exports = {
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_reefrock: at("R") },
+    special: { fd_nt_coral: at("c") },
+    heal: at("h"), healKind: "fd_nt_bubble",
+    spawns: at("S"),
+    shopSpots: at("$"),
+  },
+  TERRAIN: {
+    fd_nt_reefrock: { name: "หินปะการัง", icon: "🪨" },
+    fd_nt_coral: { name: "ดงปะการัง", icon: "🪸", desc: "หลบหลีก +20%", evade: 20 },
+    fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  },
+  // ท่าจอดเรือ Nautilus (ขั้น 3): มุมบนซ้าย + ขนาด
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 2 "ซากเรือรบ" −200 ม. (area 47 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage8.js)
+//  ซากเรือรบ 3 ลำนอนบนพื้นทราย: ผนังเหล็ก (W) ล้อมห้องในเรือ มีช่องโหว่ทางเข้าลำละ 1 ช่อง · ดาดฟ้าไม้ผุในห้อง (d — เดิน 2 ก้าว)
+//  ไม้เรือหัก (T) + ปืนใหญ่เก่า (g — ขั้น 2 ยิงได้) กระจายรอบ · ห้องอากาศค้าง (h) = จุดฟื้นฟู
+//   W ผนังเหล็ก (fd_nt_hull)  T ไม้เรือหัก (fd_nt_timber)  g ปืนใหญ่ (fd_nt_cannon)  d ดาดฟ้าผุ (fd_nt_deck)  h ห้องอากาศ  S จุดเกิด  $ จุดร้านค้า
+//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+const ROWS = [
+  "T......NNNNNN......T", // y0
+  "..S....NNNNNN....S..", // y1
+  "....WWWW......g.....", // y2
+  "...W....W..T.......T", // y3
+  ".S...dd.W....WWW....", // y4
+  "...W.dd.W...W...W.S.", // y5
+  "....W..W....W.h.W...", // y6
+  "..T..WW..g...W.W....", // y7
+  "S.......h.........T.", // y8
+  "...g....WWWWW.......", // y9
+  "..W....W.ddd.W..$...", // y10
+  ".$W..h.W.ddd.W..TT..", // y11
+  "..W....W.....W......", // y12
+  "...T....WW.WW...g...", // y13
+  ".S.........$........", // y14
+  "T.......S..........T", // y15
+];
+const at = (ch) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  return out;
+};
+
+module.exports = {
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_hull: at("W"), fd_nt_timber: at("T"), fd_nt_cannon: at("g") },
+    special: { fd_nt_deck: at("d") },
+    heal: at("h"), healKind: "fd_nt_airpocket",
+    spawns: at("S"),
+    shopSpots: at("$"),
+  },
+  TERRAIN: {
+    fd_nt_hull: { name: "ผนังเหล็กเรือรบ", icon: "⚓" },
+    fd_nt_timber: { name: "ไม้เรือหัก", icon: "🪵" },
+    fd_nt_cannon: { name: "ปืนใหญ่เก่า", icon: "💣" },
+    fd_nt_deck: { name: "ดาดฟ้าผุ", icon: "🟫", desc: "เดิน 2 ก้าว", cost: 2 },
+    fd_nt_airpocket: { name: "ห้องอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  },
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 3 "ปล่องภูเขาไฟใต้ทะเล" −1,000 ม. (area 48 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage9.js)
+//  พื้นหินบะซอลต์ดำ รอยแตกเรืองส้ม · ปล่องควันดำ (V) 5 ปล่อง (ขั้น 4 พ่นน้ำเดือด) · หินบะซอลต์ (R) เป็นแนว
+//  ดงหนอนท่อ (w — ซ่อนตัว เดิน 2 ก้าว) รอบปล่อง · ฟองอากาศ (h) = จุดฟื้นฟู
+//   V ปล่องควันดำ (fd_nt_vent)  R หินบะซอลต์ (fd_nt_basalt)  w ดงหนอนท่อ (fd_nt_tubeworm)  h ฟองอากาศ  S จุดเกิด  $ จุดร้านค้า
+//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+const ROWS = [
+  "R......NNNNNN......R", // y0
+  "..S....NNNNNN...S...", // y1
+  ".....w..........w...", // y2
+  "...ww.R......R.wVw..", // y3
+  "...wVw.R....R...w...", // y4
+  "S...w...........$..S", // y5
+  "......RR....RR......", // y6
+  "..R......wVw.....R..", // y7
+  "..R...h..wVw..h..R..", // y8
+  "......RR.....R......", // y9
+  ".$..w...........w...", // y10
+  "...wVw..R....R.wVw..", // y11
+  "....w..R......R.w...", // y12
+  "..........$.........", // y13
+  ".S...R..........R.S.", // y14
+  "R........S.........R", // y15
+];
+const at = (ch) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  return out;
+};
+
+module.exports = {
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_vent: at("V"), fd_nt_basalt: at("R") },
+    special: { fd_nt_tubeworm: at("w") },
+    heal: at("h"), healKind: "fd_nt_bubble",
+    spawns: at("S"),
+    shopSpots: at("$"),
+  },
+  TERRAIN: {
+    fd_nt_vent: { name: "ปล่องควันดำ", icon: "🌋" },
+    fd_nt_basalt: { name: "หินบะซอลต์", icon: "🪨" },
+    fd_nt_tubeworm: { name: "ดงหนอนท่อ", icon: "🪱", desc: "เดิน 2 ก้าว · หลบหลีก +20% · ซ่อนตัว", cost: 2, evade: 20, bush: true },
+    fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  },
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 4 "นครจมบาดาล" −3,000 ม. (area 49 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage10.js)
+//  ซากนครหินสลัก: วิหารกลาง (กำแพง W ล้อม เปิดประตูบน/ล่าง/ซ้าย/ขวา) · เสาหินเรียงแถว (P) · รูปปั้นเรืองแสง (U — ขั้น 2 ตีแตกได้)
+//  อักขระบนพื้น (r — ขั้น 2 เหยียบแล้วเปิดกับดัก/บัฟ · ตอนนี้แค่ลาย) · แท่นบูชา (h) = จุดฟื้นฟู
+//   W กำแพงหินสลัก (fd_nt_citywall)  P เสาหิน (fd_nt_column)  U รูปปั้น (fd_nt_statue)  r อักขระ (fd_nt_rune)  h แท่นบูชา  S จุดเกิด  $ จุดร้านค้า
+//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+const ROWS = [
+  "P......NNNNNN......P", // y0
+  "..S....NNNNNN....S..", // y1
+  "..P..P........P..P..", // y2
+  "......WWW..WWW......", // y3
+  ".S....W..r...W..$...", // y4
+  "..P...W.r.r..W...P..", // y5
+  "......r..h...r......", // y6
+  "S.U.......U.......U.", // y7
+  "......r...h..r......", // y8
+  "..P...W..r.r.W...P..", // y9
+  "......W...r..W....S.", // y10
+  "..$...WWW..WWW......", // y11
+  "..P..P........P..P..", // y12
+  "....r....$.....r....", // y13
+  ".S................S.", // y14
+  "P........r.........P", // y15
+];
+const at = (ch) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  return out;
+};
+
+module.exports = {
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_citywall: at("W"), fd_nt_column: at("P"), fd_nt_statue: at("U") },
+    special: { fd_nt_rune: at("r") },
+    heal: at("h"), healKind: "fd_nt_altar",
+    spawns: at("S"),
+    shopSpots: at("$"),
+  },
+  TERRAIN: {
+    fd_nt_citywall: { name: "กำแพงหินสลัก", icon: "🧱" },
+    fd_nt_column: { name: "เสาหิน", icon: "🏛️" },
+    fd_nt_statue: { name: "รูปปั้นเรืองแสง", icon: "🗿" },
+    fd_nt_rune: { name: "อักขระโบราณ", icon: "🔣" },
+    fd_nt_altar: { name: "แท่นบูชาทะเล", icon: "🔱", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  },
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 5 "ร่องลึกก้นสมุทร" −10,000 ม. (area 50 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage11.js)
+//  ก้นร่องมืดสนิท: หินร่องลึก (R) เป็นแนวผา · หลุมดิ่ง (O — ขั้น 2 ตกแล้วหายจากกระดาน · ตอนนี้เป็นสิ่งกีดขวาง)
+//  แพลงก์ตอนเรืองแสง (p — ขั้น 2 เหยียบแล้วตัวสว่าง · ตอนนี้แค่ลาย) · ฟองอากาศ (h) 2 จุด = จุดฟื้นฟู
+//   R หินร่องลึก (fd_nt_trenchrock)  O หลุมดิ่ง (fd_nt_pit)  p แพลงก์ตอนเรืองแสง (fd_nt_plankton)  h ฟองอากาศ  S จุดเกิด  $ จุดร้านค้า
+//   N = ท่าจอดเรือ Nautilus 6×2 (x 7–12 · y 0–1)
+const ROWS = [
+  "RR.....NNNNNN.....RR", // y0
+  "R..S...NNNNNN...S..R", // y1
+  "..........p.........", // y2
+  "...RR..p......RR....", // y3
+  ".S..R...OO......R.$.", // y4
+  "....p...OO....p.....", // y5
+  "S.R.........R.......", // y6
+  ".RR...h..p...RR..p..", // y7
+  "..R....RR........h..", // y8
+  ".....p.R...OO.......", // y9
+  "..$........OO..p..S.", // y10
+  "....RR.........RR...", // y11
+  ".p...R...p......R...", // y12
+  "........R...$....p..", // y13
+  ".S....p.R.........S.", // y14
+  "RR.................R", // y15
+];
+const at = (ch) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (c === ch) out.push([x, y]); }));
+  return out;
+};
+
+module.exports = {
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_trenchrock: at("R"), fd_nt_pit: at("O") },
+    special: { fd_nt_plankton: at("p") },
+    heal: at("h"), healKind: "fd_nt_bubble",
+    spawns: at("S"),
+    shopSpots: at("$"),
+  },
+  TERRAIN: {
+    fd_nt_trenchrock: { name: "หินร่องลึก", icon: "🪨" },
+    fd_nt_pit: { name: "หลุมดิ่ง", icon: "🕳️" },
+    fd_nt_plankton: { name: "แพลงก์ตอนเรืองแสง", icon: "✨" },
+    fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
+  },
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })()];
+NAUTILUS_DEFS.forEach((def, i) => {
+  Object.assign(TERRAIN_INFO, def.TERRAIN || {});
+  MAPS[NAUTILUS_AREA + i] = buildMap({ ...def.map, area: NAUTILUS_AREA + i, name: NAUTILUS_NAMES[i] });
+});
+const isNautilusArea = (area) => Number(area) >= NAUTILUS_AREA && Number(area) < NAUTILUS_AREA + NAUTILUS_STAGES;
+
 // ---------- Road Trip (GRID_PLAN §8.8 · .claude/plans/roadtrip-contract.md §6) ----------
 //  area 70 ถนน (ดักทาง) · 71 บนรถตู้ · 72–74 ปั๊ม 3 แบบ · 75 โมเต็ล — ข้อมูลล้วนใน server/roadtrip/maps.js (props/vanTiles/… server/roadtrip ใช้เอง)
 const RT_DEF = (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // ============================================================
@@ -1902,7 +2148,7 @@ function normalizeMap(pub) {
 
 export {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE,
-  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, RT_AREAS, isRoadtripArea,
+  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, NAUTILUS_AREA, NAUTILUS_STAGES, isNautilusArea, RT_AREAS, isRoadtripArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

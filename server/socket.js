@@ -326,9 +326,9 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'startGame', (id) => lobby.startSoloTest(id), 2);
   // Colony: กระโดดข้ามแกนกลางไปฝั่งตรงข้าม (server/colony.js)
   onPlayerEvent(socket, 'colonyJump', (id) => Colony.jump(id), 4);
-  onPlayerEvent(socket, 'selectGameMode', (id, { mode, world, diff } = {}) => {
+  onPlayerEvent(socket, 'selectGameMode', (id, { mode, world, diff, whale } = {}) => {
     if (match.gameState !== 'TEAM_MODE') return;
-    lobby.voteGameMode(id, mode, world, diff);
+    lobby.voteGameMode(id, mode, world, diff, whale); // whale = Nautilus เปิด/ปิดทาลัสซา (§8.9)
   }, 4);
   onPlayerEvent(socket, 'teamBackToMode', () => {
     if (match.gameState !== 'TEAM_SETUP') return;

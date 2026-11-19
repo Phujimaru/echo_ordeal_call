@@ -13,7 +13,7 @@ function generate() {
   if (!m) throw new Error("server/board.js ต้องจบด้วย module.exports = { ... };");
   // ข้อมูลแผนที่ Fodlan (server/fodlan/mapN.js — ข้อมูลล้วน) ฝังแทน require (ESM ใช้ require ไม่ได้)
   // + แผนที่ Road Trip (server/roadtrip/maps.js) — require ปลอม: ไฟล์มีส่วน "รันตรง" (require.main === module) ที่ไม่ทำงานฝั่ง client
-  const body = src.slice(0, m.index).replace(/require\("\.\/(fodlan\/map\d|roadtrip\/maps)"\)/g, (_, name) => {
+  const body = src.slice(0, m.index).replace(/require\("\.\/(fodlan\/map\d+|roadtrip\/maps)"\)/g, (_, name) => {
     const file = fs.readFileSync(path.join(__dirname, "..", "server", `${name}.js`), "utf8").replace(/\r\n/g, "\n").trim();
     return `(() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; ${file}\n  return module.exports; })()`;
   });

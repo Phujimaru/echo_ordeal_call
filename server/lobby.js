@@ -5,7 +5,7 @@ Object.assign(module.exports, {
   resetModeVotes, resetPregameFlowToLobby, validGameMode, modeOptionsFor, currentTeamOptions, normWorld,
   modeVoteSummary, voteGameMode, chooseTeam, confirmTeam, remainingTeamWinInfo, releaseReservation,
   reservePosition, positionsFor, positionUsedByOther, checkLobbyReady, startSoloTest, startMatch, backToLobby,
-  relayLobbyEmote, modeSelectBackToLobby, rematchVote, rtDiffOf,
+  relayLobbyEmote, modeSelectBackToLobby, rematchVote, rtDiffOf, ntWhaleOf,
 });
 
 const { POSITION_COLORS } = require("../characters");
@@ -69,7 +69,7 @@ function resetTeamAssignments(resetMode = false) {
 }
 function resetModeVotes() {
   match.modeVotes = {};
-  for (const p of Object.values(match.players)) { p.modeVote = null; p.modeWorld = null; p.eosDiff = null; p.rtDiff = null; }
+  for (const p of Object.values(match.players)) { p.modeVote = null; p.modeWorld = null; p.eosDiff = null; p.rtDiff = null; p.ntWhale = null; }
 }
 function resetPregameFlowToLobby() {
   match.gameState = "LOBBY";
@@ -110,7 +110,7 @@ function modeOptionsFor(count = Object.keys(match.players).length, world = "eart
 }
 // สนามที่โหวตได้: โลก (Origin — การเดินทาง) / Fodlan (บนโลก — GRID_PLAN §8.5) / โคโลนี — มีโหมด ffa / duo / trio ชุดเดียวกัน · ดวงจันทร์ = โหมด moon อย่างเดียว
 const RT_MAX_PLAYERS = 6;
-const WORLDS = ["earth", "fodlan", "eos", "colony", "moon", "roadtrip"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6)
+const WORLDS = ["earth", "fodlan", "eos", "colony", "moon", "roadtrip", "nautilus"]; // eos = สนาม Eos แผนที่เดียว 32×32 (GRID_PLAN §8.6) · nautilus = ดิ่งใต้ทะเล 5 ชั้น ffa/duo/trio (§8.9)
 // โหมดนี้เล่นในสนามนี้ได้ไหม (moon คู่กับสนามดวงจันทร์เท่านั้น)
 function worldHasMode(world, mode) { return (world === "moon") === (mode === "moon") && (world === "eos") === (mode === "eos") && (world === "roadtrip") === (mode === "roadtrip"); } // ดวงจันทร์ = moon · Eos = eos (PVE) อย่างเดียว
 function normWorld(w) { return WORLDS.includes(w) ? w : "earth"; }
@@ -145,7 +145,15 @@ function rtDiffOf(list) {
   const win = RT_DIFFS.filter((d) => n[d] === top);
   return win.length === 1 ? win[0] : "normal";
 }
-function voteGameMode(playerId, mode, world = "earth", diff = null) {
+// Nautilus (GRID_PLAN §8.9 · ผู้ใช้สั่ง 2026-11-19): เปิด/ปิดปลาวาฬทาลัสซา — เสียงข้างมากของคนที่โหวต Nautilus (เสมอ/ไม่มีข้อมูล = เปิด)
+//  prev = ค่าของแมตช์ก่อน (เล่นอีกรอบโดยไม่มีโหวตใหม่ = ค่าเดิม)
+function ntWhaleOf(list, prev = null) {
+  let on = 0, off = 0;
+  for (const p of list) { if (p.ntWhale === true) on++; else if (p.ntWhale === false) off++; }
+  if (!on && !off) return typeof prev === "boolean" ? prev : true;
+  return off > on ? false : true;
+}
+function voteGameMode(playerId, mode, world = "earth", diff = null, whale = null) {
   if (match.gameState !== "TEAM_MODE") return;
   const p = match.players[playerId];
   if (!p || SUSPENDED_MODES.has(mode) || !validGameMode(mode)) return;
@@ -154,6 +162,7 @@ function voteGameMode(playerId, mode, world = "earth", diff = null) {
   match.modeVotes[playerId] = voteKey(w, mode);
   p.eosDiff = w === "eos" && EOS_DIFFS.includes(diff) ? diff : w === "eos" ? "normal" : null;
   p.rtDiff = w === "roadtrip" ? (RT_DIFFS.includes(diff) ? diff : "normal") : null;
+  p.ntWhale = w === "nautilus" ? whale !== false : null; // ค่าเริ่ม = เปิด
   p.modeVote = mode;
   p.modeWorld = w;
   const list = Object.values(match.players);
@@ -189,6 +198,7 @@ function startTeamSetup(mode, world = "earth") {
   if (!validGameMode(mode, count)) return;
   const eosDiff = eosDiffOf(Object.values(match.players)); // ก่อนล้างโหวต (resetModeVotes ล้าง p.eosDiff)
   const rtDiff = rtDiffOf(Object.values(match.players));
+  const ntWhale = ntWhaleOf(Object.values(match.players), match.nautilusWhale);
   resetModeVotes();
   match.world = normWorld(world);
   if (!worldHasMode(match.world, mode)) { match.world = "earth"; return; }
@@ -198,6 +208,7 @@ function startTeamSetup(mode, world = "earth") {
   // Road Trip: ความยากที่โหวต · เล่นอีกรอบ (rematch) = ความยากเดิม (ไม่มีโหวตใหม่)
   if (mode === "roadtrip") match.rtDiff = Object.values(match.players).some((p) => p.rtDiff) || !RT_DIFFS.includes(match.rtDiff) ? rtDiff : match.rtDiff;
   else match.rtDiff = null;
+  match.nautilusWhale = match.world === "nautilus" ? ntWhale : null; // Nautilus: ทาลัสซาเปิด/ปิด (ขั้น 2 อ่านค่านี้ — state.fodlan.whaleEnabled)
   if (mode === "moon" || mode === "eos" || mode === "roadtrip") {
     // Moon Cell / Eos PVE: ทุกคนทีม A ยืนยันแล้ว → เข้าแมตช์ทันที (ไม่มีหน้าเลือกทีม)
     match.gameMode = mode;
@@ -394,7 +405,7 @@ function startMatch() {
   // Colony ใช้ช่วงพักเดียวกัน (ฉากพุ่งเข้าโคโลนีแทนดิ่งลงโลก) · Moon Cell = ฉากบินอ้อมโลกไปดวงจันทร์ (client oc/intro/moonFlight.js)
   const journeyStart = (Journey.active(engine) || Colony.inWorld() || Moon.inWorld() || Fodlan.inWorld()) && JOURNEY_START_SECONDS > 0;
   // Eos (§8.6): พักให้ฉากเปิดตัวผู้เล่นจบเหมือนสนามอื่น แต่ไม่มีฉากเดินทาง (แผนที่เดียว)
-  if (journeyStart && !Fodlan.isEos()) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: startArea, fromArea: null };
+  if (journeyStart && !Fodlan.isEos()) match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "start", area: Fodlan.inWorld() ? Fodlan.stageNow() : startArea, fromArea: null }; // Fodlan/Nautilus: area = ด่านแรก (1 / 7)
   if (journeyStart) {
     // พักคิวไว้ก่อนจนกว่าฉากเปิดตัวผู้เล่นจะจบ — อยู่ในเฟส CUTSCENE แต่ยังไม่มีคลิป
     //  (cutsceneInfo = null -> client วาดกระดานปกติไว้ใต้ฉากเปิดแมตช์ (MatchIntro) ซึ่งบังอยู่แล้ว)

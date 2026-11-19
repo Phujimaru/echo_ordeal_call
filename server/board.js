@@ -359,6 +359,20 @@ Object.assign(TERRAIN_INFO, EOS_DEF.TERRAIN || {});
 MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
 const isEosArea = (area) => Number(area) === EOS_AREA;
 
+// ---------- Nautilus (GRID_PLAN §8.9) ----------
+//  area 46–50 = ชั้นใต้ทะเล 1–5 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
+//  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
+const NAUTILUS_AREA = EOS_AREA + 1;
+const NAUTILUS_STAGES = 5;
+const NAUTILUS_NAMES = ["แนวปะการัง", "ซากเรือรบ", "ปล่องภูเขาไฟใต้ทะเล", "นครจมบาดาล", "ร่องลึกก้นสมุทร"];
+//  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
+const NAUTILUS_DEFS = [require("./fodlan/map7"), require("./fodlan/map8"), require("./fodlan/map9"), require("./fodlan/map10"), require("./fodlan/map11")];
+NAUTILUS_DEFS.forEach((def, i) => {
+  Object.assign(TERRAIN_INFO, def.TERRAIN || {});
+  MAPS[NAUTILUS_AREA + i] = buildMap({ ...def.map, area: NAUTILUS_AREA + i, name: NAUTILUS_NAMES[i] });
+});
+const isNautilusArea = (area) => Number(area) >= NAUTILUS_AREA && Number(area) < NAUTILUS_AREA + NAUTILUS_STAGES;
+
 // ---------- Road Trip (GRID_PLAN §8.8 · .claude/plans/roadtrip-contract.md §6) ----------
 //  area 70 ถนน (ดักทาง) · 71 บนรถตู้ · 72–74 ปั๊ม 3 แบบ · 75 โมเต็ล — ข้อมูลล้วนใน server/roadtrip/maps.js (props/vanTiles/… server/roadtrip ใช้เอง)
 const RT_DEF = require("./roadtrip/maps");
@@ -1157,7 +1171,7 @@ function nearShop(pos, shop) {
 
 module.exports = {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE,
-  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, RT_AREAS, isRoadtripArea,
+  COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, NAUTILUS_AREA, NAUTILUS_STAGES, isNautilusArea, RT_AREAS, isRoadtripArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

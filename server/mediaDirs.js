@@ -5,4 +5,4 @@
 //  /colony (เพลง/เสียงเหตุการณ์ของสนาม Colony — GRID_PLAN §8.3) · /fodlan (เพลงด่าน + เสียงบรรยากาศ/เอฟเฟกต์โหมด Fodlan — GRID_PLAN §8.5) · /mooncell (ภาพฮาคุโนะ/Moon Cell · คลิป+เสียงท่าไม้ตาย · เพลงธีม — GRID_PLAN §8.4)
 //  /eos (ภาพหมาก/ปีศาจ + เสียงเอฟเฟกต์/บรรยากาศของสนาม Eos — GRID_PLAN §8.6) · /roadtrip (เพลง/ภาพมอน/เสียงโหมด Road Trip — GRID_PLAN §8.8)
 //  ใช้ร่วมกัน: server/app.js (redirect ไป R2) · desktop/ (แคชไฟล์สื่อในเครื่องผู้เล่น)
-module.exports = ["characters", "item", "overload_force", "theme_song", "effect_sound", "image", "journey", "colony", "fodlan", "mooncell", "eos", "roadtrip"];
+module.exports = ["characters", "item", "overload_force", "theme_song", "effect_sound", "image", "journey", "colony", "fodlan", "mooncell", "eos", "roadtrip", "nautilus"];

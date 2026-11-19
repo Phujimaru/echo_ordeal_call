@@ -177,7 +177,7 @@ function dealRound() {
   const night = dayNight.isNightRound(world);
   if (world > 1 && night !== prevNight) {
     // Fodlan: กลางวัน/กลางคืนสลับให้เห็นเฉยๆ ไม่มีผล (GRID_PLAN §8.5)
-    if (match.world === "fodlan" || match.world === "eos") match.lastLog.push(night ? "🌙 ราตรีมาเยือน" : "☀️ ฟ้าสางแล้ว");
+    if (match.world === "fodlan" || match.world === "eos" || match.world === "nautilus") match.lastLog.push(night ? "🌙 ราตรีมาเยือน" : "☀️ ฟ้าสางแล้ว");
     else match.lastLog.push(night ? "🌙 ราตรีมาเยือน — สุ่มสกิลพื้นฐาน/สกิลรองแพงขึ้น +1 ทุกเทิร์น" : "☀️ ฟ้าสางแล้ว — จบเทิร์นได้แต้มสกิลเพิ่ม +1");
   }
 

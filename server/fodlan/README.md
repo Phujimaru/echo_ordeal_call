@@ -1,4 +1,4 @@
-# server/fodlan/ — ด่านของโหมด Fodlan (GRID_PLAN §8.5) + สนาม Eos = ด่าน 6 (GRID_PLAN §8.6 · stage6.js/map6.js · GAME_SYSTEM §51)
+# server/fodlan/ — ด่านของโหมด Fodlan (GRID_PLAN §8.5) + สนาม Eos = ด่าน 6 (GRID_PLAN §8.6 · stage6.js/map6.js · GAME_SYSTEM §51) + Nautilus = ด่าน 7–11 (GRID_PLAN §8.9 · stage7–11.js/map7–11.js · ของกลาง nautilusLayer.js · GAME_SYSTEM §51.1)
 
 ตัวคุมกลาง = `server/fodlan.js` (ลำดับด่าน · สภาพอากาศ · จุดเสียบเข้า engine ทั้งหมด) · แต่ละด่านมี 2 ไฟล์:
 
