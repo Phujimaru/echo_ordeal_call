@@ -12,13 +12,14 @@
 import { P, PS, depthOf, faceVisible, glow, rng, sceneSize } from "../boardGeo";
 import { drawThalassaAir, drawThalassaGround } from "./thalassaArt";
 import { shipFx, shipItems } from "./shipArt";
+import { reefFx, reefItems } from "./reefFx";
 
 const TAU = Math.PI * 2;
 export const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
 const K = (x, y) => `${x},${y}`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export const kinds = ["fd_nt_reefwall", "fd_nt_boulder", "fd_nt_arch", "fd_nt_bluehole", "fd_nt_kelp", "fd_nt_coral", "fd_nt_seagrass", "fd_nt_current", "fd_nt_ledge", "fd_nt_clam", "fd_nt_whale", "fd_nt_ship"];
+export const kinds = ["fd_nt_reefwall", "fd_nt_boulder", "fd_nt_arch", "fd_nt_bluehole", "fd_nt_kelp", "fd_nt_coral", "fd_nt_seagrass", "fd_nt_current", "fd_nt_ledge", "fd_nt_clam", "fd_nt_whale", "fd_nt_ship", "fd_nt_rubble"];
 export const tall = ["fd_nt_reefwall", "fd_nt_arch"];
 export const fogRGB = "20,70,85";
 export const fx = {};
@@ -399,7 +400,8 @@ export function items(list, g, fd, info, units, now, lowQ) {
   // หอยมุกยักษ์ (ลูกเล่นขั้น 3 — ตอนนี้เป็นของประดับ)
   for (const c of Z.clam) list.push({ d: depthOf(c.x + 0.5, c.y + 0.5), f: () => giantClam(g, c.x + 0.5, c.y + 0.5, t) });
   shipItems(list, g, fd, info, now, lowQ);
-  void fd; void units;
+  reefItems(list, g, fd, info, now);
+  void units;
 }
 function kelpStalk(g, x, y, h, t, seed, lowQ) {
   const segs = lowQ ? 6 : 12, pts = [];
@@ -535,6 +537,7 @@ export function air(g, fd, info, units, now, lowQ, view) {
   const vg = g.createRadialGradient(X0 + W / 2, Y0 + H / 2, Math.min(W, H) * 0.35, X0 + W / 2, Y0 + H / 2, Math.max(W, H) * 0.75);
   vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,12,20,.55)"); g.fillStyle = vg; g.fillRect(X0, Y0, W, H);
   shipFx(g, fd, info, now);
+  reefFx(g, fd, info, now);
   drawThalassaAir(g, fd, info, units, now, lowQ, view);
 }
 export function bakeSpecial() {}
