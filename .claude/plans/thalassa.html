@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Thalassa</title>
 <!--
-  ต้นแบบปลาวาฬ ทาลัสซา (GRID_PLAN §8.9 โหมด Nautilus) — ดูการว่าย ท่าโจมตี 6 ท่า และเสียง
+  ต้นแบบปลาวาฬ ทาลัสซา (GRID_PLAN §8.9 โหมด Nautilus) — การว่าย ท่าโจมตี 6 ท่า เสียง
   เปิด: preview "plans" (python http.server 5180 ที่รากของ worktree) → http://localhost:5180/.claude/plans/thalassa.html
-  ภาพ/เสียง: client/public/nautilus/ (ไม่อยู่ใน git) · เสียงไฟล์ (Mixkit) ถ้ามีจะใช้แทนเสียงสังเคราะห์ (ตาราง SFX_FILES)
+  ภาพ/เสียง: client/public/nautilus/ (ไม่อยู่ใน git) · เสียงไฟล์ทำจาก .claude/plans/nautilus-sfx.sh (Mixkit) — ไม่มีไฟล์ = เสียงสังเคราะห์
+  รอบ 2 (2026-11-19 ผู้ใช้สั่ง): ตัวใหญ่ขึ้น + ท่าอลังการขึ้น (กล้องซูม/หยุดเฟรม/แฟลช/แถบดำ/อนุภาค/พื้นแตก/น้ำพุ/คลื่นบิดภาพ)
 -->
 <style>
   html,body{margin:0;height:100%;background:#020812;overflow:hidden;font-family:"Noto Sans Thai",system-ui,sans-serif}
   canvas{display:block}
-  #bar{position:fixed;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px 12px 12px;background:linear-gradient(rgba(0,8,20,0),rgba(0,8,20,.9) 40%)}
+  #bar{position:fixed;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:10px 12px 12px;background:linear-gradient(rgba(0,8,20,0),rgba(0,8,20,.9) 40%);z-index:2}
   #bar .sep{width:14px}
   #bar button{background:rgba(8,28,46,.9);color:#c8f7ff;border:1px solid #2a7f96;border-radius:6px;padding:7px 12px;font:14px "Noto Sans Thai",system-ui,sans-serif;cursor:pointer}
   #bar button:hover{border-color:#8ff3ff}
@@ -47,13 +48,16 @@ const MEDIA = "../../client/public/nautilus/";
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 const cv = document.getElementById("c"), g = cv.getContext("2d");
 const COLS = 16, ROWS = 11, SQ = 0.66;
+const WHALE_SIZE = 1.5; // ขนาดภาพเทียบลำตัว 5 ช่อง (ผู้ใช้: ตัวใหญ่ขึ้นอีกหน่อย)
 let W, H, cs, ox, oy;
+const snap = document.createElement("canvas"), sg = snap.getContext("2d");
 function resize() {
   W = cv.width = Math.round(innerWidth * DPR); H = cv.height = Math.round(innerHeight * DPR);
+  snap.width = W; snap.height = H;
   cv.style.width = innerWidth + "px"; cv.style.height = innerHeight + "px";
-  const barH = 70 * DPR, top = 70 * DPR;
-  cs = Math.min((W * 0.9) / COLS, (H - barH - top - 40 * DPR) / (ROWS * SQ));
-  ox = (W - cs * COLS) / 2; oy = top + (H - barH - top - cs * ROWS * SQ) / 2 + 20 * DPR;
+  const barH = 70 * DPR, top = 80 * DPR;
+  cs = Math.min((W * 0.86) / COLS, (H - barH - top - 40 * DPR) / (ROWS * SQ));
+  ox = (W - cs * COLS) / 2; oy = top + (H - barH - top - cs * ROWS * SQ) / 2 + 30 * DPR;
 }
 addEventListener("resize", resize); resize();
 const P = (x, y) => [ox + x * cs, oy + y * cs * SQ];
@@ -61,13 +65,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const ease = (k) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+const easeIn = (k) => k * k * k;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 
-// ---------------------------------------------------------------- เสียง
+// ================================================================ เสียง
 let AC = null, MST, REV, NOISE, SFXBUF = {};
-// ไฟล์เสียง (ถ้าโหลดได้ใช้แทนเสียงสังเคราะห์) — คีย์: [ไฟล์, เริ่ม(วิ), ยาว(วิ), ดัง]
-// ไฟล์ทำจาก .claude/plans/nautilus-sfx.sh (Mixkit) — ตัด/ลดระดับเสียง/ปรับดังมาแล้ว จึงเล่นทั้งไฟล์
 const SFX_FILES = Object.fromEntries(
   ["ping", "whoosh", "slap", "rush", "roar", "call", "swirl", "zap", "blast", "gulp", "splash", "spit", "rumble", "boom", "bubbles", "amb"]
     .map((k) => [k, [k + ".mp3", 0, 99, k === "amb" ? 1 : 0.9]]));
@@ -89,15 +92,15 @@ function loadSfx(k) {
   fetch(MEDIA + "sfx/" + SFX_FILES[k][0]).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
     .then((a) => AC.decodeAudioData(a)).then((buf) => { SFXBUF[k] = buf; }).catch(() => {});
 }
-function playFile(k, t, gain = 1) {
+function playFile(k, t, gain = 1, rate = 1) {
   const buf = SFXBUF[k]; if (!buf) return false;
   const [, ss, dur, vol] = SFX_FILES[k];
-  const s = AC.createBufferSource(); s.buffer = buf;
-  const gn = AC.createGain(); const len = Math.min(dur, buf.duration - ss);
+  const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
+  const gn = AC.createGain(); const len = Math.min(dur, buf.duration - ss) / rate;
   gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol * gain, t + 0.01);
   gn.gain.setValueAtTime(vol * gain, t + Math.max(0.02, len - 0.25));
   gn.gain.exponentialRampToValueAtTime(0.0001, t + len);
-  s.connect(gn); out(gn, 0.25); s.start(t, ss, len + 0.05);
+  s.connect(gn); out(gn, 0.25); s.start(t, ss);
   return true;
 }
 function impulse(sec, decay) {
@@ -130,7 +133,6 @@ function tone(t, dur, type, f0, f1, peak, a = 0.01, wet = 0.3, lp = 0) {
   n.connect(gn); out(gn, wet); o.start(t); o.stop(t + dur + 0.1);
   return o;
 }
-// เสียงร้องวาฬ: saw 2 ตัวเพี้ยนกันนิดหน่อย → ฟอร์แมนต์ → lowpass · ไล่ระดับเสียงตามเส้นโค้ง + สั่น
 function whaleCall(t, dur, base, glide, peak = 0.35, wet = 0.9) {
   const curve = new Float32Array([base, base * (1 + (glide - 1) * 0.6), base * glide, base * glide * 1.04, base * (0.75 + glide * 0.1)]);
   const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 2.2;
@@ -144,7 +146,7 @@ function whaleCall(t, dur, base, glide, peak = 0.35, wet = 0.9) {
     lg.connect(o.frequency); o.connect(bp); o.start(t); o.stop(t + dur + 0.1);
   }
   const sub = AC.createOscillator(); sub.type = "sine"; sub.frequency.setValueCurveAtTime(curve.map((v) => v / 2), t, dur);
-  const sg = AC.createGain(); sg.gain.value = 0.6; sub.connect(sg); sg.connect(lp); sub.start(t); sub.stop(t + dur + 0.1);
+  const sgn = AC.createGain(); sgn.gain.value = 0.6; sub.connect(sgn); sgn.connect(lp); sub.start(t); sub.stop(t + dur + 0.1);
   bp.connect(lp); lp.connect(gn); out(gn, wet);
   lfo.start(t); lfo.stop(t + dur + 0.1);
 }
@@ -155,46 +157,40 @@ function bubbles(t, n, dur, peak = 0.12) {
     tone(tt, rnd(0.04, 0.09), "sine", f, f * rnd(1.6, 2.4), peak * rnd(0.4, 1), 0.005, 0.35);
   }
 }
+// ซับเบสกระแทก — เพิ่มน้ำหนักให้ทุกจังหวะปะทะใหญ่
+function sub(t, peak = 0.8, f0 = 70) { tone(t, 0.55, "sine", f0, 28, peak, 0.004, 0.15); }
 const S = {
-  ping(t) { if (playFile("ping", t)) return; tone(t, 1.6, "sine", 1180, 1150, 0.22, 0.004, 1.2); tone(t, 0.9, "sine", 2360, 2300, 0.05, 0.004, 1.2); },
-  whoosh(t) { if (playFile("whoosh", t)) return; noise(t, 0.42, "bandpass", 260, 2200, 1.1, 0.5, 0.06, 0.2); },
-  slap(t) { if (playFile("slap", t)) return; noise(t, 0.18, "lowpass", 1200, 300, 0.7, 0.6, 0.003, 0.2); tone(t, 0.22, "sine", 95, 40, 0.6, 0.003, 0.1); },
-  rumble(t, dur = 1.4, peak = 0.5) { if (playFile("rumble", t)) return; noise(t, dur, "lowpass", 140, 55, 0.8, peak, dur * 0.5, 0.3); tone(t, dur, "sine", 44, 36, peak * 0.6, dur * 0.5, 0.1); },
-  rush(t) { if (playFile("rush", t)) return; noise(t, 1.1, "bandpass", 300, 1400, 0.9, 0.55, 0.15, 0.2); noise(t + 0.1, 1.0, "lowpass", 400, 120, 0.7, 0.5, 0.05, 0.2); },
-  roar(t) { if (playFile("roar", t, 0.9)) return; whaleCall(t, 1.3, 68, 1.35, 0.55, 0.7); S.rumble(t, 1.3, 0.35); },
+  ping(t) { if (playFile("ping", t)) return; tone(t, 1.6, "sine", 1180, 1150, 0.22, 0.004, 1.2); },
+  whoosh(t, g = 1, r = 1) { if (playFile("whoosh", t, g, r)) return; noise(t, 0.42, "bandpass", 260, 2200, 1.1, 0.5 * g, 0.06, 0.2); },
+  slap(t, g = 1) { if (playFile("slap", t, g)) return; noise(t, 0.18, "lowpass", 1200, 300, 0.7, 0.6 * g, 0.003, 0.2); tone(t, 0.22, "sine", 95, 40, 0.6 * g, 0.003, 0.1); },
+  rumble(t, dur = 1.4, peak = 0.5) { if (playFile("rumble", t, Math.min(1.2, peak * 2))) return; noise(t, dur, "lowpass", 140, 55, 0.8, peak, dur * 0.5, 0.3); tone(t, dur, "sine", 44, 36, peak * 0.6, dur * 0.5, 0.1); },
+  rush(t) { if (playFile("rush", t)) return; noise(t, 1.1, "bandpass", 300, 1400, 0.9, 0.55, 0.15, 0.2); },
+  roar(t, g = 0.9, r = 1) { if (playFile("roar", t, g, r)) return; whaleCall(t, 1.3, 68, 1.35, 0.55, 0.7); },
+  call(t, g = 1, r = 1) { if (playFile("call", t, g, r)) return; whaleCall(t, 1.6, 110, 1.4, 0.35 * g); },
   swirl(t, dur = 1.7) {
     if (playFile("swirl", t)) return;
     const f = noise(t, dur, "bandpass", 450, 380, 3, 0.4, 0.25, 0.4);
     const l = AC.createOscillator(); l.frequency.value = 3.2; const lg = AC.createGain(); lg.gain.value = 260; l.connect(lg); lg.connect(f.frequency); l.start(t); l.stop(t + dur);
-    tone(t, dur, "sine", 58, 46, 0.25, 0.3, 0.2); bubbles(t + 0.2, 10, dur * 0.8, 0.08);
   },
-  charge(t) { if (playFile("charge", t)) return; tone(t, 0.7, "sawtooth", 70, 520, 0.12, 0.3, 0.3, 1600); for (let i = 0; i < 9; i++) noise(t + i * 0.07, 0.04, "highpass", 3000, 3000, 0.7, 0.18, 0.002, 0.2); },
-  blast(t) { if (playFile("blast", t, 0.8)) return; S.zap(t); },
-  boom(t) { if (playFile("boom", t)) return; S.rumble(t, 1.2, 0.5); },
-  call(t, gain = 1) { if (playFile("call", t, gain)) return; whaleCall(t, 1.6, 110, 1.4, 0.35 * gain); },
-  zap(t) {
-    if (playFile("zap", t)) return;
-    noise(t, 0.16, "highpass", 2400, 1500, 0.7, 0.55, 0.002, 0.3);
-    tone(t, 0.2, "square", 140, 55, 0.18, 0.002, 0.2, 2600);
-    for (let i = 0; i < 5; i++) noise(t + rnd(0, 0.18), 0.025, "bandpass", 5000, 4000, 1, 0.3, 0.001, 0.2);
-  },
-  gulp(t) { if (playFile("gulp", t)) return; tone(t, 0.42, "sine", 230, 42, 0.7, 0.01, 0.4); noise(t, 0.3, "lowpass", 600, 150, 1, 0.45, 0.01, 0.3); bubbles(t + 0.1, 8, 0.5); },
-  splash(t, peak = 0.55) { if (playFile("splash", t)) return; noise(t, 0.7, "bandpass", 1700, 380, 0.8, peak, 0.005, 0.35); tone(t, 0.3, "sine", 120, 45, peak * 0.8, 0.004, 0.2); },
-  spit(t) { if (playFile("spit", t)) return; tone(t, 0.25, "sine", 70, 260, 0.5, 0.01, 0.3); S.splash(t + 0.12, 0.45); },
+  charge(t, dur = 1.1) { tone(t, dur, "sawtooth", 60, 700, 0.1, dur * 0.8, 0.4, 1800); tone(t, dur, "sine", 40, 90, 0.35, dur * 0.8, 0.2); for (let i = 0; i < 14; i++) noise(t + rnd(0, dur), 0.03, "highpass", 3500, 3000, 0.7, 0.16, 0.002, 0.2); },
+  zap(t, g = 1) { if (playFile("zap", t, g)) return; noise(t, 0.16, "highpass", 2400, 1500, 0.7, 0.55 * g, 0.002, 0.3); },
+  blast(t) { if (!playFile("blast", t, 0.9)) S.zap(t); sub(t, 0.7, 90); },
+  boom(t, g = 1) { if (!playFile("boom", t, g)) S.rumble(t, 1.2, 0.5); sub(t, 0.9 * g); },
+  gulp(t) { if (playFile("gulp", t)) return; tone(t, 0.42, "sine", 230, 42, 0.7, 0.01, 0.4); },
+  splash(t, g = 1, r = 1) { if (playFile("splash", t, g, r)) return; noise(t, 0.7, "bandpass", 1700, 380, 0.8, 0.55 * g, 0.005, 0.35); },
+  spit(t) { if (!playFile("spit", t)) tone(t, 0.25, "sine", 70, 260, 0.5, 0.01, 0.3); S.splash(t + 0.12, 0.6); },
   song(t) {
-    if (playFile("song", t)) return;
     whaleCall(t, 1.4, 170, 1.65, 0.32); whaleCall(t + 1.05, 1.5, 250, 0.62, 0.3); whaleCall(t + 2.2, 1.9, 120, 2.05, 0.36);
     tone(t + 0.3, 3.4, "sine", 900, 1350, 0.03, 1.2, 1.2);
   },
-  hit(t) { tone(t, 0.25, "sine", 130, 48, 0.7, 0.003, 0.2); S.slap(t); S.call(t + 0.08, 0.45); },
-  appear(t) { S.rumble(t, 2.2, 0.45); bubbles(t + 0.2, 26, 1.6, 0.1); S.call(t + 0.8); },
-  leave(t) { S.call(t, 0.7); bubbles(t + 0.4, 14, 1.2, 0.08); },
-  death(t) { S.roar(t); S.rumble(t + 0.4, 3, 0.4); bubbles(t + 1.4, 30, 2.5, 0.08); S.call(t + 2.2, 0.6); },
-  heart(t) { tone(t, 1.2, "sine", 660, 990, 0.08, 0.3, 1.2); tone(t + 0.15, 1.2, "sine", 990, 1320, 0.06, 0.3, 1.2); },
+  hit(t) { sub(t, 0.6, 110); S.slap(t, 0.8); S.call(t + 0.08, 0.4, 1.2); },
+  appear(t) { S.rumble(t, 2.2, 0.5); bubbles(t + 0.2, 26, 1.6, 0.1); S.splash(t + 1.2, 0.8, 0.7); S.call(t + 1.0); sub(t + 1.2, 0.8, 60); },
+  leave(t) { S.call(t, 0.7, 0.9); bubbles(t + 0.4, 14, 1.2, 0.08); },
+  death(t) { S.roar(t, 1, 0.8); S.rumble(t + 0.4, 3, 0.5); S.call(t + 1.6, 0.8, 0.7); bubbles(t + 1.4, 30, 2.5, 0.08); S.call(t + 3.2, 0.5, 0.55); },
+  heart(t) { tone(t, 1.4, "sine", 660, 990, 0.09, 0.3, 1.2); tone(t + 0.15, 1.4, "sine", 990, 1320, 0.07, 0.3, 1.2); tone(t + 0.3, 1.6, "triangle", 1320, 1980, 0.04, 0.3, 1.4); },
 };
 function sfx(name, delayMs = 0, ...args) { if (!audio()) return; const t = AC.currentTime + delayMs / 1000 + 0.01; S[name](t, ...args); }
 
-// เพลง + บรรยากาศ
 const bgm = new Audio(MEDIA + "bgm.mp3"); bgm.loop = true; bgm.volume = 0.45;
 let amb = null;
 function ambient(on) {
@@ -202,23 +198,20 @@ function ambient(on) {
   if (!on) { if (amb) { amb.stop(); amb = null; } return; }
   const t = AC.currentTime, nodes = [];
   const gn = AC.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(1, t + 2); gn.connect(MST);
-  if (SFXBUF.amb) {
-    const s = AC.createBufferSource(); s.buffer = SFXBUF.amb; s.loop = true; const v = AC.createGain(); v.gain.value = SFX_FILES.amb[3]; s.connect(v); v.connect(gn); s.start(); nodes.push(s);
-  } else {
+  if (SFXBUF.amb) { const s = AC.createBufferSource(); s.buffer = SFXBUF.amb; s.loop = true; s.connect(gn); s.start(); nodes.push(s); }
+  else {
     for (const [f, v] of [[46, 0.06], [69.3, 0.035]]) { const o = AC.createOscillator(); o.frequency.value = f; const v2 = AC.createGain(); v2.gain.value = v; o.connect(v2); v2.connect(gn); o.start(); nodes.push(o); }
-    const s = AC.createBufferSource(); s.buffer = NOISE; s.loop = true; const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260; const v3 = AC.createGain(); v3.gain.value = 0.05; s.connect(lp); lp.connect(v3); v3.connect(gn); s.start(); nodes.push(s);
   }
-  const timer = setInterval(() => { if (Math.random() < 0.5) bubbles(AC.currentTime, 6, 1.5, 0.04); }, 2500);
-  amb = { stop() { clearInterval(timer); gn.gain.setTargetAtTime(0.0001, AC.currentTime, 0.4); setTimeout(() => nodes.forEach((n) => n.stop()), 1500); } };
+  amb = { stop() { gn.gain.setTargetAtTime(0.0001, AC.currentTime, 0.4); setTimeout(() => nodes.forEach((n) => n.stop()), 1500); } };
 }
 
-// ---------------------------------------------------------------- ภาพ
+// ================================================================ ภาพปลาวาฬ
 const IMG = {};
 const NAMES = ["whale_side", "whale_front", "whale_top_tail", "whale_turn"];
 let WH = null, off1, off2, bodyMask;
 function mk(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return { c, g: c.getContext("2d", { willReadFrequently: true }) }; }
 function prep() {
-  const SZ = 640, PAD = 60;
+  const SZ = 720, PAD = 70;
   const b = mk(SZ, SZ); b.g.drawImage(IMG.whale_side, 0, 0, SZ, SZ);
   const d = b.g.getImageData(0, 0, SZ, SZ), m = mk(SZ, SZ), o = m.g.createImageData(SZ, SZ);
   for (let i = 0; i < d.data.length; i += 4) {
@@ -228,16 +221,14 @@ function prep() {
   }
   m.g.putImageData(o, 0, 0);
   const gl = mk(SZ, SZ);
-  gl.g.filter = "blur(7px)"; gl.g.drawImage(m.c, 0, 0); gl.g.filter = "none";
+  gl.g.filter = "blur(8px)"; gl.g.drawImage(m.c, 0, 0); gl.g.filter = "none";
   gl.g.globalCompositeOperation = "lighter"; gl.g.drawImage(m.c, 0, 0);
-  // หน้ากากขาวสำหรับกระพริบตอนโดนตี
   const wm = mk(SZ, SZ); wm.g.drawImage(b.c, 0, 0); wm.g.globalCompositeOperation = "source-in"; wm.g.fillStyle = "#e8ffff"; wm.g.fillRect(0, 0, SZ, SZ);
   WH = { base: b.c, glow: gl.c, white: wm.c, SZ, PAD };
   off1 = mk(SZ, SZ + PAD * 2); off2 = mk(SZ, SZ + PAD * 2); bodyMask = mk(SZ, SZ + PAD * 2);
 }
-// ว่าย: ตัดภาพเป็นแถบแนวตั้ง เลื่อนขึ้นลงเป็นคลื่น (หางแกว่งแรง หัวนิ่ง)
 function undulate(src, dst, t, amp, speed) {
-  const SZ = WH.SZ, n = 72, sw = SZ / n;
+  const SZ = WH.SZ, n = 80, sw = SZ / n;
   dst.g.clearRect(0, 0, dst.c.width, dst.c.height);
   for (let i = 0; i < n; i++) {
     const u = (i + 0.5) / n;
@@ -247,8 +238,8 @@ function undulate(src, dst, t, amp, speed) {
   }
 }
 
-// ---------------------------------------------------------------- เส้นทางว่าย
-const WP = [[-1.5, 2], [5, 0.6], [11, 1.2], [16.6, 3.4], [17.2, 7.6], [13, 10.6], [8, 9.3], [4.4, 6.2], [8.4, 4.1], [12.4, 6.1], [9.6, 10.7], [3, 10.3], [-1.6, 6.6]];
+// ================================================================ เส้นทางว่าย
+const WP = [[-2, 2], [5, 0.4], [11, 1.0], [17, 3.4], [17.8, 7.6], [13, 10.8], [8, 9.3], [4.4, 6.2], [8.4, 4.1], [12.4, 6.1], [9.6, 10.9], [3, 10.5], [-2.2, 6.6]];
 let PTS = [], CUM = [], LEN = 0;
 (function buildPath() {
   const n = WP.length;
@@ -271,9 +262,24 @@ function pathAt(s) {
   return [lerp(a[0], b[0], f), lerp(a[1], b[1], f)];
 }
 
-// ---------------------------------------------------------------- สถานะ
-const whale = { s: 2, x: 0, y: 0, rot: 0, facing: 1, z: 0.9, alpha: 1, scale: 1, visible: true, glowBoost: 0, flash: 0, hp: 60, hpMax: 60, ovr: null, ovrT0: 0, free: true, tw: null, dead: false, amp: 1, hdx: 1, hdy: 0 };
-let fierce = false, now = 0, shake = 0;
+// ================================================================ สถานะ
+const whale = { s: 2, x: 0, y: 0, rot: 0, facing: 1, z: 0.9, alpha: 1, scale: 1, visible: true, glowBoost: 0, flash: 0, hp: 60, hpMax: 60, ovr: null, ovrT0: 0, free: true, tw: null, dead: false, amp: 1, hdx: 1, hdy: 0, rear: 0, arcs: 0, trail: [], ghost: false };
+let fierce = false, now = 0, clock = 0, hitstopUntil = 0;
+// กล้อง + โพสต์
+const cam = { z: 1, tz: 1, fx: 0, fy: 0, tfx: 0, tfy: 0, shake: 0 };
+const post = { flash: 0, flashCol: "255,255,255", dim: 0, tdim: 0, box: 0, tbox: 0, tint: 0, tintCol: "120,80,255", zoomBlur: 0, zbx: 0, zby: 0 };
+const RIPPLES = []; // คลื่นบิดภาพ {x,y,t0,dur,maxR,amp}
+function kick({ shake = 0, zoom = 0, fx, fy, flash = 0, col = "255,255,255", stop = 0, blur = 0 } = {}) {
+  cam.shake = Math.max(cam.shake, shake);
+  if (zoom) { cam.z = Math.max(cam.z, 1 + zoom); if (fx != null) { cam.fx = fx; cam.fy = fy; } }
+  if (flash) { post.flash = Math.max(post.flash, flash); post.flashCol = col; }
+  if (stop) hitstopUntil = Math.max(hitstopUntil, now + stop);
+  if (blur) { post.zoomBlur = Math.max(post.zoomBlur, blur); post.zbx = fx ?? W / 2; post.zby = fy ?? H / 2; }
+}
+function focus(fx, fy, z) { cam.tfx = fx; cam.tfy = fy; cam.tz = z; }
+function unfocus() { cam.tz = 1; cam.tfx = W / 2; cam.tfy = H / 2; }
+cam.fx = cam.tfx = W / 2; cam.fy = cam.tfy = H / 2;
+
 const COLORS = ["#ff6b6b", "#ffd166", "#06d6a0", "#a78bfa", "#f78fb3", "#4cc9f0"];
 let units = [];
 function resetUnits() {
@@ -281,94 +287,156 @@ function resetUnits() {
   while (units.length < 6) {
     const x = Math.floor(rnd(1, COLS - 1)), y = Math.floor(rnd(1, ROWS - 1)), k = x + "," + y;
     if (used.has(k)) continue; used.add(k);
-    units.push({ x, y, dx: x, dy: y, c: COLORS[units.length], hp: 12, alive: true, hidden: false, hit: 0, wet: 0 });
+    units.push({ x, y, dx: x, dy: y, c: COLORS[units.length], hp: 14, alive: true, hidden: false, hit: 0, wet: 0, spin: 0, lift: 0, shock: 0 });
   }
 }
 resetUnits();
-const FX = [], TELE = [], FLOAT = [], BUB = [], SNOW = [];
-for (let i = 0; i < 140; i++) SNOW.push({ x: Math.random(), y: Math.random(), r: rnd(0.6, 2), v: rnd(0.004, 0.015), w: rnd(0, TAU) });
-function addFx(dur, layer, draw) { FX.push({ t0: now, dur, layer, draw }); }
-function tele(cells, dur = 1100) { TELE.push({ cells, t0: now, dur }); }
-function after(ms, fn) { setTimeout(fn, ms); }
-function floater(x, y, text, color = "#ff5d6c") { FLOAT.push({ x, y, text, color, t0: now }); }
-function bubbleBurst(sx, sy, n, spread) { for (let i = 0; i < n; i++) BUB.push({ x: sx + rnd(-spread, spread), y: sy + rnd(-spread * 0.4, spread * 0.4), vy: -rnd(30, 110) * DPR, r: rnd(1.5, 5) * DPR, life: rnd(0.8, 2), t: 0, w: rnd(0, TAU) }); }
+const FX = [], TELE = [], FLOAT = [], PART = [], SNOW = [], CRACKS = [], SCORCH = [];
+for (let i = 0; i < 160; i++) SNOW.push({ x: Math.random(), y: Math.random(), r: rnd(0.6, 2.2), v: rnd(0.004, 0.015), w: rnd(0, TAU), px: 0 });
+function addFx(dur, layer, draw, delay = 0) { FX.push({ t0: clock + delay, dur, layer, draw }); }
+function tele(cells, dur = 1300, opt = {}) { TELE.push({ cells, set: new Set(cells.map(([x, y]) => x + "," + y)), t0: clock, dur, ...opt }); }
+// ตัวจับเวลาเดินตามนาฬิกาเกม (หยุดเฟรมแล้วหยุดด้วย · เฟรมตกแล้วไม่หลุดจังหวะกับเอฟเฟกต์)
+const TIMERS = [];
+function after(ms, fn) { TIMERS.push({ at: clock + ms, fn }); }
+function runTimers() { for (let i = 0; i < TIMERS.length; i++) if (TIMERS[i].at <= clock) { const t = TIMERS.splice(i--, 1)[0]; t.fn(); } }
+function floater(x, y, text, color = "#ff5d6c", big = false) { FLOAT.push({ x, y, text, color, t0: clock, big }); }
 const dmg = (b) => b + (fierce ? 1 : 0);
 const alive = () => units.filter((u) => u.alive && !u.hidden);
 function pick(n) { const a = alive().slice().sort(() => Math.random() - 0.5); return a.slice(0, n); }
-function hurt(u, d, color) {
+function hurt(u, d, color, big) {
   if (!u.alive) return;
-  u.hp -= d; u.hit = 1; floater(u.x + 0.5, u.y + 0.5, "-" + d, color);
-  if (u.hp <= 0) { u.alive = false; const [sx, sy] = P(u.x + 0.5, u.y + 0.5); bubbleBurst(sx, sy, 14, cs * 0.3); }
+  u.hp -= d; u.hit = 1; floater(u.x + 0.5, u.y + 0.5, "-" + d, color, big);
+  const [sx, sy] = P(u.x + 0.5, u.y + 0.5);
+  sparks(sx, sy - cs * 0.3, 14, cs * 5, color === "#9ff6ff" || color === "#ffe066" ? "180,250,255" : "255,240,220");
+  if (u.hp <= 0) { u.alive = false; bubbleBurst(sx, sy, 18, cs * 0.3); spray(sx, sy, 20, cs * 6); }
 }
 function pushU(u, px, py) { u.x = clamp(u.x + px, 0, COLS - 1); u.y = clamp(u.y + py, 0, ROWS - 1); }
-function whaleScreen() { const [sx, sy] = P(whale.x, whale.y); return [sx, sy - whale.z * cs * 1.1]; }
+function whaleScreen() { const [sx, sy] = P(whale.x, whale.y); return [sx, sy - whale.z * cs * 1.3]; }
 
-// ---------------------------------------------------------------- ท่าโจมตี
+// ================================================================ อนุภาค
+// type: bub (ฟอง) · sand (ตะกอน ตกลง) · spark (เส้นประกาย บวกแสง) · drop (ละอองน้ำ) · glow (จุดเรืองแสง) · streak (เส้นความเร็ว)
+function part(o) { PART.push(Object.assign({ t: 0, vx: 0, vy: 0, ax: 0, ay: 0, drag: 0, life: 1, r: 2, col: "255,255,255", type: "glow" }, o)); }
+function bubbleBurst(sx, sy, n, spread) { for (let i = 0; i < n; i++) part({ type: "bub", x: sx + rnd(-spread, spread), y: sy + rnd(-spread * 0.4, spread * 0.4), vy: -rnd(40, 140) * DPR, vx: rnd(-10, 10), r: rnd(1.5, 5.5) * DPR, life: rnd(0.9, 2.2), w: rnd(0, TAU) }); }
+function sandPlume(sx, sy, n, power) { for (let i = 0; i < n; i++) { const a = rnd(-Math.PI * 0.95, -Math.PI * 0.05); const v = rnd(0.3, 1) * power; part({ type: "sand", x: sx + rnd(-cs * 0.3, cs * 0.3), y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.8, ay: power * 1.6, drag: 1.8, r: rnd(1.5, 4.5) * DPR, life: rnd(0.8, 1.8), col: `${rnd(90, 140) | 0},${rnd(110, 150) | 0},${rnd(130, 170) | 0}` }); } }
+function sparks(sx, sy, n, power, col = "180,250,255") { for (let i = 0; i < n; i++) { const a = rnd(0, TAU), v = rnd(0.3, 1) * power; part({ type: "spark", x: sx, y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, drag: 4, life: rnd(0.25, 0.6), r: rnd(1, 2.4) * DPR, col }); } }
+function spray(sx, sy, n, power, up = 1) { for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + rnd(-0.7, 0.7) * (up ? 1 : 3); const v = rnd(0.4, 1) * power; part({ type: "drop", x: sx + rnd(-cs * 0.4, cs * 0.4), y: sy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, ay: power * 2.2, drag: 0.6, r: rnd(1.5, 4) * DPR, life: rnd(0.6, 1.3), col: "210,250,255" }); } }
+function glows(sx, sy, n, spread, col = "120,240,255") { for (let i = 0; i < n; i++) part({ type: "glow", x: sx + rnd(-spread, spread), y: sy + rnd(-spread, spread) * 0.6, vx: rnd(-20, 20), vy: -rnd(10, 50), drag: 0.5, life: rnd(0.6, 1.6), r: rnd(2, 6) * DPR, col }); }
+function streaks(dir, y0, y1, n) { for (let i = 0; i < n; i++) part({ type: "streak", x: dir > 0 ? rnd(-W * 0.2, W * 0.3) : rnd(W * 0.7, W * 1.2), y: rnd(y0, y1), vx: dir * rnd(2.5, 4.5) * W, vy: 0, life: rnd(0.25, 0.5), r: rnd(1, 2.5) * DPR, len: rnd(0.08, 0.2) * W, col: "200,250,255" }); }
+
+// พื้นแตก: กิ่งรอยร้าวในพิกัดช่อง
+function crack(x, y, n = 7, len = 2.4, life = 2600) {
+  const segs = [];
+  const grow = (px, py, a, l, depth) => {
+    let cx = px, cy = py;
+    const steps = Math.max(2, Math.round(l * 3));
+    for (let i = 0; i < steps; i++) {
+      const nx = cx + Math.cos(a) * (l / steps), ny = cy + Math.sin(a) * (l / steps) / SQ * 0.75;
+      segs.push([cx, cy, nx, ny, depth, i / steps]); cx = nx; cy = ny; a += rnd(-0.5, 0.5);
+      if (depth < 2 && Math.random() < 0.18) grow(cx, cy, a + rnd(-1.1, 1.1), l * 0.45, depth + 1);
+    }
+  };
+  for (let i = 0; i < n; i++) grow(x, y, (i / n) * TAU + rnd(-0.3, 0.3), len * rnd(0.6, 1.2), 0);
+  CRACKS.push({ segs, t0: clock, life });
+}
+
+// ================================================================ ท่าโจมตี
+function windup(ms, rear = 1) { whale.rear = rear; whale.glowBoost = Math.max(whale.glowBoost, 1.2); after(ms, () => { whale.rear = 0; }); }
+function setOvr(fn) { whale.ovr = fn; whale.ovrT0 = clock; }
+const rowCells = (y) => Array.from({ length: COLS }, (_, x) => [x, y]);
 const ATK = {
+  // ---------------------------------------- หนวดกวาด: พื้นแตก หนวดยักษ์พุ่งขึ้นจากใต้ทราย กวาดทั้งแถว แล้วฟาดลงซ้ำ
   tentacle() {
     const ts = pick(3); if (!ts.length) return;
-    tele(ts.flatMap((u) => Array.from({ length: COLS }, (_, x) => [x, u.y])));
-    sfx("ping");
-    ts.forEach((u, i) => after(1100 + i * 220, () => {
-      const row = u.y, dir = whale.x < COLS / 2 ? 1 : -1;
-      sfx("whoosh"); sfx("slap", 330);
-      const done = new Set();
-      addFx(1000, "top", (k) => {
-        const reach = easeOut(clamp(k / 0.45, 0, 1)) * (k > 0.72 ? 1 - (k - 0.72) / 0.28 : 1);
-        const front = dir > 0 ? lerp(-0.5, COLS + 0.5, reach) : lerp(COLS + 0.5, -0.5, reach);
-        drawTentacle(row, dir, reach, k);
-        if (k < 0.75) for (const v of alive()) if (v.y === row && !done.has(v) && (dir > 0 ? front >= v.x + 0.5 : front <= v.x + 0.5)) { done.add(v); hurt(v, dmg(2)); pushU(v, dir, 0); shake = Math.max(shake, 5); }
+    const dir = whale.x < COLS / 2 ? 1 : -1;
+    tele(ts.flatMap((u) => rowCells(u.y)), 1400, { arrows: dir });
+    sfx("ping"); sfx("call", 250, 0.6, 1.3); windup(1300, 1);
+    ts.forEach((u, i) => {
+      const row = u.y, ex = dir > 0 ? -0.6 : COLS + 0.6;
+      after(900 + i * 200, () => { crack(dir > 0 ? 0 : COLS, row + 0.5, 5, 1.6, 2400); const [sx, sy] = P(dir > 0 ? 0 : COLS, row + 0.5); sandPlume(sx, sy, 16, cs * 3); sfx("rumble", 0, 0.8, 0.25); });
+      after(1400 + i * 240, () => {
+        sfx("whoosh", 0, 1, 0.8); sfx("slap", 380, 1); sfx("boom", 900, 0.6);
+        const done = new Set(); let lastFront = null;
+        addFx(1250, "top", (k) => {
+          const reach = easeOut(clamp(k / 0.42, 0, 1));
+          const front = dir > 0 ? lerp(-0.5, COLS + 0.5, reach) : lerp(COLS + 0.5, -0.5, reach);
+          const slam = k > 0.62 ? clamp((k - 0.62) / 0.12, 0, 1) : 0;
+          const fade = k > 0.85 ? 1 - (k - 0.85) / 0.15 : 1;
+          drawTentacle(ex, row, dir, reach, k, slam, fade);
+          // ทรายฟุ้งตามปลายหนวด
+          if (k < 0.45) { const [fx, fy] = P(front, row + 0.5); sandPlume(fx, fy + cs * 0.1, 3, cs * 2.2); spray(fx, fy, 2, cs * 3); }
+          if (k < 0.5) for (const v of alive()) if (v.y === row && !done.has(v) && (dir > 0 ? front >= v.x + 0.5 : front <= v.x + 0.5)) {
+            done.add(v); hurt(v, dmg(2)); pushU(v, dir, 0); const [hx, hy] = P(v.x + 0.5, v.y + 0.5); kick({ shake: 8, stop: 70, fx: hx, fy: hy, zoom: 0.02 });
+          }
+          if (slam > 0 && !done.slammed) {
+            done.slammed = true; kick({ shake: 18, zoom: 0.035, flash: 0.25, col: "160,240,255", blur: 0.5, fx: W / 2, fy: P(0, row + 0.5)[1] });
+            for (let x = 0; x < COLS; x += 1) { const [sx, sy] = P(x + 0.5, row + 0.5); sandPlume(sx, sy, 5, cs * 3.2); }
+            addFx(700, "floor", (kk) => drawRowShock(row, kk));
+          }
+          lastFront = front; void fade;
+        });
       });
-    }));
+    });
   },
+  // ---------------------------------------- พุ่งทะลวง: จอมืด แถบดำ ปลาวาฬดำหาย → พุ่งข้ามจอด้วยความเร็วสูง ทิ้งเงา คลื่นน้ำ และเส้นความเร็ว
   charge() {
     const t = pick(1)[0]; if (!t) return;
     const y0 = clamp(t.y - 1, 0, ROWS - 3), band = [y0, y0 + 1, y0 + 2];
-    tele(band.flatMap((y) => Array.from({ length: COLS }, (_, x) => [x, y])), 1300);
-    sfx("ping"); sfx("roar", 250);
-    const dir = whale.x < COLS / 2 ? 1 : -1, x0 = dir > 0 ? -6 : COLS + 6, x1 = dir > 0 ? COLS + 6 : -6, yc = y0 + 1.5;
-    const keep = { x: whale.x, y: whale.y }, hitSet = new Set();
-    setOvr(3400, (el) => {
-      if (el < 500) { whale.alpha = 1 - el / 500; whale.z = lerp(0.9, 0.3, el / 500); }
-      else if (el < 1300) { whale.alpha = 0; }
-      else if (el < 2300) {
-        if (!hitSet.size && !hitSet.started) { hitSet.started = true; sfx("rush"); shake = 10; }
-        const k = (el - 1300) / 1000, kk = k * k * (3 - 2 * k);
-        whale.x = lerp(x0, x1, kk); whale.y = yc; whale.z = 0.35; whale.alpha = 1; whale.facing = dir; whale.rot = 0; whale.amp = 2.2; whale.scale = 1.1;
-        const [sx, sy] = whaleScreen(); bubbleBurst(sx - dir * cs * 2, sy + cs * 0.3, 3, cs * 0.6);
+    const dir = whale.x < COLS / 2 ? 1 : -1, x0 = dir > 0 ? -9 : COLS + 9, x1 = dir > 0 ? COLS + 9 : -9, yc = y0 + 1.5;
+    tele(band.flatMap(rowCells), 1700, { arrows: dir });
+    sfx("ping"); sfx("roar", 150, 1); windup(600, 1.4);
+    post.tdim = 0.45; post.tbox = 1;
+    const hitSet = new Set(); let started = false;
+    setOvr((el) => {
+      if (el < 700) { const k = el / 700; whale.alpha = 1 - k; whale.z = lerp(0.9, 0.2, k); whale.scale = lerp(1, 1.15, k); }
+      else if (el < 1700) {
+        whale.alpha = 0;
+        if (Math.random() < 0.5) { const [sx, sy] = P(dir > 0 ? -0.2 : COLS + 0.2, yc + rnd(-1.5, 1.5)); bubbleBurst(sx, sy, 2, cs * 0.3); }
+        if (el > 1100 && !started) { started = true; sfx("rumble", 0, 1.2, 0.6); }
+      } else if (el < 2600) {
+        if (!hitSet.go) { hitSet.go = true; sfx("rush"); sfx("roar", 100, 1, 1.15); kick({ shake: 10, flash: 0.15 }); }
+        const k = (el - 1700) / 900, kk = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        whale.x = lerp(x0, x1, kk); whale.y = yc; whale.z = 0.3; whale.alpha = 1; whale.facing = dir; whale.rot = 0; whale.amp = 2.4; whale.scale = 1.35; whale.ghost = true;
+        const [sx, sy] = whaleScreen();
+        bubbleBurst(sx - dir * cs * 3, sy + cs * 0.4, 5, cs * 0.9); spray(sx - dir * cs * 1.5, P(0, yc + 1)[1], 3, cs * 3);
+        streaks(dir, P(0, y0)[1] - cs, P(0, y0 + 3)[1] + cs, 3);
+        cam.shake = Math.max(cam.shake, 6);
         for (const v of alive()) if (band.includes(v.y) && !hitSet.has(v) && (dir > 0 ? whale.x >= v.x : whale.x <= v.x + 1)) {
-          hitSet.add(v); hurt(v, dmg(3)); sfx("slap"); const up = v.y - y0 < 1.5 ? -1 : 1; pushU(v, 0, up > 0 ? y0 + 3 - v.y : y0 - 1 - v.y); shake = 14;
+          hitSet.add(v); hurt(v, dmg(3), undefined, true); sfx("slap", 0, 1); sfx("boom", 20, 0.5);
+          const up = v.y - y0 < 1.5 ? -1 : 1; pushU(v, 0, up > 0 ? y0 + 3 - v.y : y0 - 1 - v.y);
+          const [hx, hy] = P(v.x + 0.5, v.y + 0.5); kick({ shake: 22, stop: 110, zoom: 0.06, fx: hx, fy: hy, flash: 0.45, blur: 0.8 });
         }
       } else {
-        const k = (el - 2300) / 1100; const p = pathAt(whale.s);
+        if (!hitSet.end) { hitSet.end = true; post.tdim = 0; post.tbox = 0; whale.ghost = false; addFx(1400, "floor", (k) => drawWake(y0, dir, k)); }
+        const k = (el - 2600) / 1200; const p = pathAt(whale.s);
         whale.x = p[0]; whale.y = p[1]; whale.scale = 1; whale.amp = 1; whale.alpha = k; whale.z = lerp(0.3, 0.9, k);
       }
-      return el >= 3400;
+      return el >= 3800;
     });
-    void keep;
   },
+  // ---------------------------------------- วังน้ำวน: ทะเลหมุนเป็นกรวยลึก ดูดตะกอน/ผู้เล่นวน → ระเบิดเป็นเสาน้ำพุ่งขึ้น
   whirl() {
     const ts = pick(2); if (!ts.length) return;
     const centers = ts.map((u) => [u.x, u.y]);
-    tele(centers.flatMap(([cx, cy]) => { const a = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const x = cx + dx, y = cy + dy; if (x >= 0 && y >= 0 && x < COLS && y < ROWS) a.push([x, y]); } return a; }));
-    sfx("ping");
+    tele(centers.flatMap(([cx, cy]) => { const a = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const x = cx + dx, y = cy + dy; if (x >= 0 && y >= 0 && x < COLS && y < ROWS) a.push([x, y]); } return a; }), 1300);
+    sfx("ping"); sfx("call", 300, 0.6, 0.9); windup(1200, 0.6);
     after(1100, () => {
-      sfx("swirl"); whale.glowBoost = 0.8;
+      sfx("swirl"); sfx("rumble", 200, 2, 0.4); whale.glowBoost = 1.2;
       for (const [cx, cy] of centers) {
-        addFx(1800, "floor", (k) => drawWhirl(cx, cy, k));
-        after(700, () => {
-          for (const v of alive()) {
-            const ddx = v.x - cx, ddy = v.y - cy;
-            if (Math.abs(ddx) <= 1 && Math.abs(ddy) <= 1) {
-              if (ddx || ddy) { v.dx = lerp(v.dx, cx, 0.6); v.dy = lerp(v.dy, cy, 0.6); } // ถูกดูดเข้าหากลางวง (ภาพ) แล้วเด้งกลับช่องเดิม
-              if (!ddx && !ddy) hurt(v, dmg(2), "#7fdcff"); else hurt(v, dmg(1), "#7fdcff");
-              v.wet = 1;
-            }
-          }
+        addFx(2600, "floor", (k) => drawWhirl(cx, cy, k));
+        const victims = () => alive().filter((v) => Math.abs(v.x - cx) <= 1 && Math.abs(v.y - cy) <= 1);
+        after(200, () => victims().forEach((v) => (v.spin = 1)));
+        after(1900, () => {
+          sfx("boom", 0, 0.9); sfx("splash", 80, 1, 0.75);
+          const [sx, sy] = P(cx + 0.5, cy + 0.5);
+          kick({ shake: 20, zoom: 0.05, fx: sx, fy: sy, flash: 0.35, col: "170,240,255", stop: 100, blur: 0.6 });
+          addFx(1500, "top", (k) => drawGeyser(cx + 0.5, cy + 0.5, k, 1));
+          spray(sx, sy, 60, cs * 9); bubbleBurst(sx, sy, 30, cs);
+          for (const v of victims()) { v.spin = 0; v.lift = 1; const c = v.x === cx && v.y === cy; hurt(v, dmg(c ? 2 : 1), "#7fdcff", c); v.wet = 1; }
         });
       }
     });
   },
+  // ---------------------------------------- ประจุเรืองแสง: จอมืด เส้นเลือดสะสมไฟ ประกายวิ่งรอบตัว → สายฟ้าแตกกิ่งฟาดลง พื้นติดไฟฟ้า แล้วกระโดดต่อ
   zap() {
     const first = pick(1)[0]; if (!first) return;
     const chain = [first];
@@ -377,161 +445,270 @@ const ATK = {
       const nx = alive().filter((v) => !chain.includes(v) && Math.hypot(v.x - last.x, v.y - last.y) <= 2.01).sort((a, b) => Math.hypot(a.x - last.x, a.y - last.y) - Math.hypot(b.x - last.x, b.y - last.y))[0];
       if (!nx) break; chain.push(nx);
     }
-    tele([[first.x, first.y]]);
-    sfx("ping"); sfx("charge", 500);
-    whale.glowBoost = 2.6;
-    chain.forEach((v, i) => after(1150 + i * 240, () => {
+    tele([[first.x, first.y]], 1400);
+    sfx("ping"); sfx("charge", 150, 1.2);
+    post.tdim = 0.55; whale.arcs = 1; windup(1300, 0.8);
+    const tStart = clock;
+    addFx(1300, "top", () => { whale.glowBoost = 1 + 2.5 * ((clock - tStart) / 1300); });
+    chain.forEach((v, i) => after(1350 + i * 230, () => {
       const from = i === 0 ? null : chain[i - 1];
-      sfx(i === 0 ? "blast" : "zap"); shake = Math.max(shake, 6);
-      addFx(420, "top", (k) => drawBolt(from, v, k));
+      if (i === 0) { sfx("blast"); whale.arcs = 0; post.tdim = 0.25; after(900, () => (post.tdim = 0)); }
+      else sfx("zap", 0, 1);
+      const [hx, hy] = P(v.x + 0.5, v.y + 0.5);
+      kick({ shake: i ? 10 : 24, stop: i ? 60 : 140, zoom: i ? 0.02 : 0.06, fx: hx, fy: hy, flash: i ? 0.3 : 0.75, col: "200,250,255", blur: i ? 0 : 0.7 });
+      addFx(i ? 380 : 620, "top", (k) => drawBolt(from, v, k, i === 0));
+      addFx(1500, "floor", (k) => drawElectricFloor(v.x, v.y, k, i === 0 ? 2 : 1));
+      sparks(hx, hy - cs * 0.3, i ? 20 : 50, cs * (i ? 5 : 9));
+      SCORCH.push({ x: v.x + 0.5, y: v.y + 0.5, t0: clock, life: 3000 });
       const conduct = v.wet > 0, d = dmg(2) + (conduct ? 2 : 0);
-      hurt(v, d, conduct ? "#ffe066" : "#9ff6ff"); if (conduct) v.wet = 0;
+      hurt(v, d, conduct ? "#ffe066" : "#9ff6ff", !i || conduct); v.shock = 1; if (conduct) v.wet = 0;
     }));
   },
+  // ---------------------------------------- เพลงวาฬ: ปลาวาฬลอยขึ้น ส่องแสงทั้งทะเล คลื่นเสียงบิดภาพกวาดทั้งกระดาน 3 ระลอก
   song() {
-    tele(Array.from({ length: COLS * ROWS }, (_, i) => [i % COLS, Math.floor(i / COLS)]), 1100);
-    sfx("song", 200); sfx("call", 2600, 0.5); whale.glowBoost = 2;
-    after(1100, () => {
-      addFx(2600, "floor", (k) => drawRings(k));
-      after(900, () => { shake = 9; for (const v of alive()) { hurt(v, dmg(1), "#b6a8ff"); const d = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(Math.random() * 4)]; pushU(v, d[0], d[1]); } });
+    tele(Array.from({ length: COLS * ROWS }, (_, i) => [i % COLS, Math.floor(i / COLS)]), 1300, { soft: true });
+    sfx("song", 150); sfx("call", 2700, 0.6, 0.8);
+    windup(2000, -0.6); post.tint = 0; post.tintCol = "150,120,255";
+    const t0 = clock;
+    addFx(2200, "top", (k) => { whale.glowBoost = 1.5 + Math.sin(k * 20) * 0.5; post.tint = 0.18 * Math.sin(Math.PI * k); });
+    for (let w = 0; w < 3; w++) after(1200 + w * 650, () => {
+      const [sx, sy] = P(whale.x, whale.y);
+      RIPPLES.push({ x: sx, y: sy, t0: clock, dur: 1700, maxR: cs * COLS * 1.25, amp: (w === 0 ? 1 : 0.6) });
+      addFx(1700, "floor", (k) => drawRing(sx, sy, k, w));
+      kick({ shake: w === 0 ? 14 : 7, flash: w === 0 ? 0.25 : 0.1, col: "190,170,255", blur: w === 0 ? 0.5 : 0.2, fx: sx, fy: sy });
+      sub(AC.currentTime + 0.01, w === 0 ? 0.8 : 0.4, 55);
+      if (w === 0) for (const v of alive()) {
+        const [ux, uy] = P(v.x + 0.5, v.y + 0.5), dist = Math.hypot(ux - sx, (uy - sy) / SQ), delay = (dist / (cs * COLS * 1.25)) * 1700;
+        after(delay, () => { if (!v.alive) return; hurt(v, dmg(1), "#c7b8ff"); const d = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(Math.random() * 4)]; pushU(v, d[0], d[1]); v.lift = 0.6; });
+      }
     });
+    void t0;
   },
+  // ---------------------------------------- กลืนลงท้อง: ปลาวาฬดำหาย พื้นสั่น แตก เงายักษ์ → ทะลักขึ้นจากพื้น งับ แล้วจมกลับ
   swallow() {
     const t = pick(1)[0]; if (!t) return;
-    tele([[t.x, t.y]], 1600);
-    sfx("ping");
-    const tx = t.x + 0.5, ty = t.y + 0.5;
-    setOvr(4200, (el) => {
-      if (el < 700) { const k = el / 700; whale.alpha = 1 - k; whale.z = lerp(0.9, -0.4, k); if (el < 30) { sfx("rumble", 0, 1.6, 0.45); const [sx, sy] = whaleScreen(); bubbleBurst(sx, sy, 30, cs * 1.5); } }
-      else if (el < 3000) whale.alpha = 0;
-      else { const k = (el - 3000) / 1200; const p = pathAt(whale.s); whale.x = p[0]; whale.y = p[1]; whale.alpha = k; whale.z = lerp(-0.2, 0.9, k); }
-      return el >= 4200;
+    const ring = []; for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) { const x = t.x + dx, y = t.y + dy; if (x >= 0 && y >= 0 && x < COLS && y < ROWS) ring.push([x, y]); }
+    tele(ring, 2000, { core: [t.x, t.y] });
+    sfx("ping"); sfx("call", 100, 0.7, 0.8);
+    const tx = t.x + 0.5, ty = t.y + 0.5, [sx, sy] = P(tx, ty);
+    setOvr((el) => {
+      if (el < 800) { const k = el / 800; whale.alpha = 1 - k; whale.z = lerp(0.9, -0.6, k); if (!whale._dive) { whale._dive = 1; sfx("splash", 0, 0.6, 0.7); const [wx, wy] = whaleScreen(); bubbleBurst(wx, wy, 40, cs * 2); } }
+      else if (el < 3600) whale.alpha = 0;
+      else { whale._dive = 0; const k = (el - 3600) / 1200; const p = pathAt(whale.s); whale.x = p[0]; whale.y = p[1]; whale.alpha = k; whale.z = lerp(-0.4, 0.9, k); }
+      return el >= 4800;
     });
-    addFx(900, "floor", (k) => drawDeepShadow(tx, ty, k));
-    FX[FX.length - 1].t0 += 700;
-    after(1600, () => {
-      sfx("boom"); sfx("splash", 60); sfx("gulp", 300); shake = 12;
-      const [sx, sy] = P(tx, ty); bubbleBurst(sx, sy, 40, cs * 0.8);
-      addFx(1300, "top", (k) => drawEmerge(tx, ty, k));
-      after(330, () => { if (t.alive) { hurt(t, dmg(2)); t.hidden = true; } });
+    after(700, () => {
+      sfx("rumble", 0, 1.6, 0.7); post.tdim = 0.35; focus(sx, sy, 1.07);
+      crack(tx, ty, 9, 2.2, 3200);
+      addFx(1300, "floor", (k) => drawDeepShadow(tx, ty, k));
+      addFx(1300, "top", (k) => { cam.shake = Math.max(cam.shake, 2 + k * 6); if (Math.random() < 0.6) sandPlume(sx + rnd(-cs * 1.5, cs * 1.5), sy + rnd(-cs * 0.5, cs * 0.5), 1, cs * 1.5); if (Math.random() < 0.5) bubbleBurst(sx + rnd(-cs, cs), sy, 2, cs * 0.3); });
     });
-    after(4600, () => {
+    after(2000, () => {
+      sfx("boom", 0, 1); sfx("splash", 40, 1, 0.8); sfx("roar", 60, 0.8, 1.2); sfx("gulp", 380);
+      kick({ shake: 30, zoom: 0.09, fx: sx, fy: sy, flash: 0.55, col: "200,245,255", stop: 150, blur: 1 });
+      post.tdim = 0; unfocus();
+      spray(sx, sy, 110, cs * 11); bubbleBurst(sx, sy, 50, cs * 1.2); sandPlume(sx, sy, 60, cs * 6);
+      addFx(1700, "top", (k) => drawEmerge(tx, ty, k));
+      addFx(1600, "top", (k) => drawGeyser(tx, ty, k, 1.6));
+      after(380, () => { if (t.alive) { hurt(t, dmg(2), undefined, true); t.hidden = true; } kick({ shake: 16, stop: 90 }); });
+    });
+    after(5200, () => {
       if (!t.alive) return;
       const free = []; for (let x = 0; x < COLS; x++) for (let y = 0; y < ROWS; y++) if (!units.some((v) => v.alive && !v.hidden && v.x === x && v.y === y)) free.push([x, y]);
       const [x, y] = free[Math.floor(Math.random() * free.length)];
-      t.x = t.dx = x; t.y = y; t.dy = y - 2; t.hidden = false; t.hit = 1;
-      sfx("spit"); const [sx, sy] = P(x + 0.5, y + 0.5); bubbleBurst(sx, sy, 20, cs * 0.4);
-      addFx(700, "floor", (k) => drawSplashRing(x + 0.5, y + 0.5, k));
+      t.x = t.dx = x; t.y = y; t.dy = y; t.hidden = false; t.hit = 1; t.lift = 1.4;
+      sfx("spit"); const [px, py] = P(x + 0.5, y + 0.5); bubbleBurst(px, py, 24, cs * 0.4); spray(px, py, 40, cs * 7);
+      kick({ shake: 8 });
+      addFx(1100, "top", (k) => drawGeyser(x + 0.5, y + 0.5, k, 0.7));
     });
   },
 };
-function setOvr(dur, fn) { whale.ovr = fn; whale.ovrT0 = now; }
 
-// ---------------------------------------------------------------- วาดเอฟเฟกต์ท่า
-function drawTentacle(row, dir, reach, k) {
-  const [ax, ay] = whaleScreen();
-  const sx0 = dir > 0 ? ox - cs * 0.6 : ox + COLS * cs + cs * 0.6;
-  const [, ry] = P(0, row + 0.5);
+// ================================================================ วาดเอฟเฟกต์ท่า
+function tentaclePath(ex, row, dir, reach, k, slam) {
+  const [bx, by] = P(ex, row + 0.5);
   const pts = [];
-  for (let i = 0; i <= 18; i++) { const u = i / 18; pts.push([lerp(ax, sx0, u) + Math.sin(u * 3) * cs * 0.6 * dir * -1, lerp(ay, ry, u * u) - Math.sin(u * Math.PI) * cs * 1.2]); }
-  const sweepLen = COLS * cs + cs * 1.2;
-  const n2 = 46;
-  for (let i = 1; i <= n2; i++) { const u = i / n2; if (u > reach) break; pts.push([sx0 + dir * u * sweepLen, ry + Math.sin(u * 14 - k * 20) * cs * 0.12 * (1 - u * 0.3)]); }
-  const N = pts.length;
-  g.save(); g.lineCap = "round"; g.lineJoin = "round";
-  for (let pass = 0; pass < 3; pass++) {
-    for (let i = 1; i < N; i++) {
-      const w = lerp(cs * 0.42, cs * 0.08, i / N);
-      g.beginPath(); g.moveTo(pts[i - 1][0], pts[i - 1][1]); g.lineTo(pts[i][0], pts[i][1]);
-      if (pass === 0) { g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = w * 1.25; g.translate(0, cs * 0.15); g.stroke(); g.translate(0, -cs * 0.15); }
-      else if (pass === 1) { g.strokeStyle = "#17264a"; g.lineWidth = w; g.stroke(); }
-      else if (i % 3 !== 0) { g.strokeStyle = `rgba(140,255,255,${0.75 - 0.4 * (i / N)})`; g.lineWidth = w * 0.22; g.shadowColor = "#6ff"; g.shadowBlur = 8 * DPR; g.stroke(); g.shadowBlur = 0; }
-    }
+  const rise = clamp(k / 0.12, 0, 1);
+  // ฐานโผล่จากใต้ทราย แล้วโค้งลงกวาดตามแถว
+  const sweepLen = COLS * cs + cs * 1.2, n = 60;
+  const height = cs * 2.6 * (1 - slam) * rise + cs * 0.15;
+  for (let i = 0; i <= n; i++) {
+    const u = i / n; if (u > Math.max(0.05, reach)) break;
+    const along = u * sweepLen;
+    const arch = Math.sin(clamp(u / Math.max(reach, 0.05), 0, 1) * Math.PI) * height * (1 - u * 0.5);
+    const wig = Math.sin(u * 16 - k * 24) * cs * 0.13 * (1 - u * 0.4);
+    pts.push([bx + dir * along, by - arch + wig - (i === 0 ? 0 : 0)]);
+  }
+  return pts;
+}
+function strokeTentacle(pts, w0, w1, alpha = 1, glow = 1) {
+  const N = pts.length; if (N < 2) return;
+  g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.globalAlpha = alpha;
+  for (let i = 1; i < N; i++) { const w = lerp(w0, w1, i / N); g.beginPath(); g.moveTo(...pts[i - 1]); g.lineTo(...pts[i]); g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = w * 1.3; g.stroke(); }
+  for (let i = 1; i < N; i++) { const w = lerp(w0, w1, i / N); g.beginPath(); g.moveTo(...pts[i - 1]); g.lineTo(...pts[i]); g.strokeStyle = i % 2 ? "#18284e" : "#1d3160"; g.lineWidth = w; g.stroke(); }
+  g.globalCompositeOperation = "lighter";
+  for (let i = 1; i < N; i++) { if (i % 4 === 0) continue; const w = lerp(w0, w1, i / N); g.beginPath(); g.moveTo(...pts[i - 1]); g.lineTo(...pts[i]); g.strokeStyle = `rgba(90,230,255,${(0.75 - 0.4 * (i / N)) * glow})`; g.lineWidth = w * 0.22; g.stroke(); }
+  g.restore();
+}
+function drawTentacle(ex, row, dir, reach, k, slam, fade) {
+  // เงาซ้อน (motion trail) ตอนกวาด
+  if (k < 0.45) for (let gidx = 3; gidx >= 1; gidx--) {
+    const kr = easeOut(clamp((k - gidx * 0.03) / 0.42, 0, 1));
+    strokeTentacle(tentaclePath(ex, row, dir, kr, k, slam), cs * 0.6, cs * 0.12, 0.12 * (4 - gidx) * fade, 0.6);
+  }
+  const pts = tentaclePath(ex, row, dir, reach, k, slam);
+  strokeTentacle(pts, cs * 0.62, cs * 0.12, fade, 1);
+  // รูดินที่ฐาน
+  const [bx, by] = P(ex, row + 0.5);
+  g.save(); g.translate(bx, by); g.scale(1, SQ); g.fillStyle = `rgba(0,0,0,${0.6 * fade})`; g.beginPath(); g.arc(0, 0, cs * 0.55, 0, TAU); g.fill();
+  g.strokeStyle = `rgba(120,240,255,${0.5 * fade})`; g.lineWidth = 2 * DPR; g.stroke(); g.restore();
+}
+function drawRowShock(row, k) {
+  const [x0, y] = P(0, row + 0.5), [x1] = P(COLS, row + 0.5);
+  g.save(); g.globalCompositeOperation = "lighter";
+  const h = cs * SQ * (0.5 + k * 1.6), a = (1 - k);
+  const gr = g.createLinearGradient(0, y - h, 0, y + h); gr.addColorStop(0, "rgba(120,240,255,0)"); gr.addColorStop(0.5, `rgba(200,255,255,${0.7 * a})`); gr.addColorStop(1, "rgba(120,240,255,0)");
+  g.fillStyle = gr; g.fillRect(x0, y - h, x1 - x0, h * 2); g.restore();
+}
+function drawWake(y0, dir, k) {
+  g.save(); g.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 3; i++) {
+    const [x0, y] = P(0, y0 + 0.5 + i), [x1] = P(COLS, y0 + 0.5 + i);
+    g.strokeStyle = `rgba(160,240,255,${0.35 * (1 - k)})`; g.lineWidth = cs * 0.08; g.setLineDash([cs * 0.8, cs * 0.5]); g.lineDashOffset = -dir * k * cs * 6;
+    g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
   }
   g.restore();
-  // ฟองตามปลายหนวด
-  if (reach > 0.05 && reach < 1 && Math.random() < 0.6) bubbleBurst(pts[N - 1][0], pts[N - 1][1], 1, cs * 0.2);
 }
 function drawWhirl(cx, cy, k) {
-  const [sx, sy] = P(cx + 0.5, cy + 0.5), R = cs * 1.6;
-  const a = k < 0.15 ? k / 0.15 : k > 0.8 ? (1 - k) / 0.2 : 1;
+  const [sx, sy] = P(cx + 0.5, cy + 0.5);
+  const grow = easeOut(clamp(k / 0.25, 0, 1)), implode = k > 0.7 ? clamp((k - 0.7) / 0.06, 0, 1) : 0;
+  const R = cs * 2.1 * grow * (1 - implode * 0.85), a = k > 0.73 ? Math.max(0, 1 - (k - 0.73) / 0.2) : 1;
+  if (R < 1) return;
+  const spin = clock / 1000 * (5 + k * 6);
   g.save(); g.translate(sx, sy); g.scale(1, SQ); g.globalAlpha = a;
+  // กรวยลึก
   const gr = g.createRadialGradient(0, 0, 0, 0, 0, R);
-  gr.addColorStop(0, "rgba(0,10,25,0.9)"); gr.addColorStop(0.5, "rgba(10,60,90,0.45)"); gr.addColorStop(1, "rgba(30,120,160,0)");
+  gr.addColorStop(0, "rgba(0,0,0,0.95)"); gr.addColorStop(0.35, "rgba(2,20,40,0.85)"); gr.addColorStop(0.75, "rgba(20,90,130,0.45)"); gr.addColorStop(1, "rgba(40,140,180,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
-  for (let arm = 0; arm < 5; arm++) {
-    g.beginPath();
-    for (let i = 0; i <= 40; i++) { const u = i / 40, r = lerp(R * 0.08, R, u), th = arm * TAU / 5 + now / 1000 * 5 - u * 4.2; const p = [Math.cos(th) * r, Math.sin(th) * r]; i ? g.lineTo(...p) : g.moveTo(...p); }
-    g.strokeStyle = `rgba(150,240,255,${0.55})`; g.lineWidth = cs * 0.07; g.stroke();
+  // เกลียวหลายชั้น
+  for (let layer = 0; layer < 3; layer++) {
+    const arms = 6, sp = spin * (1 + layer * 0.35), col = layer === 0 ? "120,230,255" : layer === 1 ? "200,250,255" : "60,160,220";
+    for (let arm = 0; arm < arms; arm++) {
+      g.beginPath();
+      for (let i = 0; i <= 50; i++) { const u = i / 50, r = lerp(R * 0.06, R * (1 - layer * 0.12), u), th = arm * TAU / arms + sp - u * (4.5 + layer); const p = [Math.cos(th) * r, Math.sin(th) * r]; i ? g.lineTo(...p) : g.moveTo(...p); }
+      g.strokeStyle = `rgba(${col},${0.5 - layer * 0.12})`; g.lineWidth = cs * (0.09 - layer * 0.02); g.stroke();
+    }
   }
+  // ขอบโฟม
+  g.strokeStyle = "rgba(220,255,255,0.45)"; g.lineWidth = cs * 0.06; g.setLineDash([cs * 0.3, cs * 0.2]); g.lineDashOffset = -spin * cs; g.beginPath(); g.arc(0, 0, R * 0.95, 0, TAU); g.stroke();
   g.restore();
-  if (Math.random() < 0.4) bubbleBurst(sx + rnd(-R, R) * 0.6, sy + rnd(-R, R) * 0.3, 1, 2);
+  // ตะกอนถูกดูดเข้า
+  if (k < 0.7 && Math.random() < 0.9) {
+    const th = rnd(0, TAU), r = R * rnd(0.8, 1.2);
+    part({ type: "orbit", cx: sx, cy: sy, th, r, w: rnd(4, 7), life: rnd(0.6, 1.1), r0: r, sz: rnd(1.5, 4) * DPR, col: Math.random() < 0.5 ? "200,250,255" : "120,150,170" });
+  }
+}
+function drawGeyser(x, y, k, size) {
+  const [sx, sy] = P(x, y);
+  const up = k < 0.25 ? easeOut(k / 0.25) : 1, a = k > 0.5 ? 1 - (k - 0.5) / 0.5 : 1;
+  const hgt = cs * 6 * size * up, w = cs * 1.1 * size * (1 + k * 0.4);
+  g.save(); g.globalAlpha = a;
+  const gr = g.createLinearGradient(0, sy - hgt, 0, sy);
+  gr.addColorStop(0, "rgba(200,250,255,0)"); gr.addColorStop(0.25, "rgba(200,250,255,0.55)"); gr.addColorStop(1, "rgba(120,220,255,0.85)");
+  g.fillStyle = gr;
+  g.beginPath(); g.moveTo(sx - w * 0.5, sy);
+  for (let i = 0; i <= 12; i++) { const u = i / 12; g.lineTo(sx - w * (0.5 - u * 0.15) + Math.sin(u * 9 + clock / 60) * w * 0.08, sy - hgt * u); }
+  for (let i = 12; i >= 0; i--) { const u = i / 12; g.lineTo(sx + w * (0.5 - u * 0.15) + Math.sin(u * 8 + clock / 50) * w * 0.08, sy - hgt * u); }
+  g.closePath(); g.fill();
+  g.globalCompositeOperation = "lighter"; g.fillStyle = `rgba(255,255,255,${0.35 * a})`; g.fillRect(sx - w * 0.12, sy - hgt, w * 0.24, hgt);
+  g.restore();
+  drawSplashRing(x, y, k);
+  if (k < 0.5 && Math.random() < 0.8) spray(sx, sy - hgt * rnd(0.3, 1), 3, cs * 3 * size);
 }
 function jag(x0, y0, x1, y1, n, amp) { const pts = [[x0, y0]]; for (let i = 1; i < n; i++) { const u = i / n; pts.push([lerp(x0, x1, u) + rnd(-amp, amp), lerp(y0, y1, u) + rnd(-amp, amp)]); } pts.push([x1, y1]); return pts; }
-function drawBolt(from, to, k) {
+function strokePts(pts, col, w) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); g.strokeStyle = col; g.lineWidth = w; g.stroke(); }
+function drawBolt(from, to, k, main) {
   const [x0, y0] = from ? (() => { const p = P(from.x + 0.5, from.y + 0.5); return [p[0], p[1] - cs * 0.4]; })() : whaleScreen();
   const p1 = P(to.x + 0.5, to.y + 0.5); const x1 = p1[0], y1 = p1[1] - cs * 0.4;
-  const a = 1 - k;
-  g.save(); g.globalCompositeOperation = "lighter"; g.lineJoin = "round";
-  for (const [w, col] of [[cs * 0.22, `rgba(60,200,255,${0.35 * a})`], [cs * 0.08, `rgba(170,250,255,${0.9 * a})`], [cs * 0.03, `rgba(255,255,255,${a})`]]) {
-    const pts = jag(x0, y0, x1, y1, 12, cs * 0.35);
-    g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); g.strokeStyle = col; g.lineWidth = w; g.stroke();
+  const a = k < 0.15 ? 1 : 1 - (k - 0.15) / 0.85, flick = Math.random() < 0.25 ? 0.4 : 1, scale = main ? 1.8 : 1;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineJoin = "round"; g.lineCap = "round";
+  const trunk = jag(x0, y0, x1, y1, 16, cs * 0.45 * scale);
+  strokePts(trunk, `rgba(40,170,255,${0.3 * a * flick})`, cs * 0.5 * scale);
+  strokePts(trunk, `rgba(150,240,255,${0.9 * a * flick})`, cs * 0.12 * scale);
+  strokePts(trunk, `rgba(255,255,255,${a * flick})`, cs * 0.045 * scale);
+  // กิ่งแตก
+  const branches = main ? 6 : 2;
+  for (let b = 0; b < branches; b++) {
+    const i = 2 + Math.floor(Math.random() * (trunk.length - 4)), [bx, by] = trunk[i];
+    const ang = Math.atan2(y1 - y0, x1 - x0) + rnd(-1.2, 1.2), L = cs * rnd(0.8, 2.2) * scale;
+    const br = jag(bx, by, bx + Math.cos(ang) * L, by + Math.sin(ang) * L, 6, cs * 0.25);
+    strokePts(br, `rgba(150,240,255,${0.7 * a * flick})`, cs * 0.06 * scale); strokePts(br, `rgba(255,255,255,${0.8 * a * flick})`, cs * 0.02 * scale);
   }
-  const gr = g.createRadialGradient(x1, y1, 0, x1, y1, cs * 0.9); gr.addColorStop(0, `rgba(200,255,255,${0.8 * a})`); gr.addColorStop(1, "rgba(0,150,255,0)");
-  g.fillStyle = gr; g.beginPath(); g.arc(x1, y1, cs * 0.9, 0, TAU); g.fill();
+  const R = cs * (main ? 2.4 : 1.2);
+  const gr = g.createRadialGradient(x1, y1, 0, x1, y1, R); gr.addColorStop(0, `rgba(220,255,255,${0.9 * a})`); gr.addColorStop(0.3, `rgba(80,200,255,${0.5 * a})`); gr.addColorStop(1, "rgba(0,120,255,0)");
+  g.fillStyle = gr; g.beginPath(); g.arc(x1, y1, R, 0, TAU); g.fill();
   g.restore();
 }
-function drawRings(k) {
-  const [sx, sy] = P(whale.x, whale.y);
-  g.save(); g.translate(sx, sy); g.scale(1, SQ);
-  for (let i = 0; i < 4; i++) {
-    const kk = k * 1.4 - i * 0.14; if (kk <= 0 || kk >= 1) continue;
-    const r = kk * cs * COLS * 1.1;
-    g.beginPath(); g.arc(0, 0, r, 0, TAU);
-    g.strokeStyle = `rgba(170,150,255,${(1 - kk) * 0.6})`; g.lineWidth = cs * 0.25 * (1 - kk) + 2; g.stroke();
-    g.strokeStyle = `rgba(200,255,255,${(1 - kk) * 0.5})`; g.lineWidth = 2 * DPR; g.stroke();
+function drawElectricFloor(x, y, k, rad) {
+  const a = 1 - k;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (let dx = -rad; dx <= rad; dx++) for (let dy = -rad; dy <= rad; dy++) {
+    const cx = x + dx, cy = y + dy; if (cx < 0 || cy < 0 || cx >= COLS || cy >= ROWS) continue;
+    const d = Math.hypot(dx, dy); if (d > rad + 0.3) continue;
+    const aa = a * (1 - d / (rad + 1)) * (Math.random() < 0.3 ? 0.4 : 1);
+    cellPath(cx, cy); g.fillStyle = `rgba(60,180,255,${0.18 * aa})`; g.fill();
+    g.strokeStyle = `rgba(170,250,255,${0.8 * aa})`; g.lineWidth = 1.5 * DPR; g.stroke();
+    if (Math.random() < 0.35 * aa) { const p0 = P(cx + rnd(0, 1), cy + rnd(0, 1)), p1 = P(cx + rnd(0, 1), cy + rnd(0, 1)); strokePts(jag(...p0, ...p1, 4, cs * 0.12), `rgba(220,255,255,${aa})`, 1.5 * DPR); }
   }
   g.restore();
+}
+function drawRing(sx, sy, k, w) {
+  g.save(); g.translate(sx, sy); g.scale(1, SQ); g.globalCompositeOperation = "lighter";
+  const r = easeOut(k) * cs * COLS * 1.25, a = (1 - k);
+  for (const [off, col, lw] of [[0, `rgba(170,140,255,${0.55 * a})`, cs * 0.45 * a + 3], [0, `rgba(220,255,255,${0.8 * a})`, 3 * DPR], [-cs * 0.6, `rgba(120,230,255,${0.3 * a})`, cs * 0.2]]) {
+    if (r + off <= 0) continue; g.beginPath(); g.arc(0, 0, r + off, 0, TAU); g.strokeStyle = col; g.lineWidth = lw; g.stroke();
+  }
+  g.restore(); void w;
 }
 function drawDeepShadow(x, y, k) {
-  if (k < 0) return;
-  const [sx, sy] = P(x, y), R = cs * lerp(0.4, 1.9, easeOut(k));
+  const [sx, sy] = P(x, y), R = cs * lerp(0.5, 3, easeOut(k));
   g.save(); g.translate(sx, sy); g.scale(1, SQ);
-  const gr = g.createRadialGradient(0, 0, 0, 0, 0, R); gr.addColorStop(0, "rgba(0,0,0,0.85)"); gr.addColorStop(0.7, "rgba(0,10,30,0.5)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, R); gr.addColorStop(0, "rgba(0,0,0,0.92)"); gr.addColorStop(0.6, "rgba(0,8,25,0.6)"); gr.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R, 0, TAU); g.fill();
-  g.strokeStyle = `rgba(120,240,255,${0.5 * k})`; g.lineWidth = 2 * DPR; g.beginPath(); g.arc(0, 0, R * 0.8, 0, TAU); g.stroke();
+  g.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 2; i++) { g.strokeStyle = `rgba(120,240,255,${0.45 * k * (0.5 + 0.5 * Math.sin(clock / 80 + i * 2))})`; g.lineWidth = 2 * DPR; g.beginPath(); g.arc(0, 0, R * (0.55 + i * 0.25), 0, TAU); g.stroke(); }
   g.restore();
-  if (Math.random() < 0.5) bubbleBurst(sx + rnd(-R, R) * 0.5, sy, 1, 2);
 }
 function drawEmerge(x, y, k) {
   const img = IMG.whale_front; if (!img) return;
   const [sx, sy] = P(x, y);
-  const up = k < 0.35 ? easeOut(k / 0.35) : k < 0.6 ? 1 : 1 - ease((k - 0.6) / 0.4);
-  const w = cs * 3.6 * lerp(0.5, 1, up), h = w * img.height / img.width;
-  g.save(); g.globalAlpha = clamp(up * 1.4, 0, 1);
-  g.beginPath(); g.rect(sx - w, sy - h * 2, w * 2, h * 2 + cs * 0.15); g.clip();
-  g.drawImage(img, sx - w / 2, sy - h * up * 0.9 + cs * 0.2, w, h);
+  const up = k < 0.22 ? easeOut(k / 0.22) : k < 0.5 ? 1 : 1 - easeIn((k - 0.5) / 0.5);
+  const snapK = k > 0.22 && k < 0.3 ? Math.sin(((k - 0.22) / 0.08) * Math.PI) : 0;
+  const w = cs * 6.5 * lerp(0.55, 1, up) * (1 + snapK * 0.08), h = w * img.height / img.width;
+  g.save(); g.globalAlpha = clamp(up * 1.5, 0, 1);
+  g.beginPath(); g.rect(sx - w, sy - h * 3, w * 2, h * 3 + cs * 0.2); g.clip();
+  g.drawImage(img, sx - w / 2, sy - h * up * 0.95 + cs * 0.25, w, h);
+  g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.35 * up; g.filter = "blur(10px)"; g.drawImage(img, sx - w / 2, sy - h * up * 0.95 + cs * 0.25, w, h); g.filter = "none";
   g.restore();
-  drawSplashRing(x, y, k);
 }
 function drawSplashRing(x, y, k) {
   const [sx, sy] = P(x, y);
   g.save(); g.translate(sx, sy); g.scale(1, SQ);
-  for (let i = 0; i < 2; i++) { const kk = clamp(k * 1.3 - i * 0.2, 0, 1); if (!kk || kk >= 1) continue; g.beginPath(); g.arc(0, 0, cs * (0.4 + kk * 1.8), 0, TAU); g.strokeStyle = `rgba(200,250,255,${(1 - kk) * 0.8})`; g.lineWidth = cs * 0.08 * (1 - kk) + 1; g.stroke(); }
+  for (let i = 0; i < 3; i++) { const kk = clamp(k * 1.3 - i * 0.18, 0, 1); if (!kk || kk >= 1) continue; g.beginPath(); g.arc(0, 0, cs * (0.4 + kk * 2.4), 0, TAU); g.strokeStyle = `rgba(200,250,255,${(1 - kk) * 0.8})`; g.lineWidth = cs * 0.1 * (1 - kk) + 1; g.stroke(); }
   g.restore();
 }
 
-// ---------------------------------------------------------------- วาดฉาก
+// ================================================================ วาดฉาก
 function drawBg(t) {
   const gr = g.createLinearGradient(0, 0, 0, H);
   if (fierce) { gr.addColorStop(0, "#020611"); gr.addColorStop(1, "#000104"); }
   else { gr.addColorStop(0, "#06304a"); gr.addColorStop(0.55, "#041a2c"); gr.addColorStop(1, "#010812"); }
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  // แสงลอดผิวน้ำ
   g.save(); g.globalCompositeOperation = "lighter";
+  const boost = 1 + post.tint * 4;
   for (let i = 0; i < 6; i++) {
     const x = W * (0.1 + i * 0.17) + Math.sin(t * 0.25 + i * 1.7) * W * 0.04, w = W * (0.03 + 0.02 * Math.sin(t * 0.4 + i));
-    const lg = g.createLinearGradient(0, 0, 0, H * 0.9); const a = (fierce ? 0.025 : 0.07) * (0.6 + 0.4 * Math.sin(t * 0.7 + i * 2));
+    const lg = g.createLinearGradient(0, 0, 0, H * 0.9); const a = (fierce ? 0.025 : 0.07) * boost * (0.6 + 0.4 * Math.sin(t * 0.7 + i * 2));
     lg.addColorStop(0, `rgba(140,220,255,${a})`); lg.addColorStop(1, "rgba(140,220,255,0)");
     g.fillStyle = lg; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + w, 0); g.lineTo(x + w * 3 + W * 0.12, H * 0.9); g.lineTo(x + W * 0.12, H * 0.9); g.fill();
   }
@@ -545,7 +722,6 @@ function drawBoard(t) {
     cellPath(x, y); g.fillStyle = `hsl(${200 + v * 12},45%,${l}%)`; g.fill();
     g.strokeStyle = fierce ? "rgba(80,200,230,0.06)" : "rgba(110,220,240,0.12)"; g.lineWidth = 1; g.stroke();
   }
-  // คอสติก (แสงระลอกบนพื้น)
   if (!fierce) {
     g.save(); g.globalCompositeOperation = "lighter";
     for (let i = 0; i < 14; i++) {
@@ -558,12 +734,53 @@ function drawBoard(t) {
   }
   const [bx, by] = P(0, 0), [ex, ey] = P(COLS, ROWS);
   g.strokeStyle = "rgba(120,230,255,0.35)"; g.lineWidth = 2 * DPR; g.strokeRect(bx, by, ex - bx, ey - by);
+  // รอยไหม้ไฟฟ้า
+  for (let i = SCORCH.length - 1; i >= 0; i--) {
+    const s = SCORCH[i], k = (clock - s.t0) / s.life; if (k >= 1) { SCORCH.splice(i, 1); continue; }
+    const [sx, sy] = P(s.x, s.y); g.save(); g.translate(sx, sy); g.scale(1, SQ);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, cs * 0.9); gr.addColorStop(0, `rgba(0,0,0,${0.5 * (1 - k)})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(0, 0, cs * 0.9, 0, TAU); g.fill(); g.restore();
+  }
+}
+function drawCracks() {
+  g.save(); g.lineCap = "round";
+  for (let i = CRACKS.length - 1; i >= 0; i--) {
+    const c = CRACKS[i], k = (clock - c.t0) / c.life; if (k >= 1) { CRACKS.splice(i, 1); continue; }
+    const grow = clamp(k / 0.15, 0, 1), a = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
+    for (const [x0, y0, x1, y1, depth, u] of c.segs) {
+      if (u > grow) continue;
+      const p0 = P(x0, y0), p1 = P(x1, y1), w = (3 - depth) * DPR * 1.2;
+      g.strokeStyle = `rgba(0,0,0,${0.7 * a})`; g.lineWidth = w + 2 * DPR; g.beginPath(); g.moveTo(...p0); g.lineTo(...p1); g.stroke();
+      g.globalCompositeOperation = "lighter"; g.strokeStyle = `rgba(90,230,255,${0.8 * a * (0.7 + 0.3 * Math.sin(clock / 70))})`; g.lineWidth = w * 0.6; g.stroke(); g.globalCompositeOperation = "source-over";
+    }
+  }
+  g.restore();
 }
 function drawTele() {
   for (let i = TELE.length - 1; i >= 0; i--) {
-    const tl = TELE[i], k = (now - tl.t0) / tl.dur; if (k >= 1) { TELE.splice(i, 1); continue; }
-    const a = (0.25 + 0.2 * Math.sin(now / 70)) * (k > 0.85 ? (1 - k) / 0.15 : 1);
-    for (const [x, y] of tl.cells) { cellPath(x, y); g.fillStyle = `rgba(255,50,80,${a})`; g.fill(); g.strokeStyle = `rgba(255,140,150,${a * 1.4})`; g.lineWidth = 1.5 * DPR; g.stroke(); }
+    const tl = TELE[i], k = (clock - tl.t0) / tl.dur; if (k >= 1) { TELE.splice(i, 1); continue; }
+    const urg = 0.5 + 0.5 * Math.sin(clock / lerp(140, 45, k));
+    const fade = k > 0.88 ? (1 - k) / 0.12 : 1;
+    const a = (tl.soft ? 0.08 : 0.16 + 0.22 * k) * (0.7 + 0.3 * urg) * fade;
+    for (const [x, y] of tl.cells) { cellPath(x, y); g.fillStyle = `rgba(255,40,70,${a})`; g.fill(); }
+    // ขอบนอกของพื้นที่ (เส้นวิ่ง)
+    g.save(); g.setLineDash([cs * 0.25, cs * 0.15]); g.lineDashOffset = -clock / 30; g.strokeStyle = `rgba(255,120,140,${(0.5 + 0.5 * urg) * fade})`; g.lineWidth = 2.2 * DPR;
+    for (const [x, y] of tl.cells) {
+      const edges = [[0, -1, [x, y], [x + 1, y]], [1, 0, [x + 1, y], [x + 1, y + 1]], [0, 1, [x, y + 1], [x + 1, y + 1]], [-1, 0, [x, y], [x, y + 1]]];
+      for (const [dx, dy, a0, a1] of edges) if (!tl.set.has(x + dx + "," + (y + dy))) { g.beginPath(); g.moveTo(...P(...a0)); g.lineTo(...P(...a1)); g.stroke(); }
+    }
+    g.restore();
+    // ลูกศรทิศ (หนวดกวาด/พุ่งทะลวง)
+    if (tl.arrows) {
+      g.save(); g.fillStyle = `rgba(255,170,180,${0.55 * fade})`;
+      const rows = [...new Set(tl.cells.map((c) => c[1]))];
+      for (const y of rows) for (let j = 0; j < 4; j++) {
+        const xx = ((clock / 160 + j * 4) % COLS); const x = tl.arrows > 0 ? xx : COLS - xx;
+        const [sx, sy] = P(x, y + 0.5); g.beginPath(); g.moveTo(sx + tl.arrows * cs * 0.22, sy); g.lineTo(sx - tl.arrows * cs * 0.1, sy - cs * 0.16); g.lineTo(sx - tl.arrows * cs * 0.1, sy + cs * 0.16); g.fill();
+      }
+      g.restore();
+    }
+    if (tl.core) { cellPath(...tl.core); g.fillStyle = `rgba(255,60,90,${(0.35 + 0.3 * urg) * fade})`; g.fill(); }
   }
 }
 function footprint() {
@@ -577,108 +794,173 @@ function footprint() {
 function drawFootprint() {
   if (whale.free || !whale.visible || whale.ovr || whale.dead) return;
   for (const [x, y] of footprint()) { cellPath(x, y); g.fillStyle = "rgba(90,230,255,0.13)"; g.fill(); g.strokeStyle = "rgba(120,240,255,0.4)"; g.lineWidth = 1.2 * DPR; g.stroke(); }
-  // ทางเทิร์นหน้า (4 ช่อง)
-  g.save();
   for (let i = 1; i <= 8; i++) {
     const p = pathAt(whale.s + i * 0.5), q = pathAt(whale.s + i * 0.5 + 0.1); const [sx, sy] = P(...p), [tx, ty] = P(...q);
-    const a = Math.atan2(ty - sy, tx - sx); g.translate(sx, sy); g.rotate(a);
+    const a = Math.atan2(ty - sy, tx - sx); g.save(); g.translate(sx, sy); g.rotate(a);
     g.fillStyle = `rgba(150,240,255,${0.35 - i * 0.025})`; g.beginPath(); g.moveTo(cs * 0.18, 0); g.lineTo(-cs * 0.1, -cs * 0.12); g.lineTo(-cs * 0.1, cs * 0.12); g.fill();
-    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.restore();
   }
-  g.restore();
 }
 function drawUnits(t) {
   const list = units.filter((u) => u.alive && !u.hidden).sort((a, b) => a.dy - b.dy);
   for (const u of list) {
-    const [sx, sy] = P(u.dx + 0.5, u.dy + 0.5), r = cs * 0.3;
+    let ux = u.dx + 0.5, uy = u.dy + 0.5;
+    if (u.spin > 0) { const a = clock / 120 + u.x, r = 0.35; ux += Math.cos(a) * r; uy += Math.sin(a) * r; }
+    const [sx, sy] = P(ux, uy), r = cs * 0.3;
     g.save(); g.fillStyle = "rgba(0,0,0,0.4)"; g.beginPath(); g.ellipse(sx, sy, r * 1.1, r * 0.45, 0, 0, TAU); g.fill();
-    const by = sy - cs * 0.32 + Math.sin(t * 2 + u.x) * cs * 0.03;
+    const by = sy - cs * 0.32 + Math.sin(t * 2 + u.x) * cs * 0.03 - Math.sin(clamp(u.lift, 0, 1) * Math.PI) * cs * 1.2;
     g.fillStyle = u.hit > 0 ? "#fff" : u.c; g.strokeStyle = "rgba(0,0,0,0.6)"; g.lineWidth = 2 * DPR;
     g.beginPath(); g.arc(sx, by, r, 0, TAU); g.fill(); g.stroke();
     g.fillStyle = "rgba(255,255,255,0.35)"; g.beginPath(); g.arc(sx - r * 0.3, by - r * 0.35, r * 0.35, 0, TAU); g.fill();
-    // หลอดเลือด
+    if (u.shock > 0 && Math.random() < 0.7) { g.globalCompositeOperation = "lighter"; strokePts(jag(sx - r, by + rnd(-r, r), sx + r, by + rnd(-r, r), 4, r * 0.5), `rgba(180,250,255,${u.shock})`, 1.5 * DPR); g.globalCompositeOperation = "source-over"; }
     const bw = cs * 0.7; g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(sx - bw / 2, by - r - cs * 0.2, bw, cs * 0.08);
-    g.fillStyle = u.hp > 6 ? "#5cff9a" : u.hp > 3 ? "#ffd166" : "#ff5d6c"; g.fillRect(sx - bw / 2, by - r - cs * 0.2, bw * clamp(u.hp / 12, 0, 1), cs * 0.08);
+    g.fillStyle = u.hp > 7 ? "#5cff9a" : u.hp > 3 ? "#ffd166" : "#ff5d6c"; g.fillRect(sx - bw / 2, by - r - cs * 0.2, bw * clamp(u.hp / 14, 0, 1), cs * 0.08);
     if (u.wet > 0) { g.font = `${Math.round(cs * 0.3)}px sans-serif`; g.textAlign = "center"; g.fillText("💧", sx + r, by - r); }
     g.restore();
   }
 }
+function whaleXform(st) {
+  const [fx, fy] = P(st.x, st.y);
+  const drawW = (5 * cs / 0.74) * WHALE_SIZE * st.scale, k = drawW / WH.SZ;
+  const lift = st.z * cs * 1.3 + Math.sin(clock / 1000 * 1.3) * cs * 0.1;
+  g.translate(fx, fy - lift); g.rotate(st.rot - whale.rear * 0.18 * st.facing); g.scale(st.facing, 1); g.scale(k * (1 + whale.rear * 0.06), k * (1 + whale.rear * 0.06));
+  g.translate(-0.62 * WH.SZ, -(0.57 * WH.SZ + WH.PAD));
+}
 function drawWhale(t) {
   if (!WH || !whale.visible || whale.alpha <= 0.01) return;
   const [fx, fy] = P(whale.x, whale.y);
-  // เงาบนพื้น
   const sh = clamp(1 - Math.abs(whale.z) * 0.35, 0.2, 1);
-  g.save(); g.translate(fx, fy); g.scale(cs * 2.8 * whale.scale, cs * 0.75 * whale.scale);
-  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(0,0,0,${0.55 * whale.alpha * sh})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+  g.save(); g.translate(fx, fy); g.scale(cs * 2.8 * WHALE_SIZE * whale.scale, cs * 0.8 * WHALE_SIZE * whale.scale);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, `rgba(0,0,0,${0.6 * whale.alpha * sh})`); gr.addColorStop(1, "rgba(0,0,0,0)");
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, TAU); g.fill(); g.restore();
-  // ตัวปลา
-  const swim = whale.free || whale.tw ? 1 : 0.6;
-  undulate(WH.base, off1, t, 16 * whale.amp, 3.2 * swim * (whale.amp > 1.5 ? 1.8 : 1));
-  undulate(WH.glow, off2, t, 16 * whale.amp, 3.2 * swim * (whale.amp > 1.5 ? 1.8 : 1));
-  const drawW = (5 * cs / 0.74) * whale.scale, k = drawW / WH.SZ;
-  const lift = whale.z * cs * 1.1 + Math.sin(t * 1.3) * cs * 0.08;
-  g.save();
-  g.translate(fx, fy - lift); g.rotate(whale.rot); g.scale(whale.facing, 1); g.scale(k, k);
-  g.translate(-0.62 * WH.SZ, -(0.57 * WH.SZ + WH.PAD));
+  const swim = whale.free || whale.tw ? 1 : 0.6, spd = 3.2 * swim * (whale.amp > 1.5 ? 2 : 1);
+  undulate(WH.base, off1, t, 18 * whale.amp, spd);
+  undulate(WH.glow, off2, t, 18 * whale.amp, spd);
+  // เงาซ้อนตอนพุ่ง
+  if (whale.ghost) for (const [i, st] of whale.trail.entries()) {
+    g.save(); whaleXform(st); g.globalAlpha = 0.08 * (i + 1) / whale.trail.length; g.drawImage(off1.c, 0, 0);
+    g.globalCompositeOperation = "lighter"; g.globalAlpha = 0.25 * (i + 1) / whale.trail.length; g.drawImage(off2.c, 0, 0); g.restore();
+  }
+  g.save(); whaleXform(whale);
   const depthDim = whale.z < 0.5 ? clamp(0.4 + whale.z, 0.2, 1) : 1;
   g.globalAlpha = whale.alpha;
   if (depthDim < 1) g.filter = `brightness(${depthDim}) blur(${(1 - depthDim) * 3}px)`;
   g.drawImage(off1.c, 0, 0); g.filter = "none";
-  const glow = (0.2 + 0.15 * Math.sin(t * 1.6) + whale.glowBoost + (fierce ? 0.35 : 0)) * whale.alpha * (whale.dead ? whale.alpha : 1);
+  const glow = (0.2 + 0.15 * Math.sin(t * 1.6) + whale.glowBoost + (fierce ? 0.35 : 0)) * whale.alpha;
   g.globalCompositeOperation = "lighter";
   g.globalAlpha = clamp(glow, 0, 1); g.drawImage(off2.c, 0, 0);
   if (glow > 1) { g.globalAlpha = clamp(glow - 1, 0, 1); g.drawImage(off2.c, 0, 0); }
+  if (glow > 2) { g.globalAlpha = clamp(glow - 2, 0, 1); g.drawImage(off2.c, 0, 0); }
   if (whale.flash > 0) {
-    undulate(WH.white, bodyMask, t, 16 * whale.amp, 3.2 * swim);
+    undulate(WH.white, bodyMask, t, 18 * whale.amp, spd);
     g.globalCompositeOperation = "source-over"; g.globalAlpha = whale.flash * 0.8; g.drawImage(bodyMask.c, 0, 0);
   }
   g.restore();
-}
-function drawHud() {
-  if (!whale.visible && !whale.dead) return;
-  const w = Math.min(W * 0.4, 520 * DPR), x = (W - w) / 2, y = 22 * DPR, h = 12 * DPR;
-  g.save();
-  g.font = `600 ${Math.round(17 * DPR)}px "Noto Sans Thai",sans-serif`; g.textAlign = "center"; g.fillStyle = "#c9fbff";
-  g.shadowColor = "#3cf"; g.shadowBlur = 10 * DPR; g.fillText("ทาลัสซา", W / 2, y + 2 * DPR); g.shadowBlur = 0;
-  g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(x, y + 10 * DPR, w, h);
-  const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, "#0d6f8f"); gr.addColorStop(1, "#7ff6ff");
-  g.fillStyle = gr; g.fillRect(x, y + 10 * DPR, w * clamp(whale.hp / whale.hpMax, 0, 1), h);
-  g.strokeStyle = "rgba(160,250,255,0.6)"; g.lineWidth = 1.5 * DPR; g.strokeRect(x, y + 10 * DPR, w, h);
-  g.font = `${Math.round(12 * DPR)}px sans-serif`; g.fillStyle = "#fff"; g.fillText(`${Math.max(0, whale.hp)} / ${whale.hpMax}`, W / 2, y + 10 * DPR + h - 2 * DPR);
-  g.restore();
+  // ประกายไฟฟ้าวิ่งรอบตัวตอนสะสม
+  if (whale.arcs > 0) {
+    const [wx, wy] = whaleScreen(); const R = cs * 3 * WHALE_SIZE;
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 4; i++) {
+      const a0 = rnd(0, TAU), a1 = a0 + rnd(0.3, 1);
+      const p0 = [wx + Math.cos(a0) * R * rnd(0.3, 0.8), wy + Math.sin(a0) * R * 0.35], p1 = [wx + Math.cos(a1) * R * rnd(0.3, 0.8), wy + Math.sin(a1) * R * 0.35];
+      strokePts(jag(...p0, ...p1, 6, cs * 0.25), "rgba(120,230,255,0.5)", cs * 0.07); strokePts(jag(...p0, ...p1, 6, cs * 0.1), "rgba(255,255,255,0.9)", 1.5 * DPR);
+    }
+    g.restore();
+    if (Math.random() < 0.5) glows(wx + rnd(-R, R) * 0.6, wy + rnd(-R, R) * 0.2, 1, 5);
+  }
 }
 function drawParticles(dt) {
+  g.save();
+  for (let i = PART.length - 1; i >= 0; i--) {
+    const p = PART[i]; p.t += dt; if (p.t > p.life) { PART.splice(i, 1); continue; }
+    const a = 1 - p.t / p.life;
+    if (p.type === "orbit") {
+      p.th += p.w * dt; p.r = p.r0 * (1 - p.t / p.life);
+      const x = p.cx + Math.cos(p.th) * p.r, y = p.cy + Math.sin(p.th) * p.r * SQ;
+      g.fillStyle = `rgba(${p.col},${0.8 * a})`; g.beginPath(); g.arc(x, y, p.sz, 0, TAU); g.fill(); continue;
+    }
+    p.vx += p.ax * dt; p.vy += p.ay * dt; p.vx *= 1 - p.drag * dt; p.vy *= 1 - p.drag * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.type === "bub") { p.w += dt * 6; g.strokeStyle = `rgba(200,250,255,${0.7 * a})`; g.lineWidth = 1.2 * DPR; g.beginPath(); g.arc(p.x + Math.sin(p.w) * 3 * DPR, p.y, p.r, 0, TAU); g.stroke(); }
+    else if (p.type === "sand") { g.fillStyle = `rgba(${p.col},${0.75 * a})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, TAU); g.fill(); }
+    else if (p.type === "drop") { g.fillStyle = `rgba(${p.col},${0.8 * a})`; g.beginPath(); g.arc(p.x, p.y, p.r * (0.6 + a * 0.4), 0, TAU); g.fill(); }
+    else if (p.type === "spark") { g.globalCompositeOperation = "lighter"; g.strokeStyle = `rgba(${p.col},${a})`; g.lineWidth = p.r; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 0.04, p.y - p.vy * 0.04); g.stroke(); g.globalCompositeOperation = "source-over"; }
+    else if (p.type === "glow") { g.globalCompositeOperation = "lighter"; const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3); gr.addColorStop(0, `rgba(${p.col},${0.8 * a})`); gr.addColorStop(1, `rgba(${p.col},0)`); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, p.r * 3, 0, TAU); g.fill(); g.globalCompositeOperation = "source-over"; }
+    else if (p.type === "streak") { g.globalCompositeOperation = "lighter"; g.strokeStyle = `rgba(${p.col},${0.5 * a})`; g.lineWidth = p.r; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - Math.sign(p.vx) * p.len, p.y); g.stroke(); g.globalCompositeOperation = "source-over"; }
+  }
+  for (let i = FLOAT.length - 1; i >= 0; i--) {
+    const f = FLOAT[i], k = (clock - f.t0) / 1200; if (k >= 1) { FLOAT.splice(i, 1); continue; }
+    const [sx, sy] = P(f.x, f.y);
+    const pop = k < 0.12 ? 1 + (1 - k / 0.12) * 0.8 : 1;
+    g.font = `900 ${Math.round(cs * (f.big ? 0.75 : 0.5) * pop)}px sans-serif`; g.textAlign = "center"; g.globalAlpha = 1 - k * k;
+    g.lineWidth = 5 * DPR; g.strokeStyle = "rgba(0,0,0,0.85)"; g.strokeText(f.text, sx, sy - cs * 0.9 - k * cs * 0.9);
+    g.fillStyle = f.color; g.fillText(f.text, sx, sy - cs * 0.9 - k * cs * 0.9);
+    g.globalAlpha = 1;
+  }
+  g.restore();
+}
+function drawSnow(dt) {
   g.save();
   for (const s of SNOW) {
     s.y += s.v * dt; s.w += dt; if (s.y > 1) s.y -= 1;
     g.fillStyle = `rgba(190,230,255,${fierce ? 0.15 : 0.3})`; g.beginPath(); g.arc((s.x + Math.sin(s.w) * 0.005) * W, s.y * H, s.r * DPR, 0, TAU); g.fill();
   }
-  for (let i = BUB.length - 1; i >= 0; i--) {
-    const b = BUB[i]; b.t += dt; if (b.t > b.life) { BUB.splice(i, 1); continue; }
-    b.y += b.vy * dt; b.w += dt * 6; const a = 1 - b.t / b.life;
-    g.strokeStyle = `rgba(200,250,255,${0.7 * a})`; g.lineWidth = 1.2 * DPR; g.beginPath(); g.arc(b.x + Math.sin(b.w) * 3 * DPR, b.y, b.r, 0, TAU); g.stroke();
-  }
-  for (let i = FLOAT.length - 1; i >= 0; i--) {
-    const f = FLOAT[i], k = (now - f.t0) / 1100; if (k >= 1) { FLOAT.splice(i, 1); continue; }
-    const [sx, sy] = P(f.x, f.y);
-    g.font = `800 ${Math.round(cs * 0.5)}px sans-serif`; g.textAlign = "center"; g.globalAlpha = 1 - k * k;
-    g.lineWidth = 4 * DPR; g.strokeStyle = "rgba(0,0,0,0.8)"; g.strokeText(f.text, sx, sy - cs * 0.8 - k * cs * 0.8);
-    g.fillStyle = f.color; g.fillText(f.text, sx, sy - cs * 0.8 - k * cs * 0.8);
-  }
   g.restore();
 }
+function drawHud() {
+  if (!whale.visible && !whale.dead) return;
+  const w = Math.min(W * 0.42, 560 * DPR), x = (W - w) / 2, y = 26 * DPR, h = 12 * DPR;
+  g.save();
+  g.font = `700 ${Math.round(19 * DPR)}px "Noto Sans Thai",sans-serif`; g.textAlign = "center"; g.fillStyle = "#c9fbff";
+  g.shadowColor = "#3cf"; g.shadowBlur = 12 * DPR; g.fillText("ทาลัสซา", W / 2, y + 2 * DPR); g.shadowBlur = 0;
+  g.fillStyle = "rgba(0,0,0,0.6)"; g.fillRect(x, y + 12 * DPR, w, h);
+  whale.hpShown = whale.hpShown == null ? whale.hp : lerp(whale.hpShown, whale.hp, 0.04);
+  g.fillStyle = "rgba(255,255,255,0.6)"; g.fillRect(x, y + 12 * DPR, w * clamp(whale.hpShown / whale.hpMax, 0, 1), h);
+  const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, "#0d6f8f"); gr.addColorStop(1, "#7ff6ff");
+  g.fillStyle = gr; g.fillRect(x, y + 12 * DPR, w * clamp(whale.hp / whale.hpMax, 0, 1), h);
+  g.strokeStyle = "rgba(160,250,255,0.6)"; g.lineWidth = 1.5 * DPR; g.strokeRect(x, y + 12 * DPR, w, h);
+  g.font = `${Math.round(12 * DPR)}px sans-serif`; g.fillStyle = "#fff"; g.fillText(`${Math.max(0, whale.hp)} / ${whale.hpMax}`, W / 2, y + 12 * DPR + h - 2 * DPR);
+  g.restore();
+}
+// โพสต์: คลื่นบิดภาพ · เบลอซูม · มืด · แฟลช · แถบดำ · ขอบมืด
+function postFx() {
+  if (RIPPLES.length || post.zoomBlur > 0.02) { sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, W, H); sg.drawImage(cv, 0, 0); }
+  for (let i = RIPPLES.length - 1; i >= 0; i--) {
+    const r = RIPPLES[i], k = (clock - r.t0) / r.dur; if (k >= 1) { RIPPLES.splice(i, 1); continue; }
+    const R = easeOut(k) * r.maxR, band = cs * 0.9, s = 1 + 0.045 * r.amp * (1 - k);
+    g.save(); g.beginPath(); g.ellipse(r.x, r.y, R + band, (R + band) * SQ, 0, 0, TAU); g.ellipse(r.x, r.y, Math.max(1, R - band), Math.max(1, R - band) * SQ, 0, 0, TAU); g.clip("evenodd");
+    g.translate(r.x, r.y); g.scale(s, s); g.translate(-r.x, -r.y); g.drawImage(snap, 0, 0); g.restore();
+  }
+  if (post.zoomBlur > 0.02) {
+    g.save();
+    for (let i = 1; i <= 3; i++) { const s = 1 + 0.018 * i * post.zoomBlur; g.globalAlpha = 0.22 * post.zoomBlur; g.setTransform(s, 0, 0, s, post.zbx * (1 - s), post.zby * (1 - s)); g.drawImage(snap, 0, 0); }
+    g.restore();
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  if (post.dim > 0.01) { g.fillStyle = `rgba(0,3,10,${post.dim})`; g.fillRect(0, 0, W, H); }
+  if (post.tint > 0.01) { g.save(); g.globalCompositeOperation = "lighter"; g.fillStyle = `rgba(${post.tintCol},${post.tint})`; g.fillRect(0, 0, W, H); g.restore(); }
+  if (fierce) {
+    const [sx, sy] = whaleScreen();
+    const gr = g.createRadialGradient(sx, sy, cs * 2, sx, sy, cs * 10); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,6,0.55)");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
+  const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, `rgba(0,0,0,${0.45 + post.dim * 0.4})`); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  if (post.flash > 0.01) { g.save(); g.globalCompositeOperation = "lighter"; g.fillStyle = `rgba(${post.flashCol},${post.flash})`; g.fillRect(0, 0, W, H); g.restore(); }
+  if (post.box > 0.01) { const bh = H * 0.09 * ease(post.box); g.fillStyle = "#000"; g.fillRect(0, 0, W, bh); g.fillRect(0, H - bh, W, bh); }
+}
 
-// ---------------------------------------------------------------- อัปเดต
+// ================================================================ อัปเดต
 function update(dt, t) {
-  if (whale.ovr) { if (whale.ovr(now - whale.ovrT0)) whale.ovr = null; }
+  if (whale.ovr) { if (whale.ovr(clock - whale.ovrT0)) whale.ovr = null; }
   else if (whale.visible) {
     if (whale.tw) {
-      const k = clamp((now - whale.tw.t0) / 1700, 0, 1); whale.s = lerp(whale.tw.a, whale.tw.b, ease(k));
+      const k = clamp((clock - whale.tw.t0) / 1700, 0, 1); whale.s = lerp(whale.tw.a, whale.tw.b, ease(k));
       if (k >= 1) whale.tw = null;
     } else if (whale.free && !whale.dead) whale.s += dt * 1.15;
     const p = pathAt(whale.s), q = pathAt(whale.s + 0.4), b = pathAt(whale.s - 0.4);
     whale.x = p[0]; whale.y = p[1]; whale.hdx = q[0] - b[0]; whale.hdy = q[1] - b[1];
     if (!whale.free && !whale.tw) { whale.x += Math.sin(t * 0.9) * 0.08; whale.y += Math.cos(t * 0.7) * 0.05; }
+    whale.z = lerp(whale.z, 0.9 + (whale.rear < 0 ? -whale.rear * 0.8 : 0), Math.min(1, dt * 3));
     const a = Math.atan2(whale.hdy * SQ, whale.hdx);
     let tf, tr; if (Math.cos(a) >= 0) { tf = 1; tr = a; } else { tf = -1; tr = a > 0 ? a - Math.PI : a + Math.PI; }
     tr = clamp(tr, -0.55, 0.55);
@@ -686,68 +968,83 @@ function update(dt, t) {
     if (Math.abs(whale.facing) < 0.12) whale.facing = 0.12 * (tf || 1);
     whale.rot += (tr - whale.rot) * Math.min(1, dt * 3);
   }
-  whale.glowBoost = Math.max(0, whale.glowBoost - dt * 1.2);
+  if (whale.ghost) { whale.trail.push({ x: whale.x, y: whale.y, z: whale.z, rot: whale.rot, facing: whale.facing, scale: whale.scale }); if (whale.trail.length > 6) whale.trail.shift(); } else whale.trail.length = 0;
+  whale.glowBoost = Math.max(0, whale.glowBoost - dt * 1.1);
   whale.flash = Math.max(0, whale.flash - dt * 3);
-  shake = Math.max(0, shake - dt * 30);
   for (const u of units) {
     u.dx += (u.x - u.dx) * Math.min(1, dt * 8); u.dy += (u.y - u.dy) * Math.min(1, dt * 8);
-    u.hit = Math.max(0, u.hit - dt * 4);
+    u.hit = Math.max(0, u.hit - dt * 4); u.lift = Math.max(0, u.lift - dt * 1.8); u.shock = Math.max(0, u.shock - dt * 1.2);
   }
+}
+function updateCam(dt) {
+  cam.shake = Math.max(0, cam.shake - dt * 45);
+  cam.z += (cam.tz - cam.z) * Math.min(1, dt * 4);
+  cam.fx += (cam.tfx - cam.fx) * Math.min(1, dt * 3); cam.fy += (cam.tfy - cam.fy) * Math.min(1, dt * 3);
+  post.flash = Math.max(0, post.flash - dt * 2.4);
+  post.dim += (post.tdim - post.dim) * Math.min(1, dt * 3);
+  post.box += (post.tbox - post.box) * Math.min(1, dt * 5);
+  post.zoomBlur = Math.max(0, post.zoomBlur - dt * 2.5);
 }
 let last = 0;
 function frame(ts) {
-  const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; now = ts; const t = ts / 1000;
-  update(dt, t);
+  const rdt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; now = ts;
+  const stopped = now < hitstopUntil, dt = stopped ? 0 : rdt;
+  clock += dt * 1000; const t = clock / 1000;
+  runTimers(); update(dt, t); updateCam(rdt);
   g.setTransform(1, 0, 0, 1, 0, 0);
   drawBg(t);
-  if (shake > 0) g.translate(rnd(-shake, shake) * DPR * 0.5, rnd(-shake, shake) * DPR * 0.5);
-  drawBoard(t); drawTele(); drawFootprint();
-  for (const f of FX) if (f.layer === "floor") { const k = (now - f.t0) / f.dur; if (k >= 0 && k < 1) f.draw(k); }
+  // กล้อง
+  const sx = rnd(-cam.shake, cam.shake) * DPR * 0.6, sy = rnd(-cam.shake, cam.shake) * DPR * 0.6;
+  g.setTransform(cam.z, 0, 0, cam.z, cam.fx * (1 - cam.z) + sx, cam.fy * (1 - cam.z) + sy);
+  drawBoard(t); drawCracks(); drawTele(); drawFootprint();
+  for (const f of FX) if (f.layer === "floor") { const k = (clock - f.t0) / f.dur; if (k >= 0 && k < 1) { g.save(); f.draw(k); g.restore(); } }
   drawUnits(t); drawWhale(t);
-  for (const f of FX) if (f.layer === "top") { const k = (now - f.t0) / f.dur; if (k >= 0 && k < 1) f.draw(k); }
-  for (let i = FX.length - 1; i >= 0; i--) if ((now - FX[i].t0) / FX[i].dur >= 1) FX.splice(i, 1);
+  for (const f of FX) if (f.layer === "top") { const k = (clock - f.t0) / f.dur; if (k >= 0 && k < 1) { g.save(); f.draw(k); g.restore(); } }
+  for (let i = FX.length - 1; i >= 0; i--) if ((clock - FX[i].t0) / FX[i].dur >= 1) FX.splice(i, 1);
+  drawParticles(dt);
   g.setTransform(1, 0, 0, 1, 0, 0);
-  // ความมืดของชั้น 5: เหลือแสงรอบปลาวาฬ
-  if (fierce) {
-    const [sx, sy] = whaleScreen();
-    const gr = g.createRadialGradient(sx, sy, cs * 2, sx, sy, cs * 9); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,6,0.55)");
-    g.fillStyle = gr; g.fillRect(0, 0, W, H);
-  }
-  drawParticles(dt); drawHud();
+  drawSnow(dt);
+  postFx(); drawHud();
   requestAnimationFrame(frame);
 }
 
-// ---------------------------------------------------------------- ปุ่ม
+// ================================================================ ปุ่ม
 function busy() { return !!whale.ovr || !whale.visible || whale.dead; }
 const ACT = {
   appear() {
     if (whale.visible && !whale.dead) return;
-    whale.dead = false; whale.visible = true; whale.hp = whale.hpMax; whale.glowBoost = 1.5;
-    sfx("appear");
-    setOvr(2200, (el) => {
-      const k = clamp(el / 2200, 0, 1), p = pathAt(whale.s);
-      whale.x = p[0]; whale.y = p[1]; whale.alpha = clamp(k * 1.6, 0, 1); whale.z = lerp(-0.8, 0.9, easeOut(k)); whale.scale = lerp(0.75, 1, easeOut(k));
-      if (el < 40) { const [sx, sy] = P(p[0], p[1]); bubbleBurst(sx, sy, 50, cs * 2.5); }
-      return el >= 2200;
+    whale.dead = false; whale.visible = true; whale.hp = whale.hpMax; whale.hpShown = whale.hpMax; whale.glowBoost = 2;
+    sfx("appear"); post.tdim = 0.4; after(1600, () => (post.tdim = 0));
+    const p0 = pathAt(whale.s), [px, py] = P(p0[0], p0[1]);
+    crack(p0[0], p0[1], 8, 2.4, 2800); bubbleBurst(px, py, 50, cs * 2.5);
+    addFx(2400, "top", (k) => { cam.shake = Math.max(cam.shake, 4 * (1 - k)); if (Math.random() < 0.5) sandPlume(px + rnd(-cs * 2, cs * 2), py, 1, cs * 2); });
+    after(1200, () => { kick({ shake: 18, flash: 0.35, col: "170,240,255", zoom: 0.04, fx: px, fy: py, blur: 0.6 }); spray(px, py, 70, cs * 9); });
+    setOvr((el) => {
+      const k = clamp(el / 2400, 0, 1), p = pathAt(whale.s);
+      whale.x = p[0]; whale.y = p[1]; whale.alpha = clamp(k * 1.6, 0, 1); whale.z = lerp(-1, 0.9, easeOut(k)); whale.scale = lerp(0.8, 1, easeOut(k));
+      return el >= 2400;
     });
   },
   leave() {
     if (busy()) return;
     sfx("leave");
-    setOvr(2000, (el) => {
+    setOvr((el) => {
       const k = clamp(el / 2000, 0, 1); whale.s += 0.03; const p = pathAt(whale.s); whale.x = p[0]; whale.y = p[1];
       whale.alpha = 1 - k; whale.z = lerp(0.9, -0.8, ease(k));
+      if (Math.random() < 0.3) { const [wx, wy] = whaleScreen(); bubbleBurst(wx, wy, 2, cs); }
       if (k >= 1) whale.visible = false;
       return k >= 1;
     });
   },
-  turn() { if (busy()) return; whale.free = false; document.getElementById("bFree").classList.remove("on"); whale.tw = { a: whale.s, b: whale.s + 4, t0: now }; sfx("whoosh"); },
+  turn() { if (busy()) return; whale.free = false; document.getElementById("bFree").classList.remove("on"); whale.tw = { a: whale.s, b: whale.s + 4, t0: clock }; sfx("whoosh", 0, 0.6, 0.8); },
   free() { whale.free = !whale.free; document.getElementById("bFree").classList.toggle("on", whale.free); },
   hit() {
     if (busy()) return;
-    const d = 5; whale.hp -= d; whale.flash = 1; shake = 6; sfx("hit");
-    floater(whale.x, whale.y - 1.6, "-" + d, "#ffffff");
-    const [sx, sy] = whaleScreen(); bubbleBurst(sx, sy, 10, cs * 0.6);
+    const d = 5; whale.hp -= d; whale.flash = 1; sfx("hit");
+    const [sx, sy] = whaleScreen();
+    kick({ shake: 10, stop: 80, zoom: 0.02, fx: sx, fy: sy });
+    floater(whale.x, whale.y - 1.8, "-" + d, "#ffffff", true);
+    sparks(sx, sy, 24, cs * 6, "160,250,255"); glows(sx, sy, 10, cs * 0.8); bubbleBurst(sx, sy, 12, cs * 0.8);
     if (whale.hp <= 0) die();
   },
   fierce() { fierce = !fierce; document.getElementById("bFierce").classList.toggle("on", fierce); },
@@ -757,35 +1054,45 @@ const ACT = {
 };
 function die() {
   whale.dead = true; sfx("death");
-  setOvr(3800, (el) => {
-    const k = clamp(el / 3800, 0, 1);
-    whale.alpha = 1 - ease(k); whale.z = lerp(0.9, -1.2, ease(k)); whale.rot += 0.002;
-    if (Math.random() < 0.3) { const [sx, sy] = whaleScreen(); bubbleBurst(sx + rnd(-cs * 2, cs * 2), sy, 2, cs * 0.5); }
-    if (k >= 1) { whale.visible = false; }
+  post.tdim = 0.4; post.tbox = 1;
+  const hx = whale.x, hy = whale.y;
+  setOvr((el) => {
+    const k = clamp(el / 4600, 0, 1);
+    // ชักกระตุก → เส้นเลือดดับเป็นจังหวะ → จมลงช้าๆ
+    if (k < 0.35) { whale.flash = Math.random() < 0.15 ? 0.8 : whale.flash; whale.glowBoost = Math.random() < 0.3 ? 2 : 0; cam.shake = Math.max(cam.shake, 6); whale.amp = 2.2; }
+    else { whale.amp = lerp(2.2, 0.2, (k - 0.35) / 0.65); whale.glowBoost = 0; }
+    whale.alpha = k < 0.35 ? 1 : 1 - ease((k - 0.35) / 0.65); whale.z = k < 0.35 ? 0.9 : lerp(0.9, -1.4, ease((k - 0.35) / 0.65)); whale.rot += 0.0015 * whale.facing;
+    if (Math.random() < 0.4) { const [sx, sy] = whaleScreen(); bubbleBurst(sx + rnd(-cs * 3, cs * 3), sy, 2, cs * 0.5); glows(sx + rnd(-cs * 3, cs * 3), sy, 1, cs * 0.3); }
+    if (k >= 1) { whale.visible = false; whale.amp = 1; post.tdim = 0; post.tbox = 0; }
     return k >= 1;
   });
+  after(400, () => kick({ shake: 20, flash: 0.4, col: "160,240,255", stop: 160, blur: 0.8 }));
   // หัวใจของท้องทะเล
-  const hx = whale.x, hy = whale.y;
-  after(1500, () => {
+  after(2600, () => {
     sfx("heart");
-    addFx(3000, "top", (k) => {
-      const [sx, sy] = P(hx, hy); const yy = sy - cs * (0.6 + 1.6 * easeOut(Math.min(1, k * 1.6))); const r = cs * 0.38 * (1 + 0.12 * Math.sin(now / 120));
-      g.save(); g.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1; g.globalCompositeOperation = "lighter";
-      const gr = g.createRadialGradient(sx, yy, 0, sx, yy, r * 3.5); gr.addColorStop(0, "rgba(180,255,255,0.9)"); gr.addColorStop(0.3, "rgba(60,200,255,0.45)"); gr.addColorStop(1, "rgba(0,120,255,0)");
-      g.fillStyle = gr; g.beginPath(); g.arc(sx, yy, r * 3.5, 0, TAU); g.fill();
-      g.globalCompositeOperation = "source-over"; g.font = `${Math.round(r * 2)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("💙", sx, yy);
+    const [sx0, sy0] = P(hx, hy);
+    kick({ flash: 0.5, col: "120,220,255" }); glows(sx0, sy0, 30, cs * 1.5);
+    addFx(4000, "top", (k) => {
+      const yy = sy0 - cs * (0.6 + 2.2 * easeOut(Math.min(1, k * 1.5))); const r = cs * 0.45 * (1 + 0.12 * Math.sin(clock / 120));
+      g.globalAlpha = k > 0.8 ? (1 - k) / 0.2 : 1; g.globalCompositeOperation = "lighter";
+      // ลำแสงหมุน
+      g.save(); g.translate(sx0, yy); g.rotate(clock / 1500);
+      for (let i = 0; i < 8; i++) { g.rotate(TAU / 8); const lg = g.createLinearGradient(0, 0, cs * 4, 0); lg.addColorStop(0, "rgba(150,240,255,0.35)"); lg.addColorStop(1, "rgba(150,240,255,0)"); g.fillStyle = lg; g.beginPath(); g.moveTo(0, 0); g.lineTo(cs * 4, -cs * 0.25); g.lineTo(cs * 4, cs * 0.25); g.fill(); }
       g.restore();
+      const gr = g.createRadialGradient(sx0, yy, 0, sx0, yy, r * 4); gr.addColorStop(0, "rgba(200,255,255,0.95)"); gr.addColorStop(0.3, "rgba(60,200,255,0.5)"); gr.addColorStop(1, "rgba(0,120,255,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(sx0, yy, r * 4, 0, TAU); g.fill();
+      g.globalCompositeOperation = "source-over"; g.font = `${Math.round(r * 2)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("💙", sx0, yy);
+      if (Math.random() < 0.3) glows(sx0, yy, 1, r * 2);
     });
   });
 }
-let lastAtk = null;
 function attack(name) {
   if (busy()) return;
-  audio(); ATK[name](); lastAtk = name;
+  audio(); ATK[name]();
   if (fierce) {
-    const others = Object.keys(ATK).filter((k) => k !== name && k !== "charge" && k !== "swallow");
+    const others = ["tentacle", "whirl", "zap", "song"].filter((k) => k !== name);
     const second = others[Math.floor(Math.random() * others.length)];
-    after(1500, () => { if (!whale.dead && whale.visible) ATK[second](); });
+    after(2200, () => { if (!whale.dead && whale.visible && !whale.ovr) ATK[second](); });
   }
 }
 document.getElementById("bar").addEventListener("click", (e) => {
@@ -793,6 +1100,7 @@ document.getElementById("bar").addEventListener("click", (e) => {
   const a = b.dataset.a; if (ATK[a]) attack(a); else ACT[a] && ACT[a]();
 });
 addEventListener("keydown", (e) => { const m = { 1: "tentacle", 2: "charge", 3: "whirl", 4: "zap", 5: "song", 6: "swallow" }[e.key]; if (m) { audio(); attack(m); } });
+window.__thalassa = { ATK, ACT, whale };
 
 Promise.all(NAMES.map((n) => new Promise((r) => { const i = new Image(); i.onload = () => { IMG[n] = i; r(); }; i.onerror = () => r(); i.src = MEDIA + n + ".webp"; })))
   .then(() => { if (IMG.whale_side) prep(); requestAnimationFrame(frame); });
