@@ -268,6 +268,16 @@ function fitShop(s, taken, near, [W, H] = [1, 1]) {
 }
 function mockShops(s, round, nearMe, nearKind = "apoth") {
   const out = [];
+  // ร้านเรือ Nautilus (?shop=1&shopKind=nautilus): ร้านเดียว ของทุกร้านติดแท็บ (server/shop.js) + ของเฉพาะเรือ
+  if (nearKind === "nautilus") {
+    const pos = fitShop(s, out, nearMe, [1, 1]) || fitShop(s, out, null, [1, 1]);
+    if (!pos) return out;
+    const ship = [{ type: "o2Tank", price: 3, stockBase: 3, tab: "ship" }, { type: "whaleBait", price: 4, stockBase: 2, tab: "ship" }];
+    const all = [...ship, ...["apoth", "forge", "cara"].flatMap((t) => SHOP_ROLL[t].map((it) => ({ ...it, tab: t })))];
+    out.push({ id: "nautilus", kind: "nautilus", name: "นอติลุส", x: pos.x, y: pos.y, w: 1, h: 1, turnsLeft: 0, building: true,
+      items: all.map((it, i) => ({ id: `nautilus_${i}`, type: it.type, tab: it.tab, price: it.price, ...(it.value != null ? { value: it.value } : {}), stock: it.stockBase, stockMax: it.stockBase, sold: false, closed: false })) });
+    return out;
+  }
   const kinds = nearKind === "capsule" ? ["capsule", "apoth", "forge", "cara"] : ["apoth", "forge", "cara"];
   for (const kind of kinds) {
     const dim = SHOP_DIM[kind] || [1, 1];

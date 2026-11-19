@@ -150,6 +150,12 @@ test('เรือจอดที่ DOCK: ช่องเรือ = สิ่�
   assert.equal(s.turnsLeft, 0);
   assert.ok(s.items.some((it) => it.type === 'o2Tank'));
   assert.ok(s.items.some((it) => it.type === 'lifeCrystal') && s.items.some((it) => it.type === 'elemBomb'), 'ของร้านปกติครบ');
+  // แท็บร้าน (ผู้ใช้ 2026-11-19): ของเฉพาะเรือ = ship · ของร้านเดิมติดแท็บตามร้าน
+  assert.equal(s.items.find((it) => it.type === 'o2Tank').tab, 'ship');
+  assert.equal(s.items.find((it) => it.type === 'fortune').tab, 'apoth');
+  assert.equal(s.items.find((it) => it.type === 'elemBomb').tab, 'forge');
+  assert.equal(s.items.find((it) => it.type === 'lifeCrystal').tab, 'cara');
+  assert.ok(s.items.every((it) => it.tab), 'ทุกชิ้นมีแท็บ');
   // ต้นเทิร์นถัดไปเรือไม่ย้าย
   for (let r = 1; r <= 8; r++) { match.roundNumber = r; shop.maybeMoveShop(); }
   assert.equal(shop.publicShops().length, 1);

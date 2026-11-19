@@ -157,7 +157,10 @@ function shopTiles() {
 // สร้างของในร้าน (ชนิดละช่อง · สุ่มจำนวน)
 function stockShop(s) {
   match.shopRoundSeq = (match.shopRoundSeq || 0) + 1;
-  s.items = shopCatalog(s.kind).map((it, i) => ({ id: `${s.id}_${match.shopRoundSeq}_${i}`, ...it, stockBase: rollStock(s.kind), bought: 0, sold: false, soldTo: null }));
+  // ร้านเรือ Nautilus: ของทุกร้านอยู่บนเรือ แต่แยกแท็บตามร้านเดิม (ผู้ใช้ 2026-11-19: "กด tab เปลี่ยนร้านค้าได้ ไม่ใช่เอาทุกอย่างมาอัดไว้ร้านเดียว")
+  //  it.tab = apoth / forge / cara (จำนวนในร้านสุ่มตามร้านนั้น) · ของเฉพาะเรือ (ถังออกซิเจน · เหยื่อล่อ) = tab "ship" (syncStageItems)
+  const tabOf = (type) => (s.kind === "nautilus" ? Object.keys(SHOP_ITEMS).find((k) => SHOP_ITEMS[k].includes(type)) || null : null);
+  s.items = shopCatalog(s.kind).map((it, i) => { const tab = tabOf(it.type); return { id: `${s.id}_${match.shopRoundSeq}_${i}`, ...it, ...(tab ? { tab } : {}), stockBase: rollStock(tab || s.kind), bought: 0, sold: false, soldTo: null }; });
   const mul = eosPriceMul() * rtPriceMul();
   if (mul !== 1) for (const it of s.items) it.price = Math.ceil(it.price * mul); // Eos Lament: ร้านแพง ×1.5 · Road Trip: ราคาตามความยาก
 }
@@ -216,11 +219,11 @@ function syncStageItems() {
   // Nautilus (GRID_PLAN §8.9): ถังออกซิเจนสำรองขายเฉพาะร้านเรือ Nautilus (ร้านนี้มีแค่ในโหมด Nautilus)
   for (const s of shopsList()) {
     if (s.kind !== "nautilus" || (s.items || []).some((it) => it.type === "o2Tank")) continue;
-    s.items.unshift({ id: `${s.id}_o2_${match.shopRoundSeq}`, type: "o2Tank", price: SHOP_O2_TANK_PRICE, sold: false, soldTo: null, bought: 0 });
+    s.items.unshift({ id: `${s.id}_o2_${match.shopRoundSeq}`, type: "o2Tank", tab: "ship", price: SHOP_O2_TANK_PRICE, sold: false, soldTo: null, bought: 0 });
   }
   for (const s of shopsList()) { // เหยื่อล่อทาลัสซา: เฉพาะเมื่อเปิดทาลัสซาในโหวต
     if (s.kind !== "nautilus" || match.nautilusWhale === false || (s.items || []).some((it) => it.type === "whaleBait")) continue;
-    s.items.splice(1, 0, { id: `${s.id}_bait_${match.shopRoundSeq}`, type: "whaleBait", price: SHOP_WHALE_BAIT_PRICE, sold: false, soldTo: null, bought: 0 });
+    s.items.splice(1, 0, { id: `${s.id}_bait_${match.shopRoundSeq}`, type: "whaleBait", tab: "ship", price: SHOP_WHALE_BAIT_PRICE, sold: false, soldTo: null, bought: 0 });
   }
   const want = require("./fodlan/stage2").torchOnSale();
   for (const s of shopsList()) {
