@@ -11,13 +11,13 @@ export const NAUTILUS_COLOR = 0x1fb8c4; // ฟ้าอมเขียวน้�
 export const NAUTILUS_FIRST = 7;
 export const NAUTILUS_LAST = 11;
 
-// amb = เสียงบรรยากาศ (fodlanAudio: คีย์ nt_… → /nautilus/sfx/…) · ambGain = ไฟล์ −24.8 LUFS (เสียงพื้น Fodlan −22) → ดันขึ้น
+// amb = เสียงบรรยากาศ (fodlanAudio: คีย์ nt_… → /nautilus/sfx/…) · ambGain = คูณเพิ่ม (ไฟล์ทำที่ -16/-18 LUFS — ผู้ใช้: อย่าให้เสียงบรรยากาศเบาเกินไป 2026-11-19)
 export const NAUTILUS_LAYERS = [
-  { id: 7, numeral: "I", name: "แนวปะการัง", latin: "CORAL REEF", depth: -30, color: "#2fc4c0", glow: "#c8fff6", amb: "nt_amb", ambGain: 1.35 },
-  { id: 8, numeral: "II", name: "ซากเรือรบ", latin: "SUNKEN WARSHIP", depth: -200, color: "#3f8fb8", glow: "#bfe6ff", amb: "nt_amb", ambGain: 1.35 },
-  { id: 9, numeral: "III", name: "ปล่องภูเขาไฟใต้ทะเล", latin: "HYDROTHERMAL VENTS", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb", ambGain: 1.35 },
-  { id: 10, numeral: "IV", name: "นครจมบาดาล", latin: "SUNKEN CITY", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb", ambGain: 1.35 },
-  { id: 11, numeral: "V", name: "ร่องลึกก้นสมุทร", latin: "ABYSSAL TRENCH", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb", ambGain: 1.35 },
+  { id: 7, numeral: "I", name: "แนวปะการัง", latin: "CORAL REEF", depth: -30, color: "#2fc4c0", glow: "#c8fff6", amb: "nt_amb_reef", ambGain: 1 },
+  { id: 8, numeral: "II", name: "ซากเรือรบ", latin: "SUNKEN WARSHIP", depth: -200, color: "#3f8fb8", glow: "#bfe6ff", amb: "nt_amb", ambGain: 1.1 },
+  { id: 9, numeral: "III", name: "ปล่องภูเขาไฟใต้ทะเล", latin: "HYDROTHERMAL VENTS", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb", ambGain: 1.1 },
+  { id: 10, numeral: "IV", name: "นครจมบาดาล", latin: "SUNKEN CITY", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb", ambGain: 1.1 },
+  { id: 11, numeral: "V", name: "ร่องลึกก้นสมุทร", latin: "ABYSSAL TRENCH", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb", ambGain: 1.1 },
 ];
 export const isNautilusStage = (s) => Number(s) >= NAUTILUS_FIRST && Number(s) <= NAUTILUS_LAST;
 export const nautilusLayer = (s) => NAUTILUS_LAYERS.find((l) => l.id === Number(s)) || NAUTILUS_LAYERS[0];

@@ -30,7 +30,7 @@ spit|jumping_into_water_1304.mp3|0|1.9|0.003|0.5|1.1|-16
 rumble|bass_rumble_hum_2297.mp3|0|3|0.3|1|1|-17
 boom|bomb_drop_cold_water_explosion_2806.mp3|0|4|0.005|1.2|0.9|-14
 bubbles|deep_water_bubbles_1321.mp3|0|0.96|0.005|0.3|0.8|-18
-amb|diving_in_deep_water_1312.mp3|0.3|80|1|1|1|-26
+amb|diving_in_deep_water_1312.mp3|0.3|80|1|1|1|-18
 song|whale_call_humpback_song_noaa.mp3|34.5|6.8|0.3|1.2|0.85|-15|highpass=f=60,afftdn=nf=-25
 song2|whale_call_humpback_song_noaa.mp3|47.5|6|0.3|1.2|0.85|-15|highpass=f=60,afftdn=nf=-25
 moo|whale_call_humpback_moo_nps.mp3|0.4|2.2|0.1|0.6|0.75|-16|highpass=f=70,afftdn=nf=-22
@@ -47,3 +47,10 @@ swim2|swashing_sea_water_1179.mp3|5.4|1.4|0.25|0.8|0.6|-18|lowpass=f=700
 tailslap|impact_water_humpback_tail_slaps_nps.mp3|10.6|1|0.01|0.5|0.7|-16|highpass=f=40,lowpass=f=1500,afftdn=nf=-22
 waves|swashing_sea_water_1179.mp3|0.2|11|0.6|0.8|1|-22
 TABLE
+
+# เสียงบรรยากาศประจำชั้น (ผสมหลายชั้นเสียง · ผู้ใช้: "อย่าให้เสียงสภาพแวดล้อมด้านหลังเบาเกินไป" → -16 LUFS)
+#  ชั้น 1 แนวปะการัง: น้ำลึก + คลื่นซัด (ผิวน้ำ 30 ม.) + ฟองอากาศเป็นระยะ
+ffmpeg -nostdin -v error -y -i "$SRC/diving_in_deep_water_1312.mp3" -stream_loop 7 -i "$SRC/swashing_sea_water_1179.mp3" -stream_loop 13 -i "$SRC/deep_water_bubbles_1321.mp3" \
+  -filter_complex "[0:a]aresample=44100,atrim=0.3:80.3,asetpts=PTS-STARTPTS[a];[1:a]aresample=44100,atrim=0:80,asetpts=PTS-STARTPTS,lowpass=f=1800,volume=0.55[b];[2:a]aresample=44100,atrim=0:80,asetpts=PTS-STARTPTS,volume=0.3[c];[a][b][c]amix=inputs=3:normalize=0,afade=t=in:d=1,afade=t=out:st=79:d=1,loudnorm=I=-16:TP=-1:LRA=11" \
+  -ar 44100 -b:a 160k "$OUT/amb_reef.mp3"
+echo "amb_reef ← mix"
