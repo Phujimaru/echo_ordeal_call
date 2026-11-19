@@ -8,7 +8,7 @@
 //  รอบ 2 (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): หมากข้อมูล + ฉากล้อมกิน · เขียนทับคุณสมบัติ · รอยพิกเซล/ขอบกระตุก/วงคลื่นใต้เท้าตัวละคร ·
 //   ระลอกส่งตัวแบบสลายเป็นพิกเซลแล้วประกอบร่าง · โทนสนามตามคุณสมบัติ · ฝนข้อมูล · รอยตารางบิดตามทางว่ายปลาวาฬ · สนามสว่างกลาง ขอบเรือง คลื่นแสงกวาดพื้น
 // ============================================================
-import { P, PS, glow, rng, sceneSize } from "../boardGeo";
+import { P, PS, depthOf, glow, rng, sceneSize } from "../boardGeo";
 import { hash, mix } from "./reef";
 import { fxT, fxOnce } from "./index";
 import { drawThalassaAir, drawThalassaGround, whaleView } from "./thalassaArt";
@@ -57,6 +57,22 @@ function zones(info) {
   const list = (k) => { const o = []; for (let y = 0; y < info.rows; y++) for (let x = 0; x < info.cols; x++) if (kindAt(x, y) === k) o.push({ x, y }); return o; };
   const heal = (info.heal || []).map((h) => (Array.isArray(h) ? { x: h[0], y: h[1] } : h));
   ZC = { info, kindAt, voids: list("fd_nt_void"), ripples: list("fd_nt_ripple"), nodes: heal };
+  // พันธุ์ปะการังต่อกลุ่ม (แท่งข้อมูลที่ติดกัน = พันธุ์เดียวกัน · ผู้ใช้ 2026-11-20 "ปะการังหลายพันธุ์")
+  const sp2 = new Map(), blocks = list("fd_nt_datablock"), bset = new Set(blocks.map((t) => K(t.x, t.y)));
+  let gi = 0;
+  for (const b of blocks) {
+    if (sp2.has(K(b.x, b.y))) continue;
+    const kind = CORAL_KINDS[(gi++ + Math.floor(hash(b.x, b.y) * 4)) % CORAL_KINDS.length], q = [b];
+    sp2.set(K(b.x, b.y), kind);
+    while (q.length) { const c = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = K(c.x + dx, c.y + dy); if (bset.has(k) && !sp2.has(k)) { sp2.set(k, kind); q.push({ x: c.x + dx, y: c.y + dy }); } } }
+  }
+  ZC.species = sp2;
+  // ของตกแต่งบนพื้นว่าง (ไม่กีดขวาง): ดอกไม้ทะเล · หญ้าทะเลแสง — ช่องว่างที่ไม่ใช่ท่าเรือ/จุดเกิด/ระลอก/โหนด
+  const spawnSet = new Set((info.spawns || []).map((t) => (Array.isArray(t) ? K(t[0], t[1]) : K(t.x, t.y)))), healSet = new Set(heal.map((t) => K(t.x, t.y)));
+  const free = [];
+  for (let y = 2; y < info.rows; y++) for (let x = 0; x < info.cols; x++) { const k = K(x, y); if (!kindAt(x, y) && !spawnSet.has(k) && !healSet.has(k)) free.push({ x, y }); }
+  ZC.anemones = free.filter((t) => hash(t.x * 3 + 1, t.y * 5 + 2) < 0.085);
+  ZC.grass = free.filter((t) => { const h = hash(t.x * 7 + 3, t.y * 11 + 1); return h >= 0.085 && h < 0.2; });
   return ZC;
 }
 // สีของระลอก (ตามคู่ที่ server ส่งมา — คู่เดียวกันสีเดียวกัน)
@@ -149,6 +165,7 @@ function farShip(g, x, y, s, flip, seed) {
 // ปะการังข้อมูล (ผู้ใช้ 2026-11-20 เลือกแทนผลึกแก้ว): กิ่งก้านแสงแตกแขนงขึ้นจากฐานหินกรมท่า ปลายกิ่งเป็นจุดข้อมูลเรือง ไหวตามกระแสน้ำ
 //  โครงกิ่งสร้างครั้งเดียวต่อช่อง (แคช) · สีต่อช่อง: ฟ้า / ฟ้าอมเขียว / น้ำเงินอมม่วง (ไม่มีแดง)
 const CORAL_RGB = ["120,240,255", "130,255,215", "160,180,255"];
+const CORAL_KINDS = ["branch", "fan", "tube", "brain"];
 const CORAL = new Map();
 function coralOf(x, y) {
   const k = K(x, y);
@@ -194,11 +211,70 @@ function coral(g, x, y, now) {
   g.restore(); g.lineCap = "butt";
 }
 // =================================================================== สิ่งกีดขวาง
+// ปะการังพัด: แผ่นตาข่ายแสงบางรูปพัด ตั้งฉากกับกระแส โบกช้าๆ
+function coralFan(g, x, y, now) {
+  const t = now / 1000, R = rng(x * 37 + y * 19), col = CORAL_RGB[Math.floor(R() * 3) % 3], ang = R() * Math.PI, h = 1.1 + R() * 0.5, wv = 0.6 + R() * 0.12, ph = R() * TAU;
+  const ca = Math.cos(ang), sa = Math.sin(ang), cx = x + 0.5, cy = y + 0.5, N = 9;
+  base(g, cx, cy);
+  const pt = (u, v) => { const sw = Math.sin(t * 0.8 + ph) * 0.06 * v; return P(cx + ca * u * wv + sw, cy + sa * u * wv + sw * 0.5, 0.1 + v * h); };
+  // แผ่นจางเต็มพัด
+  g.beginPath(); const s0 = pt(0, 0); g.moveTo(s0[0], s0[1]);
+  for (let i = 0; i <= 16; i++) { const a = -1 + (i / 16) * 2, q = pt(a * Math.sqrt(1 - 0.15 * a * a), 0.95 - 0.25 * a * a); g.lineTo(q[0], q[1]); }
+  g.closePath(); g.fillStyle = `rgba(${col},.2)`; g.fill(); g.strokeStyle = `rgba(${col},.6)`; g.lineWidth = 1.4; g.stroke();
+  g.save(); g.globalCompositeOperation = "lighter";
+  // ก้านรัศมี + เส้นตาข่ายโค้ง
+  g.strokeStyle = `rgba(${col},.55)`; g.lineWidth = 1;
+  for (let i = 0; i < N; i++) { const a = -1 + (i / (N - 1)) * 2; g.beginPath(); for (let j = 0; j <= 8; j++) { const v = j / 8 * (0.95 - 0.25 * a * a), q = pt(a * v * 0.98, v); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }
+  for (let r = 1; r <= 4; r++) { const v = r / 4.6; g.strokeStyle = `rgba(${col},${0.25 + 0.2 * Math.sin(t * 1.5 - r + ph)})`; g.beginPath(); for (let i = 0; i <= 16; i++) { const a = -1 + (i / 16) * 2, q = pt(a * v, v * (0.95 - 0.25 * a * a)); i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); } g.stroke(); }
+  const tipq = pt(0, 0.95); glow(g, tipq[0], tipq[1], tipq[2] * 0.12, col, 0.4);
+  g.restore();
+}
+// ปะการังท่อ: ท่อสูงต่ำ 3–5 ท่อ ปากท่อเรืองเป็นวงแหวน มีละอองข้อมูลลอยออกจากปากท่อ
+function coralTube(g, x, y, now) {
+  const t = now / 1000, R = rng(x * 53 + y * 29), col = CORAL_RGB[Math.floor(R() * 3) % 3], n = 3 + Math.floor(R() * 3), tubes = [];
+  base(g, x + 0.5, y + 0.5);
+  for (let i = 0; i < n; i++) tubes.push({ x: x + 0.5 + (R() - 0.5) * 0.5, y: y + 0.5 + (R() - 0.5) * 0.5, h: 0.45 + R() * 0.9, r: 0.08 + R() * 0.05, ph: R() * TAU });
+  tubes.sort((a, b) => depthOf(a.x, a.y) - depthOf(b.x, b.y));
+  for (const tb of tubes) {
+    const a = P(tb.x, tb.y, 0.08), b = P(tb.x, tb.y, tb.h), w = a[2] * tb.r;
+    const gr = g.createLinearGradient(a[0] - w, 0, a[0] + w, 0); gr.addColorStop(0, "rgba(14,34,70,.9)"); gr.addColorStop(0.5, `rgba(${col},.45)`); gr.addColorStop(1, "rgba(12,30,62,.9)");
+    g.fillStyle = gr; g.fillRect(b[0] - w, b[1], w * 2, a[1] - b[1]);
+    g.save(); g.globalCompositeOperation = "lighter";
+    g.strokeStyle = `rgba(${col},.35)`; g.lineWidth = 1; for (let k = 1; k < 4; k++) { const yy = b[1] + (a[1] - b[1]) * k / 4; g.beginPath(); g.moveTo(b[0] - w, yy); g.lineTo(b[0] + w, yy); g.stroke(); }
+    const pulse = 0.6 + 0.4 * Math.sin(t * 2 + tb.ph);
+    g.strokeStyle = `rgba(${col},${0.9 * pulse})`; g.lineWidth = 2; g.beginPath(); g.ellipse(b[0], b[1], w, w * 0.4, 0, 0, TAU); g.stroke();
+    glow(g, b[0], b[1], w * 2.2, col, 0.35 * pulse);
+    for (let k = 0; k < 3; k++) { const u = (t * 0.4 + k / 3 + tb.ph) % 1, q = P(tb.x + Math.sin(u * 6 + k) * 0.05, tb.y, tb.h + u * 0.8); g.fillStyle = `rgba(220,255,255,${0.7 * (1 - u)})`; g.fillRect(q[0] - 1, q[1] - 1, 2, 2); }
+    g.restore();
+  }
+}
+// ปะการังสมอง: โดมมนกรมท่า ลายร่องคดเคี้ยวเรืองแสงไล่เป็นจังหวะ
+function coralBrain(g, x, y, now) {
+  const t = now / 1000, R = rng(x * 71 + y * 43), col = CORAL_RGB[Math.floor(R() * 3) % 3], cx = x + 0.5, cy = y + 0.5, r = 0.42 + R() * 0.05, hgt = 0.55 + R() * 0.2;
+  const [sx, sy, s] = P(cx, cy, 0.01); g.fillStyle = "rgba(0,14,26,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.44, s * 0.2, 0, 0, TAU); g.fill();
+  const c = P(cx, cy, hgt * 0.45), rw = c[2] * r, rh = c[2] * hgt * 0.75;
+  const gr = g.createRadialGradient(c[0] - rw * 0.3, c[1] - rh * 0.5, 0, c[0], c[1], rw * 1.1); gr.addColorStop(0, "#35548c"); gr.addColorStop(1, "#0a1430");
+  g.fillStyle = gr; g.beginPath(); g.ellipse(c[0], c[1], rw, rh, 0, Math.PI, TAU); g.ellipse(c[0], c[1], rw, rh * 0.35, 0, 0, Math.PI); g.fill();
+  g.save(); g.beginPath(); g.ellipse(c[0], c[1], rw, rh, 0, Math.PI, TAU); g.ellipse(c[0], c[1], rw, rh * 0.35, 0, 0, Math.PI); g.clip();
+  g.globalCompositeOperation = "lighter"; g.lineWidth = 1.3;
+  for (let i = 0; i < 7; i++) {
+    const yy = c[1] - rh + (i + 0.5) * (rh * 1.35 / 7), k = 0.5 + 0.5 * Math.sin(t * 1.6 - i * 0.7 + x);
+    g.strokeStyle = `rgba(${col},${0.25 + 0.45 * k})`; g.beginPath();
+    for (let j = 0; j <= 24; j++) { const u = j / 24, xx = c[0] - rw + u * rw * 2, wob = Math.sin(u * 14 + i * 2.3 + R() * 0.2) * rh * 0.06; j ? g.lineTo(xx, yy + wob) : g.moveTo(xx, yy + wob); }
+    g.stroke();
+  }
+  g.restore();
+}
+function base(g, cx, cy) {
+  const [sx, sy, s] = P(cx, cy, 0.01); g.fillStyle = "rgba(0,14,26,.35)"; g.beginPath(); g.ellipse(sx, sy, s * 0.4, s * 0.18, 0, 0, TAU); g.fill();
+  const [bx, by, bs] = P(cx, cy, 0.05); g.fillStyle = "#0e1a38"; g.beginPath(); g.ellipse(bx, by, bs * 0.3, bs * 0.14, 0, 0, TAU); g.fill();
+}
 export function drawObstacle(g, t, ctx, now) {
   const { x, y, kind } = t;
   if (kind === "fd_nt_whale" || kind === "fd_nt_ship") return;
   if (kind === "fd_nt_datablock") {
-    coral(g, x, y, now);
+    const sp = ZC && ZC.species && ZC.species.get(K(x, y));
+    if (sp === "fan") coralFan(g, x, y, now); else if (sp === "tube") coralTube(g, x, y, now); else if (sp === "brain") coralBrain(g, x, y, now); else coral(g, x, y, now);
   } else if (kind === "fd_nt_void") voidTile(g, x, y, now);
   else if (kind === "fd_nt_stone") stone(g, x, y, now);
 }
@@ -243,8 +319,50 @@ function voidTile(g, x, y, now) {
 // =================================================================== ของที่เรียงความลึกกับตัวละคร
 export function items(list, g, fd, info, units, now, lowQ) {
   LASTFD = fd;
+  const Z = zones(info);
   shipItems(list, g, fd, info, now, lowQ);
+  // ดอกไม้ทะเลเรืองแสง (ตกแต่ง ไม่กีดขวาง) — หดตัวเมื่อมีคนอยู่ใกล้
+  for (const a of Z.anemones) {
+    const near = (units || []).some((u) => u && u.alive !== false && Math.abs((u.rx ?? u.x) - a.x) <= 1.2 && Math.abs((u.ry ?? u.y) - a.y) <= 1.2);
+    const st = ANEM.get(K(a.x, a.y)) || { k: 1 }; st.k += ((near ? 0.25 : 1) - st.k) * 0.08; ANEM.set(K(a.x, a.y), st);
+    list.push({ d: depthOf(a.x + 0.5, a.y + 0.5), f: () => anemone(g, a.x, a.y, now, st.k) });
+  }
+  // แมงกะพรุนข้อมูล ลอยช้าเหนือกระดาน
+  if (!lowQ) for (let i = 0; i < 5; i++) {
+    const t = now / 1000, jx = (hash(i, 81) * info.cols + t * (0.08 + hash(i, 82) * 0.08) * (i % 2 ? 1 : -1)) % info.cols, x = jx < 0 ? jx + info.cols : jx, y = 2 + hash(i, 83) * (info.rows - 3) + Math.sin(t * 0.2 + i) * 0.8;
+    list.push({ d: depthOf(x, y) + 0.3, f: () => jelly(g, x, y, 1.8 + hash(i, 84) * 1.4 + Math.sin(t * 0.9 + i * 2) * 0.25, now, i) });
+  }
   void units;
+}
+
+const ANEM = new Map();
+// ดอกไม้ทะเล: หนวดเรืองแผ่จากจานกลาง ไหวตามน้ำ · k = กาง (1) / หด (0.25)
+function anemone(g, x, y, now, k) {
+  const t = now / 1000, R = rng(x * 17 + y * 91), col = CORAL_RGB[Math.floor(R() * 3) % 3], cx = x + 0.3 + R() * 0.4, cy = y + 0.3 + R() * 0.4, n = 10, ph = R() * TAU;
+  const c = P(cx, cy, 0.06);
+  g.fillStyle = "rgba(14,28,60,.9)"; g.beginPath(); g.ellipse(c[0], c[1], c[2] * 0.1, c[2] * 0.05, 0, 0, TAU); g.fill();
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU + ph, len = (0.16 + 0.06 * Math.sin(i * 1.7)) * k;
+    g.strokeStyle = `rgba(${col},${0.35 + 0.4 * k})`; g.lineWidth = Math.max(1, c[2] * 0.02); g.beginPath();
+    for (let j = 0; j <= 5; j++) { const u = j / 5, sw = Math.sin(t * 1.4 + ph + u * 2) * 0.03 * u; const q = P(cx + Math.cos(a) * len * u + sw, cy + Math.sin(a) * len * u, 0.06 + u * len * 0.9); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }
+    g.stroke();
+    const tip = P(cx + Math.cos(a) * len, cy + Math.sin(a) * len, 0.06 + len * 0.9); g.fillStyle = `rgba(230,255,255,${0.5 + 0.4 * k})`; g.fillRect(tip[0] - 1, tip[1] - 1, 2, 2);
+  }
+  glow(g, c[0], c[1], c[2] * 0.22, col, 0.25 * k);
+  g.restore(); g.lineCap = "butt";
+}
+// แมงกะพรุนข้อมูล: ร่มโปร่งเรือง หดขยายเป็นจังหวะ หนวดสายแสงห้อยไหว
+function jelly(g, x, y, z, now, i) {
+  const t = now / 1000, col = CORAL_RGB[i % 3], pul = 0.85 + 0.15 * Math.sin(t * 2.2 + i), c = P(x, y, z), r = c[2] * 0.2 * pul, h = c[2] * 0.15 / pul;
+  const sh = P(x, y, 0.01); g.fillStyle = "rgba(0,20,35,.18)"; g.beginPath(); g.ellipse(sh[0], sh[1], c[2] * 0.15, c[2] * 0.06, 0, 0, TAU); g.fill();
+  g.save(); g.globalCompositeOperation = "lighter";
+  const gr = g.createRadialGradient(c[0], c[1] - h * 0.4, 0, c[0], c[1], r * 1.2); gr.addColorStop(0, `rgba(230,255,255,.45)`); gr.addColorStop(1, `rgba(${col},.08)`);
+  g.fillStyle = gr; g.beginPath(); g.ellipse(c[0], c[1], r, h, 0, Math.PI, TAU); g.closePath(); g.fill();
+  g.strokeStyle = `rgba(${col},.7)`; g.lineWidth = 1.2; g.beginPath(); g.ellipse(c[0], c[1], r, h, 0, Math.PI, TAU); g.stroke();
+  g.strokeStyle = `rgba(${col},.4)`; g.lineWidth = 1;
+  for (let k = 0; k < 6; k++) { const ox = c[0] - r * 0.8 + (k / 5) * r * 1.6; g.beginPath(); g.moveTo(ox, c[1]); for (let j = 1; j <= 6; j++) g.lineTo(ox + Math.sin(t * 1.8 + k + j * 0.7) * r * 0.12, c[1] + j * c[2] * 0.06); g.stroke(); }
+  g.restore();
 }
 
 // =================================================================== พื้นทุกเฟรม (ใต้ตัวละคร)
@@ -285,6 +403,18 @@ export function ground(g, fd, info, now, lowQ) {
       }
     }
   }
+  // หญ้าทะเลแสง (ตกแต่ง ไม่กีดขวาง) — กอเล็กไหวตามน้ำ
+  g.lineCap = "round";
+  for (const s2 of Z.grass) {
+    const R = rng(s2.x * 13 + s2.y * 7), cx = s2.x + 0.25 + R() * 0.5, cy = s2.y + 0.25 + R() * 0.5, n = 4 + Math.floor(R() * 4), col = CORAL_RGB[Math.floor(R() * 3) % 3];
+    for (let i = 0; i < n; i++) {
+      const ox = (R() - 0.5) * 0.25, oy = (R() - 0.5) * 0.25, h = 0.18 + R() * 0.22, ph = R() * TAU;
+      g.strokeStyle = `rgba(${col},.45)`; g.lineWidth = 1; g.beginPath();
+      for (let j = 0; j <= 4; j++) { const u = j / 4, q = P(cx + ox + Math.sin(t * 1.3 + ph + u) * 0.05 * u, cy + oy, u * h); j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]); }
+      g.stroke();
+    }
+  }
+  g.lineCap = "butt";
   // แสงกลางสนาม + โทนตามคุณสมบัติ (เปลี่ยนนุ่มๆ)
   { const [cx, cy, s] = P(cols / 2, rows / 2, -1.5); glow(g, cx, cy, s * Math.max(cols, rows) * 0.6, tint, 0.05 + 0.015 * Math.sin(t * 0.8)); }
   // เงาสะท้อนบนกระจก (แถบแสงเฉียงช้าๆ จางมาก)
