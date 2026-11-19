@@ -186,37 +186,43 @@ export function drawObstacle(g, t, ctx, now) {
 }
 // กล่องผนังเรือ (ด้านที่หันกล้องก่อน-หลังตามความลึก) — ยอดหยักเหมือนแผ่นเหล็กฉีกขาด
 function hullBlock(g, x, y, conn, now) {
-  const H = 1.25 + hash(x, y) * 0.55, rust = BASE.rust;
+  // ผนังตัวเรือเหล็กต่อเนื่อง (ผู้ใช้: ต้องไม่ดูเป็นกล่องอิฐวางเรียง) — สูงเท่ากันทั้งลำ · แนวแผ่นเหล็ก/หมุดต่อกันข้ามช่อง
+  //  ยอดเรียบ มีขอบกราบนูน · ปลายที่หัก (ข้างเคียงด้านเดียว) เท่านั้นที่ฉีกขาดเป็นหยัก + ซี่โครงเหล็กโผล่ · มุมนอกของลำเรือลบเหลี่ยม
+  const H = 1.55, ends = [conn.u, conn.r, conn.d, conn.l].filter(Boolean).length, broken = ends === 1;
+  const col = { top: [72, 76, 80], rail: [110, 104, 96], hi: [118, 86, 64], mid: [82, 64, 56], lo: [44, 40, 42] };
   const faces = [
     { a: [x, y], b: [x + 1, y], n: "u", open: !conn.u }, { a: [x + 1, y], b: [x + 1, y + 1], n: "r", open: !conn.r },
     { a: [x + 1, y + 1], b: [x, y + 1], n: "d", open: !conn.d }, { a: [x, y + 1], b: [x, y], n: "l", open: !conn.l },
   ].map((f) => ({ ...f, dep: depthOf((f.a[0] + f.b[0]) / 2, (f.a[1] + f.b[1]) / 2) })).sort((p, q) => p.dep - q.dep);
-  const top = (u, side) => H * (0.88 + 0.12 * Math.sin(u * 9 + x * 3 + y + side));
+  const top = (u, side) => (broken ? H * (0.72 + 0.28 * Math.abs(Math.sin(u * 7 + x * 3 + y + side))) : H);
   for (const f of faces) {
-    if (!f.open) continue; // ด้านที่ติดผนังข้างเคียง = ไม่เห็น
+    if (!f.open) continue; // ด้านที่ติดผนังข้างเคียง = ไม่เห็น (ผนังต่อเป็นผืนเดียว)
     const pts = [];
     for (let i = 0; i <= 6; i++) { const u = i / 6; pts.push(P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, 0)); }
     for (let i = 6; i >= 0; i--) { const u = i / 6; pts.push(P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, top(u, f.n.charCodeAt(0)))); }
-    const shadeK = f.n === "d" || f.n === "r" ? 1.15 : 0.8, grad = g.createLinearGradient(pts[0][0], pts[0][1], pts[pts.length - 1][0], pts[pts.length - 1][1] - 30);
-    grad.addColorStop(0, rgb(rust[2], shadeK)); grad.addColorStop(0.5, rgb(rust[1], shadeK)); grad.addColorStop(1, rgb(rust[0], shadeK));
+    const lit = f.n === "d" || f.n === "r" ? 1.12 : 0.78, g0 = P((f.a[0] + f.b[0]) / 2, (f.a[1] + f.b[1]) / 2, 0), g1 = P((f.a[0] + f.b[0]) / 2, (f.a[1] + f.b[1]) / 2, H);
+    const grad = g.createLinearGradient(g0[0], g0[1], g1[0], g1[1]);
+    grad.addColorStop(0, rgb(col.lo, lit)); grad.addColorStop(0.45, rgb(col.mid, lit)); grad.addColorStop(1, rgb(col.hi, lit));
     poly(g, pts); g.fillStyle = grad; g.fill();
-    // รอยต่อแผ่นเหล็ก + หมุดย้ำ + คราบสนิมไหล
-    g.strokeStyle = "rgba(20,12,8,.5)"; g.lineWidth = 1;
-    for (const z of [H * 0.35, H * 0.7]) { const a = P(f.a[0], f.a[1], z), b = P(f.b[0], f.b[1], z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
-    g.fillStyle = "rgba(30,20,14,.8)";
-    for (let i = 1; i < 6; i++) for (const z of [H * 0.3, H * 0.65]) { const p = P(f.a[0] + (f.b[0] - f.a[0]) * i / 6, f.a[1] + (f.b[1] - f.a[1]) * i / 6, z); g.beginPath(); g.arc(p[0], p[1], Math.max(0.8, p[2] * 0.018), 0, TAU); g.fill(); }
-    g.strokeStyle = "rgba(140,70,30,.35)"; g.lineWidth = Math.max(1, P(x, y)[2] * 0.03);
-    for (let i = 0; i < 2; i++) { const u = 0.25 + hash(x * 3 + i, y + f.n.charCodeAt(0)) * 0.5, a = P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, H * 0.8), b = P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, H * 0.15); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    // แนวแผ่นเหล็ก (ความสูงเดียวกันทั้งลำ = ต่อกันเป็นเส้นยาว) + หมุดย้ำเรียงแถว
+    g.strokeStyle = "rgba(18,12,10,.55)"; g.lineWidth = 1;
+    for (const z of [H * 0.28, H * 0.56, H * 0.84]) { const a = P(f.a[0], f.a[1], z), b = P(f.b[0], f.b[1], z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    g.fillStyle = "rgba(160,120,90,.35)";
+    for (let i = 1; i < 8; i++) for (const z of [H * 0.25, H * 0.53, H * 0.81]) { const p = P(f.a[0] + (f.b[0] - f.a[0]) * i / 8, f.a[1] + (f.b[1] - f.a[1]) * i / 8, z); if (z > top(i / 8, f.n.charCodeAt(0)) - 0.05) continue; g.beginPath(); g.arc(p[0], p[1], Math.max(0.7, p[2] * 0.014), 0, TAU); g.fill(); }
+    // คราบสนิมไหลยาวลงพื้น (ไม่ซ้ำตำแหน่งแต่ละช่อง)
+    g.strokeStyle = "rgba(150,72,30,.32)"; g.lineWidth = Math.max(1, P(x, y)[2] * 0.035);
+    for (let i = 0; i < 2; i++) { const u = 0.15 + hash(x * 3 + i, y + f.n.charCodeAt(0)) * 0.7, a = P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, H * (0.6 + hash(i, x) * 0.3)), b = P(f.a[0] + (f.b[0] - f.a[0]) * u, f.a[1] + (f.b[1] - f.a[1]) * u, 0.05); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    // ขอบกราบนูนตามแนวบน (ไม่ใช่ปลายหัก)
+    if (!broken) { const a = P(f.a[0], f.a[1], H), b = P(f.b[0], f.b[1], H); g.strokeStyle = rgb(col.rail, lit); g.lineWidth = Math.max(1.5, P(x, y)[2] * 0.06); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
   }
-  // ฝาบน (ขอบกราบ) + เพรียง/สาหร่ายเกาะ
-  poly(g, [P(x, y, H * 0.9), P(x + 1, y, H * 0.9), P(x + 1, y + 1, H * 0.9), P(x, y + 1, H * 0.9)]); g.fillStyle = rgb(BASE.steel, 0.9); g.fill();
-  const R = rng(x * 29 + y * 61);
-  for (let i = 0; i < 5; i++) { const p = P(x + 0.15 + R() * 0.7, y + 0.15 + R() * 0.7, H * 0.92), s = p[2]; g.fillStyle = R() < 0.5 ? "rgba(90,130,90,.8)" : "rgba(170,160,140,.8)"; g.beginPath(); g.ellipse(p[0], p[1], s * 0.05, s * 0.03, 0, 0, TAU); g.fill(); }
-  // ปลายผนังที่หัก (ข้างเคียงด้านเดียว) = ซี่โครงเหล็กโผล่
-  const ends = [conn.u, conn.r, conn.d, conn.l].filter(Boolean).length;
-  if (ends === 1) {
-    g.strokeStyle = rgb(BASE.rust[1], 0.9); g.lineWidth = Math.max(1.5, P(x, y)[2] * 0.05); g.lineCap = "round";
-    for (let i = 0; i < 3; i++) { const bx = x + 0.2 + i * 0.3, a = P(bx, y + 0.5, H * 0.8), b = P(bx + 0.1, y + 0.5, H * (1.4 + i * 0.15)); g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(b[0] + 6, (a[1] + b[1]) / 2, b[0], b[1]); g.stroke(); }
+  // ดาดฟ้าบนผนัง: เหล็กเทาเข้มเรียบ (ไม่มีจุดกระจาย) + คราบตะกอนบางๆ
+  const zt = broken ? H * 0.72 : H;
+  poly(g, [P(x, y, zt), P(x + 1, y, zt), P(x + 1, y + 1, zt), P(x, y + 1, zt)]); g.fillStyle = rgb(col.top, 0.75); g.fill();
+  if (hash(x, y) < 0.35) { const p = P(x + 0.5, y + 0.5, zt), s = p[2]; g.fillStyle = "rgba(120,140,130,.25)"; g.beginPath(); g.ellipse(p[0], p[1], s * 0.3, s * 0.12, hash(y, x) * 3, 0, TAU); g.fill(); }
+  // ปลายผนังที่หัก = ซี่โครงเหล็กโผล่ขึ้นบิดงอ
+  if (broken) {
+    g.strokeStyle = rgb(col.mid, 1.1); g.lineWidth = Math.max(1.5, P(x, y)[2] * 0.05); g.lineCap = "round";
+    for (let i = 0; i < 3; i++) { const bx = x + 0.2 + i * 0.3, a = P(bx, y + 0.5, H * 0.7), b = P(bx + 0.1, y + 0.5, H * (1.3 + i * 0.15)); g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(b[0] + 6, (a[1] + b[1]) / 2, b[0], b[1]); g.stroke(); }
     g.lineCap = "butt";
   }
   void now;
