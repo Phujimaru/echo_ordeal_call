@@ -5,11 +5,13 @@
 //   พื้นกระดาน = กระดานโกะของข้อมูล (เส้นผ่ากลางช่อง + จุดดาว) · แท่งข้อมูล = ลูกบาศก์กรมท่าซ้อนลายร้าวเรือง · ช่องว่างจินตภาพ = รูโหว่ที่ข้อมูลร่วงหาย
 //   ระลอกข้อมูล = วงคลื่นซ้อน (คู่เดียวกันสีเดียวกัน) · โหนดข้อมูล = เพชรเรือง
 //   ไกลๆ: เงาเรือรบข้อมูลสีกรมท่าลายร้าวฟ้าลอยนิ่ง (ออกแบบเอง) · อากาศ: เกล็ดข้อมูลลอยขึ้น · ไม่มีสีแดง
+//  รอบ 2 (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): หมากข้อมูล + ฉากล้อมกิน · เขียนทับคุณสมบัติ · รอยพิกเซล/ขอบกระตุก/วงคลื่นใต้เท้าตัวละคร ·
+//   ระลอกส่งตัวแบบสลายเป็นพิกเซลแล้วประกอบร่าง · โทนสนามตามคุณสมบัติ · ฝนข้อมูล · รอยตารางบิดตามทางว่ายปลาวาฬ · สนามสว่างกลาง ขอบเรือง คลื่นแสงกวาดพื้น
 // ============================================================
 import { P, PS, depthOf, glow, rng, sceneSize } from "../boardGeo";
 import { hash, mix } from "./reef";
 import { fxT, fxOnce } from "./index";
-import { drawThalassaAir, drawThalassaGround } from "./thalassaArt";
+import { drawThalassaAir, drawThalassaGround, whaleView } from "./thalassaArt";
 import { SHIP_FX, shipFx, shipItems } from "./shipArt";
 import { playSfx, registerSounds } from "../../audio";
 
@@ -17,13 +19,16 @@ const TAU = Math.PI * 2;
 const K = (x, y) => `${x},${y}`;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-export const kinds = ["fd_nt_datablock", "fd_nt_void", "fd_nt_ripple", "fd_nt_node", "fd_nt_whale", "fd_nt_ship"];
+export const kinds = ["fd_nt_datablock", "fd_nt_void", "fd_nt_ripple", "fd_nt_node", "fd_nt_stone", "fd_nt_whale", "fd_nt_ship"];
 export const tall = ["fd_nt_datablock"];
 export const fogRGB = "4,40,60";
-export const fx = { ...SHIP_FX, nt_ripple: 1200, nt_attr: 2200 };
+export const fx = { ...SHIP_FX, nt_ripple: 1500, nt_attr: 2200, nt_stone: 700, nt_capture: 1500, nt_rewrite: 1600 };
 
 const CY = "120,240,255"; // ฟ้าเรือง
 const RIPPLE_RGB = ["120,240,255", "190,200,255", "150,255,220"]; // สีคู่ระลอก 1–3 (ไม่มีแดง)
+// โทนสนามตามคุณสมบัติจินตภาพ (ไม่มีแดง)
+const ATTR_TINT = { alpha: "235,250,255", beta: "120,255,200", gamma: "110,170,255", delta: "170,120,240", epsilon: "255,240,170", zeta: "40,130,255" };
+let LASTFD = null;
 const HULL = [20, 34, 66]; // กรมท่า
 const BASE = {
   ground1: "#13708c", ground2: "#0b4f6a", tile: "rgba(0,0,0,0)", tile2: "rgba(0,0,0,0)",
@@ -37,7 +42,7 @@ function poly(g, pts) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0],
 
 let SND = false;
 function snd(k, gain = 1, delay = 0) {
-  if (!SND) { SND = true; registerSounds(Object.fromEntries(["ping", "whoosh", "zap", "swirl", "cine_riser"].map((n) => [`nti_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
+  if (!SND) { SND = true; registerSounds(Object.fromEntries(["ping", "whoosh", "zap", "swirl", "cine_riser", "impact", "crackle", "blast"].map((n) => [`nti_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
   const go = () => playSfx(`nti_${k}`, { gain: gain * 1.6 });
   if (delay > 0) setTimeout(go, delay); else go();
 }
@@ -163,6 +168,27 @@ export function drawObstacle(g, t, ctx, now) {
     // ลูกบาศก์เล็กลอยเหนือ
     if (hash(y, x) < 0.55) cube(g, x, y, 0.36, h + 0.25 + bob * 2, h + 0.61 + bob * 2, 1.1, false, 0);
   } else if (kind === "fd_nt_void") voidTile(g, x, y, now);
+  else if (kind === "fd_nt_stone") stone(g, x, y, now);
+}
+// หมากข้อมูล: หมากโกะกรมท่าเงาวาว ขอบฟ้าเรือง · หมากที่จะหมดเทิร์นนี้กะพริบ
+function stone(g, x, y, now) {
+  const t = now / 1000, cx = x + 0.5, cy = y + 0.5, info = LASTFD && LASTFD.imaginary, rec = info && (info.stones || []).find((q) => q.x === x && q.y === y);
+  const dropE = (LASTFD && LASTFD.fx || []).find((e) => e.kind === "nt_stone" && e.x === x && e.y === y);
+  const dk = dropE ? fxT(dropE, now, fx.nt_stone) : 1, z = (1 - Math.min(1, dk / 0.6)) * 2.2;
+  const blink = rec && info && Number(rec.until) <= Number(info.round || 0) ? 0.55 + 0.45 * Math.sin(t * 8) : 1;
+  const [sx, sy, s] = P(cx, cy, 0.02);
+  g.fillStyle = "rgba(0,20,35,.45)"; g.beginPath(); g.ellipse(sx, sy, s * 0.38, s * 0.16, 0, 0, TAU); g.fill();
+  const [bx, by, bs] = P(cx, cy, 0.14 + z), rx = bs * 0.36, ry = bs * 0.2;
+  g.globalAlpha = blink;
+  const gr = g.createRadialGradient(bx - rx * 0.3, by - ry * 0.6, 0, bx, by, rx * 1.1); gr.addColorStop(0, "#5f86b8"); gr.addColorStop(0.35, "#1c2c52"); gr.addColorStop(1, "#070e22");
+  g.fillStyle = gr; g.beginPath(); g.ellipse(bx, by, rx, ry * 1.35, 0, 0, TAU); g.fill();
+  g.save(); g.globalCompositeOperation = "lighter";
+  g.strokeStyle = `rgba(${CY},${0.85 * blink})`; g.lineWidth = 1.6; g.beginPath(); g.ellipse(bx, by, rx, ry * 1.35, 0, 0, TAU); g.stroke();
+  glow(g, bx, by, bs * 0.55, CY, 0.25 * blink);
+  g.fillStyle = "rgba(230,255,255,.7)"; g.beginPath(); g.ellipse(bx - rx * 0.35, by - ry * 0.55, rx * 0.22, ry * 0.25, -0.4, 0, TAU); g.fill();
+  g.restore();
+  g.globalAlpha = 1;
+  if (dropE && dk < 1 && dk > 0.5) { const u = (dk - 0.5) / 0.5; g.save(); g.globalCompositeOperation = "lighter"; g.strokeStyle = `rgba(${CY},${1 - u})`; g.lineWidth = 2; g.beginPath(); for (let i = 0; i <= 32; i++) { const a = (i / 32) * TAU, p = P(cx + Math.cos(a) * (0.3 + u * 0.8), cy + Math.sin(a) * (0.3 + u * 0.8), 0.02); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke(); g.restore(); }
 }
 function voidTile(g, x, y, now) {
   const t = now / 1000, a = P(x, y, 0), b = P(x + 1, y, 0), c = P(x + 1, y + 1, 0), d = P(x, y + 1, 0);
@@ -179,14 +205,44 @@ function voidTile(g, x, y, now) {
 
 // =================================================================== ของที่เรียงความลึกกับตัวละคร
 export function items(list, g, fd, info, units, now, lowQ) {
+  LASTFD = fd;
   shipItems(list, g, fd, info, now, lowQ);
   void units;
 }
 
 // =================================================================== พื้นทุกเฟรม (ใต้ตัวละคร)
 export function ground(g, fd, info, now, lowQ) {
+  LASTFD = fd;
   const Z = zones(info), t = now / 1000, cols = info.cols, rows = info.rows;
+  const attr = fd && fd.imaginary && fd.imaginary.attr, tint = ATTR_TINT[attr] || CY;
   g.save(); g.globalCompositeOperation = "lighter";
+  // แสงกลางสนาม + โทนตามคุณสมบัติ (เปลี่ยนนุ่มๆ)
+  { const [cx, cy, s] = P(cols / 2, rows / 2, 0); glow(g, cx, cy, s * Math.max(cols, rows) * 0.55, tint, 0.16 + 0.03 * Math.sin(t * 0.8)); }
+  // ขอบสนามเรือง (เส้นคู่ + จุดวิ่งรอบ)
+  { const pts = [[0, 0], [cols, 0], [cols, rows], [0, rows]].map(([x, y]) => P(x, y, 0.01));
+    g.strokeStyle = `rgba(${tint},.55)`; g.lineWidth = 2.2; poly(g, pts); g.stroke();
+    const inner = [[-0.25, -0.25], [cols + 0.25, -0.25], [cols + 0.25, rows + 0.25], [-0.25, rows + 0.25]].map(([x, y]) => P(x, y, 0.01));
+    g.strokeStyle = `rgba(${tint},.18)`; g.lineWidth = 1; poly(g, inner); g.stroke();
+    const per = 2 * (cols + rows);
+    for (let i = 0; i < 4; i++) { let d = ((t * 3 + i * per / 4) % per); let x, y; if (d < cols) { x = d; y = 0; } else if ((d -= cols) < rows) { x = cols; y = d; } else if ((d -= rows) < cols) { x = cols - d; y = rows; } else { d -= cols; x = 0; y = rows - d; } const [px, py, ps] = P(x, y, 0.02); glow(g, px, py, ps * 0.5, "230,255,255", 0.7); } }
+  // คลื่นแสงกวาดพื้นเฉียงช้าๆ
+  if (!lowQ) for (let i = 0; i < 2; i++) {
+    const k = ((t * 0.07 + i * 0.5) % 1) * (cols + rows) - rows;
+    const a = P(k, 0, 0.004), b = P(k + 1.2, 0, 0.004), c = P(k + 1.2 + rows, rows, 0.004), d = P(k + rows, rows, 0.004);
+    g.save(); g.beginPath(); g.moveTo(...P(0, 0, 0).slice(0, 2)); g.lineTo(...P(cols, 0, 0).slice(0, 2)); g.lineTo(...P(cols, rows, 0).slice(0, 2)); g.lineTo(...P(0, rows, 0).slice(0, 2)); g.closePath(); g.clip();
+    g.fillStyle = `rgba(${tint},.06)`; poly(g, [a, b, c, d]); g.fill(); g.restore();
+  }
+  // วงคลื่นตารางใต้เท้า (บันทึกจาก air ตอนตัวละครขยับ)
+  for (let i = STEPS.length - 1; i >= 0; i--) {
+    const st = STEPS[i], k = (now - st.t) / 900; if (k >= 1 || k < 0) { if (k >= 1) STEPS.splice(i, 1); continue; }
+    g.strokeStyle = `rgba(${tint},${0.7 * (1 - k)})`; g.lineWidth = 1.4;
+    const r = 0.15 + k * 0.6, q = [[-r, -r], [r, -r], [r, r], [-r, r]].map(([dx, dy]) => P(st.x + dx, st.y + dy, 0.01)); poly(g, q); g.stroke();
+  }
+  // รอยตารางบิดตามทางว่ายของปลาวาฬ (จุดหลังลำตัว)
+  { const wv = whaleView(); if (fd && fd.whale && fd.whale.on && wv && wv.alpha > 0.2) {
+    WAKE.push({ x: wv.x, y: wv.y, t: now }); while (WAKE.length > 40) WAKE.shift();
+    for (const w of WAKE) { const k = (now - w.t) / 2600; if (k >= 1) continue; const r = 0.6 + k * 1.6; g.strokeStyle = `rgba(${CY},${0.22 * (1 - k)})`; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= 24; i++) { const a = (i / 24) * TAU, rr = r * (1 + 0.15 * Math.sin(a * 4 + t * 3)), p = P(w.x + Math.cos(a) * rr, w.y + Math.sin(a) * rr, 0.01); i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]); } g.stroke(); }
+  } }
   // กระดานโกะ: เส้นผ่ากลางช่อง + ชีพจรข้อมูลวิ่งตามเส้น
   g.strokeStyle = `rgba(${CY},.22)`; g.lineWidth = 1;
   for (let x = 0; x < cols; x++) { const a = P(x + 0.5, 0.5, 0.005), b = P(x + 0.5, rows - 0.5, 0.005); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
@@ -222,6 +278,7 @@ export function ground(g, fd, info, now, lowQ) {
 }
 
 // =================================================================== ทับตัวละคร
+const STEPS = [], WAKE = [], UNIT_LAST = new Map(), TRAIL = [];
 const ATTR_SYM = { alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", zeta: "ζ" };
 export function air(g, fd, info, units, now, lowQ, view) {
   const t = now / 1000;
@@ -240,19 +297,79 @@ export function air(g, fd, info, units, now, lowQ, view) {
     }
     g.restore();
   }
+  const attr = fd && fd.imaginary && fd.imaginary.attr, tint = ATTR_TINT[attr] || CY;
+  // ฝนข้อมูล: สายอักขระสั้นๆ ร่วงลงเป็นเส้น
+  if (!lowQ) {
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 26; i++) {
+      const x = X0 + hash(i, 21) * W, sp = 90 + hash(i, 22) * 160, len = 40 + hash(i, 23) * 90, y = Y0 + ((t * sp + hash(i, 24) * (H + len)) % (H + len)) - len;
+      for (let j = 0; j < 6; j++) { const yy = y + j * (len / 6); g.fillStyle = `rgba(${tint},${(0.05 + j * 0.05) * (0.6 + 0.4 * hash(i, j))})`; g.fillRect(x, yy, 2, len / 9); }
+    }
+    g.restore();
+  }
+  // ตัวละคร: วงคลื่นใต้เท้าเมื่อก้าว · รอยพิกเซลตามหลัง · ขอบตัวกระตุกเป็นข้อมูลเป็นจังหวะ
+  for (const u of units || []) {
+    if (!u || u.alive === false) continue;
+    const ux = (u.rx ?? u.x) + 0.5, uy = (u.ry ?? u.y) + 0.5, last = UNIT_LAST.get(u.id);
+    if (last) {
+      const d = Math.hypot(ux - last.x, uy - last.y);
+      if (d > 0.02 && !lowQ) TRAIL.push({ x: ux, y: uy, t: now, r: Math.random() });
+      if (Math.hypot(ux - last.sx, uy - last.sy) > 0.55) { STEPS.push({ x: ux, y: uy, t: now }); last.sx = ux; last.sy = uy; }
+      last.x = ux; last.y = uy;
+    } else UNIT_LAST.set(u.id, { x: ux, y: uy, sx: ux, sy: uy });
+    const slot = Math.floor(t * 0.7 + hash(String(u.id).length, 3) * 5), ph = (t * 0.7 + hash(String(u.id).length, 3) * 5) - slot;
+    if (!lowQ && hash(slot, String(u.id).charCodeAt(0) || 1) < 0.35 && ph < 0.12) {
+      const [bx, by, bs] = P(ux, uy, 0), [, ty] = P(ux, uy, 1.5);
+      g.save(); g.globalCompositeOperation = "lighter";
+      for (let i = 0; i < 4; i++) { const yy = ty + (by - ty) * hash(slot, i + 9), off = (hash(slot, i + 19) - 0.5) * bs * 0.5; g.fillStyle = `rgba(${tint},.5)`; g.fillRect(bx - bs * 0.35 + off, yy, bs * 0.7, 2 + hash(i, slot) * 3); }
+      g.restore();
+    }
+  }
+  if (TRAIL.length > 260) TRAIL.splice(0, TRAIL.length - 260);
+  g.save(); g.globalCompositeOperation = "lighter";
+  for (let i = TRAIL.length - 1; i >= 0; i--) {
+    const p = TRAIL[i], k = (now - p.t) / 700; if (k >= 1) { TRAIL.splice(i, 1); continue; }
+    const [sx, sy, s] = P(p.x + (p.r - 0.5) * 0.4, p.y, 0.3 + p.r * 0.9 + k * 0.4), sz = s * (0.05 + p.r * 0.04);
+    g.fillStyle = `rgba(${p.r < 0.5 ? tint : "230,255,255"},${0.6 * (1 - k)})`; g.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
+  }
+  g.restore();
   // เหตุการณ์ของชั้น
   for (const e of (fd && fd.fx) || []) {
-    if (e.kind !== "nt_ripple" && e.kind !== "nt_attr") continue;
+    if (!["nt_ripple", "nt_attr", "nt_stone", "nt_capture", "nt_rewrite"].includes(e.kind)) continue;
     const k = fxT(e, now, fx[e.kind]);
-    if (fxOnce(e)) { if (e.kind === "nt_ripple") { snd("swirl", 0.7); snd("ping", 0.6, 300); } else { snd("cine_riser", 0.5); snd("zap", 0.5, 500); } }
+    if (fxOnce(e)) {
+      if (e.kind === "nt_ripple") { snd("swirl", 0.7); snd("ping", 0.6, 500); }
+      else if (e.kind === "nt_attr") { snd("cine_riser", 0.5); snd("zap", 0.5, 500); }
+      else if (e.kind === "nt_stone") snd("impact", 0.6, 380);
+      else if (e.kind === "nt_capture") { snd("crackle", 0.8); snd("blast", 0.7, 600); }
+      else if (e.kind === "nt_rewrite") { snd("ping", 0.7); snd("zap", 0.5, 300); }
+    }
     if (k >= 1) continue;
-    if (e.kind === "nt_ripple") warp(g, e, k, fd);
-    else attrFlash(g, e, k, X0, Y0, W, H);
+    if (e.kind === "nt_ripple") warp(g, e, k, fd, units);
+    else if (e.kind === "nt_attr") attrFlash(g, e, k, X0, Y0, W, H);
+    else if (e.kind === "nt_capture") capture(g, e, k);
+    else if (e.kind === "nt_rewrite") rewriteFx(g, fd, e, k);
   }
+  // ขอบจอติดสีตามคุณสมบัติ
+  { const vg = g.createRadialGradient(X0 + W / 2, Y0 + H / 2, Math.min(W, H) * 0.35, X0 + W / 2, Y0 + H / 2, Math.max(W, H) * 0.75); vg.addColorStop(0, `rgba(${tint},0)`); vg.addColorStop(1, `rgba(${tint},.10)`);
+    g.save(); g.globalCompositeOperation = "lighter"; g.fillStyle = vg; g.fillRect(X0, Y0, W, H); g.restore(); }
   shipFx(g, fd, info, now);
 }
-// ส่งข้ามสนาม: เสาแสงที่วงต้นทาง → เส้นข้อมูลโค้ง → เสาแสงที่ปลายทาง
+// ส่งข้ามสนาม: ร่างสลายเป็นพิกเซลที่วงต้นทาง → ธารพิกเซลโค้งข้ามสนาม → ประกอบร่างที่ปลายทาง (+ เสาแสง)
 function warp(g, e, k, fd) {
+  if (e.from && e.to) {
+    const col0 = rippleCol(fd, e.from.x, e.from.y);
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 40; i++) {
+      const r1 = hash(i, 31), r2 = hash(i, 32), delay = r1 * 0.25, u = clamp((k - 0.1 - delay) / 0.55, 0, 1);
+      if (u <= 0 || u >= 1) continue;
+      const fx0 = e.from.x + 0.5 + (r1 - 0.5) * 0.5, fy0 = e.from.y + 0.5 + (r2 - 0.5) * 0.5, z0 = 0.2 + r2 * 1.3;
+      const x = fx0 + (e.to.x + 0.5 - fx0) * u, y = fy0 + (e.to.y + 0.5 - fy0) * u, z = z0 + Math.sin(u * Math.PI) * (2.5 + r1 * 1.5);
+      const [sx, sy, s] = P(x, y, z), sz = s * (0.05 + r2 * 0.05);
+      g.fillStyle = `rgba(${i % 3 ? col0 : "240,255,255"},${0.9 * Math.sin(u * Math.PI)})`; g.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
+    }
+    g.restore();
+  }
   if (!e.from || !e.to) return;
   const col = rippleCol(fd, e.from.x, e.from.y);
   g.save(); g.globalCompositeOperation = "lighter";
@@ -281,6 +398,38 @@ function attrFlash(g, e, k, X0, Y0, W, H) {
   g.fillStyle = `rgba(230,255,255,${0.85 * a})`; g.fillText(sym, cx, cy);
   g.strokeStyle = `rgba(${CY},${0.6 * a})`; g.lineWidth = 2;
   for (let i = 0; i < 3; i++) { const r = s * (0.6 + k * 0.9 + i * 0.12); g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke(); }
+  g.restore();
+}
+// ล้อมกิน: เส้นแสง 4 ทิศพุ่งเข้าหาเป้า → กรงสี่เหลี่ยมบีบ → แตกเป็นพิกเซล
+function capture(g, e, k) {
+  const cx = e.x + 0.5, cy = e.y + 0.5;
+  g.save(); g.globalCompositeOperation = "lighter";
+  const u = clamp(k / 0.35, 0, 1);
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const a = P(cx + dx * 1.5, cy + dy * 1.5, 0.4), b = P(cx + dx * 1.5 * (1 - u), cy + dy * 1.5 * (1 - u), 0.4);
+    g.strokeStyle = `rgba(${CY},${0.9 * (1 - clamp((k - 0.5) / 0.3, 0, 1))})`; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+  }
+  if (k > 0.3 && k < 0.65) {
+    const v = (k - 0.3) / 0.35, r = 0.75 - v * 0.35;
+    for (const z of [0.05, 1.4]) { g.strokeStyle = `rgba(230,255,255,${0.9})`; g.lineWidth = 2; poly(g, [[-r, -r], [r, -r], [r, r], [-r, r]].map(([dx, dy]) => P(cx + dx, cy + dy, z))); g.stroke(); }
+    for (const [dx, dy] of [[-r, -r], [r, -r], [r, r], [-r, r]]) { const a = P(cx + dx, cy + dy, 0.05), b = P(cx + dx, cy + dy, 1.4); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+  }
+  if (k > 0.6) {
+    const v = (k - 0.6) / 0.4;
+    for (let i = 0; i < 30; i++) { const a = hash(i, 41) * TAU, d = v * (0.5 + hash(i, 42) * 1.4), [sx, sy, s] = P(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 0.7 + hash(i, 43) * 0.8 - v * 0.6), sz = s * 0.07; g.fillStyle = `rgba(${i % 2 ? CY : "240,255,255"},${1 - v})`; g.fillRect(sx - sz / 2, sy - sz / 2, sz, sz); }
+    if (v < 0.25) { const [sx, sy, s] = P(cx, cy, 0.7); glow(g, sx, sy, s * 1.6, "240,255,255", 0.8 * (1 - v * 4)); }
+  }
+  g.restore();
+}
+// เขียนทับคุณสมบัติ: อักษรกรีกลอยขึ้นจากเรือเป็นเสาข้อมูล
+function rewriteFx(g, fd, e, k) {
+  const sh = fd && fd.ship; if (!sh) return;
+  const cx = sh.x + sh.w / 2, cy = sh.y + sh.h / 2, [bx, by, s] = P(cx, cy, 1.2 + k * 3), a = Math.sin(Math.min(1, k * 1.2) * Math.PI);
+  g.save(); g.globalCompositeOperation = "lighter";
+  const [gx, gy] = P(cx, cy, 0.6); const gr = g.createLinearGradient(gx, gy, bx, by - s); gr.addColorStop(0, `rgba(${CY},${0.5 * a})`); gr.addColorStop(1, `rgba(${CY},0)`);
+  g.fillStyle = gr; g.fillRect(gx - s * 0.3, by - s, s * 0.6, gy - by + s);
+  glow(g, bx, by, s * 1.2, CY, 0.5 * a);
+  g.font = `700 ${Math.round(s * 1.1)}px "Times New Roman", serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = `rgba(240,255,255,${a})`; g.fillText(e.sym || ATTR_SYM[e.attr] || "", bx, by);
   g.restore();
 }
 export function bakeSpecial() {}

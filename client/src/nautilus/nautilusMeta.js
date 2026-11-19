@@ -20,8 +20,8 @@ export const NAUTILUS_LAYERS = [
   { id: 9, numeral: "III", name: "หุบปล่องเพลิง", latin: "ชั้นที่ III", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb_vents", ambGain: 1 },
   { id: 10, numeral: "IV", name: "นครบาดาลที่สาบสูญ", latin: "ชั้นที่ IV", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb_city", ambGain: 1 },
   { id: 11, numeral: "V", name: "ห้วงเหวไร้แสง", latin: "ชั้นที่ V", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb_abyss", ambGain: 1 },
-  // ชั้น 6: ความลึกไร้ความหมาย (depthText) · เสียงบรรยากาศใช้ของห้วงเหวเบาลง (Genjitsu ดังทับ)
-  { id: 12, numeral: "VI", name: "ทะเลข้อมูลจินตภาพ", latin: "ชั้นที่ VI", depth: -10000, depthText: "−∞", color: "#2fd8ea", glow: "#e2fdff", amb: "nt_amb_abyss", ambGain: 0.5 },
+  // ชั้น 6: ความลึกไร้ความหมาย (depthText) · เสียงบรรยากาศสังเคราะห์ของชั้นนี้เอง (.claude/plans/nautilus-amb-data.py)
+  { id: 12, numeral: "VI", name: "ทะเลข้อมูลจินตภาพ", latin: "ชั้นที่ VI", depth: -10000, depthText: "−∞", color: "#2fd8ea", glow: "#e2fdff", amb: "nt_amb_data", ambGain: 1 },
 ];
 export const isNautilusStage = (s) => Number(s) >= NAUTILUS_FIRST && Number(s) <= NAUTILUS_LAST;
 export const nautilusLayer = (s) => NAUTILUS_LAYERS.find((l) => l.id === Number(s)) || NAUTILUS_LAYERS[0];

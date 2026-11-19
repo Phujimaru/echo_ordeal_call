@@ -22,6 +22,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 export const WHALE_FX = {
   whale_flyby: 8200, whale_appear: 2400, whale_leave: 2000, whale_warn: 1400, whale_hit: 500, whale_death: 7600, whale_shove: 600,
   whale_ram: 1200, whale_bite: 1300,
+  whale_erase: 1800, whale_copy: 1700, // ชั้น 6 ทะเลข้อมูล
   whale_tentacle: 1900, whale_charge: 2400, whale_whirl: 2400, whale_zap: 1500, whale_song: 3200, whale_swallow: 3400,
 };
 
@@ -263,6 +264,54 @@ function drawBodyClear(g, now, fierce, units, data = false) {
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.drawImage(BODY_CV, 0, 0); g.restore();
 }
 
+// ท่าลบข้อมูล: เส้นสแกนกวาดตามแถว ช่องที่ผ่านแตกเป็นพิกเซลร่วงลง
+function drawErase(g, info, e, k, now) {
+  if (!Number.isFinite(e.row)) return;
+  const cols = info.cols, y = e.row, head = clamp(k / 0.55, 0, 1) * (cols + 1), a = 1 - clamp((k - 0.75) / 0.25, 0, 1);
+  g.save(); g.globalCompositeOperation = "lighter";
+  const p0 = screenOf(-0.2, y + 0.5, 0.05), p1 = screenOf(head, y + 0.5, 0.05), cs = whaleCs(head, y + 0.5);
+  g.strokeStyle = `rgba(150,245,255,${0.5 * a})`; g.lineWidth = cs * 0.9; g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke();
+  g.strokeStyle = `rgba(240,255,255,${0.9 * a})`; g.lineWidth = 3; const q0 = screenOf(head, y, 0), q1 = screenOf(head, y + 1, 0), q2 = screenOf(head, y + 0.5, 2.5);
+  g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q2[0], q2[1]); g.lineTo(q1[0], q1[1]); g.stroke();
+  for (let x = 0; x < Math.min(cols, head); x++) for (let i = 0; i < 4; i++) {
+    const u = clamp((head - x) / 4 - i * 0.12, 0, 1); if (u <= 0 || u >= 1) continue;
+    const r = Math.sin((x * 7 + i) * 91.3) * 0.5 + 0.5, [sx, sy] = screenOf(x + 0.2 + r * 0.6, y + 0.3 + (i % 2) * 0.4, -u * 1.5), s = cs * 0.08;
+    g.fillStyle = `rgba(${i % 2 ? "120,240,255" : "230,255,255"},${0.8 * (1 - u) * a})`; g.fillRect(sx - s / 2, sy - s / 2, s, s);
+  }
+  g.restore();
+  void now;
+}
+// ท่าคัดลอก: ร่างเงาฟ้าเหลื่อมประกอบขึ้นข้างเป้า แล้วฟันเฉียง
+function drawCopy(g, e, k, now) {
+  const at = Number.isFinite(e.x) ? { x: e.x, y: e.y } : e.at; if (!at) return;
+  const cx = at.x + 0.5 + 0.7, cy = at.y + 0.5 - 0.2, cs = whaleCs(cx, cy), [bx, by] = screenOf(cx, cy, 0), [, ty] = screenOf(cx, cy, 1.6);
+  const form = clamp(k / 0.35, 0, 1), fade = 1 - clamp((k - 0.8) / 0.2, 0, 1), h = (by - ty), w = cs * 0.32;
+  g.save(); g.globalCompositeOperation = "lighter";
+  // ประกอบร่างจากพิกเซล
+  for (let i = 0; i < 26; i++) {
+    const r1 = Math.sin(i * 12.9) * 0.5 + 0.5, r2 = Math.sin(i * 78.2) * 0.5 + 0.5;
+    const tx = bx + (r1 - 0.5) * w * 1.6, tyy = by - r2 * h, fx = tx + (r1 - 0.5) * cs * 2 * (1 - form), fy = tyy - (1 - form) * cs * 1.2;
+    g.fillStyle = `rgba(150,245,255,${0.7 * fade})`; g.fillRect(fx - 2, fy - 2, 4, 4);
+  }
+  if (form > 0.6) {
+    const a = fade * (form - 0.6) / 0.4, jit = Math.sin(now / 40) * 2;
+    g.fillStyle = `rgba(90,220,255,${0.45 * a})`;
+    g.beginPath(); g.ellipse(bx + jit, by - h * 0.82, w * 0.42, w * 0.42, 0, 0, TAU); g.fill();
+    g.beginPath(); g.moveTo(bx - w * 0.6 + jit, by); g.lineTo(bx - w * 0.5, by - h * 0.68); g.lineTo(bx + w * 0.5, by - h * 0.68); g.lineTo(bx + w * 0.6 - jit, by); g.closePath(); g.fill();
+    g.fillStyle = `rgba(230,255,255,${0.35 * a})`; for (let yy = by - h; yy < by; yy += 4) g.fillRect(bx - w * 0.6, yy, w * 1.2, 1);
+  }
+  // ฟัน
+  if (k > 0.38 && k < 0.7) {
+    const u = (k - 0.38) / 0.32, [px, py] = screenOf(at.x + 0.5, at.y + 0.5, 0.9);
+    g.strokeStyle = `rgba(240,255,255,${1 - u})`; g.lineWidth = cs * 0.08 * (1 - u * 0.5); g.lineCap = "round";
+    g.beginPath(); g.moveTo(px - cs * 0.6, py - cs * 0.5 + u * cs * 0.3); g.lineTo(px + cs * 0.6 * (u * 2 - 1), py + cs * 0.4 * (u * 2 - 1)); g.stroke(); g.lineCap = "butt";
+    if (u < 0.3 && (e.hits || []).length) sparks(px, py, 4, 200);
+  }
+  g.restore();
+}
+// ตำแหน่งตัวปลาที่วาดอยู่ (ทะเลข้อมูลใช้วาดรอยตารางบิดตามทางว่าย)
+export function whaleView() { return { x: V.x, y: V.y, alpha: V.alpha, ang: V.ang }; }
+
 function dataSkin(o, W0, H0, now) {
   const t = now / 1000;
   o.save(); o.setTransform(1, 0, 0, 1, 0, 0);
@@ -342,6 +391,8 @@ function sounds(e) {
     case "whale_whirl": snd("swirl"); snd("rumble", { gain: 0.6, delay: 200 }); SND.boom({ gain: 0.9, delay: 1500 }); snd("splash", { rate: 0.75, delay: 1550 }); break;
     case "whale_zap": snd("echarge", { gain: 0.9 }); snd("blast", { delay: 600 }); snd("crackle", { gain: 0.5, delay: 700 }); break;
     case "whale_song": snd(Math.random() < 0.5 ? "song" : "song2", { rate: 0.9 }); snd("blue", { gain: 0.5, rate: 0.8, delay: 1800 }); break;
+    case "whale_erase": SND.roar({ gain: 0.8, rate: 1.4 }); snd("zap", { gain: 0.9, delay: 300 }); snd("rush", { gain: 0.8, delay: 350 }); if ((e.hits || []).length) snd("deepimpact", { delay: 700 }); break;
+    case "whale_copy": snd("whoosh", { gain: 0.8 }); snd("whip", { gain: 0.9, delay: 650 }); if ((e.hits || []).length) SND.slap({ gain: 0.9, delay: 700 }); break;
     case "whale_swallow": snd("rumble", { gain: 1 }); SND.boom({ delay: 1300 }); snd("splash", { rate: 0.8, delay: 1340 }); SND.roar({ gain: 0.8, rate: 1.2, delay: 1360 }); snd("gulp", { delay: 1700 }); if (e.spit) snd("spit", { delay: 2900 }); break;
     case "nt_bait": snd("whip", { gain: 0.7 }); snd("squish", { gain: 0.9, delay: 520 }); SND.call({ gain: 0.45, rate: 0.85, delay: 900 }); break;
     case "whale_hit": SND.slap({ gain: 0.8 }); SND.call({ gain: 0.4, rate: 1.2, delay: 80 }); break;
@@ -406,6 +457,8 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
     else if (e.kind === "whale_bite" && Number.isFinite(e.x) && k < 0.8) drawEmerge(g, e.x + 0.5, e.y + 0.5, k / 0.8, now); // ขากรรไกรโผล่งับจากใต้น้ำที่ตัวเป้า
     else if (e.kind === "whale_ram" && k < 0.25) for (const id of e.hits || []) { const u = (units || []).find((q) => q.id === id); if (u) { const [sx, sy] = screenOf((u.rx ?? u.x) + 0.5, (u.ry ?? u.y) + 0.5, 0.6); sparks(sx, sy, 14, 220); } }
     else if (e.kind === "whale_death" && k > 0.35) drawHeart(g, e, (k - 0.35) / 0.65, now);
+    else if (e.kind === "whale_erase") drawErase(g, info, e, k, now);
+    else if (e.kind === "whale_copy") drawCopy(g, e, k, now);
   }
   // เหยื่อล่อ: ปาโค้งไปติดตัวเป้า · คนที่ติดกลิ่นมีหมอกเลือดวนรอบตัวจนท่าถัดไป
   for (const e of evs) if (e.kind === "nt_bait") { const k = fxT(e, now, 900); if (k < 1 && e.from && e.to) drawBait(g, e, k); }

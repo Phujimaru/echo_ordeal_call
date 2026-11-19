@@ -218,6 +218,7 @@ function publicInfo(ctx, st) {
       ripples: MAP.RIPPLES.map(([p, q]) => [{ x: p[0], y: p[1] }, { x: q[0], y: q[1] }]),
       stones: S(st).stones.map((t) => ({ x: t.x, y: t.y, by: t.by, until: t.until })),
       next: S(st).next ? ATTR_INFO[S(st).next].sym : null,
+      round: ctx.match.roundNumber, // หมากที่ until = เทิร์นนี้ = หมดตอนจบเทิร์น (client กะพริบ)
     },
   };
 }

@@ -549,8 +549,10 @@ function ntArea(s) {
   const q = new URLSearchParams(location.search), area = Number(q.get("ntarea"));
   if (!(area >= 46 && area <= 51)) return;
   const stage = area - 39, b = boardPublic(area), sp = [...(b.spawns || [])];
-  s.board = b; s.world = "nautilus";
+  if (stage === 12) b.terrain = { ...b.terrain, "9,10": "fd_nt_stone", "11,10": "fd_nt_stone", "10,9": "fd_nt_stone" };
+  s.board = b; s.world = "nautilus"; s.shops = []; // Nautilus: ร้านอยู่ในเรือ (แท็บ) — หน้าทดลองไม่วางร้านบนกระดาน
   s.players.forEach((p, i) => { if (p.pos && sp[i]) p.pos = { x: sp[i].x ?? sp[i][0], y: sp[i].y ?? sp[i][1] }; });
+  if (stage === 12) { const t = s.players.find((p) => p.pos && p.id !== "p0"); if (t) t.pos = { x: 10, y: 10 }; }
   const SYM = { alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", zeta: "ζ" }, attr = SYM[q.get("attr")] ? q.get("attr") : "zeta";
   const ripples = stage === 12 ? [[{ x: 6, y: 2 }, { x: 17, y: 12 }], [{ x: 16, y: 2 }, { x: 2, y: 12 }], [{ x: 2, y: 6 }, { x: 17, y: 6 }]] : [];
   s.fodlan = {
@@ -558,7 +560,7 @@ function ntArea(s) {
     board: {
       layer: stage - 6, ship: { x: 7, y: 0, w: 6, h: 2, light: null, cd: {}, driver: null, torpedoUsed: [] },
       whale: { enabled: true, on: true, dead: false, hp: 50, hpMax: 60, s: 6, pos: null, pending: [], warn: [], appearSeq: 1, data: stage === 12 },
-      ...(stage === 12 ? { imaginary: { attr, sym: SYM[attr], ripples } } : {}),
+      ...(stage === 12 ? { imaginary: { attr, sym: SYM[attr], ripples, round: 30, stones: [{ x: 9, y: 10, by: "p1", until: 31 }, { x: 11, y: 10, by: "p1", until: 30 }, { x: 10, y: 9, by: "p2", until: 31 }], next: null } } : {}),
       fx: [],
     },
   };
