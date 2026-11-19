@@ -73,7 +73,9 @@ const TAU = Math.PI * 2;
 // ================================================================ เสียง
 let AC = null, MST, REV, NOISE, SFXBUF = {};
 const SFX_FILES = Object.fromEntries(
-  ["ping", "whoosh", "slap", "rush", "roar", "call", "swirl", "zap", "blast", "gulp", "splash", "spit", "rumble", "boom", "bubbles", "amb"]
+  ["ping", "whoosh", "slap", "rush", "roar", "call", "swirl", "zap", "blast", "gulp", "splash", "spit", "rumble", "boom", "bubbles", "amb",
+   // เสียงวาฬจริง (NOAA / NPS — สาธารณสมบัติ) + เอฟเฟกต์รอบ 2 (Mixkit) — ดู .claude/plans/nautilus-sfx.sh
+   "song", "song2", "moo", "blue", "whup", "whip", "squish", "impact", "deepimpact", "echarge", "crackle"]
     .map((k) => [k, [k + ".mp3", 0, 99, k === "amb" ? 1 : 0.9]]));
 function audio() {
   if (AC) return AC;
@@ -162,25 +164,28 @@ function bubbles(t, n, dur, peak = 0.12) {
 function sub(t, peak = 0.8, f0 = 70) { tone(t, 0.55, "sine", f0, 28, peak, 0.004, 0.15); }
 const S = {
   ping(t) { if (playFile("ping", t)) return; tone(t, 1.6, "sine", 1180, 1150, 0.22, 0.004, 1.2); },
-  whoosh(t, g = 1, r = 1) { if (playFile("whoosh", t, g, r)) return; noise(t, 0.42, "bandpass", 260, 2200, 1.1, 0.5 * g, 0.06, 0.2); },
-  slap(t, g = 1) { if (playFile("slap", t, g)) return; noise(t, 0.18, "lowpass", 1200, 300, 0.7, 0.6 * g, 0.003, 0.2); tone(t, 0.22, "sine", 95, 40, 0.6 * g, 0.003, 0.1); },
+  whoosh(t, g = 1, r = 1) { playFile("whip", t + 0.05, g * 0.8, r); if (playFile("whoosh", t, g, r)) return; noise(t, 0.42, "bandpass", 260, 2200, 1.1, 0.5 * g, 0.06, 0.2); },
+  slap(t, g = 1) { playFile("squish", t, g * 0.7); if (playFile("slap", t, g)) return; noise(t, 0.18, "lowpass", 1200, 300, 0.7, 0.6 * g, 0.003, 0.2); tone(t, 0.22, "sine", 95, 40, 0.6 * g, 0.003, 0.1); },
   rumble(t, dur = 1.4, peak = 0.5) { if (playFile("rumble", t, Math.min(1.2, peak * 2))) return; noise(t, dur, "lowpass", 140, 55, 0.8, peak, dur * 0.5, 0.3); tone(t, dur, "sine", 44, 36, peak * 0.6, dur * 0.5, 0.1); },
   rush(t) { if (playFile("rush", t)) return; noise(t, 1.1, "bandpass", 300, 1400, 0.9, 0.55, 0.15, 0.2); },
-  roar(t, g = 0.9, r = 1) { if (playFile("roar", t, g, r)) return; whaleCall(t, 1.3, 68, 1.35, 0.55, 0.7); },
-  call(t, g = 1, r = 1) { if (playFile("call", t, g, r)) return; whaleCall(t, 1.6, 110, 1.4, 0.35 * g); },
+  // คำราม = ร้องวาฬสีน้ำเงินจริง (ต่ำ หนัก) ซ้อนเสียงสัตว์ประหลาดให้มีเนื้อ · ร้องเรียก = วาฬหลังค่อมจริง ซ้อนเสียงกรีดร้องเบาๆ
+  roar(t, g = 0.9, r = 1) { const a = playFile("blue", t, g, r * 0.9); const b = playFile("roar", t + 0.05, g * (a ? 0.55 : 1), r); if (a || b) return; whaleCall(t, 1.3, 68, 1.35, 0.55, 0.7); },
+  call(t, g = 1, r = 1) { const a = playFile(Math.random() < 0.5 ? "moo" : "whup", t, g, r * 0.95); playFile("call", t + 0.1, g * (a ? 0.3 : 1), r); if (!a && !SFXBUF.call) whaleCall(t, 1.6, 110, 1.4, 0.35 * g); },
   swirl(t, dur = 1.7) {
     if (playFile("swirl", t)) return;
     const f = noise(t, dur, "bandpass", 450, 380, 3, 0.4, 0.25, 0.4);
     const l = AC.createOscillator(); l.frequency.value = 3.2; const lg = AC.createGain(); lg.gain.value = 260; l.connect(lg); lg.connect(f.frequency); l.start(t); l.stop(t + dur);
   },
-  charge(t, dur = 1.1) { tone(t, dur, "sawtooth", 60, 700, 0.1, dur * 0.8, 0.4, 1800); tone(t, dur, "sine", 40, 90, 0.35, dur * 0.8, 0.2); for (let i = 0; i < 14; i++) noise(t + rnd(0, dur), 0.03, "highpass", 3500, 3000, 0.7, 0.16, 0.002, 0.2); },
+  charge(t, dur = 1.1) {
+    if (playFile("echarge", t, 0.9)) { playFile("crackle", t + 0.2, 0.5); return; } tone(t, dur, "sawtooth", 60, 700, 0.1, dur * 0.8, 0.4, 1800); tone(t, dur, "sine", 40, 90, 0.35, dur * 0.8, 0.2); for (let i = 0; i < 14; i++) noise(t + rnd(0, dur), 0.03, "highpass", 3500, 3000, 0.7, 0.16, 0.002, 0.2); },
   zap(t, g = 1) { if (playFile("zap", t, g)) return; noise(t, 0.16, "highpass", 2400, 1500, 0.7, 0.55 * g, 0.002, 0.3); },
   blast(t) { if (!playFile("blast", t, 0.9)) S.zap(t); sub(t, 0.7, 90); },
-  boom(t, g = 1) { if (!playFile("boom", t, g)) S.rumble(t, 1.2, 0.5); sub(t, 0.9 * g); },
+  boom(t, g = 1) { if (!playFile(Math.random() < 0.5 ? "impact" : "deepimpact", t, g) && !playFile("boom", t, g)) S.rumble(t, 1.2, 0.5); sub(t, 0.9 * g); },
   gulp(t) { if (playFile("gulp", t)) return; tone(t, 0.42, "sine", 230, 42, 0.7, 0.01, 0.4); },
   splash(t, g = 1, r = 1) { if (playFile("splash", t, g, r)) return; noise(t, 0.7, "bandpass", 1700, 380, 0.8, 0.55 * g, 0.005, 0.35); },
   spit(t) { if (!playFile("spit", t)) tone(t, 0.25, "sine", 70, 260, 0.5, 0.01, 0.3); S.splash(t + 0.12, 0.6); },
   song(t) {
+    if (playFile(Math.random() < 0.5 ? "song" : "song2", t, 1, 0.9)) { playFile("blue", t + 1.8, 0.5, 0.8); return; } // เพลงวาฬหลังค่อมจริง
     whaleCall(t, 1.4, 170, 1.65, 0.32); whaleCall(t + 1.05, 1.5, 250, 0.62, 0.3); whaleCall(t + 2.2, 1.9, 120, 2.05, 0.36);
     tone(t + 0.3, 3.4, "sine", 900, 1350, 0.03, 1.2, 1.2);
   },
@@ -1079,7 +1084,7 @@ function flyby(then) {
   post.tdim = 0.45; post.tbox = 1;
   sfx("rumble", 0, 3.5, 0.7); sfx("call", 400, 0.7, 0.62);
   addFx(FLY_PASS[1], "top", (k) => { const el = k * FLY_PASS[1]; cam.shake = Math.max(cam.shake, el < FLY_SHADOW[1] ? 2 + 3 * Math.sin(Math.PI * el / FLY_SHADOW[1]) : 3 + 9 * Math.sin(Math.PI * clamp((el - FLY_PASS[0]) / (FLY_PASS[1] - FLY_PASS[0]), 0, 1))); });
-  after(FLY_PASS[0] + 600, () => { sfx("roar", 0, 1, 0.75); sfx("rumble", 0, 3, 0.8); sub(AC.currentTime + 0.05, 0.9, 45); });
+  after(FLY_PASS[0] + 600, () => { sfx("roar", 0, 1, 0.7); sfx("rumble", 0, 3, 0.8); sub(AC.currentTime + 0.05, 0.9, 45); });
   after(FLY_PASS[0] + 1800, () => { sfx("whoosh", 0, 1, 0.55); sfx("rush", 300); for (let i = 0; i < 6; i++) bubbleBurst(rnd(0, W), rnd(H * 0.3, H * 0.8), 8, W * 0.05); });
   after(FLY_PASS[0] + 2600, () => { sfx("call", 0, 1, 0.5); kick({ shake: 14, blur: 0.4 }); });
   after(FLY_PASS[1] - 300, () => { post.tdim = 0; post.tbox = 0; });
