@@ -48,7 +48,7 @@ const MEDIA = "../../client/public/nautilus/";
 const DPR = Math.min(2, window.devicePixelRatio || 1);
 const cv = document.getElementById("c"), g = cv.getContext("2d");
 const COLS = 16, ROWS = 11, SQ = 0.66;
-const WHALE_SIZE = 1.5; // ขนาดภาพเทียบลำตัว 5 ช่อง (ผู้ใช้: ตัวใหญ่ขึ้นอีกหน่อย)
+const WHALE_SIZE = 2.1; // ขนาดภาพเทียบลำตัว 5 ช่อง (ผู้ใช้ขยาย 2 รอบ: 1 → 1.5 → 2.1)
 let W, H, cs, ox, oy;
 const snap = document.createElement("canvas"), sg = snap.getContext("2d");
 function resize() {
