@@ -244,3 +244,30 @@ test('dev ECHO_DEV_START_ROUND=10: เริ่มชั้น 2 · ต้นเ
   assert.ok(W().pending.length >= 1, 'ประกาศท่าแรกแล้ว');
   assert.ok(fxOf('whale_appear').length);
 });
+
+test('ความดุ (2026-11-19): ชั้น II–IV เตือน 2 ท่า/เทิร์น · ชั้น V 3 (เลือดต่ำกว่าครึ่ง 4) · ว่ายชนคนที่ขวาง · งับคนใกล้ลำตัว (หลบได้)', () => {
+  setup(3);
+  invuln();
+  surface(20);
+  // ว่ายชน: วางคนไว้บนช่องที่ลำตัวจะกวาดผ่าน (ยังไม่อยู่ใต้ลำตัวตอนนี้)
+  const map = action.boardMap();
+  const now = new Set(Th.bodyNow(ctx()).map((b) => K(b.x, b.y)));
+  const ahead = Th.footprint(Th.posAt(W().s + 2, map.cols, map.rows), map.cols, map.rows);
+  const spot = ahead.find((t) => !now.has(K(t.x, t.y)) && !Board.isObstacle(map, t.x, t.y, action.boardBlocked()));
+  for (const p of Object.values(engine.players)) p.pos = null;
+  P(0).pos = { ...spot }; P(1).pos = { x: 0, y: 15 }; P(2).pos = { x: 19, y: 15 };
+  const hp0 = total(P(0));
+  Math.random = () => 0.99; // ไม่หลบ
+  preRoundOf(13);
+  Math.random = realRandom;
+  assert.ok(fxOf('whale_ram').some((e) => e.hits.includes('p0')), 'ว่ายชน');
+  assert.ok(total(P(0)) < hp0, 'โดนดาเมจจากการว่ายชน');
+  assert.ok(fxOf('whale_bite').length >= 1, 'งับคนใกล้ลำตัว');
+  assert.ok(W().pending.length >= 2, 'ชั้น II–IV เตือน 2 ท่า');
+  // ชั้น V: 3 ท่า · เลือดต่ำกว่าครึ่ง 4
+  const c5 = ctx(); c5.stage = 11;
+  W().hp = W().hpMax;
+  assert.equal(Th.moveCount(c5, W()), 3);
+  W().hp = Math.floor(W().hpMax / 2) - 1;
+  assert.equal(Th.moveCount(c5, W()), 4);
+});

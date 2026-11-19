@@ -13,7 +13,7 @@
 //   ชั้น 2–4 = 1 ท่า/เทิร์น · ชั้น 5 = 2 ท่า + ดาเมจ +1 · เลือดต่ำกว่าครึ่งในชั้น 5 = 3 ท่า
 //   เลือด 30 + 5 ต่อผู้เล่น ไม่มีเกราะ ค้างข้ามรอบโผล่ · ไม่ตีสวน ไม่ติดสถานะ
 // ============================================================
-Object.assign(module.exports, { bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent });
+Object.assign(module.exports, { bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent, moveCount });
 
 const FIRST_TURN = 10;
 const ON_TURNS = 3;
@@ -21,10 +21,13 @@ const OFF_TURNS = 3;
 const HP_BASE = 30, HP_PER_PLAYER = 5;
 const SWIM_PER_TURN = 4; // ช่องที่ว่ายต่อเทิร์น
 const BODY_LEN = 5, BODY_W = 2;
+const BITE_REACH = 2, BITE_N = 1;
 const HEART = { key: "might", amount: 3, turns: 3 };
 const MOVES = ["tentacle", "charge", "whirl", "zap", "song", "swallow"];
-const MOVE_NAMES = { tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง" };
-const DMG = { tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2 };
+const MOVE_NAMES = { tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง", ram: "ว่ายชน", bite: "งับ" };
+const DMG = { tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2, ram: 2, bite: 2 };
+// ความดุ (ผู้ใช้ 2026-11-19 หลัง 6.4.0: "ปลาไม่ดุเลย แทบไม่โจมตีเราเลย"): ท่าที่เตือนต่อเทิร์น ชั้น II–IV 2 · ชั้น V 3 (เลือดต่ำกว่าครึ่ง 4)
+//  + ว่ายชนคนที่ขวางทาง (ดาเมจ ram) + งับคนใกล้ลำตัวทุกเทิร์นที่อยู่ (BITE_REACH ช่อง · BITE_N คน) — หลบได้ทุกท่า
 // เส้นทางว่าย (พิกัดช่อง สัดส่วนของกระดาน — วนรอบ/ตัดผ่าน ออกนอกขอบได้นิดหน่อย) · ปรับตามขนาดกระดานตอนใช้
 const PATH = [[0.1, 0.24], [0.33, 0.2], [0.66, 0.22], [0.92, 0.34], [0.94, 0.66], [0.78, 0.88], [0.52, 0.8], [0.3, 0.58], [0.52, 0.42], [0.74, 0.56], [0.6, 0.9], [0.24, 0.88], [0.06, 0.6]]; // อยู่ในกระดานเกือบตลอด · ไม่ผ่านท่าจอดเรือ (แถวบน) — แก้คู่ client/server
 
@@ -161,9 +164,28 @@ function calm(ctx) {
 }
 function swim(ctx, w) {
   const map = ctx.map();
+  // ช่องที่ลำตัวกวาดผ่านระหว่างว่าย (ตำแหน่งเดิม → ใหม่ ทีละครึ่งช่อง) = ว่ายชน
+  const swept = new Set();
+  for (let d = 0; d <= SWIM_PER_TURN; d += 0.5) for (const c of footprint(posAt(w.s + d, map.cols, map.rows), map.cols, map.rows)) swept.add(`${c.x},${c.y}`);
   w.s += SWIM_PER_TURN;
   ctx.fx("whale_swim", posAt(w.s, map.cols, map.rows));
+  const hits = [];
+  for (const p of ctx.alive()) if (p.pos && swept.has(`${p.pos.x},${p.pos.y}`) && hit(ctx, p, DMG.ram, "ram")) hits.push(p.id);
+  if (hits.length) ctx.fx("whale_ram", { hits, ...posAt(w.s, map.cols, map.rows) });
   shoveOffBody(ctx);
+  bite(ctx, w);
+}
+// งับ: คนที่ใกล้ลำตัวที่สุด (ไม่เกิน BITE_REACH ช่อง) โดนงับทันที — ไม่เตือน แต่หลบได้
+function bite(ctx, w) {
+  const body = bodyNow(ctx);
+  if (!body.length) return;
+  const near = (p) => Math.min(...body.map((c) => Math.max(Math.abs(c.x - p.pos.x), Math.abs(c.y - p.pos.y))));
+  const cands = ctx.alive().filter((p) => p.pos && near(p) <= BITE_REACH).sort((a, b) => near(a) - near(b)).slice(0, BITE_N);
+  for (const p of cands) {
+    const ok = hit(ctx, p, DMG.bite, "bite");
+    ctx.fx("whale_bite", { id: p.id, x: p.pos.x, y: p.pos.y, hit: ok });
+  }
+  void w;
 }
 // ใครยืนในช่องลำตัว = ถูกเบียดออกไปช่องว่างที่ใกล้สุด
 function shoveOffBody(ctx) {
@@ -194,8 +216,8 @@ function nearestFree(ctx, p, avoid) {
 
 // ---------- วางแผนท่า (เตือนช่อง) ----------
 function moveCount(ctx, w) {
-  if (ctx.stage < 11) return 1;
-  return w.hp * 2 < w.hpMax ? 3 : 2;
+  if (ctx.stage < 11) return 2;
+  return w.hp * 2 < w.hpMax ? 4 : 3;
 }
 function plan(ctx, w) {
   const map = ctx.map();

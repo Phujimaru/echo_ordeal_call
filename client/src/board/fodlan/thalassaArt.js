@@ -21,6 +21,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // ความยาวฉาก (ms) ของเหตุการณ์ฝั่ง server
 export const WHALE_FX = {
   whale_flyby: 8200, whale_appear: 2400, whale_leave: 2000, whale_warn: 1400, whale_hit: 500, whale_death: 7600, whale_shove: 600,
+  whale_ram: 1200, whale_bite: 1300,
   whale_tentacle: 1900, whale_charge: 2400, whale_whirl: 2400, whale_zap: 1500, whale_song: 3200, whale_swallow: 3400,
 };
 
@@ -189,6 +190,32 @@ function drawBody(g, now, fierce) {
   for (const [spr, face, a] of poseFrames(now)) drawSprite(g, spr, V, face, a * V.alpha, t, spd, glow);
 }
 
+// ตัวปลาวาฬห้ามทับตัวละคร (ผู้ใช้ 2026-11-19: "อย่าให้ภาพซ้อนกับปลา") — วาดลงแคนวาสแยก แล้วเจาะช่องโปร่งรอบตัวละครทุกตัว
+//  (ตัวหมาก + ป้ายชื่อ/หลอดเลือดเหนือหัว) ก่อนวางทับกระดาน → ตัวละครโผล่ทะลุตัวปลาวาฬเสมอ
+let BODY_CV = null;
+function drawBodyClear(g, now, fierce, units) {
+  if (!SPR || V.alpha <= 0.01) return;
+  const live = (units || []).filter((u) => u && u.alive !== false && Number.isFinite(u.rx ?? u.x));
+  if (!live.length || typeof document === "undefined" || !g.getTransform) { drawBody(g, now, fierce); return; }
+  const W0 = g.canvas.width, H0 = g.canvas.height;
+  if (!BODY_CV) BODY_CV = document.createElement("canvas");
+  if (BODY_CV.width !== W0 || BODY_CV.height !== H0) { BODY_CV.width = W0; BODY_CV.height = H0; }
+  const o = BODY_CV.getContext("2d");
+  o.setTransform(1, 0, 0, 1, 0, 0); o.globalCompositeOperation = "source-over"; o.globalAlpha = 1; o.clearRect(0, 0, W0, H0);
+  o.setTransform(g.getTransform());
+  drawBody(o, now, fierce);
+  o.globalCompositeOperation = "destination-out";
+  for (const u of live) {
+    const h = Math.max(1, u.size | 0) / 2, x = (u.rx ?? u.x) + h, y = (u.ry ?? u.y) + h;
+    const [bx, by, bs] = P(x, y, 0), [, ty] = P(x, y, 1.9 + h);
+    const rx = bs * (0.55 + h * 0.5), cy = (by + ty) / 2, ry = Math.max(rx, (by - ty) / 2 + bs * 0.35);
+    o.save(); o.translate(bx, cy); o.scale(rx, ry);
+    const gr = o.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, "rgba(0,0,0,.9)"); gr.addColorStop(0.7, "rgba(0,0,0,.85)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    o.fillStyle = gr; o.beginPath(); o.arc(0, 0, 1, 0, TAU); o.fill(); o.restore();
+  }
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.drawImage(BODY_CV, 0, 0); g.restore();
+}
+
 // ---------- การเคลื่อนไหวต่อเฟรม ----------
 function step(fd, info, now, dt) {
   const w = fd.whale, cols = info.cols, rows = info.rows;
@@ -243,6 +270,9 @@ function sounds(e) {
     case "whale_swallow": snd("rumble", { gain: 1 }); SND.boom({ delay: 1300 }); snd("splash", { rate: 0.8, delay: 1340 }); SND.roar({ gain: 0.8, rate: 1.2, delay: 1360 }); snd("gulp", { delay: 1700 }); if (e.spit) snd("spit", { delay: 2900 }); break;
     case "nt_bait": snd("whip", { gain: 0.7 }); snd("squish", { gain: 0.9, delay: 520 }); SND.call({ gain: 0.45, rate: 0.85, delay: 900 }); break;
     case "whale_hit": SND.slap({ gain: 0.8 }); SND.call({ gain: 0.4, rate: 1.2, delay: 80 }); break;
+    // ว่ายชน / งับ (ความดุที่เพิ่ม 2026-11-19)
+    case "whale_ram": SND.boom({ gain: 0.9 }); snd("rumble", { gain: 0.6, delay: 100 }); break;
+    case "whale_bite": SND.roar({ gain: 0.6, rate: 1.25 }); snd("gulp", { gain: 0.9, delay: 420 }); if (e.hit) SND.slap({ gain: 0.8, delay: 450 }); break;
     case "whale_death": SND.roar({ gain: 1, rate: 0.8 }); snd("rumble", { delay: 400 }); SND.call({ gain: 0.8, rate: 0.7, delay: 1600 }); snd("bubbles", { delay: 1400 }); SND.call({ gain: 0.5, rate: 0.55, delay: 3200 }); break;
     default: break;
   }
@@ -288,7 +318,7 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
   step(fd, info, now, dt);
   // เงาข่มขวัญใต้กระดาน (ก่อนตัวปลา)
   for (const e of evs) if (e.kind === "whale_flyby") { const k = fxT(e, now, WHALE_FX.whale_flyby); if (k < 1) drawFlyby(g, k, now, view, true); }
-  drawBody(g, now, info && info.stage >= 11);
+  drawBodyClear(g, now, info && info.stage >= 11, units);
   for (const e of evs) {
     const k = fxT(e, now, WHALE_FX[e.kind] || 1500);
     if (k >= 1) continue;
@@ -298,6 +328,8 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
     else if (e.kind === "whale_swallow" && e.at && k > 0.38 && k < 0.85) drawEmerge(g, e.at.x + 0.5, e.at.y + 0.5, (k - 0.38) / 0.47, now);
     else if (e.kind === "whale_swallow" && e.spit && k > 0.85) drawGeyser(g, e.spit.x + 0.5, e.spit.y + 0.5, (k - 0.85) / 0.15, 0.6, now);
     else if (e.kind === "whale_hit") { if (k < 0.1) { const [sx, sy] = screenOf(e.x + 0.5, e.y + 0.5, 1); sparks(sx, sy, 20, 260); } }
+    else if (e.kind === "whale_bite" && Number.isFinite(e.x) && k < 0.8) drawEmerge(g, e.x + 0.5, e.y + 0.5, k / 0.8, now); // ขากรรไกรโผล่งับจากใต้น้ำที่ตัวเป้า
+    else if (e.kind === "whale_ram" && k < 0.25) for (const id of e.hits || []) { const u = (units || []).find((q) => q.id === id); if (u) { const [sx, sy] = screenOf((u.rx ?? u.x) + 0.5, (u.ry ?? u.y) + 0.5, 0.6); sparks(sx, sy, 14, 220); } }
     else if (e.kind === "whale_death" && k > 0.35) drawHeart(g, e, (k - 0.35) / 0.65, now);
   }
   // เหยื่อล่อ: ปาโค้งไปติดตัวเป้า · คนที่ติดกลิ่นมีหมอกเลือดวนรอบตัวจนท่าถัดไป
