@@ -582,6 +582,14 @@ export function buildMockState(opts) {
   const byId = (id) => s.players.find((p) => p.id === id);
   if (opts.duo) addDuo(s, opts);
   else if (valScn) addValentine(s, scn);
+  // ?magna=N (&cool=1 &sealed=1): แถบ OverHeat ของแม็กน่า (hud/MagnaHud.jsx) บนตัวเรา
+  if (typeof location !== "undefined") {
+    const mq = new URLSearchParams(location.search);
+    if (mq.has("magna")) {
+      const me = s.players.find((p) => p.id === ME);
+      if (me) me.magna = { heat: Number(mq.get("magna")) || 0, balls: 2, cool: mq.get("cool") === "1", sealed: mq.get("sealed") === "1" };
+    }
+  }
   if (gameState === "ORDER") {
     const names = s.turnOrder.map((id) => byId(id).name);
     s.log = [
