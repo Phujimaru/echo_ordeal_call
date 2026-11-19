@@ -364,7 +364,7 @@ const isEosArea = (area) => Number(area) === EOS_AREA;
 //  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
 const NAUTILUS_AREA = EOS_AREA + 1;
 const NAUTILUS_STAGES = 5;
-const NAUTILUS_NAMES = ["แนวปะการัง", "ซากเรือรบ", "ปล่องภูเขาไฟใต้ทะเล", "นครจมบาดาล", "ร่องลึกก้นสมุทร"];
+const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19
 //  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
 const NAUTILUS_DEFS = [require("./fodlan/map7"), require("./fodlan/map8"), require("./fodlan/map9"), require("./fodlan/map10"), require("./fodlan/map11")];
 // ชั้นที่ตัวคุมวางทับทุกชั้น (server/fodlan/nautilus.js layer): ลำตัวทาลัสซา + เรือ Nautilus ที่ท่าจอด (DOCK ของ mapN.js) — สิ่งกีดขวาง

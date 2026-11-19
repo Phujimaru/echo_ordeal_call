@@ -70,7 +70,7 @@ test('เริ่มแมตช์: ชั้น 1 = ด่าน 7 · area 46
   for (const p of Object.values(match.players)) assert.ok(p.pos, 'ทุกคนอยู่บนกระดาน');
   const info = Fodlan.publicInfo();
   assert.equal(info.stage, 7);
-  assert.equal(info.name, 'แนวปะการัง');
+  assert.equal(info.name, 'แนวปะการังแสงรำไร');
   assert.equal(info.depth, -30);
   assert.equal(info.nautilus, true);
   assert.equal(info.weather, null);
@@ -152,7 +152,7 @@ test('สภาพอากาศ: กติกาเดียวกับ Fodla
   assert.ok(Nt.WEATHER_POOLS[9].includes(Fodlan.weatherNow().kind));
 });
 
-const REWORKED = new Set([7, 8]); // ชั้นที่ทำภูมิประเทศใหม่ (ร้าน = เรือ Nautilus · ไม่มีจุดร้านค้า)
+const REWORKED = new Set([7, 8, 9, 10, 11]); // ชั้นที่ทำภูมิประเทศใหม่ (ร้าน = เรือ Nautilus · ไม่มีจุดร้านค้า)
 
 test('ชั้น 1 แนวปะการัง: ทุกช่องที่เดินได้ต่อถึงกัน (สันปะการัง/ซุ้มหิน/หลุมน้ำเงินไม่ตัดพื้นที่) · ถ้ำในซุ้มหินเข้าได้', () => {
   const M = Board.MAPS[Board.NAUTILUS_AREA];

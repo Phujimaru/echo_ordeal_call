@@ -480,6 +480,15 @@ export function ground(g, fd, info, now, lowQ) {
   drawThalassaGround(g, fd, info, now);
 }
 
+// ปลาตัวเดียว หันหัวไปตามทิศว่ายบนจอ (ang) — หางอยู่ท้ายเสมอ
+export function fish(g, x, y, w, ang, col) {
+  g.save(); g.translate(x, y); g.rotate(ang); g.fillStyle = col;
+  g.beginPath(); g.ellipse(0, 0, w, w * 0.38, 0, 0, TAU); g.fill();
+  g.beginPath(); g.moveTo(-w * 0.9, 0); g.lineTo(-w * 1.6, -w * 0.42); g.lineTo(-w * 1.6, w * 0.42); g.closePath(); g.fill();
+  g.fillStyle = "rgba(0,0,0,.6)"; g.beginPath(); g.arc(w * 0.55, -w * 0.08, w * 0.09, 0, TAU); g.fill();
+  g.restore();
+}
+
 // =================================================================== ทับตัวละคร
 const FISH = Array.from({ length: 4 }, (_, s) => ({ s, n: 12 + s * 3, col: ["#f2c14e", "#7fd6ff", "#ff8a5c", "#c7f0ff"][s] }));
 const JELLY = Array.from({ length: 4 }, (_, i) => i);
@@ -487,12 +496,12 @@ export function air(g, fd, info, units, now, lowQ, view) {
   const t = now / 1000, cols = info.cols, rows = info.rows;
   // ฝูงปลา: ศูนย์กลางฝูงว่ายวนรอบโซน ตัวในฝูงกระจายตาม hash (เลี้ยวพร้อมกัน)
   if (!lowQ) for (const f of FISH) {
-    const a = t * (0.12 + f.s * 0.03) + f.s * 1.7, cx = cols * (0.5 + 0.38 * Math.cos(a)), cy = rows * (0.45 + 0.32 * Math.sin(a * 1.3)), dir = -Math.sin(a) >= 0 ? 1 : -1;
+    const sp = 0.12 + f.s * 0.03, a = t * sp + f.s * 1.7, at = (q) => [cols * (0.5 + 0.38 * Math.cos(q)), rows * (0.45 + 0.32 * Math.sin(q * 1.3))];
+    const [cx, cy] = at(a), [nx, ny] = at(a + 0.02), p0 = P(cx, cy, 2), p1 = P(nx, ny, 2), ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]); // ทิศว่ายจริงบนจอ (หมุนกล้องก็ถูก — ผู้ใช้ทักปลาว่ายกลับด้าน)
     for (let i = 0; i < f.n; i++) {
       const ox = (hash(f.s * 40 + i, 1) - 0.5) * 2.2 + Math.sin(t * 2 + i) * 0.15, oy = (hash(f.s * 40 + i, 2) - 0.5) * 1.4, z = 1.6 + hash(i, f.s) * 1.4;
-      const [sx, sy, s] = P(cx + ox, cy + oy, z), w = s * 0.13;
-      g.fillStyle = f.col; g.beginPath(); g.ellipse(sx, sy, w, w * 0.38, 0, 0, TAU); g.fill();
-      g.beginPath(); g.moveTo(sx - dir * w, sy); g.lineTo(sx - dir * w * 1.6, sy - w * 0.4); g.lineTo(sx - dir * w * 1.6, sy + w * 0.4); g.fill();
+      const [sx, sy, s] = P(cx + ox, cy + oy, z);
+      fish(g, sx, sy, s * 0.13, ang + Math.sin(t * 3 + i) * 0.08, f.col);
     }
   }
   // แมงกะพรุนเรืองแสง ลอยขึ้นช้าๆ ข้ามกระดาน

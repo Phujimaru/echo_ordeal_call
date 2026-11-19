@@ -12,12 +12,13 @@ export const NAUTILUS_FIRST = 7;
 export const NAUTILUS_LAST = 11;
 
 // amb = เสียงบรรยากาศ (fodlanAudio: คีย์ nt_… → /nautilus/sfx/…) · ambGain = คูณเพิ่ม (ไฟล์ทำที่ -16/-18 LUFS — ผู้ใช้: อย่าให้เสียงบรรยากาศเบาเกินไป 2026-11-19)
+// ชื่อชั้นภาษาไทยทั้งหมด (ผู้ใช้สั่ง 2026-11-19 "ชื่อด่านขอเป็นภาษาไทยดีๆ") · latin = ชื่อรอง (ตอนนี้ไทย "ชั้นที่ N")
 export const NAUTILUS_LAYERS = [
-  { id: 7, numeral: "I", name: "แนวปะการัง", latin: "CORAL REEF", depth: -30, color: "#2fc4c0", glow: "#c8fff6", amb: "nt_amb_reef", ambGain: 1 },
-  { id: 8, numeral: "II", name: "ซากเรือรบ", latin: "SUNKEN WARSHIP", depth: -200, color: "#3f8fb8", glow: "#bfe6ff", amb: "nt_amb", ambGain: 1.1 },
-  { id: 9, numeral: "III", name: "ปล่องภูเขาไฟใต้ทะเล", latin: "HYDROTHERMAL VENTS", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb", ambGain: 1.1 },
-  { id: 10, numeral: "IV", name: "นครจมบาดาล", latin: "SUNKEN CITY", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb", ambGain: 1.1 },
-  { id: 11, numeral: "V", name: "ร่องลึกก้นสมุทร", latin: "ABYSSAL TRENCH", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb", ambGain: 1.1 },
+  { id: 7, numeral: "I", name: "แนวปะการังแสงรำไร", latin: "ชั้นที่ ๑", depth: -30, color: "#2fc4c0", glow: "#c8fff6", amb: "nt_amb_reef", ambGain: 1 },
+  { id: 8, numeral: "II", name: "สุสานเรือรบ", latin: "ชั้นที่ ๒", depth: -200, color: "#3f8fb8", glow: "#bfe6ff", amb: "nt_amb_wreck", ambGain: 1 },
+  { id: 9, numeral: "III", name: "หุบปล่องเพลิง", latin: "ชั้นที่ ๓", depth: -1000, color: "#e0662e", glow: "#ffc79a", amb: "nt_amb_vents", ambGain: 1 },
+  { id: 10, numeral: "IV", name: "นครบาดาลที่สาบสูญ", latin: "ชั้นที่ ๔", depth: -3000, color: "#36d6e6", glow: "#d2fbff", amb: "nt_amb_city", ambGain: 1 },
+  { id: 11, numeral: "V", name: "ห้วงเหวไร้แสง", latin: "ชั้นที่ ๕", depth: -10000, color: "#5a6fd8", glow: "#c9d2ff", amb: "nt_amb", ambGain: 1.1 },
 ];
 export const isNautilusStage = (s) => Number(s) >= NAUTILUS_FIRST && Number(s) <= NAUTILUS_LAST;
 export const nautilusLayer = (s) => NAUTILUS_LAYERS.find((l) => l.id === Number(s)) || NAUTILUS_LAYERS[0];

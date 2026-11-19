@@ -24,7 +24,11 @@ function snd(k, gain = 1, delay = 0) {
 export function reefItems(list, g, fd, info, now) {
   const r = fd && fd.reef; if (!r) return;
   const t = now / 1000;
-  for (const f of r.puffers || []) list.push({ d: depthOf(f.x + 0.5, f.y + 0.5), f: () => puffer(g, f.x + 0.5 + Math.sin(t * 0.7 + f.id) * 0.12, f.y + 0.5, 0.45 + Math.sin(t * 1.6 + f.id) * 0.06, 1, t + f.id) });
+  for (const f of r.puffers || []) {
+    const x = f.x + 0.5 + Math.sin(t * 0.7 + f.id) * 0.12, vx = Math.cos(t * 0.7 + f.id); // ลอยซ้าย-ขวา → หันหัวตามทิศที่ลอย (บนจอ)
+    const a = P(x, f.y + 0.5), b = P(x + vx * 0.1, f.y + 0.5), face = b[0] >= a[0] ? 1 : -1;
+    list.push({ d: depthOf(f.x + 0.5, f.y + 0.5), f: () => puffer(g, x, f.y + 0.5, 0.45 + Math.sin(t * 1.6 + f.id) * 0.06, 1, t + f.id, face) });
+  }
   for (const v of r.valves || []) list.push({ d: depthOf(v.x + 0.5, v.y + 0.5), f: () => valve(g, v, r.valveDir, t) });
   for (const k of r.broken || []) { const [x, y] = k.split(",").map(Number); list.push({ d: depthOf(x + 0.5, y + 0.5), f: () => rubble(g, x, y) }); }
   // หอยเม่นพร้อมปาบนดงปะการังบางช่อง (ดงที่ยังไม่ถูกเก็บ)
@@ -36,14 +40,16 @@ export function reefItems(list, g, fd, info, now) {
     list.push({ d: depthOf(s.x + 0.5, s.y + 0.5) + 0.01, f: () => urchin(g, s.x + 0.3, s.y + 0.7, t) });
   }
 }
-function puffer(g, x, y, z, scale, t) {
-  const [sx, sy, s] = P(x, y, z), r = s * 0.16 * scale;
+function puffer(g, x, y, z, scale, t, face = 1) {
+  const [sx0, sy, s] = P(x, y, z), r = s * 0.16 * scale, sx = 0;
+  g.save(); g.translate(sx0, 0); g.scale(face, 1);
   g.fillStyle = "rgba(0,10,14,.35)"; { const b = P(x, y, 0); g.beginPath(); g.ellipse(b[0], b[1], r * 1.2, r * 0.4, 0, 0, TAU); g.fill(); }
   g.fillStyle = "#d9b45a"; g.beginPath(); g.ellipse(sx, sy, r * 1.25, r, 0, 0, TAU); g.fill();
   g.fillStyle = "#f2e2b0"; g.beginPath(); g.ellipse(sx, sy + r * 0.35, r * 0.9, r * 0.5, 0, 0, TAU); g.fill();
   g.fillStyle = "#6b5226"; for (let i = 0; i < 6; i++) { const a = i * 1.1; g.beginPath(); g.arc(sx + Math.cos(a) * r * 0.6, sy - r * 0.2 + Math.sin(a) * r * 0.35, r * 0.1, 0, TAU); g.fill(); }
   const tail = Math.sin(t * 9) * r * 0.25; g.fillStyle = "#c79a40"; g.beginPath(); g.moveTo(sx - r * 1.2, sy); g.lineTo(sx - r * 1.75, sy - r * 0.45 + tail); g.lineTo(sx - r * 1.75, sy + r * 0.45 + tail); g.fill();
   g.fillStyle = "#111"; g.beginPath(); g.arc(sx + r * 0.65, sy - r * 0.2, r * 0.13, 0, TAU); g.fill();
+  g.restore();
 }
 function urchin(g, x, y, t) {
   const [sx, sy, s] = P(x, y, 0.08), r = s * 0.08;

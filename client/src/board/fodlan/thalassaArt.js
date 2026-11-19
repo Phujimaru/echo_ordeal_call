@@ -193,9 +193,12 @@ function drawBody(g, now, fierce) {
 function step(fd, info, now, dt) {
   const w = fd.whale, cols = info.cols, rows = info.rows;
   if (w && w.on && Number.isFinite(w.s)) {
-    if (V.s == null) V.s = w.s;
-    V.s += (w.s - V.s) * Math.min(1, dt * 1.2) + dt * 0.12; // ว่ายตามตำแหน่ง server + ไหลหน้าเบาๆ (ว่ายตลอด)
-    if (V.s > w.s + 0.8) V.s = w.s + 0.8;
+    // ว่ายไปข้างหน้าตามเส้นทางเท่านั้น (ผู้ใช้ทัก "ปลาว่ายกลับด้าน": เดิม ease หา s ที่น้อยกว่า = ไถลถอยหลังทั้งที่หันหน้าไปข้างหน้า)
+    const len = pathPts(cols, rows).len;
+    if (V.s == null || V.seen !== w.appearSeq) { V.s = w.s; V.seen = w.appearSeq; }
+    let ahead = (((w.s - V.s) % len) + len) % len; // ระยะไปข้างหน้าถึงตำแหน่ง server
+    if (ahead > len / 2) { if (len - ahead < 1) ahead = 0; else { V.s = w.s; ahead = 0; } } // เลยไปนิดเดียว (ไหลหน้า) = รอ · ห่างมาก = วางใหม่
+    V.s += ahead * Math.min(1, dt * 1.2) + (ahead < 0.8 ? dt * 0.12 : 0); // ว่ายตามตำแหน่ง server + ไหลหน้าเบาๆ (ว่ายตลอด)
   } else if (!w || !w.on) V.s = V.s == null ? 0 : V.s;
   const [x, y] = pathAt(V.s || 0, cols, rows), q = pathAt((V.s || 0) + 0.4, cols, rows), b = pathAt((V.s || 0) - 0.4, cols, rows);
   if (!V.override) { V.x = x; V.y = y; }

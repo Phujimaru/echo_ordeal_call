@@ -134,7 +134,7 @@ export default function NautilusDive({ mode = "advance", from = 7, to = 8, durat
       if (nk > 0) {
         g.save(); g.globalAlpha = nk; g.textAlign = "center"; g.fillStyle = "#e8fbff"; g.shadowColor = toL.glow || "#9ff"; g.shadowBlur = 24 * S;
         g.font = `700 ${Math.round(64 * S)}px "Kanit","Chakra Petch",sans-serif`; g.fillText(toL.name, W / 2, H * 0.78);
-        g.font = `600 ${Math.round(20 * S)}px "Chakra Petch",sans-serif`; g.fillStyle = "rgba(200,240,255,.8)"; g.fillText(`${toL.numeral} · ${toL.latin}`, W / 2, H * 0.78 + 46 * S);
+        g.font = `600 ${Math.round(20 * S)}px "Kanit","Chakra Petch",sans-serif`; g.fillStyle = "rgba(200,240,255,.8)"; g.fillText(`${toL.latin} · ลึก ${Math.abs(toL.depth).toLocaleString("en-US")} เมตร`, W / 2, H * 0.78 + 46 * S);
         g.restore();
       }
       // โซนาร์กวาด → จางเผยกระดาน

@@ -415,7 +415,7 @@ function publicInfo(ctx) {
   const warn = [];
   for (const m of w.pending || []) if (!m.soft) for (const c of m.tiles) warn.push({ x: c.x, y: c.y, kind: `whale_${m.kind}` });
   return {
-    enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos, bait: w.bait ? w.bait.id : null,
+    enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos, bait: w.bait ? w.bait.id : null, appearSeq: w.appearSeq || 0,
     nextAt: w.on || w.dead ? null : w.nextAt,
     pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, soft: !!m.soft })),
     warn,
