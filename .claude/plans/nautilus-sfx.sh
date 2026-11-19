@@ -3,6 +3,7 @@
 #  ต้นฉบับ: .claude/plans/nautilus-sfx-src/<ชื่อ>_<id>.mp3 (preview จาก assets.mixkit.co) · หน้าเสียง https://mixkit.co (ค้น id)
 #  bash .claude/plans/nautilus-sfx.sh [ปลายทาง=client/public/nautilus/sfx]
 #  แต่ละไฟล์: ตัดช่วง → ปรับ rate (<1 = ต่ำและช้าลง ให้ดูตัวใหญ่) → fade → loudnorm → mp3 160k
+# หมายเหตุ 2026-11-19: amb_reef · amb_wreck · amb_vents · amb_city ทำใหม่ด้วย .claude/plans/nautilus-amb.py (โปรยเสียง ไม่วนคลิปสั้น) — รันไฟล์นี้แล้วต้องรัน nautilus-amb.py ทับ
 set -e
 SRC="$(dirname "$0")/nautilus-sfx-src"
 OUT="${1:-client/public/nautilus/sfx}"

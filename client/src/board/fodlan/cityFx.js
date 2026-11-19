@@ -302,7 +302,7 @@ export function cityWeather(g, fd, info, now, view) {
   const w = fd && fd.weather, c = fd && fd.city; if (!w) return;
   const t = now / 1000, X0 = view ? view.x0 : 0, W = view ? view.x1 - view.x0 : 1280, Y0 = view ? view.y0 : 0, H = view ? view.y1 - view.y0 : 720;
   if (w.kind === "nt_maelstrom" && c && c.center) {
-    if (now - WX_SND > 7000) { WX_SND = now; snd("swirl", 0.5); }
+    if (now > WX_SND) { WX_SND = now + 12000 + Math.random() * 9000; snd("swirl", 0.35 + Math.random() * 0.2); }
     const cx = c.center.x, cy = c.center.y;
     g.fillStyle = "rgba(4,14,24,.25)"; g.fillRect(X0, Y0, W, H);
     for (let i = 0; i < 90; i++) {
@@ -313,7 +313,7 @@ export function cityWeather(g, fd, info, now, view) {
     }
   }
   if (w.kind === "nt_cold") {
-    if (now - WX_SND > 8000) { WX_SND = now; snd("l10_cold", 0.4); }
+    if (now > WX_SND) { WX_SND = now + 13000 + Math.random() * 9000; snd("l10_cold", 0.3 + Math.random() * 0.15); }
     g.fillStyle = "rgba(120,180,220,.08)"; g.fillRect(X0, Y0, W, H);
     g.fillStyle = "rgba(220,245,255,.55)";
     for (let i = 0; i < 80; i++) { const x = X0 + ((Math.sin(i * 12.9898) * 43758.5453 % 1 + 1) % 1 * W + t * 40 * (0.6 + (i % 5) * 0.15)) % W, y = Y0 + ((i * 0.6180339) % 1) * H + Math.sin(t + i) * 8; g.fillRect(x, y, 2, 2); }

@@ -182,13 +182,14 @@ function drawDodge(g, e, k) {
 
 // ---------- พายุใต้ทะเล (fd.weather.kind nt_storm · fd.reef.stormDir = ทิศที่จะพัดตอนจบเทิร์น) ----------
 //  ตะกอนพุ่งเป็นสายตามทิศ · ลูกศรใหญ่ไหลบนพื้นบอกทิศเทิร์นนี้ (สัญลักษณ์) · มืดลง · เสียงน้ำซัดเป็นระยะ
-let STORM_SND = 0;
+let STORM_SND = 0; // เวลาที่เล่นเสียงพายุครั้งถัดไป
 export function reefStorm(g, fd, info, now, view) {
   const on = fd && fd.weather && fd.weather.kind === "nt_storm";
   for (const e of fd.fx || []) if ((e.kind === "nt_storm" || e.kind === "nt_storm_push") && fxOnce(e)) { snd("rush", 1); snd("swirl", 0.7, 200); }
   if (!on) return;
   const d = (fd.reef && fd.reef.stormDir) || { x: 1, y: 0 }, t = now / 1000;
-  if (now - STORM_SND > 6000) { STORM_SND = now; snd("rush", 0.55); }
+  // เสียงพายุเป็นระยะ: ช่วงห่างสุ่ม 13–22 วิ สลับเสียง/ความดัง (เดิมทุก 6 วิตายตัว — ผู้ใช้: เสียงน้ำซ้ำบ่อยไป 2026-11-19)
+  if (now > STORM_SND) { STORM_SND = now + 13000 + Math.random() * 9000; const r = Math.random(); if (r < 0.5) snd("rush", 0.35 + Math.random() * 0.2); else snd("swirl", 0.3 + Math.random() * 0.15); }
   const X0 = view ? view.x0 : 0, W = view ? view.x1 - view.x0 : 1280, Y0 = view ? view.y0 : 0, H = view ? view.y1 - view.y0 : 720;
   g.fillStyle = "rgba(20,40,40,.28)"; g.fillRect(X0, Y0, W, H);
   // ลูกศรไหลบนพื้นทั้งกระดาน
