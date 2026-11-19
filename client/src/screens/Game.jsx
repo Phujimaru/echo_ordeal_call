@@ -1037,6 +1037,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               spLabel={me.character?.id === "fern" ? "Energy" : undefined}
               vitals={<div className="hud-vitals">
                   <StatRow big kind="hp" value={me.hp} max={me.maxHp} extra={me.tempHp || 0} extraLabel="เลือดชั่วคราว" />
+                  {me.fodlan?.o2 != null && <StatRow big kind="o2" value={me.fodlan.o2} max={me.fodlan.o2Max || 10} />}
                   <StatRow big kind="ar" value={me.armor} max={me.maxArmor} />
                   <VitalExtras p={me} className="pc-extra-inline" />
                 </div>}

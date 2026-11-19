@@ -19,6 +19,19 @@ function ShieldGlyph() {
   );
 }
 
+// ถังออกซิเจน (โหมด Nautilus — GRID_PLAN §8.9): ฟองอากาศสีฟ้าน้ำทะเล
+function BubbleGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="sr-ico" aria-hidden="true">
+      <circle cx="11" cy="13" r="8" fill="#7ff0f4" stroke="#063c48" strokeWidth="1.4" />
+      <circle cx="18.5" cy="5" r="3" fill="#7ff0f4" stroke="#063c48" strokeWidth="1.2" />
+      <path d="M7.4 10.6a4.4 4.4 0 0 1 3-2.8" fill="none" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+const GLYPH = { hp: HeartGlyph, ar: ShieldGlyph, o2: BubbleGlyph };
+const KIND_LABEL = { hp: "พลังชีวิต", ar: "เกราะ", o2: "ออกซิเจน" };
+
 // เกินจำนวนนี้แล้วช่องแต่ละช่องจะแคบกว่า ~4px = นับไม่ออก เปลี่ยนไปใช้หลอดต่อเนื่องที่มีขีดแบ่งหน่วยแทน
 //  เพดานจริงในเกมโตได้เกินค่าพื้นฐาน (บัฟ/ไอเทม) และเลือดชั่วคราวยังต่อท้ายหลอดอีก
 const SEG_LIMIT = 9;
@@ -29,14 +42,15 @@ export function StatRow({ kind, value, max, extra = 0, extraLabel, big }) {
   if (max == null) {
     return (
       <div className={`sr ${big ? "sr-big" : ""}`} title="ถูกซ่อน (ตาบอด)">
-        {kind === "hp" ? <HeartGlyph /> : <ShieldGlyph />}
+        {(() => { const G = GLYPH[kind] || ShieldGlyph; return <G />; })()}
         <span className="sr-num">🌑 ???</span>
       </div>
     );
   }
   const total = max + extra;
-  const label = `${kind === "hp" ? "พลังชีวิต" : "เกราะ"} ${value}/${max}${extra > 0 && extraLabel ? ` · ${extraLabel} ${extra}` : ""}`;
-  const icon = kind === "hp" ? <HeartGlyph /> : <ShieldGlyph />;
+  const label = `${KIND_LABEL[kind] || "เกราะ"} ${value}/${max}${extra > 0 && extraLabel ? ` · ${extraLabel} ${extra}` : ""}`;
+  const Glyph = GLYPH[kind] || ShieldGlyph;
+  const icon = <Glyph />;
   const num = <span className="sr-num">{value}<span className="sr-max">/{max}</span></span>;
 
   // หลอดต่อเนื่อง: ขีดแบ่งทุกหน่วยยังวาดอยู่ จึงนับได้เหมือนเดิมถ้าอยากนับ

@@ -529,6 +529,9 @@
 .hud-prof-card .sr.sr-big .sr-off { background: rgba(255, 255, 255, 0.13); }
 .hud-prof-card .sr.sr-big .sr-hp { background: linear-gradient(180deg, #ff9aa9, #e0465f); }
 .hud-prof-card .sr.sr-big .sr-ar { background: linear-gradient(180deg, #b9ddf8, #5b9fe0); }
+.hud-prof-card .sr.sr-big[data-kind="o2"] .sr-cell, .hud-prof-card .sr.sr-big[data-kind="o2"] .sr-solid { height: 12px; }
+.hud-prof-card .sr.sr-big .sr-o2 { background: linear-gradient(180deg, #b8f6fb, #22c3d8); }
+.hud-prof-card .sr.sr-big[data-kind="o2"] .sr-num { font-size: 15px; }
 .hud-prof-card .sr.sr-big[data-tone="orange"] .sr-ar { background: linear-gradient(180deg, #fed7aa, #f97316); }
 .hud-prof-card .sr.sr-big .sr-num { min-width: 46px; font: 700 19px/1 "Chakra Petch", sans-serif; text-shadow: none; }
 .hud-prof-card .sr.sr-big[data-kind="ar"] .sr-num { font-size: 17px; }

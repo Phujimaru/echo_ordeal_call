@@ -22,6 +22,8 @@ const LOOKS = {
   rtcart: { look: "apoth", theme: "apoth", crest: "🥬", name: "แผงวัตถุดิบ", latin: "Night Market" },
   rtsnack: { look: "apoth", theme: "apoth", crest: "🚚", name: "รถฟู้ดทรัค", latin: "Food Truck" },
   rtsupply: { look: "apoth", theme: "apoth", crest: "⛺", name: "แผงของแคมป์", latin: "Camp Supply" },
+  // โหมด Nautilus: ร้าน = เรือ Nautilus ที่ท่าจอด (server/fodlan/nautilusShip.js)
+  nautilus: { look: "apoth", theme: "apoth", crest: "🚢", name: "นอติลุส", latin: "Nautilus" },
 };
 const KEEP_TYPES = ["lifeCrystal", "armorCrystal", "battery"]; // ของถาวร/ชาร์จเก็บ (ชั้นที่ 3 ของแคปซูล)
 const SHELF_LABEL = { draw: "ช่วงจั่ว", turn: "ตาเดิน", keep: "ถาวร" };
