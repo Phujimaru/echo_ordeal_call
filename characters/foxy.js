@@ -12,6 +12,7 @@
 //    เข้ากลางคืน = คลิปเข้าช่วงกลางคืน ทุกคนเห็น ทุกครั้ง · PVE (Eos / Moon Cell / Road Trip) = กลางคืนตลอด
 //    Nautilus: ชั้น 1–5 กลางวัน/กลางคืนตามวงจรปกติ · ตั้งแต่ชั้น 6 (ทะเลข้อมูล) กลางคืนถาวร (ผู้ใช้สั่ง 2026-11-20)
 //    สังหารผู้เล่น = ฟื้นพลังชีวิต 5
+//    ร่างกลางคืน: ซ่อนในความมืด (ศัตรูไกลเกิน 3 ช่องมองไม่เห็น) · พุ่งโดน สมอง +2 · ตีปกติ/พุ่งโดน = เป้าขวัญเสีย (เชื่องช้า 2 เทิร์น)
 //  สกิลพื้นฐาน ขอสักทีนะ ที่หน้า (2 แต้ม · คูลดาวน์ 1 เทิร์น · กลางคืนไม่มีคูลดาวน์): พุ่งแนวตรง 7×1 = การโจมตีปกติอีกรูปแบบ (ดาเมจ = พลังโจมตี · จบตาเดิน)
 //    โดนศัตรูคนแรกแล้วหยุดหน้าเป้า · เป้าหลบได้ = พุ่งผ่านต่อ · ชนเพื่อนร่วมทีม/คนถัดไป = หยุดหน้า ไม่มีผล
 //    พุ่งไม่โดนแล้วชนสิ่งกีดขวาง/ขอบแผนที่ = หยุดตรงนั้น สตั้นตัวเอง 1 เทิร์น (ผู้ใช้สั่ง 2026-11-20)
@@ -27,6 +28,7 @@
 // ============================================================
 
 const PassiveSeal = require("../server/passiveSeal");
+const Board = require("../server/board");
 
 const ID = "foxy";
 const DIR = "/characters/foxy";
@@ -39,6 +41,8 @@ const MOV = { day: 3, night: 9 };
 const ATK = { day: 5, night: 3 };
 const DASH = { len: 7, cd: 1, name: "ขอสักทีนะ ที่หน้า" };
 const BRAIN = { max: 3, drain: 3, stun: 1 };
+// ร่างกลางคืน (ผู้ใช้เลือก 2026-11-20): ซ่อนในความมืด (ศัตรูไกลเกิน 3 ช่องมองไม่เห็น) · พุ่งโดน สมอง +2 · โดนแล้วขวัญเสีย (เชื่องช้า 2 เทิร์น)
+const NIGHT = { sight: 3, brain: 2, slow: 2 };
 const KILL_HEAL = 5; // สังหารผู้เล่น: ฟื้นพลังชีวิต 5 (ผู้ใช้สั่ง 2026-11-20)
 const STEP_MS = 70; // เวลาต่อช่องของแอนิเมชันพุ่ง (client setDash)
 const DATA_STAGE = 12; // Nautilus ชั้น 6 (server/fodlan/nautilusLayer.js DATA_STAGE)
@@ -63,11 +67,11 @@ function nightNow(engine) {
 
 // ---------- แต้มสมอง ----------
 const brainFull = (p) => PassiveSeal.on(p) && st(p).brain >= BRAIN.max;
-function addBrain(engine, p) {
+function addBrain(engine, p, n = 1) {
   if (!PassiveSeal.on(p)) return;
   const s = st(p);
   if (s.brain >= BRAIN.max) return;
-  s.brain += 1;
+  s.brain = Math.min(BRAIN.max, s.brain + n);
   engine.log(`🧠 ${p.name} แต้มสมอง ${s.brain}/${BRAIN.max}`);
 }
 // สมองเต็ม: สตั้นเป้า 1 เทิร์น + ลบแต้มสกิล 3 · ขาด = ความเสียหายเพิ่มเท่าส่วนต่าง (เกราะรับก่อน · ผู้เรียกเช็คตายเอง)
@@ -141,12 +145,19 @@ function strikeDash(engine, p, t, burst) {
   engine.withEffectSource(p, () => {
     const res = engine.skillStrike(p, t, DASH.name, { sure: true });
     if (!res || res.blocked || res.dodge) return;
+    scare(engine, p, t);
     if (burst && t.alive && brainFull(p)) {
       brainBurst(engine, p, t);
       if (t.alive && t.hp <= 0) engine.instantDeath(t);
       if (!t.alive) { t.pos = null; engine.log(`💀 ${t.name} ตกรอบ!`); }
-    } else if (!burst) addBrain(engine, p);
+    } else if (!burst) addBrain(engine, p, nightNow(engine) ? NIGHT.brain : 1);
   });
+}
+
+// ขวัญเสีย (กลางคืน): ตีปกติ/พุ่งโดน = เป้าเชื่องช้า 2 เทิร์น (ต้านได้ — applySlow → applyDebuff)
+function scare(engine, p, t) {
+  if (!t.alive || !nightNow(engine) || !PassiveSeal.on(p)) return;
+  if (engine.ice.applySlow(t, NIGHT.slow)) engine.log(`😱 ${t.name} ขวัญเสีย — เชื่องช้า`);
 }
 
 module.exports = {
@@ -160,6 +171,12 @@ module.exports = {
   attackBaseOverride(engine, attacker) {
     if (!isFoxy(attacker)) return 1;
     return nightNow(engine) ? ATK.night : ATK.day;
+  },
+
+  // ---------- กลางคืน: ซ่อนในความมืด — ศัตรูที่อยู่ไกลเกิน 3 ช่องมองไม่เห็น (ไม่หลุดเมื่อโจมตี) ----------
+  stealthed(p) { return isFoxy(p) && p.alive && PassiveSeal.on(p) && nightNow(eng()); },
+  seenBy(engine, viewer, target) {
+    return isFoxy(target) && !!viewer.pos && !!target.pos && Board.dist(viewer.pos, target.pos) <= NIGHT.sight;
   },
 
   // ---------- กลางวัน: ศัตรูโจมตีโดนก่อนฟ็อกซี่ได้เดิน = เสียตาเดินเทิร์นนี้ ----------
@@ -208,7 +225,9 @@ module.exports = {
     return brain ? CUT.brain : CUT.hit;
   },
   onStrikeLanded(engine, attacker, target, { counter } = {}) {
-    if (!isFoxy(attacker) || counter || !brainFull(attacker) || !target.alive) return [];
+    if (!isFoxy(attacker) || counter || !target.alive) return [];
+    scare(engine, attacker, target);
+    if (!brainFull(attacker)) return [];
     brainBurst(engine, attacker, target); // ตายจากส่วนต่าง: strike() เช็คต่อให้
     st(attacker).clipBrain = true;
     return ["สมองเต็ม"];

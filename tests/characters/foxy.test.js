@@ -320,3 +320,44 @@ test('กลางคืน: ท่าพุ่งไม่มีคูลดา
   assert.equal(fx.canUseSkill(engine, P.F, 'basic'), true, 'กลางคืนไม่มีคูลดาวน์');
   assert.equal(fx.skillLocks(engine, P.F).basic.cd, 0);
 });
+
+test('ร่างกลางคืน: ซ่อนในความมืด — ศัตรูไกลเกิน 3 ช่องมองไม่เห็น · ใกล้ 3 ช่องเห็น · กลางวันเห็นเสมอ', () => {
+  const V = require('../../server/visibility');
+  const P = setup([['F', 'foxy', 3, 7], ['N', 'dummy', 6, 7], ['X', 'dummy', 8, 7]]);
+  assert.equal(V.hiddenFrom(P.X, P.F), false, 'กลางวันเห็น');
+  engine.setRoundNumber(4);
+  assert.equal(V.hiddenFrom(P.N, P.F), false, 'ห่าง 3 = เห็น');
+  assert.equal(V.hiddenFrom(P.X, P.F), true, 'ห่าง 5 = มองไม่เห็น');
+  P.F.statuses.noPassive = 2;
+  assert.equal(V.hiddenFrom(P.X, P.F), false, 'ลบสกิลติดตัว = ไม่ซ่อน');
+});
+
+test('ร่างกลางคืน: พุ่งโดน สมอง +2 · เป้าขวัญเสีย (เชื่องช้า)', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  setup([['F', 'foxy', 0, 0]]);
+  const r = clearRun(8);
+  const P = setup([['F', 'foxy', r.x, r.y], ['D', 'dummy', r.x + 3, r.y]]);
+  engine.setRoundNumber(4);
+  P.F.skillPoints = 8;
+  const d0 = vit(P.D);
+  engine.setActor('F');
+  engine.useSkill('F', 'basic', [], { dir: 'right' });
+  until(t, () => vit(P.D) < d0);
+  assert.equal(P.F.foxy.brain, 2);
+  assert.equal(before3(P.D), true);
+  function before3(u) { return (u.statuses.slow || 0) > 0; }
+});
+
+test('ร่างกลางคืน: ตีปกติโดน = เป้าเชื่องช้า · กลางวันไม่มี', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  let P = setup([['F', 'foxy', 3, 7], ['D', 'dummy', 4, 7]]);
+  engine.setActor('F');
+  engine.attackTarget('F', 'D');
+  assert.ok(!(P.D.statuses.slow > 0), 'กลางวันไม่มีขวัญเสีย');
+  engine.clearPhaseTimer();
+  P = setup([['F', 'foxy', 3, 7], ['D', 'dummy', 4, 7]]);
+  engine.setRoundNumber(4);
+  engine.setActor('F');
+  engine.attackTarget('F', 'D');
+  assert.ok(P.D.statuses.slow > 0, 'กลางคืนขวัญเสีย');
+});
