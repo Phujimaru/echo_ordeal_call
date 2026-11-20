@@ -412,3 +412,11 @@
 .cjsay small { display: block; font: 800 calc(var(--u) * 4.6) Kanit, sans-serif; color: #7a5a2a; letter-spacing: .1em; }
 .cmur { position: absolute; bottom: calc(var(--u) * 6); font-size: calc(var(--u) * 10); animation: cmurUp 2.4s ease-out forwards; opacity: 0; }
 @keyframes cmurUp { 0% { opacity: 0; transform: translateY(0) scale(.5); } 15% { opacity: 1; transform: translateY(calc(var(--u) * -6)) scale(1.1); } 100% { opacity: 0; transform: translateY(calc(var(--u) * -50)) scale(.9) rotate(12deg); } }
+
+/* แฟ้ม: หลักฐานของจำเลยเด่น · ของคนอื่นจาง · หมุด */
+.cslot.rel { border-color: #f4c430; box-shadow: 0 0 calc(var(--u) * 3.5) rgba(244, 196, 48, .75), inset 0 0 calc(var(--u) * 4) rgba(244, 196, 48, .25); }
+.cslot.rel.on { box-shadow: 0 0 0 calc(var(--u) * .6) #fff3c4, 0 0 calc(var(--u) * 7) rgba(244, 196, 48, .95); }
+.cslot.unrel:not(.on) { opacity: .5; filter: saturate(.4); }
+.cslot.unrel:not(.on):hover { opacity: .85; filter: none; }
+.cslotface { position: absolute; right: calc(var(--u) * -2.5); bottom: calc(var(--u) * -2.5); width: calc(var(--u) * 10); height: calc(var(--u) * 10); border-radius: 50%; background: #222 center 15% / cover; border: calc(var(--u) * .6) solid #ff7d74; box-shadow: 0 0 calc(var(--u) * 2) rgba(0, 0, 0, .7); }
+.cslotpin { position: absolute; left: calc(var(--u) * -2.5); top: calc(var(--u) * -3); font-style: normal; font-size: calc(var(--u) * 8); filter: drop-shadow(0 calc(var(--u) * .5) 0 rgba(0, 0, 0, .6)); }

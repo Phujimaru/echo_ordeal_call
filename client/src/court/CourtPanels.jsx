@@ -38,9 +38,12 @@ export function RoleChip({ role, me, out }) {
 
 // แฟ้มหลักฐาน (ทนาย/ผู้ช่วย) หรือสิ่งที่เห็นเอง (ผู้ช่วย/ประชาชน)
 //  mode: view | present | lend | witness · items: [{ id|key, icon, name, desc, used }]
-export function CourtRecord({ items, mode, cap = 5, onPick, onClose, who }) {
+//  rel = { ids: Set(ไอดีจำเลย), face } → หลักฐานของจำเลยขึ้นก่อน + เรืองทอง + หน้าจำเลย · ของคนอื่นจางลง (ยังยื่นได้) · ไม่บอกว่าขัดประโยคไหน
+export function CourtRecord({ items: raw, mode, cap = 5, onPick, onClose, who, rel }) {
+  const isRel = (e) => !!rel && rel.ids.has(e.actorId);
+  const items = rel ? [...raw].sort((a, b) => (isRel(b) ? 1 : 0) - (isRel(a) ? 1 : 0)) : raw;
   const live = items.filter((e) => !e.used);
-  const [sel, setSel] = useState(() => (live[live.length - 1] || items[0] || null));
+  const [sel, setSel] = useState(() => (live.find(isRel) || live[live.length - 1] || items[0] || null));
   const [hov, setHov] = useState(null);
   const kid = (e) => e.id || e.key;
   const cur = items.find((e) => sel && kid(e) === kid(sel)) || null;
@@ -66,10 +69,12 @@ export function CourtRecord({ items, mode, cap = 5, onPick, onClose, who }) {
                 if (!e) return <div key={"x" + i} className="cslot empty" />;
                 const on = cur && kid(cur) === kid(e);
                 return (
-                  <button key={kid(e)} className={`cslot ${on ? "on" : ""} ${e.used ? "used" : ""}`} disabled={e.used}
+                  <button key={kid(e)} className={`cslot ${on ? "on" : ""} ${e.used ? "used" : ""} ${rel ? (isRel(e) ? "rel" : "unrel") : ""}`} disabled={e.used}
                     onMouseEnter={() => setHov(e)} onMouseLeave={() => setHov(null)}
                     onClick={() => { setSel(e); csfx("blip_mid"); }} onDoubleClick={() => act && !e.used && onPick(e)}>
                     <EvidenceIcon idx={e.icon} size={26} u />
+                    {isRel(e) && rel.face && <i className="cslotface" style={{ backgroundImage: `url(${rel.face})` }} />}
+                    {e.pinned && <i className="cslotpin">📌</i>}
                     {hov === e && <span className="ctip"><b>{e.name}</b>{e.desc}</span>}
                   </button>
                 );
@@ -78,7 +83,7 @@ export function CourtRecord({ items, mode, cap = 5, onPick, onClose, who }) {
             {cur && (
               <div className="cdetail" key={kid(cur)}>
                 <div className="cdicon"><EvidenceIcon idx={cur.icon} size={36} u /></div>
-                <div className="cdtext"><b>{cur.name}</b><p>{cur.desc}</p></div>
+                <div className="cdtext"><b>{cur.pinned ? "📌 " : ""}{cur.name}</b><p>{cur.desc}</p></div>
               </div>
             )}
           </div>
@@ -104,7 +109,7 @@ export const Ico = {
 };
 
 // ทนาย/ผู้ช่วย: ซักค้าน — ปุ่มเกาะขอบกล่องข้อความ ไม่บังพยาน
-export function CrossControls({ court, emit, role, sightings, me, meImg }) {
+export function CrossControls({ court, emit, role, sightings, me, meImg, rel }) {
   const [rec, setRec] = useState(null);
   const list = court.list || [], i = court.cx || 0, st = list[i];
   const ev = court.evidence || [];
@@ -112,7 +117,7 @@ export function CrossControls({ court, emit, role, sightings, me, meImg }) {
   if (!st) return null;
   const go = (d) => { const n = list.length; let j = i; for (let k = 0; k < n; k++) { j = (j + d + n) % n; if (!list[j].done) break; } emit("courtAct", { type: "view", idx: j }); };
   if (rec === "present" || rec === "view") {
-    return <CourtRecord items={ev} mode={rec} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "present", idx: i, evId: e.id }); }} />;
+    return <CourtRecord items={ev} mode={rec} rel={rel} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "present", idx: i, evId: e.id }); }} />;
   }
   if (rec === "lend") {
     return <CourtRecord items={sightings} mode="lend" who={meImg} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "lend", evKey: e.key }); }} />;
@@ -137,10 +142,10 @@ export function CrossControls({ court, emit, role, sightings, me, meImg }) {
 }
 
 // ฝ่ายทนายดูแฟ้มได้ทุกเวลา
-export function RecordButton({ court }) {
+export function RecordButton({ court, rel }) {
   const [open, setOpen] = useState(false);
   const ev = court.evidence || [];
-  if (open) return <CourtRecord items={ev} mode="view" onClose={() => setOpen(false)} />;
+  if (open) return <CourtRecord items={ev} mode="view" rel={rel} onClose={() => setOpen(false)} />;
   return <div className="cui pass"><div className="ctools"><button className="ctool" onClick={(e) => { stop(e); setOpen(true); }} title="แฟ้มหลักฐาน"><i>{Ico.folder}</i><b>{ev.filter((e) => !e.used).length}</b></button></div></div>;
 }
 

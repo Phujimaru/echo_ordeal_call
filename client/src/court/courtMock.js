@@ -30,7 +30,10 @@ export class MockCourt {
 
   start() {
     const r = this.roles, ev = this.events;
-    const seen = ev.filter((e) => e.seen).slice(-RULES.maxEvidence).map(toEvidence);
+    const seen = ev.filter((e) => e.seen).slice(-(RULES.maxEvidence - 1)).map(toEvidence);
+    const other = this.players.find((p) => p.id !== r.L && p.id !== r.D);
+    if (other) seen.splice(1, 0, toEvidence({ id: "ox1", round: 2, actorId: other.id, actorName: this.N(other.id), kind: "basic", skill: "ตีปกติ", targetName: this.N(r.L), type: "weapon" }));
+    if (seen[0]) seen[0].pinned = true;
     const sightings = {};
     for (const id of [...r.co, ...r.C, ...r.G]) {
       sightings[id] = ev.filter(() => Math.random() < 0.45).map((e) => { const x = toEvidence(e); return { key: e.id, desc: x.desc, icon: x.icon, name: x.name, type: x.type }; });
@@ -239,7 +242,8 @@ export class MockCourt {
   }
   resolvePresent() {
     const c = this.c, { st, e } = this.pending; st.done = true;
-    const r = presentResult(st, e); const s = [];
+    const r = e.actorId != null && e.actorId !== c.defendantId && !(this.roles.Dunits || []).some((u) => u.id === e.actorId) ? { kind: "wrong", dL: RULES.wrong } : presentResult(st, e);
+    const s = [];
     const hurtL = (n) => { c.cred.L = Math.max(0, c.cred.L - n); s.push({ k: "hurt", side: "L", n, ms: DMG_STEP_MS }); };
     const hurtD = (n) => { c.cred.D = Math.max(0, c.cred.D - n); s.push({ k: "cam", cam: "witness" }, { k: "hurt", side: "D", n, ms: DMG_STEP_MS }); };
     if (r.kind === "irrelevant" || r.kind === "wrong") {

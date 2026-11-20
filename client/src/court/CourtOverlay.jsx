@@ -61,13 +61,15 @@ function CourtRoom({ court, players, me, emit, embedded }) {
   const out = (court.outIds || []).includes(me);
   const live = !busy || ph !== "beat";
 
+  // หลักฐานที่ผูกกับจำเลย (รวมจำเลย 2 ตัว) — แฟ้มเรียงขึ้นก่อน
+  const rel = { ids: new Set([court.defendantId, ...(court.defendantUnits || []).map((u) => u?.id)].filter((x) => x != null)), face: cast.Dunits ? cast.Dunits[0].img : cast.D?.img };
   let panel = null;
   if (ph === "testimony" && side === "D") panel = <Builder key={"b" + court.round} court={court} emit={send} />;
-  else if (ph === "cross" && side === "L" && !busy) panel = <CrossControls court={court} emit={send} role={role} me={me} meImg={cast.byId[me]?.img} sightings={court.sightings || []} />;
+  else if (ph === "cross" && side === "L" && !busy) panel = <CrossControls court={court} emit={send} role={role} me={me} meImg={cast.byId[me]?.img} sightings={court.sightings || []} rel={rel} />;
   else if (ph === "objectWindow" && role === "C" && (court.counselLeft ?? 1) > 0) panel = <ObjectButton key={"o" + (court.beat?.seq || 0)} emit={send} />;
   else if (ph === "gallery" && role === "G" && !out) panel = <GalleryPanel court={court} emit={send} me={me} cast={cast} />;
   else if (ph === "verdict") panel = <VerdictBar court={court} cast={cast} />;
-  else if (side === "L" && (court.evidence || []).length && live && ph !== "beat" && ph !== "verdict") panel = <RecordButton court={court} />;
+  else if (side === "L" && (court.evidence || []).length && live && ph !== "beat" && ph !== "verdict") panel = <RecordButton court={court} rel={rel} />;
 
   const showRing = court.deadline && ["testimony", "cross", "objectWindow", "gallery"].includes(ph);
   const list = court.list || [];
