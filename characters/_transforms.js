@@ -19,6 +19,7 @@ const emiya = require("./emiya_shirou"); // เอมิยะ ชิโร่: 
 const kazuma = require("./kensaki_kazuma"); // เคนซากิ คาซุมะ: แปลงร่าง (ครั้งแรกต่อเกม) · มือเปล่าติดคริ (ก่อนฉากตี) · ท่า Lightning 3 แบบ (ตอนโดน)
 const roland = require("./roland"); // โรลันด์: Furioso — คลิปผู้ใช้
 const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์: เปิด Room ครั้งแรกต่อเกม · Gamma Knife / Mess (ตีเสริมโดน) · Counter Shock — คลิปผู้ใช้ทุกตัว
+const foxy = require("./foxy"); // ฟ็อกซี่: ตีปกติ (พื้นใส) / สมองเต็ม / เข้ากลางคืน
 const freddy = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์: จัมป์สแกร์ (ชนะมินิเกมประตู)
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
 const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
@@ -206,6 +207,10 @@ module.exports = function buildTransforms() {
     ].map(([n, k, title, label, img, seconds]) => [ZECT[n].CUT[k], { img: ZECT[n].IMG[img], video: ZECT[n].VIDEO[k], title, label, seconds, music: null, afterReveal: false }])),
     // เฟรดดี้ — ความยาวจริง 1.5 วิ · ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร")
     [freddy.CUT.scare]: { img: freddy.IMG.card, video: freddy.VIDEO.scare, title: "", label: "", seconds: 1.9, music: null, afterReveal: false, noIntro: true },
+    // ฟ็อกซี่ — ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร") · hit = คลิปพื้นใสซ้อนบนกระดาน (clear — webm VP9 alpha)
+    [foxy.CUT.hit]: { img: foxy.IMG.card, video: foxy.VIDEO.hit, title: "", label: "", seconds: 1.0, music: null, afterReveal: false, noIntro: true, clear: true },
+    [foxy.CUT.brain]: { img: foxy.IMG.card, video: foxy.VIDEO.brain, title: "", label: "", seconds: 4.5, music: null, afterReveal: false, noIntro: true },
+    [foxy.CUT.night]: { img: foxy.IMG.card, video: foxy.VIDEO.night, title: "", label: "", seconds: 11.0, music: null, afterReveal: false, noIntro: true },
     [freddy.CUT.night]: { img: freddy.IMG.card, video: freddy.VIDEO.night, title: "", label: "", seconds: 1.4, music: null, afterReveal: false, noIntro: true },
     ...Object.fromEntries([
       ["double", "double", kiri.IMG.alter, "Double Accel", "Time Alter", 7.2],

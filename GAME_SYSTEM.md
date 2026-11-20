@@ -1436,3 +1436,11 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **โหมดในหน้าเลือกตัวที่เป็นตัวละครอีกตัว**: `modes: [{ key, name, char: "<id>" }]` → join สลับ characterId · ตัวนั้นตั้ง `modeOf: "<id การ์ด>"` = ไม่ขึ้นการ์ดแยก (publicRoster `hidden`) แต่ยังอยู่ในสมุดไดอารี่ของ Echo · แผงหน้าเลือกตัวใช้ชื่อการ์ด + ภาพ/สกิลของตัวนั้น
 - **ปุ่ม tile list + พรีวิวระเบิด**: `area { kind: "tile", place: "list", tiles, blast: N }` → ชี้ช่อง = ไฮไลต์ข้าวหลามตัดรัศมี N รอบช่องนั้น (BoardStage)
 - **สองร่างชุดสกิลแยกขาดในตัวเดียว** (ไม่ใช่ choices): `skillPub` ส่งเฉพาะ name/img/desc (view ทับ skillPub หลัง skillArea — ห้ามส่ง area/cost) · `skillArea` / `skillCost` ตามร่าง · หมากภาพเต็มตัวตามร่าง `dinoState.standee` (ขี่ม้า = หกเหลี่ยม)
+
+## 61. คลิปพื้นใสซ้อนบนกระดาน / เสียตาเดินเมื่อโดนตีก่อน / ท่าพุ่งที่เป็นการโจมตีปกติ (ฟ็อกซี่ `characters/foxy.js` · GRID_PLAN §7.37)
+
+- **คลิปพื้นใส**: `_transforms.js` ใส่ `clear: true` + ไฟล์ `.webm` VP9 alpha (ffmpeg `chromakey` → `-c:v libvpx-vp9 -pix_fmt yuva420p`) → `cutscene.queueCutscene` ส่ง `clear` → `GameScenes.jsx Cutscene` วาดวีดีโอบนพื้นใส ไม่มีพื้นดำ/poster/แฟลช/ขอบมืด และไม่พักวาดกระดาน (`holdBoard`) — จอคอมเท่านั้น (คัตซีนลอยทับกระดาน)
+- **เสียตาเดินเมื่อโดนตีก่อน**: ฮุค broadcast `onDamageDealt` จดเลขเทิร์น เมื่อศัตรูทำดาเมจระหว่างตาเดินของฝ่ายศัตรู และเป้ายังไม่ได้เดิน (`engine.hasActed`) → ฮุค `skipsTurn` ข้ามตาเดินตอนถึงคิว
+- **ท่าพุ่งที่เป็นการโจมตีปกติ**: สกิล `line` + `ownsAreaHit` (เรียก `hitArea` เองเฉพาะช่องที่ผ่าน) + `endsTurn` · ทอยหลบก่อนแอนิเมชัน (`skillDodge`) แล้วโดน = `skillStrike(…, { sure: true })` หลังคลิป (`queueCutscene` + `deferAfterCutscene` ใน `skillBeat`) · ลงทะเบียน `MOVES` ใน `server/soulChain.js`
+- **เลือกคลิปตีปกติตามผลที่เพิ่งเกิด**: `preAttackClip` ถูกเรียกหลังคิดผลตีแล้ว (`onStrikeLanded` เกิดก่อน) — ผลที่เปลี่ยนสถานะตัวเอง (ใช้สมองหมด) ต้องจดธงไว้ให้ `preAttackClip` อ่าน
+- ทดสอบคลิปจากท่อตีปกติ: `attack.js` เรียก `cutscene.queueCutscene` ตรง (ไม่ผ่าน `engine.queueCutscene`) — ดักที่ฮุค `preAttackClip` แทน

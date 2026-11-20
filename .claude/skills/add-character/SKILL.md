@@ -308,6 +308,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | เลือกหลายช่องจากรายการ | `area { kind: "tile", place: "list", tiles, count: 2 }` → `opts.tiles` (socket `useSkill { tiles }` · `opts.tile` = ช่องแรก) | `server/socket.js` · `BoardStage` multi |
 | กำแพงตีแตกหน้าตาเฉพาะตัว | `engine.ice.placeWall(x, y, owner, look)` → `spikes[].look` (client วาดตาม look) | `server/ice.js` |
 | ไม่ตายแม้ถูกบังคับ (force) / ตายแน่นอนข้ามทุกด่าน | ฮุค `deathless(engine, p)` → true (ตั้งเลือดเอง) · `engine.instantDeath(t, "absolute")` (ยูกิ มาโคโตะ — GAME_SYSTEM §37) | `combat.instantDeath` |
+| คลิปพื้นใสซ้อนบนกระดาน (ตัดฉากเขียว) | `_transforms.js` `clear: true` + `.webm` VP9 alpha · `preAttackClip` ถูกเรียก **หลัง** คิดผลตี — ผลที่ใช้ทรัพยากรตัวเองไปแล้วต้องจดธงให้ฮุคนี้อ่าน (ฟ็อกซี่ — GAME_SYSTEM §61) | `cutscene.queueCutscene` · `GameScenes.jsx` |
+| เสียตาเดินเมื่อศัตรูตีโดนก่อนได้เดิน | broadcast `onDamageDealt` จดเทิร์น (เช็ค `engine.actorId` เป็นฝ่ายศัตรู + `!engine.hasActed(p.id)`) → `skipsTurn` (ฟ็อกซี่) | `action.nextActor` |
 | ข้ามตาเดินทั้งตา (ยืนนิ่ง/ชาร์จ) โดยไม่ใช้สตั้น | ฮุค `skipsTurn(engine, u)` → true (บันทึก log เอง) | `action.nextActor` |
 | จบเกมด้วยผู้ชนะที่กำหนด + พักฉากก่อนสรุปผล | `engine.declareWinner(p)` + `engine.holdEndTurn(sec)` (จากฮุค `onEndTurn`) + ข้อมูลฉากใน state (`engine.setYukiBoom`) | `endTurn.gameOver` / `colonyHoldThen` |
 | สกิลแนวกว้างเลขคู่ (4×4) | `area { kind: "line", width: 4 }` ได้แล้ว — เยื้องไปทางลบของแกนขวาง (−2…+1) | `Board.lineTiles` |

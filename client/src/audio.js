@@ -206,6 +206,8 @@ const FILES = {
   freddy_growl_1: "/characters/freddy_fazbear/sfx/growl_1.mp3", // เฟรดดี้: ปุ่มขู่ (HUD · สุ่ม 2 แบบ)
   freddy_growl_2: "/characters/freddy_fazbear/sfx/growl_2.mp3",
   freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน
+  foxy_steps: "/characters/foxy/sfx/steps.mp3", // ฟ็อกซี่: เดิน (กลางวัน+กลางคืน) — night_steps ของเฟรดดี้ บีบ+ดันที่ไฟล์ −9 LUFS (ผู้ใช้: เสียงเดินเฟรดดี้เบาไป)
+  foxy_board: "/characters/foxy/sfx/sound_board.mp3", // ฟ็อกซี่: ปุ่มกล่องเพลง (HUD) — ไฟล์ผู้ใช้ ดันที่ไฟล์ −9.7 LUFS (ผู้ใช้: ต้องดัง ข่มขวัญ)
   ot_ram: "/characters/old_truck/sfx/ot_ram.mp3",
   ot_counter: "/characters/old_truck/sfx/ot_counter.mp3",
   ot_transform: "/characters/old_truck/sfx/ot_transform.mp3",
@@ -1178,7 +1180,7 @@ export function playSfx(name, opts) {
   return playSfxNow(name, opts);
 }
 // เสียงที่ต้องเด่นคนเดียว (ผู้ใช้สั่ง 2026-11-09 — Enuma Elish ของกิลกาเมช): ระหว่างเล่น เพลงหยุด · เสียงอื่นเบาลงเหลือ FOCUS_OTHER · ลูปเสียงพัก
-const FOCUS_SFX = { gil_enuma_fire: 10900 };
+const FOCUS_SFX = { gil_enuma_fire: 10900, foxy_board: 9800 }; // ฟ็อกซี่ กล่องเพลง: เด่นคนเดียว (ผู้ใช้: อย่าให้เบา)
 const FOCUS_OTHER = 0.12;
 let focusUntil = 0, focusName = null;
 function beginFocus(name, ms) {

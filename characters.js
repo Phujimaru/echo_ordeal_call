@@ -1893,6 +1893,33 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- ฟ็อกซี่ (Five Nights at Freddy's) — เอาฮา — ดู characters/foxy.js (GRID_PLAN §7.37) ----------
+    //  HP 10 / เกราะ 5 (สเปก = ค่าฐานกลาง 7+3 / 3+2 ใน combat.STAT_BONUS) · ระยะเดิน/พลังโจมตีตามช่วงเวลา (ฮุค mov / attackBaseOverride)
+    id: "foxy",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "ฟ็อกซี่",
+    avatar: 0,
+    difficulty: "fun",
+    img: "/characters/foxy/foxy.webp",
+    mov: 3,
+    range: [1, 1],
+    passive: {
+      name: "1987",
+      desc: "กลางวัน: ระยะเดิน 3 · พลังโจมตี 5 · ศัตรูโจมตีโดนก่อนฟ็อกซี่ได้เดินในเทิร์นนั้น = เสียตาเดินเทิร์นนั้น · กลางคืน: ระยะเดิน 9 · พลังโจมตี 3 · ไม่มีโทษโดนตีก่อน · แต้มสมองสูงสุด 3 (เริ่ม 0): ขอสักทีนะ ที่หน้า โดนเป้า +1 · เต็ม = การโจมตีปกติครั้งถัดไป (รวมขอสักทีนะ ที่หน้า) ทำให้เป้าสตั้น 1 เทิร์น และลบแต้มสกิลเป้า 3 · มีไม่พอ = ส่วนต่างเป็นความเสียหายเพิ่ม · สนาม Eos / Moon Cell / Road Trip: กลางคืนตลอด · Nautilus: กลางคืนถาวรตั้งแต่ชั้น 6",
+    },
+    basic: {
+      name: "ขอสักทีนะ ที่หน้า",
+      desc: "การโจมตีปกติอีกรูปแบบ · เลือกทิศ แนว 7×1: พุ่งเข้าใส่ศัตรูคนแรก (หลบได้ · หลบ = พุ่งผ่าน) โดน = ความเสียหายเท่าพลังโจมตี + แต้มสมอง 1 · ชนเพื่อน = หยุด · ไม่โดนแล้วชนสิ่งกีดขวาง/ขอบแผนที่ = หยุดตรงนั้น สตั้นตัวเอง 1 เทิร์น · จบตาเดิน (คูลดาวน์ 1 เทิร์น)",
+      area: { kind: "line", len: 7, width: 1, hostile: true },
+      cost: 2,
+      img: "/characters/foxy/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/foxy.js
+    },
+    secondary: null,
+    ultimate: null,
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

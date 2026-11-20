@@ -45,6 +45,7 @@ function queueCutscene(p, key, onlyFor) {
       img: t.img, color: lobby.colorOf(p),
       video: t.video, title: t.title, label: t.label, voice: t.voice || null,
       noIntro: !!t.noIntro, // true = ตัดการ์ดเปิดตัว 950ms ทิ้ง เข้าวีดีโอทันที (คลิปสั้นมาก)
+      clear: !!t.clear, // true = คลิปพื้นใส (webm alpha) ซ้อนบนกระดาน — ไม่มีพื้นดำ/แฟลช/ขอบมืด (ฟ็อกซี่: ตีปกติ)
       onlyFor: Array.isArray(onlyFor) && onlyFor.length ? [...onlyFor] : null,
     },
   });
