@@ -2,6 +2,7 @@
 //  + ฉากรอ (ผู้ใช้ 2026-11-20): ป้ายบอกว่ากำลังรอใคร · ผู้พิพากษาบ่นเป็นระยะ · ประชาชนซุบซิบ
 import { useEffect, useRef, useState } from "react";
 import { Sprite } from "./CourtStage";
+import { Rich } from "./CourtText";
 
 const CRED_MAX = 6; // ความน่าเชื่อถือ 6 (ผู้ใช้ 2026-11-20)
 const Scale = () => (
@@ -11,7 +12,7 @@ const Scale = () => (
 );
 
 // ไอคอนแต่ละช่อง: เสีย = แตกกระจาย + วาบ · ได้คืน = เรืองแสง
-function CredSide({ side, n, faces }) {
+function CredSide({ side, n, faces, onInfo }) {
   const prev = useRef(n);
   const [fx, setFx] = useState({});
   const [shake, setShake] = useState(0);
@@ -27,7 +28,7 @@ function CredSide({ side, n, faces }) {
   const lvl = n <= 1 ? "crit" : n <= 2 ? "warn" : "";
   return (
     <div className={`ccred s-${side} ${lvl} ${shake ? "shk" : ""}`} key={shake}>
-      <div className="ccfaces">{faces.filter(Boolean).slice(0, 2).map((f, i) => <i key={i} style={{ backgroundImage: f ? `url(${f})` : null }} />)}</div>
+      <div className="ccfaces">{faces.filter((f) => f && f.id != null).slice(0, 2).map((f, i) => <i key={i} className="cinfoable" style={{ backgroundImage: f.img ? `url(${f.img})` : null }} onClick={(e) => { e.stopPropagation(); onInfo && onInfo(f.id); }} />)}</div>
       <div className="ccicons">
         {Array.from({ length: CRED_MAX }, (_, i) => {
           const on = i < n, f = fx[i];
@@ -43,12 +44,12 @@ function CredSide({ side, n, faces }) {
   );
 }
 
-export function CredBar({ cred, cast, round, rounds }) {
+export function CredBar({ cred, cast, round, rounds, onInfo }) {
   return (
     <div className="ccredbar">
-      <CredSide side="L" n={Math.max(0, Math.min(CRED_MAX, cred.L))} faces={[cast.L?.img]} />
+      <CredSide side="L" n={Math.max(0, Math.min(CRED_MAX, cred.L))} faces={[cast.L]} onInfo={onInfo} />
       <div className="cround">{Array.from({ length: rounds || 4 }, (_, i) => <i key={i} className={i + 1 < round ? "past" : i + 1 === round ? "cur" : ""} />)}</div>
-      <CredSide side="D" n={Math.max(0, Math.min(CRED_MAX, cred.D))} faces={cast.Dunits ? cast.Dunits.map((u) => u.img) : [cast.D?.img]} />
+      <CredSide side="D" n={Math.max(0, Math.min(CRED_MAX, cred.D))} faces={cast.Dunits || [cast.D]} onInfo={onInfo} />
     </div>
   );
 }
@@ -106,7 +107,7 @@ export function WaitLayer({ phase, role, crowd }) {
       {toast && (
         <div className="cjtoast" key={toast.k}>
           <div className="cjface"><Sprite atlas="judge" anim="talk" x={-16} bottom={-18.5} scale={0.45} /></div>
-          <div className="cjsay"><small>ผู้พิพากษา</small>{toast.text}</div>
+          <div className="cjsay"><small>ผู้พิพากษา</small><Rich text={toast.text} /></div>
         </div>
       )}
       {mur.map((m) => <span key={m.k} className="cmur" style={{ left: `${m.x}%` }}>{m.e}</span>)}

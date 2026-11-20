@@ -8,7 +8,7 @@ import { line } from "./courtLines";
 const rnd = (a) => a[Math.floor(Math.random() * a.length)];
 export const evDesc = (e) => (e.kind === "move"
   ? `รอยเท้าของ ${e.actorName} เดินข้ามสนามตอนเทิร์น ${e.round}`
-  : `${e.actorName} ใช้ ${e.skill}${e.targetName ? ` ใส่ ${e.targetName}` : ""} ตอนเทิร์น ${e.round}`);
+  : `${e.actorName} ใช้ «${e.skill}»${e.targetName ? ` ใส่ ${e.targetName}` : ""} ตอนเทิร์น ${e.round}`);
 export const toEvidence = (e) => { const icon = iconFor(e.type, e.id); return { ...e, icon, name: EV_ICON_NAMES[icon], desc: evDesc(e), used: false }; };
 const DMG_STEP_MS = 1100;
 

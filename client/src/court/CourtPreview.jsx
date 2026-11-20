@@ -14,7 +14,15 @@ import "./court.css";
 
 const POOL = COURT_ROSTER.filter((c) => c.id !== "naruhodo_ryuichi");
 const byId = (id) => POOL.find((c) => c.id === id) || POOL[0];
-const NARU = { id: "p_L", name: "ผู้เล่น 1", img: "/characters/naruhodo_ryuichi/naruhodo.webp", character: { name: "นารุโฮโดะ ริวอิจิ", img: "/characters/naruhodo_ryuichi/naruhodo.webp" } };
+const NARU = { id: "p_L", name: "ผู้เล่น 1", img: "/characters/naruhodo_ryuichi/naruhodo.webp", character: {
+  name: "นารุโฮโดะ ริวอิจิ", img: "/characters/naruhodo_ryuichi/naruhodo.webp",
+  passive: { name: "รอเดี๋ยว!!!", desc: "กดในเทิร์นศัตรูที่อยู่ห่าง ≤ 4 · หยุดเทิร์นนั้นแล้วเลือก เดิน 2 / เก็บหลักฐาน / คัดค้าน! · คูลดาวน์ 3" },
+  basic: { name: "เอานี่ไปดู!", cost: 1, desc: "แนว 3 ช่อง ศัตรูคนแรก −1 · มีหลักฐานผูกเป้า = ใช้ 1 ชิ้น −3" },
+  secondary: { name: "สืบสวน", cost: 2, desc: "ศัตรู 1 คนระยะ 4 · ได้หลักฐาน + เห็นทะลุซ่อนตัวและคูลดาวน์ถึงจบเทิร์นหน้า" },
+  ultimate: { name: "เริ่มการไต่สวน", cost: 6, desc: "ศัตรู 1 คนระยะ 5 (หลบได้) · ขึ้นศาล — มีความผิด = ตายทันที" },
+} };
+// ตัวละครจำลองของหน้าทดสอบ: ชื่อสกิลจาก courtRoster (ไม่มีคำอธิบายจริง)
+const stubChar = (c) => ({ name: c.name, img: c.img, basic: c.sk?.[0] ? { name: c.sk[0], cost: 1, desc: `«${c.sk[0]}»` } : null, secondary: c.sk?.[1] ? { name: c.sk[1], cost: 2, desc: `«${c.sk[1]}»` } : null, ultimate: c.sk?.[2] ? { name: c.sk[2], cost: 6, desc: `«${c.sk[2]}»` } : null });
 const ROLES = [["L", "ทนาย"], ["co", "ผู้ช่วย"], ["D", "จำเลย"], ["C", "ฝ่ายค้าน"], ["G", "ประชาชน"], ["spec", "ผู้ชม"]];
 const MUSIC = "/characters/naruhodo_ryuichi/music/";
 const sel = { font: "500 14px Kanit, sans-serif", padding: "5px 8px", background: "#1d1813", color: "#fbf6ea", border: "1px solid #5b4a36", borderRadius: 6 };
@@ -51,7 +59,7 @@ function Play() {
 
   const mock = useMemo(() => {
     const d = byId(defId);
-    const mk = (c, i) => ({ id: "p_" + i, name: "ผู้เล่น " + i, img: c.img, character: { name: c.name, img: c.img } });
+    const mk = (c, i) => ({ id: "p_" + i, name: "ผู้เล่น " + i, img: c.img, character: stubChar(c) });
     const rest = shuffle(POOL.filter((c) => c.id !== d.id));
     const D = { ...mk(d, "D"), id: "p_D" };
     const roles = { L: NARU.id, D: D.id, co: [], C: [], G: [] };

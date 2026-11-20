@@ -4,6 +4,7 @@ import { IMG } from "./courtAssets";
 import { EvidenceIcon } from "./EvidenceIcon";
 import { Sprite } from "./CourtStage";
 import { csfx } from "./courtAudio";
+import { Rich } from "./CourtText";
 
 const stop = (e) => e.stopPropagation();
 export const ROLE_NAME = { L: "ทนาย", co: "ผู้ช่วยทนาย", D: "จำเลย", C: "ฝ่ายค้าน", G: "ประชาชน" };
@@ -75,7 +76,7 @@ export function CourtRecord({ items: raw, mode, cap = 5, onPick, onClose, who, r
                     <EvidenceIcon idx={e.icon} size={26} u />
                     {isRel(e) && rel.face && <i className="cslotface" style={{ backgroundImage: `url(${rel.face})` }} />}
                     {e.pinned && <i className="cslotpin">📌</i>}
-                    {hov === e && <span className="ctip"><b>{e.name}</b>{e.desc}</span>}
+                    {hov === e && <span className="ctip"><b><Rich text={e.name} /></b><Rich text={e.desc} /></span>}
                   </button>
                 );
               })}
@@ -83,7 +84,7 @@ export function CourtRecord({ items: raw, mode, cap = 5, onPick, onClose, who, r
             {cur && (
               <div className="cdetail" key={kid(cur)}>
                 <div className="cdicon"><EvidenceIcon idx={cur.icon} size={36} u /></div>
-                <div className="cdtext"><b>{cur.pinned ? "📌 " : ""}{cur.name}</b><p>{cur.desc}</p></div>
+                <div className="cdtext"><b>{cur.pinned ? "📌 " : ""}<Rich text={cur.name} /></b><p><Rich text={cur.desc} /></p></div>
               </div>
             )}
           </div>
@@ -220,7 +221,7 @@ export function Builder({ court, emit }) {
               <div key={st.key} className={`cline ${on ? "on" : ""} ${st.kind}`} onClick={() => toggle(st.key)}>
                 <b>{on ? at + 1 : ""}</b>
                 <i className="ckind">{st.kind === "lie" ? "🎭" : "⚖️"}</i>
-                <span>{st.text}</span>
+                <span><Rich text={st.text} /></span>
                 {st.kind === "lie" && (
                   <button className={`cal ${on && pick[at].al ? "on" : ""}`} disabled={!on || (!pick[at].al && used >= alibi)}
                     onClick={(e) => { stop(e); csfx("evidence_ding"); setPick((p) => p.map((x) => (x.key === st.key ? { ...x, al: !x.al } : x))); }}>📍</button>

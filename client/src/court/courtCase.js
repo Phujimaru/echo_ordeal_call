@@ -59,10 +59,10 @@ export function statementPool(events, proven = new Set()) {
       add({ kind: "truth", text: `เทิร์น ${t} ฉันเดินไปอีกฝั่งของสนาม` });
       continue;
     }
-    add({ kind: "lie", m: { skill: e.skill }, text: `ฉันไม่ได้ใช้ ${e.skill}` });
+    add({ kind: "lie", m: { skill: e.skill }, text: `ฉันไม่ได้ใช้ «${e.skill}»` });
     if (who) add({ kind: "lie", m: { target: who }, text: `ฉันไม่เคยแตะต้อง ${who}` });
     add({ kind: "lie", m: { turn: t }, text: `เทิร์น ${t} ฉันไม่ได้ทำอะไรเลย` });
-    add({ kind: "truth", text: who ? `ฉันใช้ ${e.skill} ใส่ ${who} ตอนเทิร์น ${t}` : `ฉันใช้ ${e.skill} ตอนเทิร์น ${t}` });
+    add({ kind: "truth", text: who ? `ฉันใช้ «${e.skill}» ใส่ ${who} ตอนเทิร์น ${t}` : `ฉันใช้ «${e.skill}» ตอนเทิร์น ${t}` });
   }
   return out;
 }

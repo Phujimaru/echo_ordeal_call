@@ -673,8 +673,19 @@ const STATEMENTS = {
 // ผู้พูดขึ้นชื่อในกล่องข้อความอยู่แล้ว (say.name) — ตัด "{G}: " / "{C}: " หน้าบรรทัดออก (เขียนไว้ให้อ่านไฟล์นี้ง่าย)
 for (const pool of Object.values(POOLS)) for (let i = 0; i < pool.length; i++) pool[i] = pool[i].replace(/^\{[GC]\}: /, "");
 
+// ผู้ใช้ 2026-11-20: ชื่อคนเดิมซ้ำในประโยคเดียว = ครั้งที่ 2 เป็นต้นไปใช้ "เขา" · ชื่อท่าห่อด้วย «» (client ระบายสี ไม่แสดง «») · ตีปกติ → "หมัด"
+const NAME_KEYS = new Set(["L", "D", "C", "G", "target", "who", "evTarget"]);
+const SKILL_KEYS = new Set(["skill", "evSkill"]);
+const skillText = (v) => (v === "ตีปกติ" ? "หมัด" : v);
 function fill(text, ctx = {}) {
-  return String(text).replace(/\{(\w+)\}/g, (m, k) => (ctx[k] != null && ctx[k] !== "" ? String(ctx[k]) : m === "{target}" ? "ใครสักคน" : m === "{skill}" ? "ท่านั้น" : ""));
+  const seen = new Set();
+  return String(text).replace(/\{(\w+)\}/g, (m, k) => {
+    const v = ctx[k] != null && ctx[k] !== "" ? String(ctx[k]) : null;
+    if (v == null) return m === "{target}" ? "ใครสักคน" : m === "{skill}" ? "ท่านั้น" : "";
+    if (SKILL_KEYS.has(k)) return `«${skillText(v)}»`;
+    if (NAME_KEYS.has(k)) { if (seen.has(v)) return "เขา"; seen.add(v); }
+    return v;
+  });
 }
 // สุ่ม 1 บรรทัด · used = array ของ "key#index" ที่ใช้ไปแล้วในคดีนี้ (ไม่ซ้ำจนกว่ากองนั้นจะหมด)
 function pick(key, ctx, used, rng = Math.random) {

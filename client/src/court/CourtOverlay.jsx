@@ -5,6 +5,7 @@ import { CourtStage, useCourtDirector } from "./CourtStage";
 import { Ring, RoleChip, CrossControls, RecordButton, Builder, ObjectButton, GalleryPanel, VerdictBar, HelpButton } from "./CourtPanels";
 import CourtVolume from "./CourtVolume";
 import { CredBar, WaitLayer } from "./CourtHud";
+import CharInfo from "./CourtCharInfo";
 import "./court.css";
 
 export function roleOf(court, me) {
@@ -19,10 +20,10 @@ export function roleOf(court, me) {
 
 export function buildCast(players, court) {
   const byId = {};
-  for (const p of players || []) byId[p.id] = { id: p.id, name: p.character?.name || p.name || "?", img: p.character?.img || p.img || null };
+  for (const p of players || []) byId[p.id] = { id: p.id, name: p.character?.name || p.name || "?", img: p.character?.img || p.img || null, player: p.name || "", ch: p.character || null };
   const get = (id) => byId[id] || (id != null ? { id, name: "?", img: null } : null);
   // จำเลย 2 ตัว (เคท & เอมิลิโกะ) — server ส่ง defendantUnits (ตัวที่โดนเป้าก่อน) · ไม่มี = defendantId ตัวเดียว
-  const units = (court.defendantUnits || []).filter(Boolean).map((u) => ({ id: u.id, name: u.name || get(u.id)?.name || "?", img: u.img || get(u.id)?.img || null }));
+  const units = (court.defendantUnits || []).filter(Boolean).map((u) => ({ id: u.id, name: u.name || get(u.id)?.name || "?", img: u.img || get(u.id)?.img || null, player: get(u.id)?.player || get(court.defendantId)?.player || "", ch: get(u.id)?.ch || get(court.defendantId)?.ch || null }));
   const D0 = get(court.defendantId);
   const D = units.length > 1 ? { ...D0, name: units.map((u) => u.name).join(" & "), img: units[0].img || D0?.img } : D0;
   return {
@@ -54,6 +55,8 @@ function CourtRoom({ court, players, me, emit, embedded }) {
   const castKey = [court.lawyerId, court.defendantId, ...(court.defendantUnits || []).map((u) => u?.id), ...(court.coIds || []), ...(court.counselIds || []), ...(court.galleryIds || []), ...(court.outIds || [])].join("|");
   const cast = useMemo(() => buildCast(players, court), [castKey, players?.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const { v, busy, onClick, endOne, onClipEnd, cred } = useCourtDirector(court, cast, side);
+  const [infoId, setInfoId] = useState(null);
+  const infoWho = infoId == null ? null : cast.byId[infoId] || (cast.Dunits || []).find((u) => u.id === infoId) || null;
   const wrap = useRef(null);
   const { w, h } = useFit(wrap);
   const send = (ev, p) => emit && emit(ev, p);
@@ -76,10 +79,10 @@ function CourtRoom({ court, players, me, emit, embedded }) {
   return (
     <div className={`court-ov ${embedded ? "embedded" : ""}`} ref={wrap}>
       <div className="court" style={{ width: w, height: h, "--u": `${h / 192}px` }}>
-        <CourtStage v={v} cast={cast} cred={cred} onClick={onClick} endOne={endOne} onClipEnd={onClipEnd}>
+        <CourtStage v={v} cast={cast} cred={cred} onClick={onClick} endOne={endOne} onClipEnd={onClipEnd} onInfo={setInfoId}>
           <div className="chud">
             <RoleChip role={role} me={cast.byId[me]} out={out} />
-            {v.cam !== "title" && !v.verdict && !v.clip && <CredBar cred={cred} cast={cast} round={court.round} rounds={court.rounds} />}
+            {v.cam !== "title" && !v.verdict && !v.clip && <CredBar cred={cred} cast={cast} round={court.round} rounds={court.rounds} onInfo={setInfoId} />}
             {(ph === "cross" || (ph === "beat" && list.length > 0 && v.cam === "witness")) && list.length > 0 && (
               <div className="cdots">
                 {list.map((x, i) => <i key={i} className={`${i === court.cx ? "cur" : ""} ${x.done ? "done" : ""} ${x.pressed ? "pressed" : ""}`} />)}
@@ -89,6 +92,7 @@ function CourtRoom({ court, players, me, emit, embedded }) {
           </div>
           {!v.clip && (!busy || ph !== "beat") && <WaitLayer phase={ph} role={out ? "spec" : role} crowd={(cast.G || []).length > 0} />}
           {panel}
+          {infoWho && <CharInfo who={infoWho} onClose={() => setInfoId(null)} />}
           <div className="cui pass chelpwrap"><CourtVolume /><HelpButton role={out ? "spec" : role} /></div>
         </CourtStage>
       </div>

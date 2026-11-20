@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ATLAS, IMG } from "./courtAssets";
 import { EvidenceIcon } from "./EvidenceIcon";
+import { Rich, plain } from "./CourtText";
 import { csfx, setClipLock } from "./courtAudio";
 import { suspendMusic, videoVolume, onVolumeChange } from "../audio";
 import { courtMuted } from "./courtSfx";
@@ -69,12 +70,12 @@ export function Scene({ bg, on, children, cls = "" }) {
 }
 
 // ภาพหมากของผู้เล่น (ปกตัวละคร) ครอปเข้าแท่น · โหลดไม่ได้ = เงาดำ
-export function Piece({ p, cls = "", flip }) {
+export function Piece({ p, cls = "", flip, onInfo }) {
   const [bad, setBad] = useState(false);
   useEffect(() => setBad(false), [p?.img]);
   if (!p) return null;
   return (
-    <div className={`cpiece ${cls}`}>
+    <div className={`cpiece ${cls} ${onInfo ? "cinfoable" : ""}`} onClick={onInfo ? (e) => { e.stopPropagation(); onInfo(p.id); } : undefined}>
       {p.img && !bad
         ? <img src={p.img} alt="" draggable={false} onError={() => setBad(true)} style={flip ? { transform: "scaleX(-1)" } : null} />
         : <div className="cshadow"><span>{(p.name || "?").slice(0, 1)}</span></div>}
@@ -135,7 +136,7 @@ export function useCourtDirector(court, cast, viewerSide) {
       if (s.who === "T" && s.id && cur.current === "cocounsel") cam = null;
       if (cam && cam !== cur.current) used += await goto(cam, id, s.id);
       else if (s.id && (s.who === "T" || s.who === "G") && cur.current === "cocounsel") set({ coId: s.id });
-      const chars = Array.from(s.text || "");
+      const chars = Array.from(plain(s.text)); // นับเฉพาะตัวที่มองเห็น (ตัด « » ของชื่อสกิล)
       const per = Math.max(14, Math.min(40, (ms - used - 700) / Math.max(1, chars.length)));
       set({ dlg: { who: s.who, name: s.name || "", text: s.text || "", n: 0, color: s.color || "", done: false, mono }, lastWho: s.who });
       const t0 = performance.now();
@@ -361,7 +362,7 @@ export function useCourtDirector(court, cast, viewerSide) {
 }
 
 // ---------- วาดฉาก ----------
-export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, onClipEnd, children }) {
+export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, onClipEnd, onInfo, children }) {
   const stageRef = useRef(null);
   useEffect(() => { preloadCourt(Object.values(cast.byId || {}).map((p) => p.img)); }, [cast]);
   useEffect(() => {
@@ -386,7 +387,6 @@ export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, on
   const lowD = v.standId ? "" : cred.D <= 1 ? "sweat tremble" : cred.D <= 2 ? "sweat" : "";
   const defFx = `${v.defFx} ${v.defFx === "break" ? "" : lowD} ${v.thinking && !v.standId ? "think sweat" : ""}`;
   const panX = v.pan ? { from: 128 - SIDE[v.pan.from], to: 128 - SIDE[v.pan.to] } : null;
-  const shownText = v.dlg ? Array.from(v.dlg.text).slice(0, v.dlg.n).join("") : "";
   const gal = cast.G || [];
   const out = new Set([...(cast.outIds || []), ...v.kicked]);
   const on = (c) => v.cam === c;
@@ -401,7 +401,7 @@ export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, on
             const left = i % 2 ? 224 - col * 27 - row * 13 : 6 + col * 27 + row * 13;
             const rx = v.rx[p.id];
             return (
-              <div key={p.id} className={`cfan ${out.has(p.id) ? "out" : ""} ${rx ? "act" : ""}`} style={{ left: `calc(var(--u) * ${left})`, bottom: `calc(var(--u) * ${row ? 74 : 54})`, zIndex: row ? 1 : 2 }}>
+              <div key={p.id} className={`cfan cinfoable ${out.has(p.id) ? "out" : ""} ${rx ? "act" : ""}`} onClick={onInfo ? (e) => { e.stopPropagation(); onInfo(p.id); } : undefined} style={{ left: `calc(var(--u) * ${left})`, bottom: `calc(var(--u) * ${row ? 74 : 54})`, zIndex: row ? 1 : 2 }}>
                 <div className="cfanimg">{p.img ? <img src={p.img} alt="" draggable={false} /> : null}</div>
                 {rx && <span className="crx" key={rx.k}>{rx.e}</span>}
               </div>
@@ -418,18 +418,18 @@ export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, on
       </Scene>
       <Scene bg="bg_witness" on={on("witness")}>
         {!v.standId && cast.Dunits
-          ? cast.Dunits.slice(0, 2).map((u, n) => <Piece key={u.id + n} p={u} cls={`wit duo${n ? "b" : "a"} ${defFx}`} />)
-          : <Piece p={stand} cls={`wit ${defFx}`} key={stand?.id || "none"} />}
+          ? cast.Dunits.slice(0, 2).map((u, n) => <Piece key={u.id + n} p={u} onInfo={onInfo} cls={`wit duo${n ? "b" : "a"} ${defFx}`} />)
+          : <Piece p={stand} onInfo={onInfo} cls={`wit ${defFx}`} key={stand?.id || "none"} />}
         {v.thinking && !v.standId && <div className="cthink"><i>…</i></div>}
         {v.splat?.side === "D" && <div className="csplat" key={v.splat.k}>🍅</div>}
         <img className="cbg" src={IMG("stand_witness")} alt="" />
       </Scene>
       <Scene bg="bg_prosecution" on={on("prosecution")}>
-        <Piece p={P(v.proId) || cast.C?.[0]} cls="pro" flip />
+        <Piece p={P(v.proId) || cast.C?.[0]} onInfo={onInfo} cls="pro" flip />
         <img className="cbg" src={IMG("desk_prosecution")} alt="" />
       </Scene>
       <Scene bg="bg_cocounsel" on={on("cocounsel")}>
-        <Piece p={P(v.coId) || cast.co?.[0]} cls="cocounsel" />
+        <Piece p={P(v.coId) || cast.co?.[0]} onInfo={onInfo} cls="cocounsel" />
       </Scene>
       <Scene bg="bg_judge" on={on("judge")}>
         <Sprite atlas="judge" anim={jAnim} x={70} bottom={54} scale={1} active={on("judge")} onEnd={v.jOne ? () => endOne("J") : undefined} />
@@ -444,7 +444,7 @@ export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, on
       {v.present && (
         <div className={`cpresent ${v.presentBox ? "box" : ""}`} key={v.present.name + v.present.icon}>
           <EvidenceIcon idx={v.present.icon} size={v.presentBox ? 42 : 56} u />
-          <b>{v.present.name}</b>
+          <b><Rich text={v.present.name} /></b>
         </div>
       )}
       {v.pan && (
@@ -476,7 +476,7 @@ export function CourtStage({ v, cast, cred = { L: 5, D: 5 }, onClick, endOne, on
       {v.dlg && (
         <div className={`cdlg ${v.dlg.done ? "done" : ""} ${v.dlg.cross ? "cross" : ""}`}>
           {v.dlg.name && <div className="cwho">{v.dlg.name}</div>}
-          <div className={`ctxt ${v.dlg.color}`}>{shownText}</div>
+          <div className={`ctxt ${v.dlg.color}`}><Rich text={v.dlg.text} n={v.dlg.n} /></div>
           {!v.dlg.cross && <i className="cnext">▼</i>}
         </div>
       )}
