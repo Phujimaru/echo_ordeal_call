@@ -455,3 +455,9 @@
 .cinfo-sk header b { font: 800 calc(var(--u) * 7.2) Kanit, sans-serif; flex: 1; }
 .cinfo-sk .cost { flex: none; font: 900 normal calc(var(--u) * 6.5) Kanit, sans-serif; color: #3a2408; width: calc(var(--u) * 10); height: calc(var(--u) * 10); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #fff3c8, #e7c36a 60%, #9d7020); }
 .cinfo-sk p { margin: calc(var(--u) * 1.5) 0 0; font: 500 calc(var(--u) * 5.8) / 1.4 Kanit, sans-serif; color: #3f3324; white-space: pre-line; }
+
+/* สิทธิ์ยื่นที่เหลือ + ชิปผลคดีของทนาย */
+.cact .cleft { font: 900 normal calc(var(--u) * 6.5) Kanit, sans-serif; color: #fff3c4; background: rgba(0, 0, 0, .4); border-radius: 999px; padding: 0 calc(var(--u) * 2.5); margin-left: calc(var(--u) * -.5); }
+.cact:disabled .cleft { color: #ccc; }
+.creschip.heal { border-color: #55ff8f; } .creschip.dmg { border-color: #ff4a3d; }
+.cpop { z-index: 11; }

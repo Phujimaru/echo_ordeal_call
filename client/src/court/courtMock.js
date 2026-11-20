@@ -41,7 +41,7 @@ export class MockCourt {
     this.c = {
       id: "case" + Date.now(), phase: "opening", round: 1, rounds: RULES.testimonies, deadline: null,
       lawyerId: r.L, defendantId: r.D, coIds: r.co, counselIds: r.C, galleryIds: r.G, outIds: [],
-      cred: { L: RULES.cred, D: this.dcred || RULES.cred }, list: null, cx: 0, pool: null, alibi: Math.min(RULES.maxAlibi, ev.filter((e) => !e.seen).length),
+      cred: { L: RULES.cred, D: this.dcred || RULES.cred }, list: null, cx: 0, pool: null, alibi: Math.min(RULES.maxAlibi, ev.filter((e) => !e.seen).length) + RULES.alibiBonus,
       evidence: seen, sightings, witnessUsed: [], lent: [], pressLeft: 0, counselLeft: 0, beat: null, verdict: null, music: "trial",
       proven: new Set(), objFlag: false, cheer: {}, acted: {},
     };
@@ -69,7 +69,7 @@ export class MockCourt {
         evidence: sideL ? c.evidence.map((e) => ({ ...e })) : undefined,
         sightings: viewer === c.defendantId ? [] : c.sightings[viewer] || [],
         rx: c.phase === "gallery" ? (c.gx || []).map((g) => g.id) : [],
-        witnessUsed: c.witnessUsed.slice(), lent: c.lent.slice(), pressLeft: c.pressLeft, counselLeft: c.counselLeft,
+        witnessUsed: c.witnessUsed.slice(), lent: c.lent.slice(), pressLeft: c.pressLeft, presentLeft: c.presentLeft, counselLeft: c.counselLeft,
         beat: c.beat, verdict: c.verdict, music: c.music,
       },
     };
@@ -109,14 +109,14 @@ export class MockCourt {
     if (c.coIds[0]) s.push({ k: "cam", cam: "cocounsel", who: c.coIds[0] }, this.say("T", "coReady", "", { name: this.N(c.coIds[0]), id: c.coIds[0] }));
     if (c.counselIds[0]) s.push({ k: "cam", cam: "prosecution", who: c.counselIds[0] }, this.say("C", "counselReady", "", { name: this.N(c.counselIds[0]), id: c.counselIds[0] }));
     else if (c.galleryIds.length) s.push({ k: "cam", cam: "wide" }, this.say("J", "galleryHush"));
-    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
+    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), this.say("D", "openAlibiBonus"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
     this.beat(s, () => this.testimony());
   }
 
   testimony() {
     const c = this.c;
     c.phase = "testimony"; c.beat = null; c.inCross = false;
-    c.pressLeft = RULES.pressPer; c.counselLeft = c.counselIds.length ? RULES.counselObj : 0; c.list = null; c.cx = 0;
+    c.presentLeft = RULES.presentPer; c.pressLeft = RULES.pressPer; c.counselLeft = c.counselIds.length ? RULES.counselObj : 0; c.list = null; c.cx = 0;
     c.pool = shuffle(statementPool(this.events, c.proven)).slice(0, 9);
     c.deadline = Date.now() + 40000;
     const humanSide = [c.defendantId, ...c.counselIds].includes(this.human);
@@ -165,7 +165,7 @@ export class MockCourt {
       const st = c.list[i]; st.aiSeen = true;
       const plan = aiLawyerPlan(st, c.evidence, st.pressed ? 0 : c.pressLeft);
       if (plan.press) return this.act(c.lawyerId, "courtAct", { type: "press", idx: i });
-      if (plan.present && !st.presentTried) return this.act(c.lawyerId, "courtAct", { type: "present", idx: i, evId: plan.present.id });
+      if (plan.present && !st.presentTried && c.presentLeft > 0) return this.act(c.lawyerId, "courtAct", { type: "present", idx: i, evId: plan.present.id });
       this.aiLawyer();
     }, 1600);
   }
@@ -194,32 +194,31 @@ export class MockCourt {
     const st = c.list[p.idx]; if (!st || st.done) return;
     c.cx = p.idx;
     if (p.type === "press" && !st.pressed && c.pressLeft > 0) return this.press(st);
-    if (p.type === "present" && !st.presentTried) { const e = c.evidence.find((x) => x.id === p.evId && !x.used); if (e) return this.present(st, e); }
+    if (p.type === "present" && !st.presentTried && c.presentLeft > 0) { const e = c.evidence.find((x) => x.id === p.evId && !x.used); if (e) return this.present(st, e); }
   }
 
   press(st) {
     const c = this.c; st.pressed = true; c.pressLeft--;
     const s = [{ k: "shout", who: "L", kind: "holdit" }, this.say("L", "pressL", "blue")];
     if (st.alibi) {
-      s.push(this.say("D", "pressAlibiD"), { k: "pose", who: "L", pose: "confident" }, this.say("L", "pressAlibiPush", "blue"), { k: "hurt", side: "D", n: 0, ms: 700 }, this.say("D", "pressAlibiBreak"));
-      st.alibi = false; c.alibi = Math.max(0, c.alibi - 1);
-      const hid = this.events.find((e) => contradicts(st, e) && !c.evidence.some((x) => x.id === e.id));
-      if (hid) {
-        const x = toEvidence(hid); this.addEvidence(x);
-        s.push({ k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "paper" }, { k: "present", ev: { icon: x.icon, name: x.name, desc: x.desc }, ms: 1300 }, this.say("L", "pressGain", "blue"));
-      }
+      st.alibiShown = true;
+      s.push(this.say("D", "pressAlibiDef"), { k: "pose", who: "J", pose: "surprised" }, this.say("J", "pressAlibiJudge"),
+        { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "think" }, this.say("L", "pressAlibiInner", "blue"));
     } else if (st.kind === "truth") {
       // ประโยคจริงโดนกดดัน = รับสารภาพ → จำเลย −1 (ผู้ใช้ 2026-11-20)
       st.done = true; c.cred.D = Math.max(0, c.cred.D - 1);
       s.push(this.say("D", "pressTruthD"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "confident" }, this.say("L", "confessL", "red"),
         { k: "cam", cam: "witness" }, { k: "hurt", side: "D", n: 1, ms: DMG_STEP_MS }, this.say("D", "confessD"));
     } else {
-      s.push(this.say("D", "pressLieD"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "sheepish" }, this.say("L", "pressSheepish", "blue"));
+      const m = st.m || {}, S = m.skill != null ? m.skill : m.target != null ? m.target : m.turn != null ? `เทิร์น ${m.turn}` : "เรื่องนี้";
+      s.push(this.say("D", "pressHoldDef"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "pressHint", "", { vars: { S } }),
+        { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "think" }, this.say("L", "crossThink", "blue"));
     }
     this.beat(s, () => this.cross());
   }
   present(st, e) {
     const c = this.c;
+    c.presentLeft--;
     const s = [{ k: "shout", who: "L", kind: "objection" }, { k: "present", ev: { icon: e.icon, name: e.name, desc: e.desc } }, this.say("L", "presentL", "blue")];
     this.pending = { st, e };
     this.beat(s, () => {
@@ -246,6 +245,10 @@ export class MockCourt {
     const s = [{ k: "shout", who: "C", kind: "objection" }, { k: "cam", cam: "prosecution", who }, this.say("C", "counselObj", "", { name: nm, id: who }),
       { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeSustain"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "sheepish" }, this.say("L", "lawyerOops", "blue")];
     this.beat(s, () => this.cross());
+  }
+  outLines(s) {
+    if (this.c.presentLeft > 0) return s;
+    return s.concat([{ k: "cam", cam: "witness" }, this.say("D", "presentOutDef"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "presentOutJudge"), { k: "cam", cam: "defense" }, this.say("L", "presentOutInner", "blue")]);
   }
   resolvePresent() {
     const c = this.c, { st, e } = this.pending; st.done = true;
@@ -275,7 +278,7 @@ export class MockCourt {
       s.push({ k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "confident" }, this.say("L", "lawyerHit", "blue"));
       if (c.cred.D > 0 && c.cred.D <= 2) s.push({ k: "cam", cam: "witness" }, this.say("D", "defLow"));
     }
-    this.beat(s, () => this.cross());
+    this.beat(c.cred.D > 0 && c.cred.L > 0 ? this.outLines(s) : s, () => this.cross());
   }
   addEvidence(x) {
     const c = this.c; if (c.evidence.some((e) => e.id === x.id)) return;
@@ -386,6 +389,8 @@ export class MockCourt {
     if (w === "guilty") s.push({ k: "cam", cam: "witness" }, this.say("D", "guiltyD", "red"));
     if (w === "free") s.push({ k: "cam", cam: "defense" }, { k: "pose", who: "L", one: "shock", ms: 900 }, this.say("L", "freeL", "blue"));
     s.push({ k: "gavel", n: 1 }, { k: "pose", who: "J", pose: "normal" }, this.say("J", w === "tie" ? "verdictTie" : "verdictJ"), { k: "verdict", w });
+    const lawyerHeal = w === "guilty" ? c.cred.L : 0;
+    if (lawyerHeal > 0) s.push({ k: "heal", side: "L", n: lawyerHeal, ms: 1200 }, this.say("L", "afterGuiltyHeal", "blue", { vars: { N: lawyerHeal } }));
     const rewards = [];
     if (w !== "tie") {
       const side = w === "guilty" ? "L" : "D";
@@ -395,7 +400,7 @@ export class MockCourt {
       for (const id of (side === "L" ? c.witL : c.witD) || []) { const r0 = rewards.find((r) => r.id === id); if (r0) r0.coins = 2; else rewards.push({ id, name: this.N(id), hp: 1, coins: 2 }); }
     }
     this.beat(s, () => {
-      c.phase = "verdict"; c.beat = null; c.verdict = { w, rewards }; c.deadline = Date.now() + 6000; this.push();
+      c.phase = "verdict"; c.beat = null; c.verdict = { w, rewards, ...(w === "guilty" ? { lawyerHeal } : {}), ...(w === "free" ? { lawyerDmg: 7 } : {}) }; c.deadline = Date.now() + 6000; this.push();
       this.later(() => { this.c = null; this.push(); }, 6000);
     });
     c.verdict = null;
