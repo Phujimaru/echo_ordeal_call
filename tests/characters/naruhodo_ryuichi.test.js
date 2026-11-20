@@ -669,7 +669,9 @@ test("จำเลยระบบคู่ (เคท & เอมิลิโก
   assert.ok(!c0.counselIds.includes("B") && !c0.galleryIds.includes("B"));
   assert.deepEqual(engine.buildStateFor("B").court.defendantUnits.map((u) => u.id), [M.id, "B"]);
   const c = drive("testimony");
-  assert.ok(c.pool.some((s) => s.text.includes("ไม้ถูพื้น")) || c.pool.some((s) => s.text.includes("แส้")), "คำให้การจากเหตุการณ์ของทั้งคู่");
+  assert.ok(c.pool.some((s) => s.evKey === e1.id || s.evKey === e2.id), "คำให้การจากเหตุการณ์ของทั้งคู่");
+  const all = Court.statementPool(match.courtLog.filter((e) => e.actorId === "B"), []);
+  assert.ok(all.some((s) => s.evKey === e1.id) && all.some((s) => s.evKey === e2.id), "รวมเหตุการณ์ทั้งสองตัว");
   // เจ้าของส่งคำให้การแทนคู่ได้
   const picks = c.pool.slice().sort((a, b) => (a.kind === "lie" ? 0 : 1) - (b.kind === "lie" ? 0 : 1)).slice(0, 3).map((s) => ({ key: s.key }));
   assert.equal(Court.testimony("B", picks), true);
@@ -680,7 +682,8 @@ test("จำเลยระบบคู่ (เคท & เอมิลิโก
   {
     cc.cred.D = 1;
     const st = cc.list[idx];
-    const evid = Court.addEvidence(A, { id: "dz", round: st.k.turn != null ? st.k.turn : 2, actorId: "B", actorName: Court.who(M), kind: "basic", skill: st.k.skill || "ไม้ถูพื้น", targetName: st.k.target || null, type: "weapon" });
+    const real = match.courtLog.find((e) => e.id === st.evKey);
+    const evid = Court.addEvidence(A, real) || Court.liveEvidence(A).find((v) => v.evKey === real.id);
     Court.act("A", { type: "present", idx, evId: evid.id });
     const v = drive("verdict");
     assert.equal(v.verdict.w, "guilty");
@@ -774,16 +777,103 @@ test("ต้องปฏิเสธอย่างน้อย 2 ประโ�
   let c = drive("testimony");
   c.pool = [
     { key: "a", kind: "lie", text: "1", k: { turn: 1 } }, { key: "b", kind: "truth", text: "2" },
-    { key: "c", kind: "lie", text: "3", k: { turn: 2 } }, { key: "d", kind: "truth", text: "4" }, { key: "e", kind: "truth", text: "5" },
+    { key: "c", kind: "lie", text: "3", k: { turn: 2 } }, { key: "d", kind: "truth", text: "4" }, { key: "e", kind: "truth", pos: true, text: "5" },
   ];
   assert.equal(Court.testimony("B", [{ key: "b" }, { key: "d" }, { key: "e" }]), false, "จริงล้วน");
   assert.equal(Court.testimony("B", [{ key: "a" }, { key: "d" }, { key: "e" }]), false, "ปฏิเสธแค่ 1");
   assert.equal(Court.testimony("B", [{ key: "a" }, { key: "c" }, { key: "e" }]), true);
   c = drive("cross");
-  const ti = c.list.findIndex((s) => s.kind === "truth");
+  const ti = c.list.findIndex((s) => s.kind === "truth" && s.pos);
   const before = c.cred.D;
   Court.act("A", { type: "press", idx: ti });
   c = drive("cross") || match.court;
   assert.equal(c.cred.D, before - 1, "สารภาพ −1");
   assert.equal(c.list[ti].done, true);
+});
+
+// ---------- คำให้การแบบมีชั้นเชิง (ผู้ใช้ 2026-11-20) ----------
+function richLog() {
+  const { A, B } = setup({ extra: 2 });
+  const C = engine.players.C, D = engine.players.D;
+  const nB = Court.who(B), nC = "เซลิน", nD = "ดิโอ"; void C; void D;
+  const mk = (id, round, kind, skill, targetName, actorId = "B", actorName = nB) =>
+    ({ id, round, actorId, actorName, kind, skill, targetName, type: kind === "move" ? "foot" : kind === "ultimate" ? "witness" : "weapon", seenBy: [] });
+  match.courtLog = [
+    mk("h1", 1, "basic", "C hits B", nB, "C", nC),
+    mk("e1", 2, "basic", "ฟัน", nC), mk("e2", 3, "attack", "ตีปกติ", nD), mk("e3", 3, "move", "เดิน", null), mk("e4", 5, "secondary", "ยาพิษ", nC),
+  ];
+  engine.setRoundNumber(6);
+  return { A, B, C, D, nB, nC, nD, events: match.courtLog.filter((e) => e.actorId === "B") };
+}
+const info = (r) => ({ skills: ["ฟัน", "ยาพิษ", "ระเบิดใหญ่", "ตีปกติ"], roster: [r.nC, r.nD, Court.who(r.A)], round: 6, hitBy: { [r.nC]: 1 } });
+
+test("คำให้การ: ทุกรูปแบบมีทั้งจริงและโกหก · ถ้อยคำจากกองเดียวกัน", () => {
+  const r = richLog();
+  const seen = {};
+  for (let i = 0; i < 40; i++) for (const s of Court.statementPool(r.events, [], info(r))) (seen[s.form] ||= new Set()).add(s.kind);
+  for (const f of ["denySkill", "denyTarget", "idleTurn", "stillSince", "claimDeed", "defended"]) assert.deepEqual([...seen[f]].sort(), ["lie", "truth"], f);
+  assert.ok(seen.firstVictim.has("truth"));
+  // ข้อความไม่บอกใบ้: กองถ้อยคำเดียวต่อรูปแบบ (ไม่มีกอง lie/truth แยก)
+  for (const k of Object.keys(Lines.STATEMENTS)) assert.ok(!/Lie$|Truth$|^truth/.test(k), `กองแยกจริง/โกหก: ${k}`);
+});
+
+test("คำให้การ: โกหกทุกประโยคมีเหตุการณ์จริงหักล้างได้ · เรื่องจริงไม่มีหลักฐานไหนหักล้าง", () => {
+  const r = richLog();
+  for (let i = 0; i < 30; i++) {
+    const pool = Court.statementPool(r.events, [], info(r));
+    for (const s of pool) {
+      const hits = r.events.filter((e) => Court.contradicts(s, e, "B"));
+      if (s.kind === "lie") {
+        assert.ok(hits.length >= 1, `โกหกที่จับไม่ได้: ${s.form} ${s.text}`);
+        assert.ok(hits.some((e) => e.id === s.evKey), `evKey ไม่หักล้าง: ${s.text}`);
+      } else assert.equal(hits.length, 0, `เรื่องจริงถูกหักล้าง: ${s.form} ${s.text}`);
+    }
+  }
+});
+
+test("คำให้การ: ป้ายผิด (เป้าผิด) ถูกจับด้วยหลักฐานที่ตรงเทิร์น+ท่า เท่านั้น", () => {
+  const s = { form: "claimDeed", kind: "lie", k: { mode: "target", turn: 2, skill: "ฟัน", claim: "D" } };
+  const e = (o) => ({ actorId: "B", kind: "basic", round: 2, skill: "ฟัน", targetName: "C", ...o });
+  assert.equal(Court.contradicts(s, e({}), "B"), true, "เทิร์น/ท่าตรง เป้าจริงอีกคน");
+  assert.equal(Court.contradicts(s, e({ round: 3 }), "B"), false, "เทิร์นไม่ตรง");
+  assert.equal(Court.contradicts(s, e({ skill: "อื่น" }), "B"), false, "ท่าไม่ตรง");
+  assert.equal(Court.contradicts(s, e({ actorId: "C" }), "B"), false, "หลักฐานของคนอื่น");
+  const t = { form: "claimDeed", kind: "lie", k: { mode: "turn", skill: "ฟัน", target: "C", claim: 4 } };
+  assert.equal(Court.contradicts(t, e({}), "B"), true);
+  assert.equal(Court.contradicts(t, e({ round: 4 }), "B"), false);
+  assert.equal(Court.contradicts({ ...s, kind: "truth" }, e({}), "B"), false, "เรื่องจริงไม่มีวันถูกหักล้าง");
+});
+
+test("กดดัน: สารภาพเฉพาะข้อความยอมรับที่จริง · คำปฏิเสธที่จริง/คำโกหก = ยืนยันคำเดิม ไม่มีผล", () => {
+  const { A, B } = setup();
+  const c = openCourt(A, B, [
+    { form: "denyTarget", kind: "truth", pos: false, text: "ไม่เคยแตะ X", k: { target: "X" } },
+    { form: "claimDeed", kind: "truth", pos: true, text: "เทิร์น 2 ใช้ ฟัน ใส่ C", k: { turn: 2, skill: "ฟัน", target: "C" } },
+    { form: "idleTurn", kind: "lie", pos: false, text: "เทิร์น 3 ว่าง", k: { turn: 3 } },
+  ]);
+  c.pressLeft = 3;
+  const d0 = c.cred.D;
+  Court.act("A", { type: "press", idx: 0 }); drive("cross");
+  assert.equal(c.cred.D, d0, "ปฏิเสธที่จริง = ไม่มีผล");
+  assert.equal(c.list[0].done, false);
+  Court.act("A", { type: "press", idx: 2 }); drive("cross");
+  assert.equal(c.cred.D, d0, "โกหก = ไม่มีผล");
+  Court.act("A", { type: "press", idx: 1 }); drive("cross");
+  assert.equal(c.cred.D, d0 - 1, "ยอมรับที่จริง = สารภาพ −1");
+  assert.equal(c.list[1].done, true);
+});
+
+test("คำให้การ: กอง ≤ 9 · โกหก ≥ 3 เมื่อบันทึกพอ · มีทั้งจริงและโกหก", () => {
+  const r = richLog();
+  r.A.skillPoints = 8;
+  engine.setActor("A");
+  engine.court.start(r.A, r.B);
+  engine.pausePlayingForCutscene();
+  r.B.connected = true;
+  const c = drive("testimony");
+  assert.ok(c.pool.length <= 9 && c.pool.length >= 3);
+  assert.ok(c.pool.filter((s) => s.kind === "lie").length >= 3);
+  assert.ok(c.pool.some((s) => s.kind === "truth"));
+  assert.ok(engine.buildStateFor("A").court.pool === null, "ทนายไม่เห็นกอง");
+  assert.ok(engine.buildStateFor("B").court.pool.every((s) => s.kind === "lie" || s.kind === "truth"), "จำเลยเห็น kind");
 });
