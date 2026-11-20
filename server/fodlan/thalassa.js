@@ -437,10 +437,8 @@ function layer(ctx, map) {
   if (!body.length && er == null) return map;
   const terrain = { ...(map.terrain || {}) };
   if (er != null) for (let x = 0; x < map.cols; x++) { const k = `${x},${er}`; if (!terrain[k]) terrain[k] = "fd_nt_void"; }
-  for (const c of body) {
-    const k = c.x + "," + c.y;
-    if (!terrain[k]) terrain[k] = "fd_nt_whale";
-  }
+  // ลำตัวไม่เป็น terrain แล้ว (2026-11-20 ให้สกิลแนว/พุ่งโดนปลาวาฬ — เดิมหยุดที่ terrain) · ตัวแทนลำตัว (thalassaProxy) เป็นยูนิตกั้นทางแทน
+  void body;
   return { ...map, terrain };
 }
 
@@ -472,7 +470,7 @@ function damageWhale(ctx, p, n, { x, y, src = "strike" } = {}) {
   if (!w || !w.on || w.dead || !(n > 0)) return false;
   w.hp = Math.max(0, w.hp - n);
   ctx.fx("whale_hit", { x, y, n, by: p.id, hp: w.hp, src });
-  ctx.log(`${src === "torpedo" ? "🚀" : "⚔️"} ${p.name} ${src === "torpedo" ? "ยิงตอร์ปิโดใส่" : "ฟัน"}ทาลัสซา -${n} (เหลือ ${w.hp}/${w.hpMax})`);
+  ctx.log(`${src === "torpedo" ? "🚀" : "⚔️"} ${p.name} ${src === "torpedo" ? "ยิงตอร์ปิโดใส่" : src === "skill" ? "ใช้สกิลใส่" : "ฟัน"}ทาลัสซา -${n} (เหลือ ${w.hp}/${w.hpMax})`);
   if (w.hp <= 0) {
     w.dead = true; w.on = false; w.present = false; w.pending = []; w.killer = p.id;
     if (isData(ctx)) w.reviveAt = ctx.match.roundNumber + 1 + DATA_REVIVE; // ชั้น 6: กลับมาเป็นร่างข้อมูล
@@ -481,6 +479,7 @@ function damageWhale(ctx, p, n, { x, y, src = "strike" } = {}) {
     ctx.fx("whale_death", { ...posAt(w.s, map.cols, map.rows), by: p.id });
     ctx.log(`💙 ${p.name} ปราบทาลัสซา — ได้หัวใจของท้องทะเล (พลังโจมตี +${HEART.amount} · ${HEART.turns} เทิร์น)`);
     ctx.bump();
+    require("./thalassaProxy").sync(ctx); // ตัวแทนลำตัวหาย
     return 4;
   }
   return 1.2;
