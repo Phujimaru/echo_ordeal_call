@@ -9,7 +9,7 @@
 // ============================================================
 Object.assign(module.exports, {
   fresh, st, isNaru, active, who, actorOf, noteAct, noteMove, lastEventOf, addEvidence, noteEvidence, liveEvidence,
-  scoutSees, statementPool, statementsOf, minLiesOf, contradicts, presentResult, aiTestimony,
+  scoutSees, statementPool, balancePool, subjectOf, statementsOf, minLiesOf, contradicts, presentResult, aiTestimony,
   start, view, testimony, act, object, gallery, skip, abort, alibiTotal,
   discardEvidence, pinEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
 });
@@ -22,11 +22,15 @@ const Lines = require("./courtLines");
 const ID = "naruhodo_ryuichi";
 const RULES = {
   cred: 6, rounds: 4, statements: 4, minLies: 2, confess: 1, pressPer: 1, counselObj: 1, poolMax: 10, // ผู้ใช้ 2026-11-20 (เดิม 5 / 3 / 3 / กอง 9)
-  wrong: 1, alibiBurn: 1, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
-  dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 },
+  // ความสมดุล (ผู้ใช้ 2026-11-20 "ให้แฟร์" — จูนด้วย scripts/court-sim.js): ยื่นถูก/ผิดเสียเท่ากัน · ยื่นได้ยกละ presentPer ครั้ง · จำเลยได้ข้อแก้ตัวโบนัสต่อคดี
+  //  ผลจำลอง (5000 คดี/คู่): ทนายมือใหม่ vs จำเลยมือใหม่ ≈ 47% · ทนายเก่ง vs จำเลยเก่ง ≈ 45% · ฝั่งเก่งชนะชัด · เสมอ < 15% · กลาง 3–4 ยก
+  //  pressReveals = กดดันประโยคที่มี 📍 → เห็น 📍 (ข้อแก้ตัวไม่แตก — เลี่ยงได้ หรือใช้พยานทะลุ)
+  presentPer: 2, bonusAlibi: 2, pressReveals: true,
+  wrong: 1, alibiBurn: 2, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
+  dmg: { weapon: 2, foot: 2, receipt: 2, witness: 2 },
   heal: { receipt: 1 },
   galleryCap: 2, throwKick: 3,
-  freeDmg: 5, freeStun: 2, // ไม่มีความผิด = ทนาย −5 (ผู้ใช้ 2026-11-20 · เดิม 3)
+  freeDmg: 7, freeStun: 2, // ไม่มีความผิด = ทนาย −7 (ผู้ใช้ 2026-11-20 · เดิม 5 ← 3) · มีความผิด = ทนายฟื้นพลังชีวิตเท่าความน่าเชื่อถือที่เหลือ
   ultCd: 5,
   sec: { testimony: 40, cross: 60, object: 3, gallery: 8 },
   aiObject: 0.45,
@@ -325,6 +329,18 @@ function contradicts(s, ev, defendantId) {
       return (k.skill != null && ev.skill === k.skill) || (k.target != null && ev.targetName === k.target) || (k.turn != null && ev.round === k.turn);
   }
 }
+// เรื่องของประโยค (คำใบ้ตอนกดดัน — ไม่บอกว่าจริง/โกหก)
+function subjectOf(s) {
+  const k = (s && s.k) || {};
+  switch (s && s.form) {
+    case "denySkill": case "onlyTarget": return k.skill === "ตีปกติ" ? "การตีปกติ" : `ท่า ${k.skill}`;
+    case "denyTarget": case "onlySkill": case "defended": return `${k.target}`;
+    case "idleTurn": return `เทิร์น ${k.turn}`;
+    case "stillSince": return `การเดินหลังเทิร์น ${k.from}`;
+    case "firstVictim": return "ลำดับการลงมือ";
+    default: return k.skill ? `ท่า ${k.skill}` : k.target ? `${k.target}` : k.turn != null ? `เทิร์น ${k.turn}` : "เรื่องทั่วไป";
+  }
+}
 // ทำไมหลักฐานไม่ขัด (ผู้พิพากษาพูด 1 บรรทัด — บอกแค่รายละเอียดที่เทียบ) → [คีย์บทพูด, ctx]
 function whyNot(s, ev, sideId) {
   if (!s || !ev) return ["whyNone", {}];
@@ -406,9 +422,11 @@ function ctxOf(c, extra) { return { L: c.names.L, D: c.names.D, round: c.round, 
 function alibiTotal(c = court()) {
   if (!c) return 0;
   const ids = [...new Set([c.sideId || c.defendantId, ...c.counselIds])];
-  return ids.reduce((a, id) => a + ((match.players[id] && match.players[id].courtAlibi) || 0), 0);
+  return (c.bonusAlibi || 0) + ids.reduce((a, id) => a + ((match.players[id] && match.players[id].courtAlibi) || 0), 0);
 }
+// ใช้ข้อแก้ตัว: โบนัสของคดีก่อน (ไม่ติดตัวหลังคดี) แล้วค่อยของจำเลย/ฝ่ายค้าน
 function consumeAlibi(c, n) {
+  while (n > 0 && (c.bonusAlibi || 0) > 0) { c.bonusAlibi--; n--; }
   for (const id of [...new Set([c.sideId || c.defendantId, ...c.counselIds])]) {
     const p = match.players[id];
     while (n > 0 && p && (p.courtAlibi || 0) > 0) { p.courtAlibi--; n--; }
@@ -442,7 +460,7 @@ function start(lawyer, t) {
     defendantUnits: units.map((u) => ({ id: u.id, name: who(u), img: (CHAR_BY_ID[u.characterId] && CHAR_BY_ID[u.characterId].img) || u.img || null })),
     names: { L: who(lawyer), D: units.map(who).join(" & "), C: counsel0 ? who(counsel0) : "" },
     cred: { L: RULES.cred, D: RULES.cred }, list: null, cx: 0, pool: null, picks: null,
-    witnessUsed: [], lent: [], pressLeft: RULES.pressPer, counselLeft: RULES.counselObj,
+    witnessUsed: [], lent: [], pressLeft: RULES.pressPer, presentLeft: RULES.presentPer, counselLeft: RULES.counselObj, bonusAlibi: RULES.bonusAlibi,
     beat: null, beatSeq: 0, verdict: null, music: "trial", musicAt: lazy.engine().nextTransformCounter(),
     proven: [], crossLeft: RULES.sec.cross * 1000, crossEnd: 0, pending: null, objected: false, hits: 0,
     rx: {}, tally: { L: 0, D: 0 }, throws: 0, lastThrow: null, cheers: {}, witnessSide: {}, warned: { L: 0, D: 0 }, used: [],
@@ -453,6 +471,7 @@ function start(lawyer, t) {
   const ctx = ctxOf(c);
   const steps = [gavelS(3), cam("judge"), line(c, "J", "openJudge", ctx), cam("defense"), line(c, "L", "openLawyer", ctx), inner(c, "openInner", ctx),
     cam("witness"), line(c, "D", "openDefendant", ctx)];
+  if (RULES.bonusAlibi > 0) steps.push(line(c, "D", "openAlibiBonus", ctx));
   if (counselIds.length) steps.push(cam("prosecution", counselIds[0]), sayP("C", counsel0, P(c, "openCounsel", { ...ctx, C: c.names.C })));
   if (coIds.length) { const co = match.players[coIds[0]]; steps.push(cam("cocounsel", co.id), sayP("T", co, P(c, "openCo", { ...ctx, C: who(co) }))); }
   if (galleryIds.length) {
@@ -510,6 +529,7 @@ function startTestimony(c) {
   c.picks = null;
   c.cx = 0;
   c.pressLeft = RULES.pressPer;
+  c.presentLeft = RULES.presentPer;
   c.counselLeft = RULES.counselObj;
   c.crossLeft = RULES.sec.cross * 1000;
   c.rx = {}; c.tally = { L: 0, D: 0 }; c.throws = 0; c.lastThrow = null;
@@ -592,9 +612,10 @@ function act(id, { type, idx, evId, evKey } = {}) {
     if (!s || s.done || s.pressed || c.pressLeft <= 0) return false;
     c.pending = { type, idx: i, by: id };
   } else if (type === "present") {
-    if (!s || s.done || s.presentTried) return false;
+    if (!s || s.done || s.presentTried || (c.presentLeft || 0) <= 0) return false; // ยื่นได้ยกละ presentPer ครั้ง
     const ev = liveEvidence(lawyerOf(c)).find((e) => e.id === evId);
     if (!ev) return false;
+    c.presentLeft--;
     c.pending = { type, idx: i, evId: ev.id, by: id };
   } else if (type === "end") {
     c.pending = { type, by: id };
@@ -625,7 +646,11 @@ function doPress(c, p) {
   c.pressLeft--;
   const ctx = ctxOf(c);
   const steps = [cam("defense"), shout("L", "holdit"), line(c, "L", "pressLawyer", ctx), cam("witness")];
-  if (s.alibi) {
+  if (s.alibi && RULES.pressReveals) {
+    // กดดันเจอ 📍: เห็นว่ามีข้อแก้ตัว (ไม่แตก · ข้อแก้ตัวยังอยู่) — ทนายเลี่ยงได้ หรือใช้พยานทะลุ (สมดุล 2026-11-20)
+    s.alibiShown = true;
+    steps.push(line(c, "D", "pressAlibiDef", ctx), cam("judge"), line(c, "J", "pressAlibiJudge", ctx), cam("defense"), inner(c, "pressAlibiInner", ctx));
+  } else if (s.alibi) {
     s.alibi = false;
     s.alibiShown = true;
     consumeAlibi(c, 1);
@@ -636,8 +661,8 @@ function doPress(c, p) {
     steps.push(cam("defense"), inner(c, "pressAlibiInner", ctx));
   } else if (s.kind === "lie" || !s.pos) {
     // โกหก (ไม่มีข้อแก้ตัว) หรือคำปฏิเสธที่จริง = ยืนยันคำเดิม ไม่มีผล — ถ้อยคำกองเดียวกัน ห้ามบอกใบ้
-    steps.push(line(c, "D", "pressHoldDef", ctx), cam("defense"), inner(c, "pressNothingInner", ctx));
-    aside(c, steps, ctx);
+    // คำใบ้จากผู้พิพากษา: ประโยคนี้เกี่ยวกับเรื่องอะไร (พูดเหมือนกันทั้งจริงและโกหก)
+    steps.push(line(c, "D", "pressHoldDef", ctx), cam("judge"), line(c, "J", "pressHint", { ...ctx, subject: subjectOf(s) }), cam("defense"), inner(c, "pressNothingInner", ctx));
   } else {
     // ประโยคจริงโดนกดดัน = รับสารภาพต่อหน้าศาล → จำเลยเสียความน่าเชื่อถือ (ผู้ใช้ 2026-11-20)
     steps.push(line(c, "D", "pressTruthDef", ctx), cam("defense"), line(c, "L", "pressConfessLawyer", ctx, "red"),
@@ -710,6 +735,7 @@ function resolvePresent(c) {
       steps.push(line(c, "J", "counselJudgeBad", ctx), hurtS("D", RULES.counselMiss), inner(c, "counselInnerBad", ctx));
       credHit(c, "D", RULES.counselMiss, steps);
     }
+    presentOut(c, steps, ctx);
     beat(c, steps, afterAction);
     return;
   }
@@ -764,7 +790,8 @@ function resolvePresent(c) {
       if (any) steps.push(inner(c, "revealInner", ctx));
     }
   }
-  beat(c, steps, afterAction);
+  presentOut(c, steps, ctx);
+    beat(c, steps, afterAction);
 }
 // ความน่าเชื่อถือลด + บทตามเกณฑ์ (≤2 / 1)
 function credHit(c, side, n, steps) {
@@ -792,6 +819,13 @@ function isFinale(c, s, ev) {
   if (!s || !ev || c.finaleUsed) return false;
   const r = presentResult(s, ev, c.sideId);
   return (r.kind === "hit" || r.kind === "pierce") && c.cred.D - r.dD <= 0;
+}
+// ยื่นครบโควตาของยก (ยังเหลือประโยค) — บทสั้นๆ ให้รู้ว่ายกนี้คัดค้านไม่ได้แล้ว
+function presentOut(c, steps, ctx) {
+  if ((c.presentLeft || 0) > 0 || verdictDue(c) || !c.list || c.list.every((s) => s.done)) return;
+  steps.push(cam("defense"), inner(c, "presentOutInner", ctx));
+  if (chance(0.5)) steps.push(cam("judge"), line(c, "J", "presentOutJudge", ctx));
+  else steps.push(cam("witness"), line(c, "D", "presentOutDef", ctx));
 }
 function verdictDue(c) { return c.cred.L <= 0 || c.cred.D <= 0; }
 
@@ -918,10 +952,14 @@ function toVerdict(c) {
       rewards.push({ id, name: who(p), hp: 1, ...(c.witnessSide[id] === winSide ? { gold: 2 } : {}) });
     }
   }
-  c.verdict = { w, rewards, ...(w === "free" ? { lawyerDmg: RULES.freeDmg, lawyerStun: RULES.freeStun } : {}) };
+  const heal = w === "guilty" ? Math.max(0, c.cred.L) : 0;
+  c.verdict = { w, rewards, ...(w === "free" ? { lawyerDmg: RULES.freeDmg, lawyerStun: RULES.freeStun } : {}), ...(w === "guilty" ? { lawyerHeal: heal } : {}) };
   const ctx = ctxOf(c);
   const steps = [cam("judge"), gavelS(3), line(c, "J", w === "guilty" ? "verdictGuilty" : w === "free" ? "verdictFree" : "verdictTie", ctx), { k: "verdict", w, ms: 3800 }];
-  if (w === "guilty") steps.push(cam("defense"), inner(c, "afterGuiltyLawyer", ctx), cam("witness"), line(c, "D", "afterGuiltyDef", ctx), cam("judge"), line(c, "J", "afterGuiltyJudge", ctx));
+  if (w === "guilty") {
+    steps.push(cam("defense"), inner(c, "afterGuiltyLawyer", ctx), cam("witness"), line(c, "D", "afterGuiltyDef", ctx), cam("judge"), line(c, "J", "afterGuiltyJudge", ctx));
+    if (heal > 0) steps.push(cam("defense"), healS("L", heal), inner(c, "afterGuiltyHeal", { ...ctx, n: heal }));
+  }
   else if (w === "free") steps.push(cam("witness"), line(c, "D", "afterFreeDef", ctx), cam("defense"), inner(c, "afterFreeLawyer", ctx));
   else steps.push(line(c, "J", "afterTieJudge", ctx), cam("defense"), inner(c, "afterTieInner", ctx));
   beat(c, steps, applyVerdict, "verdict");
@@ -939,6 +977,11 @@ function applyVerdict(c) {
       if (!u.alive) continue;
       combat.withEffectSource(L, () => combat.instantDeath(u, "final"));
       if (!u.alive) { u.pos = null; engine.log(`⚖️ ${u.name} มีความผิด — ตกรอบ!`); }
+    }
+    // ชนะคดี = ทนายฟื้นพลังชีวิตเท่าความน่าเชื่อถือที่เหลือ (ผู้ใช้ 2026-11-20 · ท่อ healHp ปกติ — ติดห้ามฟื้นก็ไม่ได้)
+    if (L && L.alive && v.lawyerHeal > 0) {
+      const got = combat.healHp(L, v.lawyerHeal);
+      if (got) engine.log(`⚖️ ${L.name} ชนะคดี — ฟื้นพลังชีวิต ${got}`);
     }
   } else if (v.w === "free" && L && L.alive) {
     combat.withEffectSource(null, () => combat.dealMixed(L, RULES.freeDmg, false));
@@ -994,7 +1037,7 @@ function view(viewerId, controlId) {
     sightings: me && !isDefUnit(c, me) ? sightingsOf(c, me).map((e) => { const icon = Ev.iconFor(e.type, e.id); return { key: e.id, desc: descOf(e), icon, name: Ev.EV_ICON_NAMES[icon] || "", type: e.type }; }) : [],
     witnessUsed: [...c.witnessUsed], lent: [...c.lent],
     rx: c.phase === "gallery" ? Object.keys(c.rx) : [],
-    pressLeft: c.pressLeft, counselLeft: c.counselLeft,
+    pressLeft: c.pressLeft, presentLeft: c.presentLeft, counselLeft: c.counselLeft,
     beat: c.beat, verdict: c.verdict, music: c.music,
   };
 }
