@@ -461,3 +461,7 @@
 .cact:disabled .cleft { color: #ccc; }
 .creschip.heal { border-color: #55ff8f; } .creschip.dmg { border-color: #ff4a3d; }
 .cpop { z-index: 11; }
+
+/* คำโกหกลับ 🌫 */
+.cblind { font-style: normal; font-size: calc(var(--u) * 6); flex: none; filter: drop-shadow(0 0 calc(var(--u) * 1.5) rgba(180, 200, 255, .8)); }
+.cline.lie:has(.cblind) span { color: #cfd8ff; }

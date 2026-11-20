@@ -61,9 +61,10 @@ export class MockCourt {
         id: c.id, phase: c.phase, round: c.round, rounds: c.rounds, deadline: c.deadline,
         lawyerId: c.lawyerId, defendantId: c.defendantId, ...(this.roles.Dunits ? { defendantUnits: this.roles.Dunits } : {}), coIds: c.coIds, counselIds: c.counselIds, galleryIds: c.galleryIds, outIds: c.outIds,
         cred: { ...c.cred },
-        list: c.list && c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: !!s.alibiShown, ...(sideD ? { alibi: !!s.alibi, kind: s.kind } : {}) })),
+        list: c.list && c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: !!s.alibiShown, ...(sideD ? { alibi: !!s.alibi, kind: s.kind, blind: !!s.blind } : {}) })),
         cx: c.cx,
-        pool: sideD && c.phase === "testimony" ? c.pool.map(({ key, text, kind }) => ({ key, text, kind })) : null,
+        pool: sideD && c.phase === "testimony" ? c.pool.map(({ key, text, kind, blind }) => ({ key, text, kind, blind: !!blind })) : null,
+        ...(sideD && c.phase === "testimony" ? { maxBlind: RULES.maxBlind } : {}),
         minLies: sideD && c.phase === "testimony" ? Math.min(2, c.pool.filter((x) => x.kind === "lie").length) : undefined, nStatements: sideD && c.phase === "testimony" ? Math.min(RULES.statements, c.pool.length) : undefined,
         alibiLeft: sideD ? c.alibi : undefined,
         evidence: sideL ? c.evidence.map((e) => ({ ...e })) : undefined,
@@ -109,7 +110,7 @@ export class MockCourt {
     if (c.coIds[0]) s.push({ k: "cam", cam: "cocounsel", who: c.coIds[0] }, this.say("T", "coReady", "", { name: this.N(c.coIds[0]), id: c.coIds[0] }));
     if (c.counselIds[0]) s.push({ k: "cam", cam: "prosecution", who: c.counselIds[0] }, this.say("C", "counselReady", "", { name: this.N(c.counselIds[0]), id: c.counselIds[0] }));
     else if (c.galleryIds.length) s.push({ k: "cam", cam: "wide" }, this.say("J", "galleryHush"));
-    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), this.say("D", "openAlibiBonus"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
+    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
     this.beat(s, () => this.testimony());
   }
 
@@ -117,19 +118,39 @@ export class MockCourt {
     const c = this.c;
     c.phase = "testimony"; c.beat = null; c.inCross = false;
     c.presentLeft = RULES.presentPer; c.pressLeft = RULES.pressPer; c.counselLeft = c.counselIds.length ? RULES.counselObj : 0; c.list = null; c.cx = 0;
-    c.pool = shuffle(statementPool(this.events, c.proven)).slice(0, 9);
+    const held = this.lawyerSideEvents();
+    let blindN = 0;
+    c.pool = shuffle(statementPool(this.events, c.proven)).map((st) => ({ ...st, blind: st.kind === "lie" && !held.some((e) => contradicts(st, e)) }))
+      .filter((st) => !st.blind || ++blindN <= 2).slice(0, 9);
     c.deadline = Date.now() + 40000;
     const humanSide = [c.defendantId, ...c.counselIds].includes(this.human);
     this.tTest = this.later(() => this.autoTestimony(), humanSide ? 40000 : this.slow ? 22000 : 2600 + Math.random() * 1500); // ?wait=1 (dev) = AI จำเลยคิดนาน
     this.push();
   }
+  // หลักฐานที่ฝั่งทนายยังเอามาใช้ได้: แฟ้มทนาย + สิ่งที่ผู้ช่วยยังไม่ได้ส่ง + ประชาชนที่ยังไม่ได้ขึ้นเป็นพยาน
+  lawyerSideEvents() {
+    const c = this.c, keys = new Set(c.evidence.filter((e) => !e.used).map((e) => e.id));
+    for (const id of c.coIds) if (!c.lent.includes(id)) (c.sightings[id] || []).forEach((x) => keys.add(x.key));
+    for (const id of c.galleryIds) if (!c.witnessUsed.includes(id) && !c.outIds.includes(id)) (c.sightings[id] || []).forEach((x) => keys.add(x.key));
+    return this.events.filter((e) => keys.has(e.id));
+  }
   autoTestimony() {
     const c = this.c; if (!c || c.phase !== "testimony") return;
-    const list = aiTestimony(c.pool, c.alibi);
+    // AI จำเลย: ไม่เกิน maxBlind คำโกหกลับ · 60% พยายามใส่ 1
+    const open = c.pool.filter((s) => !s.blind);
+    let list = aiTestimony(open, c.alibi);
+    const blind = c.pool.filter((s) => s.blind);
+    if (blind.length && Math.random() < 0.6) {
+      const b = blind[Math.floor(Math.random() * blind.length)];
+      const i = list.findIndex((s) => s.kind === "lie");
+      if (i >= 0) list[i] = { ...b, alibi: false, pressed: false, done: false };
+    }
+    list = list.slice(0, RULES.statements);
     this.setList(list);
   }
   setList(list) {
     const c = this.c; clearTimeout(this.tTest);
+    c.alibi = Math.max(0, c.alibi - list.filter((s) => s.alibi).length);
     c.list = list.map((s) => ({ ...s, done: false, pressed: false, presentTried: false, alibiShown: false }));
     c.phase = "testify"; c.deadline = null; c.beat = null;
     this.push();
@@ -178,6 +199,7 @@ export class MockCourt {
       let al = c.alibi;
       const list = picks.map((k) => { const st = c.pool.find((x) => x.key === k.key); if (!st) return null; const a = !!k.alibi && st.kind === "lie" && al > 0; if (a) al--; return { ...st, alibi: a }; }).filter(Boolean);
       const need = Math.min(2, c.pool.filter((x) => x.kind === "lie").length);
+      if (list.filter((x) => x.blind).length > RULES.maxBlind) return;
       if (list.length === RULES.statements && list.filter((x) => x.kind === "lie").length === need) this.setList(list);
       return;
     }
@@ -260,11 +282,11 @@ export class MockCourt {
       s.push({ k: "gavel", n: 1 }, { k: "pose", who: "J", pose: "angry" }, this.say("J", r.kind === "irrelevant" ? "judgeIrrelevant" : "judgeWrong"), { k: "cam", cam: "defense" });
       hurtL(r.dL); s.push({ k: "pose", who: "L", one: "headDown", ms: 800 }, this.say("L", "lawyerOops", "blue"));
     } else if (r.kind === "alibi") {
-      e.used = true; st.alibi = false; c.alibi = Math.max(0, c.alibi - 1);
+      e.used = true; st.alibi = false;
       s.push({ k: "shout", who: "D", kind: "holdit" }, this.say("D", "alibiD"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeAlibi"), { k: "cam", cam: "defense" });
       hurtL(r.dL);
     } else if (r.kind === "pierce") {
-      e.used = true; st.alibi = false; c.alibi = Math.max(0, c.alibi - 1);
+      e.used = true; st.alibi = false;
       s.push({ k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "desk" }, { k: "pose", who: "L", one: "slam", ms: 350 }, this.say("L", "pierceL", "blue"));
       hurtD(r.dD); s.push(this.say("D", "hitD", "red"));
       c.objFlag = true;
@@ -300,6 +322,12 @@ export class MockCourt {
     const c = this.c; clearTimeout(this.tCross); c.inCross = false;
     if (c.cred.D <= 0) return this.verdict("guilty");
     if (c.cred.L <= 0) return this.verdict("free");
+    if (!c.idleChecked && c.presentLeft === RULES.presentPer && c.evidence.some((e) => !e.used)) {
+      c.idleChecked = true; c.cred.L = Math.max(0, c.cred.L - RULES.idlePenalty);
+      return this.beat([{ k: "gavel", n: 1 }, { k: "pose", who: "J", pose: "angry" }, this.say("J", "idleJudge"), { k: "cam", cam: "defense" },
+        { k: "hurt", side: "L", n: RULES.idlePenalty, ms: DMG_STEP_MS }, this.say("L", "idleInner", "blue")], () => this.roundEnd());
+    }
+    c.idleChecked = false;
     const live = c.galleryIds.filter((id) => !c.outIds.includes(id));
     if (this.mode !== "pvp" || !live.length) return this.nextRound();
     c.phase = "gallery"; c.beat = null; c.deadline = Date.now() + 8000; c.gx = []; c.acted = {};

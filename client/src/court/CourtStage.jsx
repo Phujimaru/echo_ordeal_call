@@ -325,14 +325,14 @@ export function useCourtDirector(court, cast, viewerSide) {
     const steps = [];
     if (Date.now() - lastBanner.current > 2500) steps.push({ k: "banner", kind: "test", ms: BANNER_MS.test });
     steps.push({ k: "cam", cam: "witness", ms: 0 });
-    for (const st of c.list || []) steps.push({ k: "say", who: "D", name: D?.name || "", text: (showAl && st.alibi ? "📍 " : "") + st.text, ms: TESTIFY_LINE_MS });
+    for (const st of c.list || []) steps.push({ k: "say", who: "D", name: D?.name || "", text: (showAl && st.blind ? "🌫 " : "") + (showAl && st.alibi ? "📍 " : "") + st.text, ms: TESTIFY_LINE_MS });
     P.playAll(steps, id);
   }, [testifyKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ภาพประจำ phase ตอนไม่มีฉากเล่นอยู่
   const cx = court?.cx ?? 0;
   const st = court?.list?.[cx];
-  const stText = st ? ((st.alibiShown || (viewerSide === "D" && st.alibi)) ? "📍 " : "") + st.text : "";
+  const stText = st ? (viewerSide === "D" && st.blind ? "🌫 " : "") + ((st.alibiShown || (viewerSide === "D" && st.alibi)) ? "📍 " : "") + st.text : "";
   useEffect(() => {
     if (busy || !court) return;
     setShownCred(court.cred);

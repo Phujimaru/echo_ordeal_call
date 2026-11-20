@@ -156,8 +156,9 @@ const HELP = {
   L: { t: "ทนาย", goal: "ทำให้จำเลยหมดความน่าเชื่อถือก่อนตัวเอง", items: [
     ["💬 เดี๋ยวก่อน!", "ซักประโยคที่ดูอยู่ 1 ครั้ง/รอบ · มี 📍 = เปิดเผยว่าประโยคนั้นมีข้อแก้ตัว (ไม่แตก) · ไม่มี = ผู้พิพากษาบอกว่าประโยคนั้นเกี่ยวกับเรื่องอะไร · ประโยคยอมรับที่เป็นความจริง = จำเลยสารภาพ −1"],
     ["📁 คัดค้าน! ×2", "ยื่นหลักฐานที่ขัดกับประโยคได้ยกละ 2 ครั้ง · ถูก = จำเลย −2 · ผิด หรือยื่นใส่ความจริง = ทนาย −1"],
-    ["📍 ข้อแก้ตัว", "ยื่นใส่ประโยคที่มี 📍 = หลักฐานไหม้ ทนาย −2 · ยกเว้นหลักฐานพยานทะลุได้ (จำเลย −2) · จำเลยเริ่มคดีพร้อมข้อแก้ตัวโบนัส +2"],
-    ["‹ ›  🔨", "เลื่อนดูประโยค · 🔨 จบ = จบการซักค้านรอบนี้"],
+    ["📍 ข้อแก้ตัว", "ยื่นใส่ประโยคที่มี 📍 = หลักฐานไหม้ ทนาย −3 · ยกเว้นหลักฐานพยานทะลุได้ (จำเลย −2)"],
+    ["📜 หลักฐานที่ขาด", "ผู้ช่วยทนายส่งสิ่งที่เห็นเข้าแฟ้มได้ · ประชาชนขึ้นเป็นพยานช่วยทนายได้ — คำโกหกบางประโยคจับได้ด้วยหลักฐานจากพวกเขาเท่านั้น"],
+    ["‹ ›  🔨", "เลื่อนดูประโยค · 🔨 จบ = จบการซักค้านรอบนี้ · จบยกโดยไม่ยื่นเลยทั้งที่มีหลักฐาน = ทนาย −1"],
   ], win: "มีความผิด = จำเลยตายทันที และนารุโฮโดะ ❤ ฟื้นเท่าความน่าเชื่อถือที่เหลือ · ไม่มีความผิด = นารุโฮโดะ −7 และสตั้น 2 เทิร์น", time: "ซักค้าน 60 วิต่อรอบ" },
   co: { t: "ผู้ช่วยทนาย", goal: "ช่วยทนายให้จำเลยหมดความน่าเชื่อถือ", items: [
     ["💬 / 📁", "กดซักหรือยื่นหลักฐานแทนทนายได้ (ใช้สิทธิ์ยื่นยกละ 2 ร่วมกับทนาย)"],
@@ -165,7 +166,8 @@ const HELP = {
   ], win: "ทนายชนะ = จำเลยตายทันที", time: "ซักค้าน 60 วิต่อรอบ" },
   D: { t: "จำเลย", goal: "รอดให้ครบทุกรอบ หรือทำให้ทนายหมดความน่าเชื่อถือ", items: [
     ["คำให้การ", "เลือกประโยคต่อรอบ · 🎭 = โกหก · ⚖️ = ความจริง (ทนายยื่นอะไรใส่ก็ผิด)"],
-    ["📍 ข้อแก้ตัว", "แปะบนประโยคโกหก = หลักฐานที่ยื่นใส่ไหม้ ทนาย −2 · เริ่มคดีมีโบนัส +2 · ทนายกดดันจะเห็นว่ามี 📍 แต่ไม่แตก"],
+    ["🌫 โกหกลับ", "คำโกหกที่ทนายยังไม่มีหลักฐาน · ใส่ได้ไม่เกิน 1 ประโยคต่อรอบ · ผู้ช่วยทนาย/ประชาชนอาจเอาหลักฐานมาให้ทีหลัง"],
+    ["📍 ข้อแก้ตัว", "แปะบนประโยคโกหก = หลักฐานที่ยื่นใส่ไหม้ ทนาย −3 · ข้อแก้ตัวถูกใช้ทันทีที่แปะ (ไม่คืน) · ทนายกดดันจะเห็นว่ามี 📍 แต่ไม่แตก"],
   ], win: "มีความผิด = ตายทันที · ไม่มีความผิด = ทนาย −7 และสตั้น", time: "เลือกคำให้การ 40 วิ (หมดเวลา = สุ่มให้)" },
   C: { t: "ฝ่ายค้าน", goal: "ปกป้องจำเลยฝ่ายเดียวกับคุณ", items: [
     ["คำให้การ", "ช่วยเลือกคำให้การ/ข้อแก้ตัวแทนจำเลยได้"],
@@ -208,12 +210,22 @@ export function Builder({ court, emit }) {
   // ต้องมีประโยคปฏิเสธ 🎭 อย่างน้อย 2 (ผู้ใช้ 2026-11-20) — server ส่ง minLies มา · ไม่มี = คิดเอง
   const needLies = court.minLies != null ? court.minLies : Math.min(2, pool.filter((x) => x.kind === "lie").length);
   const lies = pick.filter((p) => (pool.find((x) => x.key === p.key) || {}).kind === "lie").length;
+  // คำโกหกลับ 🌫 (ฝั่งทนายไม่มีหลักฐาน) เลือกได้ไม่เกิน maxBlind
+  const maxBlind = court.maxBlind ?? 1;
+  const isBlind = (k) => !!(pool.find((x) => x.key === k) || {}).blind;
+  const blinds = pick.filter((p) => isBlind(p.key)).length;
+  const [deny, setDeny] = useState(0);
   if (sent || !pool.length) return null;
-  const toggle = (k) => { csfx("blip_high"); setPick((p) => (p.some((x) => x.key === k) ? p.filter((x) => x.key !== k) : p.length < N ? [...p, { key: k, al: false }] : p)); };
+  const toggle = (k) => {
+    const on = pick.some((x) => x.key === k);
+    if (!on && isBlind(k) && blinds >= maxBlind) { csfx("penalty"); setDeny(1); setTimeout(() => setDeny(0), 1200); return; }
+    csfx("blip_high");
+    setPick((p) => (on ? p.filter((x) => x.key !== k) : p.length < N ? [...p, { key: k, al: false }] : p));
+  };
   return (
     <div className="cui dimlite" onClick={stop}>
       <div className="cbuild" style={sepia("ui_talk", 0.45)}>
-        <div className="crechead"><span className="crectab">คำให้การ</span><span className="ccnt">{pick.length}/{N} · <em className={lies !== needLies ? "cneed" : ""}>🎭 {lies}/{needLies}</em> · <em className={pick.length - lies !== N - needLies ? "cneed" : ""}>⚖️ {pick.length - lies}/{N - needLies}</em> · 📍×{alibi - used}</span></div>
+        <div className="crechead"><span className="crectab">คำให้การ</span><span className="ccnt">{pick.length}/{N} · <em className={lies !== needLies ? "cneed" : ""}>🎭 {lies}/{needLies}</em> · <em className={pick.length - lies !== N - needLies ? "cneed" : ""}>⚖️ {pick.length - lies}/{N - needLies}</em> · {pool.some((x) => x.blind) && <><em key={deny} className={blinds > maxBlind || deny ? "cneed" : ""}>🌫 {blinds}/{maxBlind}</em> · </>}📍×{alibi - used}</span></div>
         <div className="clist">
           {pool.map((st) => {
             const at = pick.findIndex((p) => p.key === st.key), on = at >= 0;
@@ -221,6 +233,7 @@ export function Builder({ court, emit }) {
               <div key={st.key} className={`cline ${on ? "on" : ""} ${st.kind}`} onClick={() => toggle(st.key)}>
                 <b>{on ? at + 1 : ""}</b>
                 <i className="ckind">{st.kind === "lie" ? "🎭" : "⚖️"}</i>
+                {st.blind && <i className="cblind">🌫</i>}
                 <span><Rich text={st.text} /></span>
                 {st.kind === "lie" && (
                   <button className={`cal ${on && pick[at].al ? "on" : ""}`} disabled={!on || (!pick[at].al && used >= alibi)}
@@ -231,7 +244,7 @@ export function Builder({ court, emit }) {
           })}
         </div>
         <div className="crow">
-          <button className="cbtn green" disabled={pick.length !== N || lies !== needLies} onClick={() => { setSent(true); emit("courtTestimony", { picks: pick.map((p) => ({ key: p.key, alibi: p.al })) }); }}>ให้การ</button>
+          <button className="cbtn green" disabled={pick.length !== N || lies !== needLies || blinds > maxBlind} onClick={() => { setSent(true); emit("courtTestimony", { picks: pick.map((p) => ({ key: p.key, alibi: p.al })) }); }}>ให้การ</button>
         </div>
       </div>
     </div>

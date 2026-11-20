@@ -13,7 +13,7 @@ export const EV_TYPES = {
 };
 export const RULES = {
   cred: 6, testimonies: 4, statements: 4, pressPer: 1, counselObj: 1,
-  wrong: 1, alibiBurn: 2, witnessBreak: 2, maxEvidence: 5, maxAlibi: 3, presentPer: 2, alibiBonus: 2,
+  wrong: 1, alibiBurn: 3, witnessBreak: 2, maxEvidence: 5, maxAlibi: 3, presentPer: 2, alibiBonus: 0, maxBlind: 1, idlePenalty: 1,
   dmg: { weapon: 2, foot: 2, receipt: 2, witness: 2 },
   heal: { receipt: 1 },
 };
