@@ -138,11 +138,12 @@ function enter(ctx) {
 // ---------- แนว/พื้นที่ของแต่ละปุ่ม ----------
 // แนวตอร์ปิโดทั้งหมด: ออกจากขอบเรือทั้ง 4 ด้าน ทีละแถว/คอลัมน์ → [{ dir, from: {x,y} (ช่องติดเรือ), cells }]
 function torpedoLines(ctx) {
-  const map = ctx.map(), d = dock(ctx), out = [];
+  const map = ctx.map(), d = dock(ctx), out = [], body = whaleKeys(ctx);
   const walk = (dir, sx, sy, dx, dy) => {
     const cells = [];
     for (let x = sx, y = sy; ctx.Board.inBounds(map, x, y); x += dx, y += dy) {
       cells.push({ x, y });
+      if (body.has(K(x, y))) break;
       const t = map.terrain[K(x, y)];
       if (t && t !== "fd_nt_ship") break; // สิ่งกีดขวาง/ลำตัวทาลัสซา = ปลายแนว
     }
@@ -226,11 +227,11 @@ function torpedo(ctx, p, tile) {
   if (!tile || s.torpedo[p.id]) return false;
   const line = torpedoLines(ctx).find((l) => l.cells.some((c) => c.x === tile.x && c.y === tile.y));
   if (!line) return false;
-  const map = ctx.map(), path = [];
+  const map = ctx.map(), path = [], body = whaleKeys(ctx);
   let hit = null, n = 0, target = null;
   for (const c of line.cells) {
     path.push(c);
-    if (map.terrain[K(c.x, c.y)] === "fd_nt_whale") { hit = "whale"; target = c; break; }
+    if (body.has(K(c.x, c.y))) { hit = "whale"; target = c; break; }
     if (map.terrain[K(c.x, c.y)]) break;
     const u = unitOn(ctx, c.x, c.y);
     if (u && foe(ctx, p, u)) { hit = u.id; target = u; break; }

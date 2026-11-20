@@ -445,6 +445,7 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
   // เงาข่มขวัญใต้กระดาน (ก่อนตัวปลา)
   for (const e of evs) if (e.kind === "whale_flyby") { const k = fxT(e, now, WHALE_FX.whale_flyby); if (k < 1) drawFlyby(g, k, now, view, true); }
   drawBodyClear(g, now, info && info.stage >= 11, units, !!w.data);
+  drawHitZone(g, fd, now);
   for (const e of evs) {
     const k = fxT(e, now, WHALE_FX[e.kind] || 1500);
     if (k >= 1) continue;
@@ -467,6 +468,52 @@ export function drawThalassaAir(g, fd, info, units, now, lowQ, view) {
   // ฉากจอ: ข่มขวัญ (ตัวมหึมาว่ายผ่านหน้ากล้อง) + จอมืด/แถบดำ
   for (const e of evs) if (e.kind === "whale_flyby") { const k = fxT(e, now, WHALE_FX.whale_flyby); if (k < 1) drawFlyby(g, k, now, view, false); }
   void units; void lowQ;
+}
+
+// ช่องลำตัวที่ตีได้ (fd.objects kind "whale" = ช่องที่ server รับตี) — ภาพตัวปลาใหญ่กว่าลำตัวจริงมาก (ร่างข้อมูลชั้น 6 ยังโปร่งกลืนทะเล)
+//  ผู้ใช้ 2026-11-20 "ตีปลาวาฬได้ยังไง ไม่มีจุดให้ตี" → กรอบแดงรอบช่องลำตัวบนพื้น + เป้าเล็งกลางลำตัว · วาดทับตัวปลา (ไม่งั้นโดนตัวบัง)
+function drawHitZone(g, fd, now) {
+  const tiles = (Array.isArray(fd.objects) ? fd.objects : []).filter((o) => o && o.kind === "whale" && Number.isFinite(o.x) && Number.isFinite(o.y));
+  if (!tiles.length || V.alpha < 0.3) return;
+  const has = new Set(tiles.map((t) => `${t.x},${t.y}`));
+  const pulse = 0.75 + 0.25 * Math.sin(now / 260);
+  const a = clamp(V.alpha, 0, 1);
+  const pt = (x, y) => screenOf(x, y, 0.02);
+  g.save();
+  g.lineJoin = "round"; g.lineCap = "round";
+  // พื้นช่อง
+  g.fillStyle = `rgba(255,70,95,${0.3 * pulse * a})`;
+  for (const t of tiles) {
+    const q = [pt(t.x, t.y), pt(t.x + 1, t.y), pt(t.x + 1, t.y + 1), pt(t.x, t.y + 1)];
+    g.beginPath(); q.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill();
+  }
+  // ขอบนอกของกลุ่มช่อง (เส้นเรืองสองชั้น)
+  const edges = [];
+  for (const t of tiles) {
+    if (!has.has(`${t.x},${t.y - 1}`)) edges.push([t.x, t.y, t.x + 1, t.y]);
+    if (!has.has(`${t.x + 1},${t.y}`)) edges.push([t.x + 1, t.y, t.x + 1, t.y + 1]);
+    if (!has.has(`${t.x},${t.y + 1}`)) edges.push([t.x, t.y + 1, t.x + 1, t.y + 1]);
+    if (!has.has(`${t.x - 1},${t.y}`)) edges.push([t.x, t.y, t.x, t.y + 1]);
+  }
+  const cs = whaleCs(tiles[0].x + 0.5, tiles[0].y + 0.5);
+  for (const [w0, col] of [[cs * 0.2, `rgba(255,60,90,${0.45 * pulse * a})`], [Math.max(2, cs * 0.065), `rgba(255,200,208,${a})`]]) {
+    g.lineWidth = w0; g.strokeStyle = col; g.beginPath();
+    for (const [x0, y0, x1, y1] of edges) { const p0 = pt(x0, y0), p1 = pt(x1, y1); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); }
+    g.stroke();
+  }
+  // เป้าเล็งกลางลำตัว
+  const cx = tiles.reduce((s, t) => s + t.x + 0.5, 0) / tiles.length, cy = tiles.reduce((s, t) => s + t.y + 0.5, 0) / tiles.length;
+  const r = 0.42 + 0.05 * pulse, spin = now / 1400;
+  g.strokeStyle = `rgba(255,200,210,${0.9 * a})`; g.lineWidth = Math.max(1.5, cs * 0.05);
+  ellipsePath(g, cx, cy, r, 0.02); g.stroke();
+  g.beginPath();
+  for (let i = 0; i < 4; i++) {
+    const an = spin + i * Math.PI / 2, c = Math.cos(an), s = Math.sin(an);
+    const p0 = pt(cx + c * r * 0.55, cy + s * r * 0.55), p1 = pt(cx + c * r * 1.35, cy + s * r * 1.35);
+    g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]);
+  }
+  g.stroke();
+  g.restore();
 }
 
 // ---------- ท่า ----------

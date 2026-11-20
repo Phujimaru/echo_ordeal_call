@@ -250,7 +250,7 @@ test('ตอร์ปิโดโดนทาลัสซา = 8 · ฆ่าไ
   let line = null;
   for (let s = 0; s < 120 && !line; s += 0.5) {
     surface(s);
-    line = Ship.torpedoLines(ctx()).find((l) => action.boardMap().terrain[K(l.cells.at(-1).x, l.cells.at(-1).y)] === 'fd_nt_whale');
+    { const bk = new Set(Th.bodyNow(ctx()).map((c) => K(c.x, c.y))); line = Ship.torpedoLines(ctx()).find((l) => bk.has(K(l.cells.at(-1).x, l.cells.at(-1).y))); }
   }
   assert.ok(line, 'มีจุดที่ลำตัวตัดแนว');
   const end = line.cells.at(-1);

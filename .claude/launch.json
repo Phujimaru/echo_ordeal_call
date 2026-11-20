@@ -389,6 +389,20 @@
       }
     },
     {
+      "name": "server-nautilus-data",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3031,
+      "env": {
+        "PORT": "3031",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_START_ROUND": "28",
+        "NODE_PATH": "C:/Echo/node_modules"
+      }
+    },
+    {
       "name": "client-nautilus",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
