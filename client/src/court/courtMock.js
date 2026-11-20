@@ -64,7 +64,7 @@ export class MockCourt {
         list: c.list && c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: !!s.alibiShown, ...(sideD ? { alibi: !!s.alibi, kind: s.kind } : {}) })),
         cx: c.cx,
         pool: sideD && c.phase === "testimony" ? c.pool.map(({ key, text, kind }) => ({ key, text, kind })) : null,
-        minLies: sideD && c.phase === "testimony" ? Math.min(2, c.pool.filter((x) => x.kind === "lie").length) : undefined,
+        minLies: sideD && c.phase === "testimony" ? Math.min(2, c.pool.filter((x) => x.kind === "lie").length) : undefined, nStatements: sideD && c.phase === "testimony" ? Math.min(RULES.statements, c.pool.length) : undefined,
         alibiLeft: sideD ? c.alibi : undefined,
         evidence: sideL ? c.evidence.map((e) => ({ ...e })) : undefined,
         sightings: viewer === c.defendantId ? [] : c.sightings[viewer] || [],
@@ -178,7 +178,7 @@ export class MockCourt {
       let al = c.alibi;
       const list = picks.map((k) => { const st = c.pool.find((x) => x.key === k.key); if (!st) return null; const a = !!k.alibi && st.kind === "lie" && al > 0; if (a) al--; return { ...st, alibi: a }; }).filter(Boolean);
       const need = Math.min(2, c.pool.filter((x) => x.kind === "lie").length);
-      if (list.length === RULES.statements && list.filter((x) => x.kind === "lie").length >= need) this.setList(list);
+      if (list.length === RULES.statements && list.filter((x) => x.kind === "lie").length === need) this.setList(list);
       return;
     }
     if (ev === "courtAct") return this.act(from, ev, p);

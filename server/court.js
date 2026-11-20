@@ -9,7 +9,7 @@
 // ============================================================
 Object.assign(module.exports, {
   fresh, st, isNaru, active, who, actorOf, noteAct, noteMove, lastEventOf, addEvidence, noteEvidence, liveEvidence,
-  scoutSees, statementPool, minLiesOf, contradicts, presentResult, aiTestimony,
+  scoutSees, statementPool, statementsOf, minLiesOf, contradicts, presentResult, aiTestimony,
   start, view, testimony, act, object, gallery, skip, abort, alibiTotal,
   discardEvidence, pinEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
 });
@@ -21,7 +21,7 @@ const Lines = require("./courtLines");
 
 const ID = "naruhodo_ryuichi";
 const RULES = {
-  cred: 5, rounds: 3, statements: 3, minLies: 2, confess: 1, pressPer: 1, counselObj: 1, poolMax: 9,
+  cred: 6, rounds: 4, statements: 4, minLies: 2, confess: 1, pressPer: 1, counselObj: 1, poolMax: 10, // ผู้ใช้ 2026-11-20 (เดิม 5 / 3 / 3 / กอง 9)
   wrong: 1, alibiBurn: 1, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
   dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 },
   heal: { receipt: 1 },
@@ -294,7 +294,7 @@ function poolInfo(c) {
   for (const e of match.courtLog || []) if (e.actorId === c.sideId && (e.seenBy || []).some((id) => eyes.includes(id))) contest.add(e.id);
   return { skills, roster, round: round(), hitBy, contest };
 }
-// คัดสูงสุด 9 ประโยค: โกหก ≥ 3 ถ้ามี · คละรูปแบบ · มีทั้งจริงและโกหก
+// คัดสูงสุด 10 ประโยค: โกหก ≤ 5 และจริง ≥ 2 เมื่อมี (ให้เลือกปลอม 2 จริง 2 ได้เสมอ) · คละรูปแบบ
 function balancePool(all) {
   const diverse = (list, n) => {
     const out = [], forms = new Set();
@@ -303,7 +303,7 @@ function balancePool(all) {
     return out;
   };
   const lies = all.filter((s) => s.kind === "lie"), truths = all.filter((s) => s.kind === "truth");
-  const nL = Math.min(lies.length, Math.max(3, RULES.poolMax - truths.length), 5);
+  const nL = Math.min(lies.length, Math.max(3, RULES.poolMax - truths.length), RULES.poolMax - Math.min(truths.length, RULES.minLies), 5);
   const nT = Math.min(truths.length, RULES.poolMax - nL);
   return [...diverse(lies, nL), ...diverse(truths, nT)];
 }
@@ -349,12 +349,17 @@ function presentResult(s, ev, defendantId) {
   if (s.alibi && ev.type === "witness") return { kind: "pierce", dD: RULES.witnessBreak, breakAlibi: true, burn: true };
   return { kind: "hit", dD: RULES.dmg[ev.type] || 2, healL: RULES.heal[ev.type] || 0, burn: true, reveal: ev.type === "foot" };
 }
-// จำเลย AI: โกหก 2–3 + เรื่องจริงอุด · แปะข้อแก้ตัวสุ่ม
-function minLiesOf(pool) { return Math.min(RULES.minLies, (pool || []).filter((s) => s.kind === "lie").length, RULES.statements); }
+// จำเลย AI: ปลอม/จริงพอดีตาม minLiesOf · แปะข้อแก้ตัวสุ่ม
+// คำให้การต่อรอบ = 4 ประโยค ปลอม 2 จริง 2 พอดี (ผู้ใช้ 2026-11-20) — ถ้าในกองมีไม่พอ ฝั่งที่ขาดเติมด้วยอีกฝั่ง
+function statementsOf(pool) { return Math.min(RULES.statements, (pool || []).length); }
+function minLiesOf(pool) {
+  const n = statementsOf(pool), L = (pool || []).filter((s) => s.kind === "lie").length, T = (pool || []).length - L;
+  return Math.min(L, Math.max(Math.min(RULES.minLies, L), n - T));
+}
 function aiTestimony(pool, alibi) {
-  const n = Math.min(RULES.statements, pool.length);
+  const n = statementsOf(pool);
   const lies = shuffle(pool.filter((s) => s.kind === "lie")), truths = shuffle(pool.filter((s) => s.kind === "truth"));
-  const nl = Math.min(lies.length, Math.random() < 0.5 ? 2 : 3, n);
+  const nl = minLiesOf(pool);
   let list = [...lies.slice(0, nl), ...truths.slice(0, n - nl)];
   if (list.length < n) list.push(...lies.slice(nl, nl + n - list.length));
   list = shuffle(list).map((s) => ({ key: s.key, alibi: false }));
@@ -535,9 +540,9 @@ function testimony(id, picks) {
     if (x.alibi === true) { if (s.kind !== "lie") return false; pins++; }
   }
   if (pins > alibiTotal(c)) return false;
-  // ต้องปฏิเสธอย่างน้อย 2 ประโยค (ผู้ใช้ 2026-11-20: เลือกแต่ความจริง = ทนายไม่มีอะไรสู้)
+  // ปลอม/จริงต้องพอดี (ผู้ใช้ 2026-11-20: 4 ประโยค = ปลอม 2 จริง 2 · กองมีไม่พอ = minLiesOf ปรับให้)
   const lies = picks.filter((x) => (c.pool.find((q) => q.key === x.key) || {}).kind === "lie").length;
-  if (lies < minLiesOf(c.pool)) return false;
+  if (lies !== minLiesOf(c.pool)) return false; // ปลอม/จริงต้องพอดีตามกติกา
   c.picks = picks.map((x) => ({ key: x.key, alibi: x.alibi === true }));
   lazy.engine().releaseBeat();
   return true;
@@ -553,6 +558,7 @@ function finishTestimony(c) {
   // 1) ผู้พิพากษาสั่งให้การ (ฉาก) → 2) testify: client เล่นคำให้การเอง (แบนเนอร์ 1.5 วิ + 2.5 วิ/ประโยค — beat = null)
   //  → 3) แบนเนอร์ซักค้าน + ความคิดในใจ → ซักค้าน
   const intro = [cam("judge"), line(c, "J", "testJudge", ctx), cam("witness"), line(c, "D", c.round > 1 ? "testDefendantLate" : "testDefendant", ctx)];
+  if (c.round >= c.rounds) intro.splice(2, 0, line(c, "J", "testJudgeFinal", ctx)); // ยกสุดท้าย
   beat(c, intro, (cc) => {
     wait(cc, "testify", (STEP.banner.test + STEP.testifyLine * cc.list.length) / 1000, (c3) => {
       const outro = [cam("defense"), inner(c3, "testInner", ctx), { k: "banner", kind: "cross", ms: STEP.banner.cross }, cam("defense"), inner(c3, "crossInner", ctx)];
@@ -982,7 +988,7 @@ function view(viewerId, controlId) {
     list: c.list ? c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: s.alibiShown, ...(isDef ? { alibi: s.alibi, kind: s.kind } : {}) })) : null,
     cx: c.cx,
     pool: isDef && c.phase === "testimony" && c.pool ? c.pool.map((s) => ({ key: s.key, text: s.text, kind: s.kind })) : null,
-    minLies: isDef && c.phase === "testimony" && c.pool ? minLiesOf(c.pool) : undefined, // ต้องเลือกประโยคปฏิเสธ (🎭) อย่างน้อยเท่านี้
+    minLies: isDef && c.phase === "testimony" && c.pool ? minLiesOf(c.pool) : undefined, nStatements: isDef && c.phase === "testimony" && c.pool ? statementsOf(c.pool) : undefined, // เลือก nStatements ประโยค · ปฏิเสธ (🎭) พอดี minLies
     alibiLeft: isDef ? alibiTotal(c) : undefined,
     evidence: isLaw ? liveEvidence(lawyerOf(c)) : undefined,
     sightings: me && !isDefUnit(c, me) ? sightingsOf(c, me).map((e) => { const icon = Ev.iconFor(e.type, e.id); return { key: e.id, desc: descOf(e), icon, name: Ev.EV_ICON_NAMES[icon] || "", type: e.type }; }) : [],

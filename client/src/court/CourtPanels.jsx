@@ -151,7 +151,7 @@ export function RecordButton({ court, rel }) {
 
 // วิธีเล่นตามบทบาท (ผู้ใช้ขอปุ่ม ? 2026-11-20 — ข้อความอธิบายมีได้เฉพาะในหน้านี้)
 const HELP = {
-  L: { t: "ทนาย", goal: "ทำให้จำเลยหมดความน่าเชื่อถือ (5) ก่อนตัวเอง ภายใน 3 รอบ", items: [
+  L: { t: "ทนาย", goal: "ทำให้จำเลยหมดความน่าเชื่อถือ (6) ก่อนตัวเอง ภายใน 4 รอบ", items: [
     ["💬 เดี๋ยวก่อน!", "ซักประโยคที่กำลังดู 1 ครั้ง/รอบ · ประโยคจริง = จำเลยรับสารภาพ −1 · ถ้ามี 📍 ข้อแก้ตัว ข้อแก้ตัวแตก และอาจได้หลักฐานใหม่"],
     ["📁 คัดค้าน!", "ยื่นหลักฐานที่ขัดกับประโยค (ชื่อท่า / คนโดน / เทิร์น ตรงกัน) · ถูก = จำเลยเสีย 2–4 · ผิด หรือยื่นใส่ประโยคจริง = ทนาย −1"],
     ["📍 ข้อแก้ตัว", "ประโยคที่มีข้อแก้ตัวจะเผาหลักฐานทิ้ง (ทนาย −1) ยกเว้นหลักฐานพยาน — กดเดี๋ยวก่อนให้แตกก่อน"],
@@ -161,8 +161,8 @@ const HELP = {
     ["💬 / 📁", "กดซักหรือยื่นหลักฐานแทนทนายได้ (ใครกดก่อนได้ก่อน)"],
     ["📜 ส่งให้ทนาย", "ยื่นเหตุการณ์ของจำเลยที่คุณเห็นเองเข้าแฟ้มทนาย 1 ครั้งต่อคดี"],
   ], win: "ทนายชนะ = จำเลยตายทันที", time: "ซักค้าน 60 วิต่อรอบ" },
-  D: { t: "จำเลย", goal: "รอดให้ครบ 3 รอบ หรือทำให้ทนายหมดความน่าเชื่อถือ", items: [
-    ["คำให้การ", "เลือก 3 ประโยคต่อรอบ · ต้องมี 🎭 อย่างน้อย 2 · 🎭 = โกหก (ปฏิเสธสิ่งที่ทำจริง) · ⚖️ = ความจริง (ทนายยื่นหลักฐานใส่ = ทนาย −1 แต่ถ้าทนายกด เดี๋ยวก่อน! = คุณรับสารภาพ −1)"],
+  D: { t: "จำเลย", goal: "รอดให้ครบ 4 รอบ หรือทำให้ทนายหมดความน่าเชื่อถือ", items: [
+    ["คำให้การ", "เลือก 4 ประโยคต่อรอบ · 🎭 2 + ⚖️ 2 พอดี · 🎭 = โกหก (ปฏิเสธสิ่งที่ทำจริง) · ⚖️ = ความจริง (ทนายยื่นหลักฐานใส่ = ทนาย −1 แต่ถ้าทนายกด เดี๋ยวก่อน! = คุณรับสารภาพ −1)"],
     ["📍 ข้อแก้ตัว", "แปะบนประโยคโกหก = หลักฐานที่ยื่นใส่ถูกเผา ทนาย −1 · ได้จากการกระทำที่นารุโฮโดะไม่เห็น"],
   ], win: "มีความผิด = ตายทันที · ไม่มีความผิด = ทนาย −5 และสตั้น", time: "เลือกคำให้การ 40 วิ (หมดเวลา = สุ่มให้)" },
   C: { t: "ฝ่ายค้าน", goal: "ปกป้องจำเลยฝ่ายเดียวกับคุณ", items: [
@@ -203,7 +203,7 @@ export function Builder({ court, emit }) {
   const [sent, setSent] = useState(false);
   const alibi = court.alibiLeft || 0;
   const used = pick.filter((p) => p.al).length;
-  const N = 3;
+  const N = court.nStatements || 4; // ผู้ใช้ 2026-11-20: 4 ประโยค ปลอม 2 จริง 2
   // ต้องมีประโยคปฏิเสธ 🎭 อย่างน้อย 2 (ผู้ใช้ 2026-11-20) — server ส่ง minLies มา · ไม่มี = คิดเอง
   const needLies = court.minLies != null ? court.minLies : Math.min(2, pool.filter((x) => x.kind === "lie").length);
   const lies = pick.filter((p) => (pool.find((x) => x.key === p.key) || {}).kind === "lie").length;
@@ -212,7 +212,7 @@ export function Builder({ court, emit }) {
   return (
     <div className="cui dimlite" onClick={stop}>
       <div className="cbuild" style={sepia("ui_talk", 0.45)}>
-        <div className="crechead"><span className="crectab">คำให้การ</span><span className="ccnt">{pick.length}/{N} · <em className={lies < needLies ? "cneed" : ""}>🎭 {lies}/{needLies}</em> · 📍×{alibi - used}</span></div>
+        <div className="crechead"><span className="crectab">คำให้การ</span><span className="ccnt">{pick.length}/{N} · <em className={lies !== needLies ? "cneed" : ""}>🎭 {lies}/{needLies}</em> · <em className={pick.length - lies !== N - needLies ? "cneed" : ""}>⚖️ {pick.length - lies}/{N - needLies}</em> · 📍×{alibi - used}</span></div>
         <div className="clist">
           {pool.map((st) => {
             const at = pick.findIndex((p) => p.key === st.key), on = at >= 0;
@@ -230,7 +230,7 @@ export function Builder({ court, emit }) {
           })}
         </div>
         <div className="crow">
-          <button className="cbtn green" disabled={pick.length !== N || lies < needLies} onClick={() => { setSent(true); emit("courtTestimony", { picks: pick.map((p) => ({ key: p.key, alibi: p.al })) }); }}>ให้การ</button>
+          <button className="cbtn green" disabled={pick.length !== N || lies !== needLies} onClick={() => { setSent(true); emit("courtTestimony", { picks: pick.map((p) => ({ key: p.key, alibi: p.al })) }); }}>ให้การ</button>
         </div>
       </div>
     </div>

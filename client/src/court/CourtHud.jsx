@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sprite } from "./CourtStage";
 
-const CRED_MAX = 5;
+const CRED_MAX = 6; // ความน่าเชื่อถือ 6 (ผู้ใช้ 2026-11-20)
 const Scale = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M11 3h2v2.2l6.2 1.6-.5 1.9-1.1-.3 2.9 6.1a3.6 3.6 0 0 1-7 0l2.7-5.7-3.2-.8V19h3.5v2h-9v-2H11V7.9l-3.2.8 2.7 5.7a3.6 3.6 0 0 1-7 0l2.9-6.1-1.1.3-.5-1.9L11 5.2z" />
@@ -47,7 +47,7 @@ export function CredBar({ cred, cast, round, rounds }) {
   return (
     <div className="ccredbar">
       <CredSide side="L" n={Math.max(0, Math.min(CRED_MAX, cred.L))} faces={[cast.L?.img]} />
-      <div className="cround">{Array.from({ length: rounds || 3 }, (_, i) => <i key={i} className={i + 1 < round ? "past" : i + 1 === round ? "cur" : ""} />)}</div>
+      <div className="cround">{Array.from({ length: rounds || 4 }, (_, i) => <i key={i} className={i + 1 < round ? "past" : i + 1 === round ? "cur" : ""} />)}</div>
       <CredSide side="D" n={Math.max(0, Math.min(CRED_MAX, cred.D))} faces={cast.Dunits ? cast.Dunits.map((u) => u.img) : [cast.D?.img]} />
     </div>
   );

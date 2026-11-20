@@ -12,7 +12,7 @@ export const EV_TYPES = {
   witness: { i: "📜", n: "พยาน" },
 };
 export const RULES = {
-  cred: 5, testimonies: 3, statements: 3, pressPer: 1, counselObj: 1,
+  cred: 6, testimonies: 4, statements: 4, pressPer: 1, counselObj: 1,
   wrong: 1, alibiBurn: 1, witnessBreak: 2, maxEvidence: 5, maxAlibi: 3,
   dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 },
   heal: { receipt: 1 },
@@ -77,7 +77,7 @@ export function contradicts(st, ev) {
 // คำให้การของจำเลย AI: โกหก 2–3 + เรื่องจริงอุด · แปะข้อแก้ตัวสุ่ม
 export function aiTestimony(pool, alibi, r = Math.random) {
   const lies = shuffle(pool.filter((s) => s.kind === "lie"), r), truths = shuffle(pool.filter((s) => s.kind === "truth"), r);
-  const nl = Math.min(lies.length, r() < 0.5 ? 2 : 3); // ต้องปฏิเสธอย่างน้อย 2 (ผู้ใช้ 2026-11-20)
+  const nl = Math.max(Math.min(lies.length, 2), RULES.statements - truths.length); // ปลอม 2 จริง 2 (ผู้ใช้ 2026-11-20)
   let list = [...lies.slice(0, nl), ...truths.slice(0, RULES.statements - nl)];
   list = shuffle(list, r).map((s) => ({ ...s, alibi: false, pressed: false, done: false }));
   let a = alibi;
