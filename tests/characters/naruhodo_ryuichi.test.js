@@ -727,3 +727,22 @@ test("ขั้นฉาก: say ทุกอันมี name · ผู้ช�
   assert.ok(says.some((s) => s.who === "T" && s.id === "C"), "พยานพูดพร้อม id");
   assert.ok(says.some((s) => s.who === "G" && s.id === "D"), "ประชาชนพูดพร้อม id");
 });
+
+test("ทิ้งหลักฐานเอง (ผู้ใช้ 2026-11-20): ทิ้งได้นอกคดี · ระหว่างคดี/ตาแทรกทิ้งไม่ได้ · คนอื่นทิ้งแทนไม่ได้", () => {
+  setup();
+  const a = engine.players.A;
+  const s = Court.st(a);
+  const ev = { id: "x1", round: 1, actorId: "B", actorName: "B", kind: "basic", skill: "ท่า", targetName: "A", type: "weapon" };
+  const ev2 = { ...ev, id: "x2" };
+  const v1 = Court.addEvidence(a, ev), v2 = Court.addEvidence(a, ev2);
+  assert.equal(s.evidence.length, 2);
+  assert.equal(Court.discardEvidence("B", v1.id), false); // ไม่ใช่นารุโฮโดะ
+  match.court = { phase: "cross" };
+  assert.equal(Court.discardEvidence("A", v1.id), false); // ระหว่างคดี
+  match.court = null; match.holdIt = { lawyerId: "A" };
+  assert.equal(Court.discardEvidence("A", v1.id), false); // ระหว่างตาแทรก
+  match.holdIt = null;
+  assert.equal(Court.discardEvidence("A", v1.id), true);
+  assert.deepEqual(s.evidence.map((e) => e.id), [v2.id]);
+  assert.equal(Court.discardEvidence("A", "nope"), false);
+});

@@ -186,3 +186,9 @@
 @media (prefers-reduced-motion: reduce) {
   .nr-dock, .nr-scout, .nr-hold, .nr-hold.ready, .nr-hold-art img, .nr-mini, .nr-mini-bubble, .nr-act.alibi, .nr-shout, .nr-scout-face i, .nr-dock-slot.on, .nr-rec, .nr-rec-big { animation: none !important; }
 }
+
+/* ทิ้งหลักฐาน (ผู้ใช้ 2026-11-20) — กดครั้งแรกเปลี่ยนเป็นปุ่มยืนยันสีแดง */
+.nr-discard { margin-top: 10px; align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font: 600 13px Kanit, sans-serif; color: #f3e6c8; background: linear-gradient(#4a3a26, #2e2417); border: 1px solid #8b6b3a; border-radius: 8px; padding: 5px 14px; cursor: pointer; transition: background .15s, transform .1s, box-shadow .15s; }
+.nr-discard:hover { box-shadow: 0 0 10px rgba(240, 190, 90, .45); }
+.nr-discard:active { transform: translateY(1px); }
+.nr-discard.arm { color: #fff; background: linear-gradient(#e0473d, #9d1c15); border-color: #ffb3a8; box-shadow: 0 0 12px rgba(224, 71, 61, .6); }

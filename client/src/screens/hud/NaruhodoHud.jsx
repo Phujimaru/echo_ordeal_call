@@ -139,10 +139,11 @@ function EvidenceDock({ N, players, onOpen, zoom }) {
 }
 
 // ---------- หน้าต่างบันทึกหลักฐาน ----------
-export function CourtRecord({ evidence, onClose, pick, onPick }) {
+export function CourtRecord({ evidence, onClose, pick, onPick, onDiscard }) {
   const list = evidence || [];
   const [selId, setSelId] = useState(() => (list.find((e) => !e.used) || list[0] || {}).id || null);
   const sel = list.find((e) => e.id === selId) || list[0] || null;
+  const [arm, setArm] = useState(null); // ทิ้งหลักฐาน: กดครั้งแรก = ถามยืนยัน (กดซ้ำ = ทิ้ง)
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -174,6 +175,13 @@ export function CourtRecord({ evidence, onClose, pick, onPick }) {
                     {sel.round != null && <span>⏱ {sel.round}</span>}
                   </div>
                   <p>{sel.desc}</p>
+                  {onDiscard && !pick && !sel.used && (
+                    <button type="button" className={`nr-discard ${arm === sel.id ? "arm" : ""}`}
+                      onClick={() => { if (arm === sel.id) { onDiscard(sel); setArm(null); setSelId(null); } else setArm(sel.id); }}
+                      onMouseLeave={() => setArm(null)}>
+                      🗑 {arm === sel.id ? "ยืนยันทิ้ง" : "ทิ้ง"}
+                    </button>
+                  )}
                 </div>
               </>
             ) : <Binder />}
@@ -326,7 +334,7 @@ export default function NaruhodoHud({ state, me, hidden, zoom, emit, onPickMove,
   return (
     <>
       {N && !hidden && !hold && <EvidenceDock N={N} players={players} zoom={zoom} onOpen={() => setRecOpen(true)} />}
-      {N && recOpen && <CourtRecord evidence={N.evidence} onClose={() => setRecOpen(false)} />}
+      {N && recOpen && <CourtRecord evidence={N.evidence} onClose={() => setRecOpen(false)} onDiscard={(ev) => emit && emit("naruDiscard", { evId: ev.id })} />}
       {N && otherTurn && !hold && N.holdCd != null && <HoldItButton N={N} zoom={zoom} onPress={() => emit("holdIt", {})} />}
       {hold && <HoldItBar key={`${hold.seq || ""}|${hold.lawyerId}|${hold.actorId}`} hold={hold} N={N} me={me} players={players} emit={emit} onPickMove={onPickMove} movePicking={movePicking} zoom={zoom} />}
       {flash && <ShoutFlash kind={flash} />}

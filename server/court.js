@@ -11,7 +11,7 @@ Object.assign(module.exports, {
   fresh, st, isNaru, active, who, actorOf, noteAct, noteMove, lastEventOf, addEvidence, noteEvidence, liveEvidence,
   scoutSees, statementPool, contradicts, presentResult, aiTestimony,
   start, view, testimony, act, object, gallery, skip, abort, alibiTotal,
-  canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
+  discardEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
 });
 
 const match = require("./match");
@@ -145,6 +145,16 @@ function addEvidence(n, ev) {
   while (s.evidence.length >= RULES.maxEvidence) s.evidence.shift();
   s.evidence.push(item);
   return item;
+}
+// ทิ้งหลักฐานเอง (ผู้ใช้ 2026-11-20: "ต้องทิ้งได้" — แฟ้มเต็มแล้วหลักฐานดีหลุด สู้คดีไม่ได้) — ไม่เสียแต้ม/ตาเดิน · ห้ามระหว่างมีคดีหรือตาแทรก
+function discardEvidence(id, evId) {
+  const p = match.players[id];
+  if (!isNaru(p) || !p.alive || !p.naruhodo || match.court || match.holdIt) return false;
+  const s = st(p), before = s.evidence.length;
+  s.evidence = s.evidence.filter((e) => e.id !== evId);
+  if (s.evidence.length === before) return false;
+  lazy.view().broadcastState();
+  return true;
 }
 // หลักฐาน "ข้อสังเกต" (สืบสวน/รอเดี๋ยว!!! ไม่เจอเหตุการณ์ใหม่) — ผูกกับเป้า
 function noteEvidence(n, t) {
