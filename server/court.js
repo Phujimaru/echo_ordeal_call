@@ -33,7 +33,7 @@ const RULES = {
 };
 const HOLD = { range: 4, cd: 3, secs: 15, flash: 1.5, alibi: 3, move: 2 };
 const TYPE_OF = { attack: "weapon", basic: "weapon", secondary: "receipt", item: "receipt", note: "receipt", ultimate: "witness", move: "foot" };
-Object.assign(module.exports, { ID, RULES, HOLD });
+Object.assign(module.exports, { ID, RULES, HOLD, whyNot });
 const JUDGE = "ผู้พิพากษา";
 const FINALE = { src: "/characters/naruhodo_ryuichi/court/finale.mp4", ms: 5300 }; // คลิปฉากจบ (ผู้ใช้ 2026-11-20 · 5.07 วิ เสียงในตัว) ครั้งเดียวต่อคดี
 module.exports.FINALE = FINALE;
@@ -193,83 +193,80 @@ function scoutSees(viewer, target) {
 //  ทุกประโยคโกหกมีเหตุการณ์จริงอย่างน้อย 1 อันที่หักล้างได้ (evKey)
 function statementPool(events, proven, info = {}) {
   const out = [], seen = new Set(), used = []; // used = ถ้อยคำไม่ซ้ำกันในกองเดียว
-  const add = (form, kind, ctx, k, extra = {}) => {
-    const text = Lines.pick(form === "denySkill" && ctx.skill === "ตีปกติ" ? "denyAttack" : form, ctx, used);
-    const key = text;
-    if (!text || seen.has(key) || (proven && proven.includes(text))) return;
-    seen.add(key);
-    out.push({ form, kind, pos: !!extra.pos, text, k, evKey: extra.evKey || null });
-  };
   const evs = (events || []).filter((e) => e.kind !== "note");
+  // ฝั่งทนายถืออะไรอยู่ (หลักฐานในแฟ้ม + สิ่งที่ผู้ช่วย/ประชาชนเห็น) — โกหกได้เฉพาะเรื่องที่ฝั่งทนายหักล้างได้ (ที่เหลือ = ข้อแก้ตัว 📍)
+  //  ไม่ส่ง contest (เทสต์/เรียกตรง) = ทุกเหตุการณ์นับว่าหักล้างได้
+  const contest = info.contest ? evs.filter((e) => info.contest.has(e.id)) : evs;
+  const add = (form, kind, ctx, k, pos) => {
+    const st = { form, kind, pos: !!pos, k, evKey: null };
+    if (kind === "lie") {
+      const hit = contest.find((e) => contradicts(st, e));
+      if (!hit) return; // ฝั่งทนายไม่มีอะไรหักล้าง = ไม่ใช้เป็นคำโกหก
+      st.evKey = hit.id;
+    }
+    const text = Lines.pick(form === "denySkill" && ctx.skill === "ตีปกติ" ? "denyAttack" : form, ctx, used);
+    if (!text || seen.has(text) || (proven && proven.includes(text))) return;
+    seen.add(text);
+    out.push({ ...st, text });
+  };
   const deeds = evs.filter((e) => e.kind !== "move");
   const moves = evs.filter((e) => e.kind === "move");
   const round = Math.max(1, info.round || Math.max(1, ...evs.map((e) => e.round || 1)));
   const roster = (info.roster || []).filter(Boolean);
   const kit = [...new Set([...(info.skills || []), ...deeds.map((e) => e.skill)])].filter(Boolean);
-  const usedSkill = (sk) => deeds.find((e) => e.skill === sk);
   const hitOn = (t) => deeds.filter((e) => e.targetName === t);
-  const at = (n) => evs.find((e) => e.round === n);
   const shuf = (arr) => shuffle(arr);
-  // 1) ปฏิเสธท่า
-  for (const sk of shuf(kit).slice(0, 4)) {
-    const e = usedSkill(sk);
-    if (e) add("denySkill", "lie", { skill: sk }, { skill: sk }, { evKey: e.id });
-    else add("denySkill", "truth", { skill: sk }, { skill: sk });
-  }
-  // 2) ปฏิเสธเป้า
-  for (const t of shuf([...new Set([...roster, ...deeds.map((e) => e.targetName).filter(Boolean)])]).slice(0, 4)) {
-    const hs = hitOn(t);
-    if (hs.length) add("denyTarget", "lie", { target: t }, { target: t }, { evKey: hs[hs.length - 1].id });
+  const targets = [...new Set(deeds.map((e) => e.targetName).filter(Boolean))];
+  // 1) ปฏิเสธท่า (ทั้งเกม)
+  for (const sk of shuf(kit).slice(0, 5)) add("denySkill", deeds.some((e) => e.skill === sk) ? "lie" : "truth", { skill: sk }, { skill: sk });
+  // 2) ปฏิเสธเป้า (ทั้งเกม) · จริง = ผู้เล่นที่ยังอยู่และไม่เคยแตะ
+  for (const t of shuf([...new Set([...roster, ...targets])]).slice(0, 5)) {
+    if (hitOn(t).length) add("denyTarget", "lie", { target: t }, { target: t });
     else if (roster.includes(t)) add("denyTarget", "truth", { target: t }, { target: t });
   }
-  // 3) เทิร์นว่าง
+  // 3) ท่านี้โดนแค่คนเดียว (ยอมรับ) · โกหก = ท่านี้เคยโดนคนอื่นด้วย
+  for (const sk of shuf([...new Set(deeds.filter((e) => e.targetName).map((e) => e.skill))]).slice(0, 3)) {
+    const ts = [...new Set(deeds.filter((e) => e.skill === sk && e.targetName).map((e) => e.targetName))];
+    if (ts.length === 1) add("onlyTarget", "truth", { skill: sk, target: ts[0] }, { skill: sk, claim: ts[0] }, true);
+    const t2 = shuf([...new Set([...roster, ...ts])].filter((t) => ts.some((x) => x !== t)))[0];
+    if (t2) add("onlyTarget", "lie", { skill: sk, target: t2 }, { skill: sk, claim: t2 }, true);
+  }
+  // 4) สิ่งที่ใส่คนนี้มีท่าเดียว (ยอมรับ) · โกหก = เคยใช้ท่าอื่นใส่ด้วย
+  for (const t of shuf(targets).slice(0, 3)) {
+    const sks = [...new Set(hitOn(t).map((e) => e.skill))];
+    if (sks.length === 1) add("onlySkill", "truth", { skill: sks[0], target: t }, { target: t, claim: sks[0] }, true);
+    const s2 = shuf(kit.filter((sk) => sks.some((x) => x !== sk)))[0];
+    if (s2) add("onlySkill", "lie", { skill: s2, target: t }, { target: t, claim: s2 }, true);
+  }
+  // 5) เทิร์นว่าง — โกหกเฉพาะเทิร์นที่ฝั่งทนายมีหลักฐาน · จริง = เทิร์นที่ไม่มีเหตุการณ์
   const turns = shuf(Array.from({ length: round }, (_, i) => i + 1));
   let busy = 0, idle = 0;
   for (const n of turns) {
-    const e = at(n);
-    if (e && busy < 2) { busy++; add("idleTurn", "lie", { turn: n }, { turn: n }, { evKey: e.id }); }
-    else if (!e && idle < 2) { idle++; add("idleTurn", "truth", { turn: n }, { turn: n }); }
+    const any = evs.some((e) => e.round === n);
+    if (any && busy < 2 && contest.some((e) => e.round === n)) { busy++; add("idleTurn", "lie", { turn: n }, { turn: n }); }
+    else if (!any && idle < 2) { idle++; add("idleTurn", "truth", { turn: n }, { turn: n }); }
   }
-  // 4) ไม่ได้ขยับตั้งแต่เทิร์น n
+  // 6) ไม่ได้ขยับตั้งแต่เทิร์น n — โกหกเฉพาะเมื่อฝั่งทนายมีรอยเท้าหลังจากนั้น
   for (const n of turns.slice(0, 3)) {
-    const m = moves.filter((e) => e.round >= n);
-    if (m.length) add("stillSince", "lie", { turn: n }, { from: n }, { evKey: m[0].id });
+    if (moves.some((e) => e.round >= n)) add("stillSince", "lie", { turn: n }, { from: n });
     else if (moves.length || n > 1) add("stillSince", "truth", { turn: n }, { from: n });
   }
-  // 5) ยอมรับการกระทำ: จริง = ตรงทุกช่อง · โกหก = ป้ายผิดหนึ่งอย่าง (ต้องไม่มีเหตุการณ์ที่ตรงกับคำโกหกนั้นจริงๆ)
-  const exists = (n, sk, t) => deeds.some((e) => e.round === n && e.skill === sk && e.targetName === t);
-  for (const e of shuf(deeds.filter((x) => x.targetName)).slice(0, 4)) {
-    const ctx = { turn: e.round, skill: e.skill, target: e.targetName };
-    add("claimDeed", "truth", ctx, { turn: e.round, skill: e.skill, target: e.targetName }, { pos: true, evKey: e.id });
-    const modes = shuf(["target", "turn", "skill"]);
-    for (const mode of modes) {
-      if (mode === "target") {
-        const t2 = shuf(roster.filter((t) => t !== e.targetName && !exists(e.round, e.skill, t)))[0];
-        if (t2) { add("claimDeed", "lie", { ...ctx, target: t2 }, { mode, turn: e.round, skill: e.skill, claim: t2 }, { pos: true, evKey: e.id }); break; }
-      } else if (mode === "turn") {
-        const n2 = shuf([e.round - 2, e.round - 1, e.round + 1, e.round + 2].filter((n) => n >= 1 && n <= round && !exists(n, e.skill, e.targetName)))[0];
-        if (n2) { add("claimDeed", "lie", { ...ctx, turn: n2 }, { mode, skill: e.skill, target: e.targetName, claim: n2 }, { pos: true, evKey: e.id }); break; }
-      } else {
-        const s2 = shuf(kit.filter((sk) => sk !== e.skill && !exists(e.round, sk, e.targetName)))[0];
-        if (s2) { add("claimDeed", "lie", { ...ctx, skill: s2 }, { mode, turn: e.round, target: e.targetName, claim: s2 }, { pos: true, evKey: e.id }); break; }
-      }
-    }
-  }
-  // 6) เป้าคนแรก
+  // 7) เป้าคนแรก (ยอมรับ)
   const firstHit = deeds.filter((e) => e.targetName).sort((x, y) => x.round - y.round)[0];
   if (firstHit) {
-    add("firstVictim", "truth", { target: firstHit.targetName }, { claim: firstHit.targetName }, { pos: true, evKey: firstHit.id });
+    add("firstVictim", "truth", { target: firstHit.targetName }, { claim: firstHit.targetName }, true);
     const firstOn = (t) => { const h = hitOn(t).sort((x, y) => x.round - y.round)[0]; return h ? h.round : Infinity; };
-    const t2 = shuf(roster.filter((t) => t !== firstHit.targetName && firstOn(t) > firstHit.round))[0];
-    if (t2) add("firstVictim", "lie", { target: t2 }, { claim: t2, before: firstOn(t2) }, { pos: true, evKey: firstHit.id });
+    for (const t2 of shuf(roster.filter((t) => t !== firstHit.targetName && firstOn(t) > firstHit.round)).slice(0, 2)) {
+      add("firstVictim", "lie", { target: t2 }, { claim: t2, before: firstOn(t2) }, true);
+    }
   }
-  // 7) อีกฝ่ายลงมือก่อน
+  // 8) อีกฝ่ายลงมือก่อน (ยอมรับ)
   const hitBy = info.hitBy || {};
-  for (const t of shuf([...new Set(deeds.map((e) => e.targetName).filter(Boolean))]).slice(0, 2)) {
+  for (const t of shuf(targets).slice(0, 2)) {
     const mine = hitOn(t).sort((x, y) => x.round - y.round)[0];
     const theirs = hitBy[t];
-    if (theirs != null && theirs < mine.round) add("defended", "truth", { target: t }, { target: t }, { pos: true, evKey: mine.id });
-    else add("defended", "lie", { target: t }, { target: t, before: theirs != null ? theirs : Infinity }, { pos: true, evKey: mine.id });
+    if (theirs != null && theirs < mine.round) add("defended", "truth", { target: t }, { target: t }, true);
+    else add("defended", "lie", { target: t }, { target: t, before: theirs != null ? theirs : Infinity }, true);
   }
   return out;
 }
@@ -291,7 +288,11 @@ function poolInfo(c) {
     if (e.actorId === c.sideId || !e.targetName || !names.has(e.targetName)) continue;
     if (hitBy[e.actorName] == null || e.round < hitBy[e.actorName]) hitBy[e.actorName] = e.round;
   }
-  return { skills, roster, round: round(), hitBy };
+  // หักล้างได้ = หลักฐานในแฟ้มทนาย + สิ่งที่ผู้ช่วย (ยังไม่ได้ยื่น) / ประชาชน (ยังไม่ได้ขึ้นเป็นพยาน) เห็น
+  const contest = new Set(liveEvidence(lawyerOf(c)).map((v) => v.evKey));
+  const eyes = [...c.coIds.filter((id) => !c.lent.includes(id)), ...c.galleryIds.filter((id) => !c.witnessUsed.includes(id) && !c.outIds.includes(id))];
+  for (const e of match.courtLog || []) if (e.actorId === c.sideId && (e.seenBy || []).some((id) => eyes.includes(id))) contest.add(e.id);
+  return { skills, roster, round: round(), hitBy, contest };
 }
 // คัดสูงสุด 9 ประโยค: โกหก ≥ 3 ถ้ามี · คละรูปแบบ · มีทั้งจริงและโกหก
 function balancePool(all) {
@@ -311,19 +312,34 @@ function contradicts(s, ev, defendantId) {
   if (defendantId && ev.actorId !== defendantId) return false;
   const k = s.k;
   switch (s.form) {
+    // เทียบที่ "เรื่อง" (ท่า/เป้า) เทิร์นไหนก็ได้ — มีแค่รูปแบบเทิร์นที่ต้องตรงเทิร์น (ผู้ใช้ 2026-11-20)
     case "denySkill": return ev.skill === k.skill;
     case "denyTarget": return ev.targetName === k.target;
+    case "onlyTarget": return ev.skill === k.skill && !!ev.targetName && ev.targetName !== k.claim;
+    case "onlySkill": return ev.targetName === k.target && ev.skill !== k.claim;
     case "idleTurn": return ev.round === k.turn;
     case "stillSince": return ev.kind === "move" && ev.round >= k.from;
-    case "claimDeed":
-      if (k.mode === "target") return ev.round === k.turn && ev.skill === k.skill && !!ev.targetName && ev.targetName !== k.claim;
-      if (k.mode === "turn") return ev.skill === k.skill && ev.targetName === k.target && ev.round !== k.claim;
-      if (k.mode === "skill") return ev.round === k.turn && ev.targetName === k.target && ev.skill !== k.claim;
-      return false;
     case "firstVictim": return !!ev.targetName && ev.targetName !== k.claim && ev.round < k.before;
     case "defended": return ev.targetName === k.target && ev.round < k.before;
     default: // ประโยครุ่นเก่า/ทดสอบ (ไม่มี form)
       return (k.skill != null && ev.skill === k.skill) || (k.target != null && ev.targetName === k.target) || (k.turn != null && ev.round === k.turn);
+  }
+}
+// ทำไมหลักฐานไม่ขัด (ผู้พิพากษาพูด 1 บรรทัด — บอกแค่รายละเอียดที่เทียบ) → [คีย์บทพูด, ctx]
+function whyNot(s, ev, sideId) {
+  if (!s || !ev) return ["whyNone", {}];
+  if (sideId && ev.actorId !== sideId) return ["whyOther", { who: ev.actorName }];
+  const k = s.k || {};
+  const tgt = (want) => (ev.targetName ? ["whyTarget", { evTarget: ev.targetName, target: want }] : ["whyNoTarget", { target: want }]);
+  switch (s.form) {
+    case "denySkill": return ev.skill !== k.skill ? ["whySkill", { evSkill: ev.skill, skill: k.skill }] : ["whyNone", {}];
+    case "denyTarget": return ev.targetName !== k.target ? tgt(k.target) : ["whyNone", {}];
+    case "onlyTarget": return ev.skill !== k.skill ? ["whySkill", { evSkill: ev.skill, skill: k.skill }] : ["whyNone", {}];
+    case "onlySkill": return ev.targetName !== k.target ? tgt(k.target) : ["whyNone", {}];
+    case "idleTurn": return ev.round !== k.turn ? ["whyTurn", { evTurn: ev.round, turn: k.turn }] : ["whyNone", {}];
+    case "stillSince": return ev.kind !== "move" ? ["whyNotFoot", {}] : ev.round < k.from ? ["whyTurn", { evTurn: ev.round, turn: k.from }] : ["whyNone", {}];
+    case "firstVictim": case "defended": return ["whyOrder", {}];
+    default: return ["whyNone", {}];
   }
 }
 function presentResult(s, ev, defendantId) {
@@ -693,7 +709,8 @@ function resolvePresent(c) {
   }
   if (r.kind === "irrelevant" || r.kind === "wrong") {
     s.presentTried = true;
-    steps.push(cam("judge"), line(c, "J", r.kind === "wrong" ? "wrongJudge" : "irrelevantJudge", ctx), hurtS("L", r.dL), cam("witness"), line(c, "D", "wrongDefendant", ctx), cam("defense"), inner(c, "wrongInner", ctx));
+    const [why, wctx] = whyNot(s, ev, c.sideId); // เหตุผลจากรายละเอียดที่เทียบ (ทั้งโกหกและจริง — ไม่บอกใบ้)
+    steps.push(cam("judge"), line(c, "J", why, { ...ctx, ...wctx }), hurtS("L", r.dL), cam("witness"), line(c, "D", "wrongDefendant", ctx), cam("defense"), inner(c, "wrongInner", ctx));
     credHit(c, "L", r.dL, steps);
     coSays(c, steps, "coCheer", ctx, 0.6);
     aside(c, steps, ctx, 0.2);

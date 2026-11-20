@@ -811,7 +811,7 @@ test("คำให้การ: ทุกรูปแบบมีทั้งจ
   const r = richLog();
   const seen = {};
   for (let i = 0; i < 40; i++) for (const s of Court.statementPool(r.events, [], info(r))) (seen[s.form] ||= new Set()).add(s.kind);
-  for (const f of ["denySkill", "denyTarget", "idleTurn", "stillSince", "claimDeed", "defended"]) assert.deepEqual([...seen[f]].sort(), ["lie", "truth"], f);
+  for (const f of ["denySkill", "denyTarget", "onlyTarget", "onlySkill", "idleTurn", "stillSince", "defended"]) assert.deepEqual([...seen[f]].sort(), ["lie", "truth"], f);
   assert.ok(seen.firstVictim.has("truth"));
   // ข้อความไม่บอกใบ้: กองถ้อยคำเดียวต่อรูปแบบ (ไม่มีกอง lie/truth แยก)
   for (const k of Object.keys(Lines.STATEMENTS)) assert.ok(!/Lie$|Truth$|^truth/.test(k), `กองแยกจริง/โกหก: ${k}`);
@@ -831,24 +831,69 @@ test("คำให้การ: โกหกทุกประโยคมีเ
   }
 });
 
-test("คำให้การ: ป้ายผิด (เป้าผิด) ถูกจับด้วยหลักฐานที่ตรงเทิร์น+ท่า เท่านั้น", () => {
-  const s = { form: "claimDeed", kind: "lie", k: { mode: "target", turn: 2, skill: "ฟัน", claim: "D" } };
+test("คำให้การ: หักล้างที่ \"เรื่อง\" เทิร์นไหนก็ได้ · ป้ายผิดจับได้ด้วยหลักฐานที่ถูกเท่านั้น · เทิร์นต้องตรงเฉพาะรูปแบบเทิร์น", () => {
   const e = (o) => ({ actorId: "B", kind: "basic", round: 2, skill: "ฟัน", targetName: "C", ...o });
-  assert.equal(Court.contradicts(s, e({}), "B"), true, "เทิร์น/ท่าตรง เป้าจริงอีกคน");
-  assert.equal(Court.contradicts(s, e({ round: 3 }), "B"), false, "เทิร์นไม่ตรง");
-  assert.equal(Court.contradicts(s, e({ skill: "อื่น" }), "B"), false, "ท่าไม่ตรง");
-  assert.equal(Court.contradicts(s, e({ actorId: "C" }), "B"), false, "หลักฐานของคนอื่น");
-  const t = { form: "claimDeed", kind: "lie", k: { mode: "turn", skill: "ฟัน", target: "C", claim: 4 } };
-  assert.equal(Court.contradicts(t, e({}), "B"), true);
-  assert.equal(Court.contradicts(t, e({ round: 4 }), "B"), false);
-  assert.equal(Court.contradicts({ ...s, kind: "truth" }, e({}), "B"), false, "เรื่องจริงไม่มีวันถูกหักล้าง");
+  // ปฏิเสธท่า/เป้า: เทิร์นไหนก็จับได้
+  assert.equal(Court.contradicts({ form: "denySkill", kind: "lie", k: { skill: "ฟัน" } }, e({ round: 9 }), "B"), true);
+  assert.equal(Court.contradicts({ form: "denyTarget", kind: "lie", k: { target: "C" } }, e({ round: 1, skill: "อื่น" }), "B"), true);
+  // ท่านี้โดนแค่ D (จริงๆ โดน C) ← หลักฐาน ฟัน ใส่ C เทิร์นไหนก็ได้
+  const ot = { form: "onlyTarget", kind: "lie", k: { skill: "ฟัน", claim: "D" } };
+  assert.equal(Court.contradicts(ot, e({ round: 7 }), "B"), true);
+  assert.equal(Court.contradicts(ot, e({ skill: "อื่น" }), "B"), false, "ท่าอื่น");
+  assert.equal(Court.contradicts(ot, e({ targetName: "D" }), "B"), false, "ตรงกับที่อ้าง");
+  assert.equal(Court.contradicts(ot, e({ actorId: "C" }), "B"), false, "หลักฐานของคนอื่น");
+  // ใส่ C มีแค่ ยาพิษ (จริงๆ ใช้ ฟัน ด้วย) ← หลักฐาน ฟัน ใส่ C
+  const os = { form: "onlySkill", kind: "lie", k: { target: "C", claim: "ยาพิษ" } };
+  assert.equal(Court.contradicts(os, e({ round: 4 }), "B"), true);
+  assert.equal(Court.contradicts(os, e({ skill: "ยาพิษ" }), "B"), false);
+  assert.equal(Court.contradicts(os, e({ targetName: "D" }), "B"), false);
+  // รูปแบบเทิร์นยังต้องตรงเทิร์น
+  assert.equal(Court.contradicts({ form: "idleTurn", kind: "lie", k: { turn: 2 } }, e({ round: 3 }), "B"), false);
+  assert.equal(Court.contradicts({ form: "idleTurn", kind: "lie", k: { turn: 2 } }, e({}), "B"), true);
+  assert.equal(Court.contradicts({ ...ot, kind: "truth" }, e({}), "B"), false, "เรื่องจริงไม่มีวันถูกหักล้าง");
+});
+
+test("คำให้การ: โกหกเฉพาะเรื่องที่ฝั่งทนายหักล้างได้ · รูปแบบเทิร์นโกหกเฉพาะเทิร์นที่มีหลักฐาน", () => {
+  const r = richLog();
+  for (let i = 0; i < 30; i++) {
+    const contest = new Set(["e2"]); // ฝั่งทนายมีแค่ ตีปกติ ใส่ ดิโอ เทิร์น 3
+    const pool = Court.statementPool(r.events, [], { ...info(r), contest });
+    for (const s of pool.filter((x) => x.kind === "lie")) {
+      assert.equal(s.evKey, "e2", `โกหกที่ฝั่งทนายหักล้างไม่ได้: ${s.form} ${s.text}`);
+      assert.ok(Court.contradicts(s, r.events.find((e) => e.id === "e2"), "B"));
+      if (s.form === "idleTurn") assert.equal(s.k.turn, 3);
+    }
+    assert.ok(!pool.some((x) => x.kind === "lie" && x.form === "stillSince"), "ไม่มีรอยเท้าในมือ = ไม่มีโกหกเรื่องเดิน");
+  }
+  const none = Court.statementPool(r.events, [], { ...info(r), contest: new Set() });
+  assert.equal(none.filter((x) => x.kind === "lie").length, 0, "ฝั่งทนายไม่มีอะไร = ไม่มีคำโกหก");
+  assert.ok(none.length >= 3);
+});
+
+test("ยื่นหลักฐานไม่ขัด: ผู้พิพากษาบอกเหตุผลจากรายละเอียดที่เทียบ", () => {
+  const e = (o) => ({ actorId: "B", actorName: "บี", kind: "basic", round: 2, skill: "ฟัน", targetName: "ฟ้าใส", ...o });
+  assert.deepEqual(Court.whyNot({ form: "denyTarget", k: { target: "เซลิน" } }, e({}), "B"), ["whyTarget", { evTarget: "ฟ้าใส", target: "เซลิน" }]);
+  assert.equal(Court.whyNot({ form: "denySkill", k: { skill: "X" } }, e({}), "B")[0], "whySkill");
+  assert.equal(Court.whyNot({ form: "idleTurn", k: { turn: 5 } }, e({}), "B")[0], "whyTurn");
+  assert.equal(Court.whyNot({ form: "stillSince", k: { from: 1 } }, e({}), "B")[0], "whyNotFoot");
+  assert.equal(Court.whyNot({ form: "denySkill", k: { skill: "ฟัน" } }, e({ actorId: "C", actorName: "ซี" }), "B")[0], "whyOther");
+  const txt = Lines.fill(Lines.POOLS.whyTarget[0], { evTarget: "ฟ้าใส", target: "เซลิน" });
+  assert.ok(txt.includes("ฟ้าใส") && txt.includes("เซลิน"));
+  // ในศาลจริง: บรรทัดผู้พิพากษาหลังยื่นผิดมาจากกอง why*
+  const { A, B } = setup();
+  const c = openCourt(A, B, [{ form: "denyTarget", kind: "lie", text: "a", k: { target: "เซลิน" } }, { form: "generic", kind: "truth", text: "b" }, { form: "generic", kind: "truth", text: "c" }]);
+  const w = Court.addEvidence(A, ev({ targetName: "ฟ้าใส", skill: "ฟัน" }));
+  Court.act("A", { type: "present", idx: 0, evId: w.id });
+  engine.releaseBeat();
+  const says = match.court.beat.steps.filter((x) => x.k === "say" && x.who === "J").map((x) => x.text);
+  assert.ok(says.some((t) => t.includes("ฟ้าใส") && t.includes("เซลิน")), says.join(" | "));
 });
 
 test("กดดัน: สารภาพเฉพาะข้อความยอมรับที่จริง · คำปฏิเสธที่จริง/คำโกหก = ยืนยันคำเดิม ไม่มีผล", () => {
   const { A, B } = setup();
   const c = openCourt(A, B, [
     { form: "denyTarget", kind: "truth", pos: false, text: "ไม่เคยแตะ X", k: { target: "X" } },
-    { form: "claimDeed", kind: "truth", pos: true, text: "เทิร์น 2 ใช้ ฟัน ใส่ C", k: { turn: 2, skill: "ฟัน", target: "C" } },
+    { form: "onlyTarget", kind: "truth", pos: true, text: "ฟัน โดนแค่ C", k: { skill: "ฟัน", claim: "C" } },
     { form: "idleTurn", kind: "lie", pos: false, text: "เทิร์น 3 ว่าง", k: { turn: 3 } },
   ]);
   c.pressLeft = 3;
@@ -866,6 +911,7 @@ test("กดดัน: สารภาพเฉพาะข้อความย
 test("คำให้การ: กอง ≤ 9 · โกหก ≥ 3 เมื่อบันทึกพอ · มีทั้งจริงและโกหก", () => {
   const r = richLog();
   r.A.skillPoints = 8;
+  for (const e of r.events) Court.addEvidence(r.A, e); // ฝั่งทนายมีหลักฐานครบ
   engine.setActor("A");
   engine.court.start(r.A, r.B);
   engine.pausePlayingForCutscene();
