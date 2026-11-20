@@ -50,7 +50,7 @@ import { KIRI_FX_DUR, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { SHINRA_FX_DUR, isShinraFx, shinraFx } from "./shinraFx";
 import { MIDORIYA_FX_DUR, isMidoriyaFx, midoriyaFx } from "./midoriyaFx";
 import { MAGNA_FX_DUR, isMagnaFx, magnaFx, magnaChains } from "./magnaFx";
-import { NARU_FX_DUR, isNaruFx, naruhodoFx } from "./naruhodoFx";
+import { NARU_FX_DUR, drawNaruSight, isNaruFx, naruhodoFx } from "./naruhodoFx";
 import { DINO_FX_DUR, isDinoFx, dinoFx } from "./dinoFx";
 import { MASTER_FX_DUR, isMasterFx, masterFx, drawElemFields } from "./masterFx";
 import { KAZUMA_FX_DUR, isKazumaFx, kazumaFx } from "./kazumaFx";
@@ -255,6 +255,8 @@ export function drawFrame(g, st, now) {
   drawLawGround(g, law, fx, now, lowQ);
   // Colony: ช่องไฮไลต์ (เดิน/ตี/สกิล/พื้นที่/อันตราย/เป้า) วาดลงพื้นในฉาก 3D (colony3d.paintHighlights) — กำแพง/ตึกบังได้ ไม่เห็นทะลุ
   drawHighlights(g, info, colony ? { ...hl, danger: new Set(), move: new Set(), attack: new Set(), skill: new Set(), aoe: new Set(), ghost: new Set(), target: null } : hl, hover, now);
+  // นารุโฮโดะ: วงระยะเห็นเหตุการณ์ 4 ช่อง (เส้นประจางบนพื้น เหนือไฮไลต์ · เฉพาะเจ้าตัว)
+  if (st.naruSight) drawNaruSight(g, st.naruSight, now, lowQ);
   // ของบนพื้นใต้ตัวละครของธีม (ถ้ามี)
   if (T.overBoard && !colony && !rt3d) T.overBoard(g, f, now);
   // เรียงความลึก (ตามมุมมอง): สิ่งกีดขวาง + ร้าน + ตัวละคร

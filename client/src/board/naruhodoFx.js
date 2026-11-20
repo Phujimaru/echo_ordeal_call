@@ -504,7 +504,7 @@ export function naruEventFx(name, ev, ctx = {}) {
   if (name === "naruhodoScout") {
     if (!from || !to) return null;
     if (k === "gather") sfx.push(["naru_scout", 0]); // ตาแทรก: ไม่ใช่สกิล — server ไม่ได้เล่นเสียง
-    if (icon != null) sfx.push(["naru_evidence_ding", NARU_T.scoutGot]);
+    // เสียงได้หลักฐาน = ป้ายหลักฐานใหม่ใน HUD (NaruhodoHud EvidenceToasts) — ไม่เล่นซ้ำที่นี่
     return out([{ kind: "naruScout", x: from.x, y: from.y, size, to, toSize, ev: icon != null ? { icon } : null }], to);
   }
   if (name === "naruhodoTrial") {
@@ -533,9 +533,57 @@ export function naruEventFx(name, ev, ctx = {}) {
 
 // ---------- ป้ายค้างบนหมาก (boardUnits — u.naru = { scout, objected }) ----------
 //  scout = แว่นขยายเล็กมุมซ้ายบน (ลอยขึ้นลงเบาๆ) · objected = วงแดงมือชี้ มุมซ้ายล่าง (เต้นเป็นจังหวะ)
+// ป้ายแฟ้มหลักฐานบนศัตรู (เห็นเฉพาะนารุโฮโดะ): แฟ้มสีน้ำตาลทอง + จำนวนหลักฐานที่ยังไม่ใช้ของคนนั้น — ขอบขวากลางของหมาก (ไม่ทับป้ายธาตุมุมขวาบน/แถบเลือดใต้หมาก)
+function evidenceBadge(g, x, y, R, n) {
+  const w = Math.max(24, R * 0.66), h = w * 0.74, r = h * 0.18;
+  g.save();
+  g.translate(x - w / 2, y - h / 2);
+  g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = 4; g.shadowOffsetY = 1;
+  // แถบหูแฟ้ม
+  g.fillStyle = "#6b3f12"; roundRect(g, w * 0.08, -h * 0.16, w * 0.42, h * 0.3, r * 0.6); g.fill();
+  g.fillStyle = "#9a6420"; roundRect(g, 0, 0, w, h, r); g.fill();
+  g.shadowColor = "transparent";
+  g.lineWidth = Math.max(1.2, w * 0.06); g.strokeStyle = "#f2cf72"; roundRect(g, 0, 0, w, h, r); g.stroke();
+  g.fillStyle = "#fff4d0"; g.font = `900 ${Math.round(h * 0.78)}px Kanit, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.lineWidth = Math.max(2, h * 0.16); g.strokeStyle = "#3a1e06"; g.strokeText(String(n), w / 2, h * 0.55); g.fillText(String(n), w / 2, h * 0.55);
+  g.restore();
+}
+
+// วงระยะเห็นเหตุการณ์ของนารุโฮโดะ (เฉพาะเจ้าตัว · ช่วงตาเดิน): ขอบขั้นบันไดของช่องที่ห่างแมนฮัตตัน ≤ r — เส้นประจางบนพื้น
+//  s = { x, y, r } · ทางเดินเส้นคำนวณใหม่เฉพาะตอนตำแหน่งเปลี่ยน (แคชบนอ็อบเจกต์ s) · ต่อเฟรมแค่ฉายจุด ~40 จุด
+export function drawNaruSight(g, s, now, lowQ) {
+  if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y)) return;
+  const R = s.r || 4;
+  if (!s.edges) {
+    const inR = (dx, dy) => Math.abs(dx) + Math.abs(dy) <= R;
+    const e = [];
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      if (!inR(dx, dy)) continue;
+      const x = s.x + dx, y = s.y + dy;
+      if (!inR(dx, dy - 1)) e.push([x, y, x + 1, y]);
+      if (!inR(dx, dy + 1)) e.push([x, y + 1, x + 1, y + 1]);
+      if (!inR(dx - 1, dy)) e.push([x, y, x, y + 1]);
+      if (!inR(dx + 1, dy)) e.push([x + 1, y, x + 1, y + 1]);
+    }
+    s.edges = e;
+  }
+  g.save();
+  g.beginPath();
+  for (const [x0, y0, x1, y1] of s.edges) { const a = P(x0, y0, 0.02), b = P(x1, y1, 0.02); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); }
+  const [, , ts] = P(s.x + 0.5, s.y + 0.5);
+  // ทับขอบช่องเดินได้บ่อย (ระยะเดิน 4 เท่ากัน) → เส้นทองอำพันมีขอบเข้ม แยกจากไฮไลต์ฟ้า/แดงได้ แต่ยังจาง
+  if (!lowQ) { g.strokeStyle = "rgba(255,190,70,.18)"; g.lineWidth = Math.max(4, ts * 0.12); g.stroke(); }
+  g.strokeStyle = "rgba(40,24,6,.42)"; g.lineWidth = Math.max(3, ts * 0.06); g.stroke();
+  g.setLineDash([Math.max(5, ts * 0.16), Math.max(4, ts * 0.11)]);
+  g.lineDashOffset = REDUCED || lowQ ? 0 : -(now / 60) % 1000;
+  g.strokeStyle = "rgba(255,214,110,.9)"; g.lineWidth = Math.max(1.8, ts * 0.036); g.stroke();
+  g.restore();
+}
+
 export function naruUnitFront(g, u, now, bx, hy, hexR) {
   const N = u.naru;
   if (!N) return;
+  if (N.ev > 0) evidenceBadge(g, bx + hexR * 1.02, hy + hexR * 0.12, hexR, N.ev);
   const bob = REDUCED ? 0 : Math.sin(now / 420 + (u.rx || 0)) * hexR * 0.06;
   if (N.scout) {
     const x = bx - hexR * 0.82, y = hy - hexR * 0.72 + bob, r = hexR * 0.26;

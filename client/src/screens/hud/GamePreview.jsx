@@ -57,12 +57,17 @@ const NARU_Q = new URLSearchParams(location.search);
 const NARU_DL = Date.now() + 15000;
 const NARU_EV = [
   { id: "e1", round: 1, actorId: "", actorName: "", kind: "basic", type: "weapon", icon: 46, name: "มีดเปื้อนเลือด", desc: "ตีปกติ ตอนเทิร์น 1", used: false },
-  { id: "e2", round: 2, actorId: "", actorName: "", kind: "move", type: "foot", icon: 83, name: "แม่พิมพ์รอยเท้า", desc: "เดินข้ามสนามตอนเทิร์น 2", used: false },
+  { id: "e2", round: 2, actorId: "", actorName: "", kind: "move", type: "foot", icon: 83, name: "แม่พิมพ์รอยเท้า", desc: "เดินข้ามสนามตอนเทิร์น 2", used: false, pinned: true },
+];
+// &toast=1 = หลักฐานใหม่ 2 ชิ้นเข้าแฟ้มหลังโหลด 3 วิ (ทดสอบป้ายหลักฐานใหม่)
+const NARU_NEW = [
+  { id: "e3", round: 2, actorId: "", actorName: "", kind: "secondary", type: "receipt", icon: 12, name: "ใบเสร็จ", desc: "ใช้สกิล ตอนเทิร์น 2", used: false },
+  { id: "e4", round: 2, actorId: "", actorName: "", kind: "ultimate", type: "witness", icon: 25, name: "กล้องถ่ายรูป", desc: "ท่าไม้ตาย ตอนเทิร์น 2", used: false },
 ];
 function naruPatch(state) {
   if (NARU_Q.get("naru") !== "1" || !state || !state.players) return state;
   const meId = state.youId, foe = state.players.find((p) => p.id !== meId && p.alive) || null;
-  const players = state.players.map((p) => (p.id === meId ? { ...p, naruhodo: { evidence: NARU_EV.map((e) => ({ ...e, actorId: foe ? foe.id : "" })), holdCd: 0, holdReady: true, noMoveNext: false, scout: foe ? { targetId: foe.id, until: 3, cds: { basic: 0, secondary: 2, ultimate: 4 } } : null } } : p));
+  const players = state.players.map((p) => (p.id === meId ? { ...p, naruhodo: { evidence: [...NARU_EV, ...(state._naruNew ? NARU_NEW : [])].map((e) => ({ ...e, actorId: foe ? foe.id : "" })), holdCd: 0, holdReady: true, noMoveNext: false, scout: foe ? { targetId: foe.id, until: 3, cds: { basic: 0, secondary: 2, ultimate: 4 } } : null } } : p));
   const hold = NARU_Q.get("hold") === "1" && foe ? { seq: 1, lawyerId: meId, actorId: state.actorId && state.actorId !== meId ? state.actorId : foe.id, phase: "choose", deadline: NARU_DL, result: null } : null;
   return { ...state, players, holdIt: hold };
 }
@@ -110,6 +115,11 @@ export default function GamePreview() {
     return () => clearTimeout(t);
   }, [atkId, atkMs]);
 
+  useEffect(() => {
+    if (NARU_Q.get("toast") !== "1") return undefined;
+    const t = setTimeout(() => setState((s) => ({ ...s, _naruNew: true })), 3000);
+    return () => clearTimeout(t);
+  }, []);
   // ?drawer=1 = เปิดลิ้นชักสถานะให้หลังโหลด · ?measure=1 = วัดกล่อง HUD หลังวางเสร็จ
   useEffect(() => {
     const q = new URLSearchParams(location.search);

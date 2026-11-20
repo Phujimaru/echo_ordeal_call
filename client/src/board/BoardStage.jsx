@@ -251,6 +251,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   useEffect(() => { NARU_STATE.court = !!state.court; }, [state.court]); // ระหว่างคดี: fx กระดานของนารุโฮโดะไม่เล่นเสียง
   // นารุโฮโดะ: เป้าที่เรากำลังสืบสวน (me.naruhodo.scout — เห็นเฉพาะเจ้าของ) → แว่นขยายเล็กบนหมาก
   const naruScoutId = me && me.naruhodo && me.naruhodo.scout ? me.naruhodo.scout.targetId : null;
+  // นารุโฮโดะ: จำนวนหลักฐานที่ยังไม่ใช้ต่อผู้กระทำ (ป้ายแฟ้มบนศัตรู · เจ้าของตัวคู่/ยูนิตอัญเชิญ = นับรวมเจ้าของ) · วงระยะเห็น 4 ช่องรอบตัวเรา
+  const naruEvSig = me && me.naruhodo && Array.isArray(me.naruhodo.evidence) ? me.naruhodo.evidence.filter((e) => e && !e.used).map((e) => e.actorId).join("|") : "";
+  const naruEv = useMemo(() => { const m = {}; for (const id of naruEvSig ? naruEvSig.split("|") : []) m[id] = (m[id] || 0) + 1; return m; }, [naruEvSig]);
+  const naruSightKey = me && me.alive && me.pos && me.naruhodo && Array.isArray(me.naruhodo.evidence) && (phase === "ACTION" || phase === "ORDER") && !state.court ? `${me.pos.x},${me.pos.y}` : "";
+  const naruSight = useMemo(() => { if (!naruSightKey) return null; const [x, y] = naruSightKey.split(",").map(Number); return { x, y, r: 4 }; }, [naruSightKey]);
   // เริ่มตาเรา → กล้องมาที่ตัวเรา (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   //  ตาคนอื่นไม่ดึงกล้องไปหา (ผู้ใช้สั่ง 2026-11-10) · ตัวคู่/ยูนิตที่เราคุม = ตาเรา · คนดู (ไม่มีตัว) = ตามทุกตาเหมือนเดิม
   const [lookedTurn, setLookedTurn] = useState("");
@@ -900,7 +905,13 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,
       // นารุโฮโดะ (naruhodoFx.js naruUnitFront): ถูกสืบสวน (เฉพาะคนสืบเห็น) · ถูกคัดค้าน (statuses.naruhodoObjected — ทุกคนเห็น)
-      naru: !mk && (naruScoutId === p.id || (p.statuses && p.statuses.naruhodoObjected > 0)) ? { scout: naruScoutId === p.id, objected: !!(p.statuses && p.statuses.naruhodoObjected > 0) } : null,
+      naru: (() => {
+        if (mk) return null;
+        const owner = p.duoOf || (p.summon && p.summon.ownerId) || p.id;
+        const ev = me && p.id !== me.id && owner !== me.id ? naruEv[owner] || 0 : 0;
+        const scout = naruScoutId === p.id, objected = !!(p.statuses && p.statuses.naruhodoObjected > 0);
+        return scout || objected || ev ? { scout, objected, ev } : null;
+      })(),
       possessed: !mk && !!p.possessedBy,
       master: !mk && p.master ? { phase: p.master.phase || 1, down: !!p.master.down, summon: p.master.summon || null } : null, // Master (masterFx.js): ออร่า/ท่าทาง
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
@@ -934,7 +945,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, naruScoutId, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
+  [state.players, state.actorId, state.clockUp, me, myDim, naruScoutId, naruEv, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
   const { songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp } = useCharLayers({ celFlora, dirPick, hover, pickInfo, sameDim, spikeList, state, wallHold, wallOrient, wallPlan });
   // ---------- คลิก ----------
   const busy = !!anim;
@@ -1248,6 +1259,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         ferns={ferns}
         ryougi={ryougiProp}
         otoya={otoyaProp}
+        naruSight={naruSight}
         emiya={emiyaProp}
         law={lawProp}
         gyroBalls={gyroBalls}

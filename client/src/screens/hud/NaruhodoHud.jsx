@@ -64,6 +64,7 @@ function EvCard({ ev, size = 40, sel, onHover, onClick, dim }) {
       onMouseEnter={onHover} onFocus={onHover} onClick={onClick} aria-label={ev.name}>
       <EvidenceIcon idx={ev.icon | 0} size={Math.round(size * 0.82)} />
       {ev.used && <span className="nr-ev-x" aria-hidden="true" />}
+      {ev.pinned && <span className="nr-pin" aria-hidden="true">📌</span>}
     </button>
   );
 }
@@ -131,7 +132,7 @@ function EvidenceDock({ N, players, onOpen, zoom }) {
       {/* ชี้ = ช่องหลักฐานกางขึ้นด้านบน */}
       <span className="nr-dock-pop" aria-hidden="true">
         {slots.map((e, i) => (e
-          ? <span key={e.id || i} className={`nr-dock-slot on ${e.used ? "used" : ""}`}><EvidenceIcon idx={e.icon | 0} size={30} /></span>
+          ? <span key={e.id || i} className={`nr-dock-slot on ${e.used ? "used" : ""}`}><EvidenceIcon idx={e.icon | 0} size={30} />{e.pinned && <i className="nr-pin" aria-hidden="true">📌</i>}</span>
           : <span key={`x${i}`} className="nr-dock-slot" />))}
       </span>
     </div>
@@ -139,7 +140,7 @@ function EvidenceDock({ N, players, onOpen, zoom }) {
 }
 
 // ---------- หน้าต่างบันทึกหลักฐาน ----------
-export function CourtRecord({ evidence, onClose, pick, onPick, onDiscard }) {
+export function CourtRecord({ evidence, onClose, pick, onPick, onDiscard, onPin }) {
   const list = evidence || [];
   const [selId, setSelId] = useState(() => (list.find((e) => !e.used) || list[0] || {}).id || null);
   const sel = list.find((e) => e.id === selId) || list[0] || null;
@@ -175,13 +176,20 @@ export function CourtRecord({ evidence, onClose, pick, onPick, onDiscard }) {
                     {sel.round != null && <span>⏱ {sel.round}</span>}
                   </div>
                   <p>{sel.desc}</p>
-                  {onDiscard && !pick && !sel.used && (
+                  {!pick && !sel.used && (onPin || onDiscard) && <div className="nr-rec-acts">
+                  {onPin && (
+                    <button type="button" className={`nr-pinbtn ${sel.pinned ? "on" : ""}`} aria-pressed={!!sel.pinned} onClick={() => onPin(sel)}>
+                      📌 {sel.pinned ? "ปักหมุดแล้ว" : "ปักหมุด"}
+                    </button>
+                  )}
+                  {onDiscard && (
                     <button type="button" className={`nr-discard ${arm === sel.id ? "arm" : ""}`}
                       onClick={() => { if (arm === sel.id) { onDiscard(sel); setArm(null); setSelId(null); } else setArm(sel.id); }}
                       onMouseLeave={() => setArm(null)}>
                       🗑 {arm === sel.id ? "ยืนยันทิ้ง" : "ทิ้ง"}
                     </button>
                   )}
+                  </div>}
                 </div>
               </>
             ) : <Binder />}
@@ -294,6 +302,46 @@ function HoldItBar({ hold, N, me, players, emit, onPickMove, movePicking, zoom }
   );
 }
 
+// ---------- หลักฐานใหม่: ป้ายเด้งเหนือแฟ้ม (ต่อคิว · เสียง naru_evidence_ding ยกเว้นระหว่างคดี/คลิป) ----------
+//  ตำแหน่ง: เหนือแฟ้มหลักฐาน (มุมขวาบนของแผงตัวเรา) · ไม่มีแผง = มุมซ้ายล่างเหนือ HUD
+const TOAST_MS = 2200;
+function EvidenceToasts({ N, quiet, zoom }) {
+  const ref = useRef(null);
+  const at = useProfAnchor(ref);
+  const seen = useRef(null);
+  const [queue, setQueue] = useState([]);
+  const ids = (N.evidence || []).map((e) => e.id).join("|");
+  useEffect(() => {
+    const list = N.evidence || [];
+    if (!seen.current) { seen.current = new Set(list.map((e) => e.id)); return undefined; } // เปิดเกม/รีโหลด = ไม่เด้งของเดิม
+    const fresh = list.filter((e) => !seen.current.has(e.id));
+    for (const e of list) seen.current.add(e.id);
+    if (!fresh.length) return undefined;
+    const t = setTimeout(() => setQueue((q) => [...q, ...fresh.map((e) => ({ key: `${e.id}`, icon: e.icon | 0, name: e.name }))]), 0);
+    return () => clearTimeout(t);
+  }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps -- ids = ลายเซ็นของรายการ
+  const head = queue[0] || null;
+  const headKey = head ? head.key : "";
+  useEffect(() => {
+    if (!headKey) return undefined;
+    if (!quiet) playSfx("naru_evidence_ding");
+    const t = setTimeout(() => setQueue((q) => q.slice(1)), TOAST_MS);
+    return () => clearTimeout(t);
+  }, [headKey]); // eslint-disable-line react-hooks/exhaustive-deps -- เล่นครั้งเดียวต่อป้าย
+  return (
+    <div ref={ref} className={`nr-toasts ${at ? "" : "free"}`} style={{ "--k": zoom || 1, ...(at ? { left: at.left, top: at.top - 56 * (zoom || 1) } : null) }} aria-live="polite">
+      {head && (
+        <div className="nr-toast" key={head.key}>
+          <span className="nr-toast-ic"><EvidenceIcon idx={head.icon} size={34} /></span>
+          <b>+ {head.name}</b>
+          {queue.length > 1 && <small>+{queue.length - 1}</small>}
+          <i className="nr-toast-spark" aria-hidden="true" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- ผลตาแทรก: ป้ายตะโกนกลางจอ ----------
 function ShoutFlash({ kind }) {
   if (kind === "object") return <div className="nr-shout"><img src={`${DIR}/court/shout_objection.webp`} alt="" draggable={false} /></div>;
@@ -334,7 +382,8 @@ export default function NaruhodoHud({ state, me, hidden, zoom, emit, onPickMove,
   return (
     <>
       {N && !hidden && !hold && <EvidenceDock N={N} players={players} zoom={zoom} onOpen={() => setRecOpen(true)} />}
-      {N && recOpen && <CourtRecord evidence={N.evidence} onClose={() => setRecOpen(false)} onDiscard={(ev) => emit && emit("naruDiscard", { evId: ev.id })} />}
+      {N && recOpen && <CourtRecord evidence={N.evidence} onClose={() => setRecOpen(false)} onDiscard={(ev) => emit && emit("naruDiscard", { evId: ev.id })} onPin={(ev) => emit && emit("naruPin", { evId: ev.id })} />}
+      {N && <EvidenceToasts N={N} quiet={court || !!state.cutscene} zoom={zoom} />}
       {N && otherTurn && !hold && N.holdCd != null && <HoldItButton N={N} zoom={zoom} onPress={() => emit("holdIt", {})} />}
       {hold && <HoldItBar key={`${hold.seq || ""}|${hold.lawyerId}|${hold.actorId}`} hold={hold} N={N} me={me} players={players} emit={emit} onPickMove={onPickMove} movePicking={movePicking} zoom={zoom} />}
       {flash && <ShoutFlash kind={flash} />}
