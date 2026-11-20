@@ -264,22 +264,30 @@ test('เดินมีเสียงฝีเท้าทั้งกลา�
   assert.equal(acts.find((a) => a.key === 'brain').name, '0/3');
 });
 
-test('Nautilus: กลางวันจนถึงชั้น 6 แล้วกลางคืนถาวร · PVE กลางคืนตลอด', () => {
+test('Nautilus: ชั้น 1–5 ตามวงจรกลางวัน/กลางคืน · ชั้น 6 กลางคืนถาวร · PVE กลางคืนตลอด', () => {
   const match = require('../../server/match');
   const P = setup([['F', 'foxy', 3, 7]]);
   const keep = { world: match.world, fodlan: match.fodlan };
   try {
     match.world = 'nautilus';
     match.fodlan = { stage: 11 };
-    engine.setRoundNumber(4); // วงจรปกติ = กลางคืน แต่ Nautilus ไม่ใช้
-    assert.equal(fx.nightNow(engine), false, 'ชั้น 5 = กลางวัน');
+    engine.setRoundNumber(1);
+    assert.equal(fx.nightNow(engine), false, 'ชั้น 5 ช่วงกลางวันของวงจร = กลางวัน');
     assert.equal(engine.movOf(P.F), 3);
+    engine.setRoundNumber(4);
+    assert.equal(fx.nightNow(engine), true, 'ชั้น 1–5 ช่วงกลางคืนของวงจร = กลางคืน');
+    fx.onRoundDealt(engine);
+    assert.equal(log.filter((e) => e.cut === fx.CUT.night).length, 1, 'คลิปกลางคืนในชั้น 1–5');
+    engine.setRoundNumber(7);
+    fx.onRoundDealt(engine); // กลางวันของวงจร
     match.fodlan = { stage: 12 };
     engine.setRoundNumber(1);
     assert.equal(fx.nightNow(engine), true, 'ชั้น 6 = กลางคืนถาวร');
     assert.equal(engine.movOf(P.F), 9);
     fx.onRoundDealt(engine);
-    assert.equal(log.filter((e) => e.cut === fx.CUT.night).length, 1, 'เข้าชั้น 6 = คลิปกลางคืน');
+    assert.equal(log.filter((e) => e.cut === fx.CUT.night).length, 2, 'เข้าชั้น 6 (จากกลางวัน) = คลิปกลางคืน');
+    engine.setRoundNumber(7); // วงจรเป็นกลางวัน แต่ชั้น 6 ยังกลางคืน
+    assert.equal(fx.nightNow(engine), true, 'ชั้น 6 กลางคืนถาวร');
   } finally { match.world = keep.world; match.fodlan = keep.fodlan; }
   const M = require('../../server/pveMode');
   const real = M.isPveCoop;

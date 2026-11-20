@@ -10,7 +10,7 @@
 //      + ลบแต้มสกิลเป้า 3 · มีไม่พอ = ส่วนต่างเป็นความเสียหายเพิ่ม (เกราะรับก่อน) · ใช้แล้วสมองกลับเป็น 0
 //    เดินมีเสียงฝีเท้า (กลางวัน + กลางคืน — ไฟล์เดียวกับเฟรดดี้ ดันดังขึ้นที่ตัวไฟล์) · ปุ่ม HUD กล่องเพลง (sound_board — ดังมาก)
 //    เข้ากลางคืน = คลิปเข้าช่วงกลางคืน ทุกคนเห็น ทุกครั้ง · PVE (Eos / Moon Cell / Road Trip) = กลางคืนตลอด
-//    Nautilus: กลางวันจนถึงชั้น 6 (ทะเลข้อมูล) แล้วกลางคืนถาวร (ผู้ใช้สั่ง 2026-11-20)
+//    Nautilus: ชั้น 1–5 กลางวัน/กลางคืนตามวงจรปกติ · ตั้งแต่ชั้น 6 (ทะเลข้อมูล) กลางคืนถาวร (ผู้ใช้สั่ง 2026-11-20)
 //  สกิลพื้นฐาน ขอสักทีนะ ที่หน้า (2 แต้ม · คูลดาวน์ 1 เทิร์น): พุ่งแนวตรง 7×1 = การโจมตีปกติอีกรูปแบบ (ดาเมจ = พลังโจมตี · จบตาเดิน)
 //    โดนศัตรูคนแรกแล้วหยุดหน้าเป้า · เป้าหลบได้ = พุ่งผ่านต่อ · ชนเพื่อนร่วมทีม/คนถัดไป = หยุดหน้า ไม่มีผล
 //    พุ่งไม่โดนแล้วชนสิ่งกีดขวาง/ขอบแผนที่ = หยุดตรงนั้น สตั้นตัวเอง 1 เทิร์น (ผู้ใช้สั่ง 2026-11-20)
@@ -49,15 +49,14 @@ const foe = (engine, p, t) => !!t && t.alive && !!t.pos && t.id !== p.id && !eng
 const nextTurnSpan = (engine, t, n = 1) => n + ((engine.hasActed(t.id) || engine.actorId === t.id) ? 1 : 0);
 
 function pveMode() { const M = require("../server/pveMode"); return M.isPveCoop() || M.isMoon(); }
+// Nautilus ชั้น 6 (ทะเลข้อมูล) ขึ้นไป = กลางคืนถาวร · ชั้น 1–5 ใช้วงจรกลางวัน/กลางคืนปกติ (แก้ 2026-11-20 — เดิมกลางวันตลอดถึงชั้น 6 = คลิปกลางคืนไม่ขึ้น)
 function nautilusNight() {
   const F = require("../server/fodlan");
-  return F.isNautilus() ? F.stageNow() >= DATA_STAGE : null;
+  return F.isNautilus() && F.stageNow() >= DATA_STAGE;
 }
-// กลางคืนของฟ็อกซี่: Nautilus = ชั้น 6 ขึ้นไป · PVE = ตลอด · ที่อื่นตามวงจรกลางวัน/กลางคืน
+// กลางคืนของฟ็อกซี่: PVE = ตลอด · Nautilus ชั้น 6 = ตลอด · ที่อื่นตามวงจรกลางวัน/กลางคืน
 function nightNow(engine) {
-  const n = nautilusNight();
-  if (n !== null) return n;
-  return pveMode() || !!engine.isNightRound(engine.roundNumber);
+  return pveMode() || nautilusNight() || !!engine.isNightRound(engine.roundNumber);
 }
 
 // ---------- แต้มสมอง ----------
