@@ -11,7 +11,8 @@
 //    เดินมีเสียงฝีเท้า (กลางวัน + กลางคืน — ไฟล์เดียวกับเฟรดดี้ ดันดังขึ้นที่ตัวไฟล์) · ปุ่ม HUD กล่องเพลง (sound_board — ดังมาก)
 //    เข้ากลางคืน = คลิปเข้าช่วงกลางคืน ทุกคนเห็น ทุกครั้ง · PVE (Eos / Moon Cell / Road Trip) = กลางคืนตลอด
 //    Nautilus: ชั้น 1–5 กลางวัน/กลางคืนตามวงจรปกติ · ตั้งแต่ชั้น 6 (ทะเลข้อมูล) กลางคืนถาวร (ผู้ใช้สั่ง 2026-11-20)
-//  สกิลพื้นฐาน ขอสักทีนะ ที่หน้า (2 แต้ม · คูลดาวน์ 1 เทิร์น): พุ่งแนวตรง 7×1 = การโจมตีปกติอีกรูปแบบ (ดาเมจ = พลังโจมตี · จบตาเดิน)
+//    สังหารผู้เล่น = ฟื้นพลังชีวิต 5
+//  สกิลพื้นฐาน ขอสักทีนะ ที่หน้า (2 แต้ม · คูลดาวน์ 1 เทิร์น · กลางคืนไม่มีคูลดาวน์): พุ่งแนวตรง 7×1 = การโจมตีปกติอีกรูปแบบ (ดาเมจ = พลังโจมตี · จบตาเดิน)
 //    โดนศัตรูคนแรกแล้วหยุดหน้าเป้า · เป้าหลบได้ = พุ่งผ่านต่อ · ชนเพื่อนร่วมทีม/คนถัดไป = หยุดหน้า ไม่มีผล
 //    พุ่งไม่โดนแล้วชนสิ่งกีดขวาง/ขอบแผนที่ = หยุดตรงนั้น สตั้นตัวเอง 1 เทิร์น (ผู้ใช้สั่ง 2026-11-20)
 //
@@ -38,6 +39,7 @@ const MOV = { day: 3, night: 9 };
 const ATK = { day: 5, night: 3 };
 const DASH = { len: 7, cd: 1, name: "ขอสักทีนะ ที่หน้า" };
 const BRAIN = { max: 3, drain: 3, stun: 1 };
+const KILL_HEAL = 5; // สังหารผู้เล่น: ฟื้นพลังชีวิต 5 (ผู้ใช้สั่ง 2026-11-20)
 const STEP_MS = 70; // เวลาต่อช่องของแอนิเมชันพุ่ง (client setDash)
 const DATA_STAGE = 12; // Nautilus ชั้น 6 (server/fodlan/nautilusLayer.js DATA_STAGE)
 
@@ -178,9 +180,10 @@ module.exports = {
   },
 
   // ---------- สกิลพื้นฐาน: ขอสักทีนะ ที่หน้า ----------
+  // กลางคืน: ไม่มีคูลดาวน์ (ผู้ใช้สั่ง 2026-11-20) · ท่าพุ่งจบตาเดินอยู่แล้ว = ได้ 1 ครั้งต่อตา
   canUseSkill(engine, p, tier) {
     if (!isFoxy(p) || tier !== "basic") return true;
-    return engine.roundNumber >= st(p).dashReady && !!p.pos;
+    return !!p.pos && (nightNow(engine) || engine.roundNumber >= st(p).dashReady);
   },
   ownsAreaHit(p, tier) { return isFoxy(p) && tier === "basic"; },
   endsTurn(engine, p, tier) { return isFoxy(p) && tier === "basic"; },
@@ -191,7 +194,7 @@ module.exports = {
   },
   skillLocks(engine, p) {
     if (!isFoxy(p)) return undefined;
-    const cd = Math.max(0, st(p).dashReady - engine.roundNumber);
+    const cd = nightNow(engine) ? 0 : Math.max(0, st(p).dashReady - engine.roundNumber);
     return { basic: { cd, locked: cd > 0 } };
   },
 
@@ -253,6 +256,12 @@ module.exports = {
     engine.sfx(SFX.board, null, { voice: `foxy:${p.id}` });
     engine.broadcastState();
     return true;
+  },
+  // สังหารผู้เล่น (ตีปกติ / ท่าพุ่ง / ส่วนต่างของสมองเต็ม): ฟื้นพลังชีวิต 5 · ยูนิตที่ถูกเรียกไม่นับ
+  onKill(engine, killer, victim) {
+    if (!isFoxy(killer) || !killer.alive || !victim || victim.summon) return;
+    const n = engine.healHp(killer, KILL_HEAL);
+    if (n > 0) engine.log(`🦊 ${killer.name} สังหาร ${victim.name} — ฟื้นพลังชีวิต +${n}`);
   },
   severables() { return []; },
   foxyState(engine, p) {

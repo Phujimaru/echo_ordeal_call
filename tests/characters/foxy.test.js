@@ -297,3 +297,26 @@ test('Nautilus: ชั้น 1–5 ตามวงจรกลางวัน/�
     assert.equal(fx.nightNow(engine), true, 'PVE กลางคืนตลอด');
   } finally { M.isPveCoop = real; }
 });
+
+test('สังหารผู้เล่น = ฟื้นพลังชีวิต 5', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+  const P = setup([['F', 'foxy', 3, 7], ['D', 'dummy', 4, 7], ['E', 'dummy', 8, 7]]);
+  P.F.hp = 2;
+  P.D.hp = 1; P.D.armor = 0;
+  engine.setActor('F');
+  assert.equal(engine.attackTarget('F', 'D'), true);
+  until(t, () => !P.D.alive);
+  assert.equal(P.F.hp, Math.min(engine.maxHpOf(P.F), 2 + 5));
+});
+
+test('กลางคืน: ท่าพุ่งไม่มีคูลดาวน์ · กลางวันมี', () => {
+  const P = setup([['F', 'foxy', 3, 7]]);
+  P.F.foxy.dashReady = engine.roundNumber + 2;
+  assert.equal(fx.canUseSkill(engine, P.F, 'basic'), false, 'กลางวันติดคูลดาวน์');
+  assert.equal(fx.skillLocks(engine, P.F).basic.locked, true);
+  engine.setRoundNumber(4);
+  P.F.foxy.dashReady = engine.roundNumber + 2;
+  assert.equal(engine.isNightRound(4), true);
+  assert.equal(fx.canUseSkill(engine, P.F, 'basic'), true, 'กลางคืนไม่มีคูลดาวน์');
+  assert.equal(fx.skillLocks(engine, P.F).basic.cd, 0);
+});
