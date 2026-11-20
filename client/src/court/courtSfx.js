@@ -1,5 +1,8 @@
 // เสียงในศาล — สังเคราะห์ด้วย WebAudio (ยังไม่มีไฟล์เสียงจริง · ผู้ใช้ยังไม่ได้ฟัง)
+import { masterGain, channelGain } from "../audio";
+
 let AC = null;
+const G = () => masterGain() * channelGain("sfx");
 export let courtMuted = false;
 export const setCourtMuted = (v) => { courtMuted = v; };
 const ac = () => { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch { AC = null; } } if (AC && AC.state === "suspended") AC.resume(); return AC; };
@@ -7,14 +10,14 @@ function tone(f, d, type = "square", v = 0.05, slide = 0) {
   const a = ac(); if (!a || courtMuted) return;
   const o = a.createOscillator(), g = a.createGain(); o.type = type; o.frequency.value = f;
   if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), a.currentTime + d);
-  g.gain.value = v; g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + d);
+  g.gain.value = Math.max(0.0002, v * G()); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + d);
   o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + d);
 }
 function noise(d, v = 0.25) {
   const a = ac(); if (!a || courtMuted) return;
   const b = a.createBuffer(1, Math.floor(a.sampleRate * d), a.sampleRate), c = b.getChannelData(0);
   for (let i = 0; i < c.length; i++) c[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / c.length, 3);
-  const s = a.createBufferSource(), g = a.createGain(); g.gain.value = v; s.buffer = b; s.connect(g).connect(a.destination); s.start();
+  const s = a.createBufferSource(), g = a.createGain(); g.gain.value = v * G(); s.buffer = b; s.connect(g).connect(a.destination); s.start();
 }
 export const CSFX = {
   blip: (who) => tone(who === "L" ? 520 : who === "D" ? 380 : who === "J" ? 260 : 440, 0.03, "square", 0.025),

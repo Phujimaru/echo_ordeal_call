@@ -1,6 +1,7 @@
 // ศาลของนารุโฮโดะ (GRID_PLAN §7.37) — ข้อมูลคดี: บันทึกเหตุการณ์ → หลักฐาน / ข้อแก้ตัว / คำให้การ + กติกาตัดสินแต่ละครั้ง
 // ไม่มี React — ใช้ได้ทั้งหน้าทดสอบ (?court=1) และฝั่ง server ภายหลัง
-//  เหตุการณ์ (event) = { id, turn, kind: basic|secondary|ult|attack|move, skill, target, seen, type }
+//  เหตุการณ์ (event) = สัญญา naruhodo-contract.md: { id, round, actorId, actorName, kind: attack|basic|secondary|ultimate|item|move, skill, targetName, type, seen }
+//   (รับชื่อเดิม turn/target/ult ด้วย)
 //  หลักฐาน = เหตุการณ์ที่นารุโฮโดะเห็น · ข้อแก้ตัว = จำนวนเหตุการณ์ที่เขาไม่เห็น (สูงสุด 3)
 //  คำให้การ = ประโยคจากแม่แบบ: lie (ปฏิเสธสิ่งที่ทำจริง — มี key ให้หลักฐานจับ) / truth (เรื่องจริง — ยื่นอะไรใส่ก็ผิด)
 
@@ -16,7 +17,9 @@ export const RULES = {
   dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 },
   heal: { receipt: 1 },
 };
-const TYPE_OF = { basic: "weapon", attack: "weapon", secondary: "receipt", ult: "witness", move: "foot" };
+const TYPE_OF = { basic: "weapon", attack: "weapon", secondary: "receipt", item: "receipt", ultimate: "witness", ult: "witness", move: "foot" };
+const rd = (e) => (e.round != null ? e.round : e.turn);
+const tg = (e) => (e.targetName !== undefined ? e.targetName : e.target);
 
 const pick = (a, r) => a[Math.floor(r() * a.length)];
 export const shuffle = (a, r = Math.random) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -24,14 +27,14 @@ export const shuffle = (a, r = Math.random) => { a = a.slice(); for (let i = a.l
 // แมตช์ปลอมสำหรับหน้าทดสอบ: จำเลยทำ 1 อย่างต่อเทิร์น 8 เทิร์น
 export function mockMatch(def, others, r = Math.random) {
   const sk = def.sk || [];
-  const names = { basic: sk[0] || "ตีปกติ", secondary: sk[1] || sk[0] || "ตีปกติ", ult: sk[2] || "ท่าไม้ตาย", attack: "ตีปกติ", move: "เดิน" };
+  const names = { basic: sk[0] || "ตีปกติ", secondary: sk[1] || sk[0] || "ตีปกติ", ultimate: sk[2] || "ท่าไม้ตาย", attack: "ตีปกติ", item: "ระเบิดมือ", move: "เดิน" };
   const ev = []; let ultUsed = false;
   for (let t = 1; t <= 8; t++) {
-    let kind = pick(["basic", "basic", "secondary", "attack", "move", "ult"], r);
-    if (kind === "ult" && (ultUsed || t < 3)) kind = "attack";
-    if (kind === "ult") ultUsed = true;
-    const target = kind === "move" ? null : pick(others, r).name;
-    ev.push({ id: "e" + t, turn: t, kind, skill: names[kind], target, seen: r() < 0.6, type: TYPE_OF[kind] });
+    let kind = pick(["basic", "basic", "secondary", "attack", "move", "ultimate", "item"], r);
+    if (kind === "ultimate" && (ultUsed || t < 3)) kind = "attack";
+    if (kind === "ultimate") ultUsed = true;
+    const targetName = kind === "move" ? null : pick(others, r).name;
+    ev.push({ id: "e" + t, round: t, actorId: def.id, actorName: def.name, kind, skill: names[kind], targetName, seen: r() < 0.6, type: TYPE_OF[kind] });
   }
   if (!ev.some((e) => e.seen)) ev[ev.length - 1].seen = true;
   return ev;
@@ -41,31 +44,34 @@ export function evidenceOf(events) {
   return events.filter((e) => e.seen).slice(-RULES.maxEvidence).map((e) => ({ ...e, used: false }));
 }
 export const alibiOf = (events) => Math.min(RULES.maxAlibi, events.filter((e) => !e.seen).length);
-export const evName = (e) => (e.kind === "move" ? "รอยเท้า" : e.target ? `${e.skill} → ${e.target}` : e.skill);
-export const evSub = (e) => `${EV_TYPES[e.type].n} · เทิร์น ${e.turn}`;
+export const evName = (e) => (e.kind === "move" ? "รอยเท้า" : tg(e) ? `${e.skill} → ${tg(e)}` : e.skill);
+export const evSub = (e) => `${EV_TYPES[e.type].n} · เทิร์น ${rd(e)}`;
 
 // ประโยคทั้งหมดที่จำเลยพูดได้จากบันทึก (ตัดเรื่องที่ถูกพิสูจน์แล้ว)
+//  ประโยค = { key: "s<n>" (ใช้ส่ง socket), kind, text, m: { skill|target|turn } (สิ่งที่ประโยคโกหกปฏิเสธ) }
 export function statementPool(events, proven = new Set()) {
   const out = [], seenKey = new Set();
-  const add = (s) => { const k = s.kind + "|" + s.text; if (!seenKey.has(k) && !proven.has(s.text)) { seenKey.add(k); out.push(s); } };
+  const add = (s) => { const k = s.kind + "|" + s.text; if (!seenKey.has(k) && !proven.has(s.text)) { seenKey.add(k); out.push({ key: "s" + out.length, ...s }); } };
   for (const e of events) {
+    const t = rd(e), who = tg(e);
     if (e.kind === "move") {
-      add({ kind: "lie", key: { turn: e.turn }, text: `เทิร์น ${e.turn} ฉันยืนอยู่กับที่` });
-      add({ kind: "truth", text: `เทิร์น ${e.turn} ฉันเดินไปอีกฝั่งของสนาม` });
+      add({ kind: "lie", m: { turn: t }, text: `เทิร์น ${t} ฉันยืนอยู่กับที่` });
+      add({ kind: "truth", text: `เทิร์น ${t} ฉันเดินไปอีกฝั่งของสนาม` });
       continue;
     }
-    add({ kind: "lie", key: { skill: e.skill }, text: `ฉันไม่ได้ใช้ ${e.skill}` });
-    if (e.target) add({ kind: "lie", key: { target: e.target }, text: `ฉันไม่เคยแตะต้อง ${e.target}` });
-    add({ kind: "lie", key: { turn: e.turn }, text: `เทิร์น ${e.turn} ฉันไม่ได้ทำอะไรเลย` });
-    add({ kind: "truth", text: e.target ? `ฉันใช้ ${e.skill} ใส่ ${e.target} ตอนเทิร์น ${e.turn}` : `ฉันใช้ ${e.skill} ตอนเทิร์น ${e.turn}` });
+    add({ kind: "lie", m: { skill: e.skill }, text: `ฉันไม่ได้ใช้ ${e.skill}` });
+    if (who) add({ kind: "lie", m: { target: who }, text: `ฉันไม่เคยแตะต้อง ${who}` });
+    add({ kind: "lie", m: { turn: t }, text: `เทิร์น ${t} ฉันไม่ได้ทำอะไรเลย` });
+    add({ kind: "truth", text: who ? `ฉันใช้ ${e.skill} ใส่ ${who} ตอนเทิร์น ${t}` : `ฉันใช้ ${e.skill} ตอนเทิร์น ${t}` });
   }
   return out;
 }
 
 export function contradicts(st, ev) {
   if (!st || st.kind !== "lie" || !ev) return false;
-  const k = st.key;
-  return (k.skill != null && ev.skill === k.skill) || (k.target != null && ev.target === k.target) || (k.turn != null && ev.turn === k.turn);
+  const k = st.m || (typeof st.key === "object" ? st.key : null);
+  if (!k) return false;
+  return (k.skill != null && ev.skill === k.skill) || (k.target != null && tg(ev) === k.target) || (k.turn != null && rd(ev) === k.turn);
 }
 
 // คำให้การของจำเลย AI: โกหก 2–3 + เรื่องจริงอุด · แปะข้อแก้ตัวสุ่ม
