@@ -41,18 +41,20 @@ const SFX = {
   claw: "dino_claw", bite: "dino_bite", crack: "dino_crack", virus: "dino_virus", possess: "dino_possess",
   charge: "dino_charge", slam: "dino_slam", leap: "dino_leap", drain: "dino_drain", revert: "dino_revert",
 };
-// เสียงพากย์ (ตัดจากไฟล์ผู้ใช้ — หน้าฟัง .claude/plans/diego-dino-voice.html) · strike เล่นเองใน preAttackClip (มีคลิป = เงียบ)
+// เสียงพากย์ (ตัดตามประโยคจาก Whisper — .claude/plans/diego-dino-voice-cut.py · คำถอด diego-dino-voice-transcript.txt)
+//  strike เล่นเองใน preAttackClip (มีคลิป = เงียบ) · Wryyy (h04/h06) = ท่อนเดี่ยวต้นตาเดิน (ผู้ใช้สั่ง)
+//  ไม่ใช้: h05 手を貸そう… · h08 · h10 お気の毒だな · e06 よっしゃー · t01 Scary Monsters (คลิปแปลงร่างมีเสียงเอง) · d02 คำรามยาว 5.5 วิ
 const VOICE = {
   human: {
-    turn: ["dino_v_h01", "dino_v_h02", "dino_v_h05"],
+    turn: ["dino_v_h03", "dino_v_h04", "dino_v_h06", "dino_v_h11", "dino_v_e22"],
     strike: [],
-    struck: ["dino_v_e01", "dino_v_e04", "dino_v_e09"],
-    basic: ["dino_v_h13", "dino_v_e02"],
-    secondary: ["dino_v_h14", "dino_v_e03"],
+    struck: ["dino_v_h12", "dino_v_e16", "dino_v_e18", "dino_v_e19"],
+    basic: ["dino_v_h09", "dino_v_e08", "dino_v_e09"],
+    secondary: ["dino_v_h13", "dino_v_e15"],
     ultimate: [], // คลิป
   },
   dino: {
-    turn: ["dino_v_d03", "dino_v_d06"],
+    turn: ["dino_v_d03", "dino_v_d06", "dino_v_e20", "dino_v_e21"],
     strike: [],
     struck: ["dino_v_d01", "dino_v_d05"],
     basic: ["dino_v_d04"],
@@ -60,7 +62,11 @@ const VOICE = {
     ultimate: [], // คลิป
   },
 };
-const STRIKE_VOICE = { human: ["dino_v_h07", "dino_v_h08", "dino_v_h09", "dino_v_h10", "dino_v_h12"], dino: ["dino_v_d01", "dino_v_d03", "dino_v_d05"] };
+const STRIKE_VOICE = {
+  human: ["dino_v_h01", "dino_v_h02", "dino_v_h07", "dino_v_e01", "dino_v_e02", "dino_v_e03", "dino_v_e04", "dino_v_e05", "dino_v_e07",
+    "dino_v_e10", "dino_v_e11", "dino_v_e12", "dino_v_e13", "dino_v_e14", "dino_v_e17"],
+  dino: ["dino_v_d01", "dino_v_d03", "dino_v_d05"],
+};
 const VOICE_REVERT = "dino_v_t02";
 
 const HP = 6;

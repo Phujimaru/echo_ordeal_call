@@ -632,11 +632,11 @@ const FILES = {
   // แม็กน่า สวิง (GRID_PLAN §7.35): สังเคราะห์ .claude/plans/magna-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · ตีปกติ: จุดปะทะ 0.29 วิ (MAGNA_HIT_P)
   ...Object.fromEntries(["swing", "knuckle", "ball", "bat", "bat_hit", "boost", "throw", "arm", "pull", "fin_hit", "chain_break"].map((k) => [`magna_${k}`, `/effect_sound/magna/magna_${k}.m4a`])),
   // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์ · characters/diego_dino.js) — เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/diego-dino-sfx.py (ยังไม่มีคนฟัง)
-  //  เสียงพากย์ตัดจากไฟล์ผู้ใช้ (Downloads\diego_update) → characters/diego_dino/voice — หน้าฟัง .claude/plans/diego-dino-voice.html
+  //  เสียงพากย์ตัดตามประโยค (Whisper) จากไฟล์ผู้ใช้ → characters/diego_dino/voice · .claude/plans/diego-dino-voice-cut.py · หน้าฟัง diego-dino-voice.html
   ...Object.fromEntries(["claw", "bite", "crack", "virus", "possess", "charge", "slam", "leap", "drain", "revert"].map((k) => [`dino_${k}`, `/effect_sound/diego_dino/dino_${k}.m4a`])),
   ...Object.fromEntries([
-    ...Array.from({ length: 16 }, (_, i) => `h${String(i + 1).padStart(2, "0")}`),
-    ...Array.from({ length: 9 }, (_, i) => `e${String(i + 1).padStart(2, "0")}`),
+    ...Array.from({ length: 13 }, (_, i) => `h${String(i + 1).padStart(2, "0")}`),
+    ...Array.from({ length: 22 }, (_, i) => `e${String(i + 1).padStart(2, "0")}`),
     ...Array.from({ length: 6 }, (_, i) => `d${String(i + 1).padStart(2, "0")}`),
     "t01", "t02",
   ].map((k) => [`dino_v_${k}`, `/characters/diego_dino/voice/${k}.m4a`])),

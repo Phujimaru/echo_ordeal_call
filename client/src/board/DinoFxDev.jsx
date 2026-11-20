@@ -112,7 +112,7 @@ export default function DinoFxDev({ units, setUnits, pushFx, setFocus, setShake 
       return { ...u, standee: on ? null : IMG.half, diego: { mounted: on, horseHp: 5 } };
     }),
     frenzy: () => setMe((u) => ({ ...u, dino: { ...(u.dino || {}), frenzy: ((u.dino && u.dino.frenzy) | 0) >= 5 ? 0 : 5 } })),
-    voice: () => { const k = ["h01", "h02", "h05", "h07", "h13", "h14", "d03", "d04"][Math.floor(Math.random() * 8)]; playSfx(`dino_v_${k}`); },
+    voice: () => { const k = ["h03", "h04", "h11", "h13", "e08", "e15", "d03", "d04"][Math.floor(Math.random() * 8)]; playSfx(`dino_v_${k}`); },
   };
   useEffect(() => {
     window.__dinoFx = (k) => play[k] && play[k]();
