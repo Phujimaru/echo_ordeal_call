@@ -443,6 +443,7 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'courtGallery', courtCmd((id, { e, side, evKey }) => Court.gallery(id, { e, side, evKey })), 6);
   onPlayerEvent(socket, 'courtSkip', courtCmd(() => Court.skip()), 10);
   // รอเดี๋ยว!!! (ปุ่มติดตัว — แทรกตาศัตรู) · ตาแทรก (เดิน 2 / เก็บหลักฐาน / คัดค้าน) · ผู้ถูกแทรกสวนด้วยข้อแก้ตัว
+  onPlayerEvent(socket, 'naruPin', courtCmd((id, { evId }) => Court.pinEvidence(Duo.controlledId(id), evId)), 8); // นารุโฮโดะ: ปักหมุดหลักฐาน 📌
   onPlayerEvent(socket, 'naruDiscard', courtCmd((id, { evId }) => Court.discardEvidence(Duo.controlledId(id), evId)), 6); // นารุโฮโดะ: ทิ้งหลักฐานเอง
   onPlayerEvent(socket, 'holdIt', courtCmd((id) => { const p = match.players[id]; return combat.withEffectSource(p, () => Court.holdIt(id)); }), 4);
   onPlayerEvent(socket, 'holdItAct', courtCmd((id, { kind, tile, evId }) => combat.withEffectSource(match.players[id], () => Court.holdItAct(id, { kind, tile, evId }))), 6);

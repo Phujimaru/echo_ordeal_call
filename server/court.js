@@ -11,7 +11,7 @@ Object.assign(module.exports, {
   fresh, st, isNaru, active, who, actorOf, noteAct, noteMove, lastEventOf, addEvidence, noteEvidence, liveEvidence,
   scoutSees, statementPool, contradicts, presentResult, aiTestimony,
   start, view, testimony, act, object, gallery, skip, abort, alibiTotal,
-  discardEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
+  discardEvidence, pinEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
 });
 
 const match = require("./match");
@@ -142,9 +142,24 @@ function addEvidence(n, ev) {
     skill: ev.skill, targetName: ev.targetName, type: ev.type, icon, name: Ev.EV_ICON_NAMES[icon] || "", desc: descOf(ev), used: false,
   };
   s.evidence = s.evidence.filter((e) => !e.used);
-  while (s.evidence.length >= RULES.maxEvidence) s.evidence.shift();
+  // เต็มแล้ว = ตัดอันเก่าสุดที่ไม่ได้ปักหมุด 📌 (ผู้ใช้ 2026-11-20) · ปักครบทุกช่อง = ไม่รับหลักฐานใหม่
+  while (s.evidence.length >= RULES.maxEvidence) {
+    const i = s.evidence.findIndex((e) => !e.pinned);
+    if (i < 0) return null;
+    s.evidence.splice(i, 1);
+  }
   s.evidence.push(item);
   return item;
+}
+// ปักหมุด/ถอนหมุดหลักฐาน 📌 — ชิ้นที่ปักไม่หลุดตอนแฟ้มเต็ม (ทำได้ทุกเมื่อ ยกเว้นระหว่างคดี/ตาแทรก)
+function pinEvidence(id, evId) {
+  const p = match.players[id];
+  if (!isNaru(p) || !p.alive || !p.naruhodo || match.court || match.holdIt) return false;
+  const e = st(p).evidence.find((x) => x.id === evId && !x.used);
+  if (!e) return false;
+  e.pinned = !e.pinned;
+  lazy.view().broadcastState();
+  return true;
 }
 // ทิ้งหลักฐานเอง (ผู้ใช้ 2026-11-20: "ต้องทิ้งได้" — แฟ้มเต็มแล้วหลักฐานดีหลุด สู้คดีไม่ได้) — ไม่เสียแต้ม/ตาเดิน · ห้ามระหว่างมีคดีหรือตาแทรก
 function discardEvidence(id, evId) {

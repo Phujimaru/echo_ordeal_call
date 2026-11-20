@@ -746,3 +746,22 @@ test("ทิ้งหลักฐานเอง (ผู้ใช้ 2026-11-20)
   assert.deepEqual(s.evidence.map((e) => e.id), [v2.id]);
   assert.equal(Court.discardEvidence("A", "nope"), false);
 });
+
+test("ปักหมุดหลักฐาน 📌: แฟ้มเต็มแล้วตัดชิ้นเก่าสุดที่ไม่ได้ปัก · ปักครบ 5 = ไม่รับชิ้นใหม่ · ระหว่างคดีปักไม่ได้", () => {
+  setup();
+  const a = engine.players.A;
+  const s = Court.st(a);
+  const mk = (n) => ({ id: "p" + n, round: 1, actorId: "B", actorName: "B", kind: "basic", skill: "ท่า" + n, targetName: "A", type: "weapon" });
+  const v = [1, 2, 3, 4, 5].map((n) => Court.addEvidence(a, mk(n)));
+  assert.equal(Court.pinEvidence("A", v[0].id), true);
+  assert.equal(s.evidence[0].pinned, true);
+  Court.addEvidence(a, mk(6)); // เต็ม → ตัด p2 (เก่าสุดที่ไม่ได้ปัก) ไม่ใช่ p1
+  assert.deepEqual(s.evidence.map((e) => e.evKey), ["p1", "p3", "p4", "p5", "p6"]);
+  for (const e of s.evidence) if (!e.pinned) Court.pinEvidence("A", e.id);
+  assert.equal(Court.addEvidence(a, mk(7)), null); // ปักครบ = ไม่รับ
+  assert.equal(s.evidence.length, 5);
+  match.court = { phase: "cross" };
+  assert.equal(Court.pinEvidence("A", s.evidence[0].id), false);
+  match.court = null;
+  assert.equal(Court.pinEvidence("B", s.evidence[0].id), false);
+});
