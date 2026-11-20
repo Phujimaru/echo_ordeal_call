@@ -1,7 +1,7 @@
 /* HUD ของนารุโฮโดะ ริวอิจิ — NaruhodoHud.jsx
    แนวภาพ: แผงกระจกน้ำเงินตัดมุมของ HUD เกม + สำเนียง Ace Attorney (แฟ้ม Court Record สีน้ำตาลทอง · การ์ดหลักฐานครีมขอบทอง · แดงคัดค้าน)
    ธีมสว่าง (ค่าเริ่ม) = ตัวแปรด้านล่าง · ธีมมืด = :root[data-ui="dark"] · เคลื่อนไหวด้วย transform/opacity */
-.nr-dock, .nr-rec, .nr-hold, .nr-mini, .nr-alibi, .nr-corner {
+.nr-dock, .nr-rec, .nr-hold, .nr-mini {
   --nr-glass: linear-gradient(180deg, rgba(20, 44, 86, .92), rgba(9, 22, 46, .94));
   --nr-line: rgba(127, 184, 230, .45);
   --nr-gold: #e8bd55;
@@ -12,7 +12,7 @@
   --nr-red: #e2222e;
   font-family: "Kanit", sans-serif;
 }
-:root[data-ui="dark"] .nr-dock, :root[data-ui="dark"] .nr-rec, :root[data-ui="dark"] .nr-hold, :root[data-ui="dark"] .nr-mini, :root[data-ui="dark"] .nr-corner {
+:root[data-ui="dark"] .nr-dock, :root[data-ui="dark"] .nr-rec, :root[data-ui="dark"] .nr-hold, :root[data-ui="dark"] .nr-mini {
   --nr-glass: linear-gradient(180deg, rgba(14, 26, 52, .95), rgba(5, 12, 28, .96));
   --nr-line: rgba(127, 184, 230, .3);
   --nr-paper: #efe6cc;
@@ -28,7 +28,6 @@
 .nr-binder .b-scale { fill: none; stroke: #f2cf72; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .nr-binder-n { position: absolute; right: -6px; top: -6px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px; background: var(--nr-red); color: #fff; font: 800 11px/16px "Kanit", sans-serif; text-align: center; }
 
-/* ---------- แถบแฟ้มหลักฐาน (กลางเหนือแผงล่าง) ---------- */
 
 /* ---------- แฟ้มหลักฐาน: ปุ่มเล็กเกาะเหนือมุมขวาบนของแผงตัวเรา (useProfAnchor) · ชี้ = ช่องหลักฐานกางขึ้น ---------- */
 .nr-dock { position: fixed; left: -9999px; top: 0; z-index: 34; display: flex; align-items: flex-end; gap: 6px; scale: var(--k, 1); transform-origin: 100% 100%; }
@@ -118,61 +117,55 @@
 .nr-hold-cd b { font: 900 34px/1 "Kanit", sans-serif; color: #fff; text-shadow: 0 2px 6px #000; }
 .nr-hold-cd { grid-auto-flow: column; }
 
-/* ---------- ตาแทรก (ทนาย) ---------- */
-.nr-mini { position: fixed; left: 50%; top: calc(104px * var(--k, 1)); z-index: 45; display: flex; align-items: stretch; translate: -50% 0; scale: var(--k, 1); transform-origin: 50% 0;
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .55)); animation: nrSlam .42s cubic-bezier(.2, .9, .3, 1.25) both; }
-.nr-mini-art { position: relative; width: 150px; flex: none; overflow: hidden; background: url("/characters/naruhodo_ryuichi/court/bg_defense.webp") center / cover; border: 2px solid var(--nr-gold); border-right: 0;
-  clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px); }
-.nr-mini-art img { position: absolute; left: 50%; bottom: -6px; height: 128%; translate: -48% 0; image-rendering: pixelated; }
-.nr-mini-main { position: relative; display: flex; flex-direction: column; gap: 10px; min-width: 470px; padding: 10px 14px 16px; color: var(--nr-ink); background: var(--nr-glass); border: 2px solid var(--nr-gold); border-left-width: 1px;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
-.nr-mini-head { display: flex; align-items: center; gap: 12px; min-height: 46px; }
-.nr-mini-bubble { height: 46px; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); animation: nrShake 1.8s ease-in-out infinite; }
-.nr-mini-vs { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(160, 190, 225, .16); border: 1px solid rgba(160, 190, 225, .4); }
-.nr-mini-vs img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; filter: saturate(.3) hue-rotate(180deg) brightness(1.05); border: 2px solid #a0bee1; }
-.nr-mini-vs b { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
-.nr-mini-clock { margin-left: auto; display: grid; }
-.nr-mini-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.nr-act { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 74px; cursor: pointer; color: #fff;
-  border: 1px solid rgba(127, 184, 230, .5); border-radius: 10px; background: linear-gradient(180deg, #2c5ba8, #183a74); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 4px 0 #0c2148;
+/* ---------- แถบตาแทรก 待った! (ล่างกลาง แทนแถวสกิล · useDockSlot วางระหว่างแผงตัวเรากับปุ่มกระเป๋า) ---------- */
+.nr-mini { position: fixed; left: 50%; bottom: 22px; z-index: 45; display: flex; align-items: stretch; height: 118px; translate: -50% 0; scale: var(--s, 1); transform-origin: 50% 100%;
+  color: var(--nr-ink); background: var(--nr-glass); border: 1px solid rgba(232, 189, 85, .7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 12px 28px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .12); animation: nrSlam .42s cubic-bezier(.2, .9, .3, 1.25) both; }
+.nr-mini.off { visibility: hidden; }
+.nr-mini::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: linear-gradient(90deg, #8a0d14, #e2222e 30%, #ffd36a 50%, #e2222e 70%, #8a0d14); }
+.nr-mini-art { position: relative; width: 148px; flex: none; overflow: hidden; background: #000; border-right: 2px solid var(--nr-gold); }
+.nr-mini-art img { position: absolute; left: 50%; top: 50%; width: 158px; height: 118px; translate: -50% -50%; image-rendering: pixelated; }
+.nr-mini-art .fig { width: 190px; height: 142px; top: 56%; translate: -44% -50%; }
+.nr-mini-main { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 9px 12px 12px 14px; min-width: 0; }
+.nr-mini-head { display: flex; align-items: center; gap: 10px; height: 30px; }
+.nr-mini-bubble { height: 34px; flex: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .5)); animation: nrShake 1.8s ease-in-out infinite; }
+.nr-mini-law { font-size: 15px; font-weight: 800; color: #ffe7a6; white-space: nowrap; }
+.nr-mini-vs { display: flex; align-items: center; gap: 6px; min-width: 0; height: 28px; padding: 0 10px 0 4px; border-radius: 999px; background: rgba(160, 190, 225, .16); border: 1px solid rgba(160, 190, 225, .4); }
+.nr-mini-vs i { font-style: normal; font-size: 12px; opacity: .85; }
+.nr-mini-vs img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; filter: saturate(.3) hue-rotate(180deg) brightness(1.05); border: 1.5px solid #a0bee1; }
+.nr-mini-vs b { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+.nr-mini-clock { display: grid; place-items: center; padding: 0 14px 0 4px; }
+.nr-mini-acts { display: grid; grid-template-columns: repeat(3, 118px); gap: 8px; }
+.nr-mini-acts.one { grid-template-columns: 160px; }
+.nr-act { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; height: 52px; cursor: pointer; color: #fff;
+  border: 1px solid rgba(127, 184, 230, .5); border-radius: 9px; background: linear-gradient(180deg, #2c5ba8, #183a74); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 3px 0 #0c2148;
   transition: transform .12s ease, filter .12s ease, box-shadow .12s ease; }
-.nr-act i { font-style: normal; font-size: 26px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
-.nr-act span { font: 800 16px/1.1 "Kanit", sans-serif; letter-spacing: .01em; }
-.nr-act b { position: absolute; right: 7px; top: 6px; min-width: 20px; height: 20px; border-radius: 10px; background: #fff; color: #b0101a; font: 900 12px/20px "Kanit", sans-serif; }
+.nr-act i { font-style: normal; font-size: 21px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .4)); }
+.nr-act span { font: 800 15px/1.1 "Kanit", sans-serif; letter-spacing: .01em; white-space: nowrap; }
+.nr-act b { position: absolute; right: -6px; top: -7px; min-width: 20px; height: 20px; border-radius: 10px; background: #fff; color: #b0101a; font: 900 12px/20px "Kanit", sans-serif; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
 .nr-act:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-2px); }
 .nr-act:active:not(:disabled) { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 1px 0 #0c2148; }
 .nr-act.on { outline: 3px solid #ffd36a; outline-offset: 2px; filter: brightness(1.15); }
-.nr-act.gather { background: linear-gradient(180deg, #a77420, #6c4310); border-color: rgba(255, 220, 140, .6); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 4px 0 #3a2208; }
-.nr-act.object { background: linear-gradient(180deg, #e2343e, #9c0f18); border-color: rgba(255, 180, 180, .7); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 4px 0 #57060b; }
-.nr-act.object span { font-size: 19px; text-shadow: 0 2px 0 #57060b; }
+.nr-act.gather { background: linear-gradient(180deg, #a77420, #6c4310); border-color: rgba(255, 220, 140, .6); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 3px 0 #3a2208; }
+.nr-act.object, .nr-act.alibi { background: linear-gradient(180deg, #e2343e, #9c0f18); border-color: rgba(255, 180, 180, .7); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 3px 0 #57060b; }
+.nr-act.object span { font-size: 17px; text-shadow: 0 2px 0 #57060b; }
+.nr-act.alibi { animation: nrHoldPulse .6s ease-in-out infinite; }
+.nr-act.alibi i { font-size: 28px; }
+.nr-act.alibi span { font-size: 20px; }
 .nr-act:disabled { cursor: default; filter: grayscale(1) brightness(.6); }
-.nr-mini-pick { position: relative; display: flex; align-items: center; gap: 10px; min-height: 74px; }
-.nr-back { width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .4); background: rgba(0, 0, 0, .25); color: #fff; font: 700 18px/1 "Kanit", sans-serif; cursor: pointer; }
-.nr-back:hover { background: rgba(255, 255, 255, .15); }
+/* เลือกหลักฐานคัดค้าน: กางขึ้นเหนือแถบ */
+.nr-mini-up { position: absolute; right: 0; bottom: calc(100% + 8px); display: flex; align-items: center; gap: 10px; padding: 10px 12px; max-width: 640px;
+  background: var(--nr-glass); border: 1px solid rgba(232, 189, 85, .7); box-shadow: 0 10px 24px rgba(0, 0, 0, .5); animation: nrUp .2s ease-out both; }
+.nr-back { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .4); background: rgba(0, 0, 0, .25); color: #fff; font: 700 14px/1 "Kanit", sans-serif; cursor: pointer; }
+.nr-back:hover { background: rgba(226, 34, 46, .8); }
 .nr-mini-evs { display: flex; gap: 10px; }
-.nr-tip { flex: 1; min-width: 0; max-width: 300px; padding: 7px 12px; border-radius: 8px; background: rgba(0, 0, 0, .3); border-left: 3px solid var(--nr-gold); animation: nrFade .15s ease-out both; }
+.nr-tip { flex: 1; min-width: 160px; max-width: 280px; padding: 6px 12px; border-radius: 8px; background: rgba(0, 0, 0, .3); border-left: 3px solid var(--nr-gold); animation: nrFade .15s ease-out both; }
 .nr-tip b { display: block; margin-bottom: 3px; font-size: 16px; color: #ffe7a6; }
 .nr-tip p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--nr-ink); }
-.nr-bar { position: absolute; left: 0; right: 14px; bottom: 0; height: 5px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.nr-bar { position: absolute; left: 148px; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
 .nr-bar i { position: absolute; inset: 0; background: linear-gradient(90deg, #ff5a6a, #ffd36a); transform-origin: 0 50%; animation: nrDrain linear both; }
 .nr-ring-arc { animation: nrRing linear both; stroke-dashoffset: 0; }
-
-/* ---------- นารุโฮโดะตัวเล็กแบบ DS มุมซ้าย (ทุกคน) ---------- */
-.nr-corner { position: fixed; left: calc(20px * var(--k, 1)); top: calc(112px * var(--k, 1)); scale: var(--k, 1); transform-origin: 0 0; z-index: 44; pointer-events: none; animation: nrCornerIn .45s cubic-bezier(.2, .9, .3, 1.2) both; }
-.nr-corner-scr { position: relative; width: 192px; height: 144px; overflow: hidden; border: 3px solid #1d1d22; border-radius: 6px; outline: 2px solid var(--nr-gold); background: #000;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .2); }
-.nr-corner-scr img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
-.nr-corner-name { position: absolute; left: -2px; top: -16px; padding: 2px 10px; background: linear-gradient(90deg, #2c56b0, #183a74); color: #fff; font: 800 13px/1.3 "Kanit", sans-serif; border: 1px solid var(--nr-gold); border-radius: 4px 4px 0 0; }
-
-/* ---------- ข้อแก้ตัว 📍 ---------- */
-.nr-alibi { position: fixed; inset: auto 0 calc(220px) 0; z-index: 46; display: grid; place-items: center; pointer-events: none; }
-.nr-alibi-btn { position: relative; width: 132px; height: 132px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; pointer-events: auto;
-  background: radial-gradient(circle at 50% 40%, #fff 0 32%, #ffd9dc 60%, #f08a94 100%); box-shadow: 0 0 0 4px rgba(255, 255, 255, .7), 0 0 30px rgba(255, 70, 90, .8), 0 10px 22px rgba(0, 0, 0, .5);
-  animation: nrSlam .35s cubic-bezier(.2, .9, .3, 1.3) both, nrHoldPulse .6s ease-in-out .35s infinite; }
-.nr-alibi-btn .nr-ring { position: absolute; inset: 0; }
-.nr-alibi-pin { position: relative; font-size: 58px; line-height: 1; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .4)); }
-.nr-alibi-n { position: absolute; right: -6px; bottom: 4px; padding: 2px 9px; border-radius: 999px; background: #d0141f; color: #fff; font: 900 18px/1.2 "Kanit", sans-serif; border: 2px solid #fff; }
-.nr-alibi-btn:hover { filter: brightness(1.08); }
+@keyframes nrUp { from { opacity: 0; transform: translateY(8px); } }
 
 /* ---------- ป้ายตะโกนผลตาแทรก ---------- */
 .nr-shout { position: fixed; left: 50%; top: 36%; z-index: 90; pointer-events: none; translate: -50% -50%; animation: nrShout 1.3s ease-out both; }
@@ -189,8 +182,7 @@
 @keyframes nrHoldPulse { 50% { box-shadow: 0 0 0 5px rgba(226, 34, 46, .7), 0 0 40px rgba(226, 34, 46, .95), 0 8px 18px rgba(0, 0, 0, .45); } }
 @keyframes nrDrain { to { transform: scaleX(0); } }
 @keyframes nrRing { to { stroke-dashoffset: var(--c); } }
-@keyframes nrCornerIn { from { opacity: 0; transform: translateX(-120%) rotate(-6deg); } }
 @keyframes nrShout { 0% { opacity: 0; transform: scale(2.2) rotate(-6deg); } 12% { opacity: 1; transform: scale(.94) rotate(1deg); } 18% { transform: scale(1.04) rotate(-1deg); } 24%, 80% { transform: scale(1) rotate(0); opacity: 1; } 100% { opacity: 0; transform: scale(1.08); } }
 @media (prefers-reduced-motion: reduce) {
-  .nr-dock, .nr-scout, .nr-hold, .nr-hold.ready, .nr-hold-art img, .nr-mini, .nr-mini-bubble, .nr-corner, .nr-alibi-btn, .nr-shout, .nr-scout-face i, .nr-dock-slot.on, .nr-rec, .nr-rec-big { animation: none !important; }
+  .nr-dock, .nr-scout, .nr-hold, .nr-hold.ready, .nr-hold-art img, .nr-mini, .nr-mini-bubble, .nr-act.alibi, .nr-shout, .nr-scout-face i, .nr-dock-slot.on, .nr-rec, .nr-rec-big { animation: none !important; }
 }

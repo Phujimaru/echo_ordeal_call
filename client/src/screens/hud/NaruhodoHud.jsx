@@ -3,9 +3,8 @@
 //   EvidenceDock   แถบแฟ้มหลักฐานกลางเหนือแผงล่าง: ปกแฟ้ม + จำนวน · ช่องหลักฐาน 5 ช่อง · ป้ายเป้าที่สืบสวน (🔍 + คูลดาวน์ของเป้า)
 //   CourtRecord    หน้าต่างบันทึกหลักฐาน (กดแถบ): ช่องหลักฐาน · ชี้/เลือก = ชื่อ + คำอธิบาย (ผู้ใช้สั่ง — ข้อความเดียวที่อนุญาต)
 //   HoldItButton   ปุ่มลอย รอเดี๋ยว!!! ตอนตาคนอื่น (players[].naruhodo.holdReady / holdCd)
-//   HoldItPanel    ตาแทรก (state.holdIt · phase "choose" · เฉพาะทนาย): เดิน 2 (เลือกช่องบนกระดาน) · เก็บหลักฐาน · คัดค้าน! → เลือกหลักฐาน
-//   HoldItCorner   ทุกคนเห็น: นารุโฮโดะตัวเล็กแบบ DS โผล่มุมจอระหว่างตาแทรก
-//   AlibiCounter   ผู้ถูกคัดค้านที่มีข้อแก้ตัว (phase "alibi"): ปุ่ม 📍 3 วิ
+//   HoldItBar      ตาแทรก (state.holdIt — ทุกคนเห็น): แถบ 待った! ล่างกลางแทนแถวสกิล · DS นารุโฮโดะซ้ายแถบ · วงนับถอยหลัง
+//                  ทนาย: เดิน 2 / เก็บหลักฐาน / คัดค้าน! (เลือกหลักฐานกางขึ้นบน) · ผู้ถูกแทรก ขั้น alibi: ปุ่ม 📍
 //   ShoutFlash     ผลตาแทรก (holdIt.result): คัดค้าน! = ป้าย OBJECTION! กลางจอ · ข้อแก้ตัวสวน = 📍 ประทับ
 //  ไม่มีข้อความอธิบาย — ชื่อ ตัวเลข ไอคอน (+ ชื่อ/คำอธิบายหลักฐาน)
 // ============================================================
@@ -204,76 +203,85 @@ function HoldItButton({ N, onPress, zoom }) {
   );
 }
 
-// ---------- ตาแทรก (ทนาย) ----------
-function HoldItPanel({ hold, N, players, emit, onPickMove, movePicking, zoom }) {
+// ---------- แถบตาแทรก 待った! (ทุกคนเห็น · ล่างกลางแทนแถวสกิล) ----------
+//  วางระหว่างแผงตัวเรา (.hud-left) กับปุ่มกระเป๋า (.hud-right) · ย่อเองถ้าที่ไม่พอ · Game.jsx ซ่อนแถวสกิล/คำสั่งระหว่างตาแทรก
+//  ทนาย: 3 ปุ่ม (เดิน 2 / เก็บหลักฐาน / คัดค้าน! → เลือกหลักฐานกางขึ้นด้านบน) · ผู้ถูกแทรก (ขั้น alibi): ปุ่ม 📍 · คนอื่น: ดูอย่างเดียว
+function useDockSlot(ref, zoom) {
+  const [at, setAt] = useState(null);
+  useEffect(() => {
+    let raf = 0, last = "";
+    const vis = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 && b.top < window.innerHeight ? b : null; };
+    const tick = () => {
+      const el = ref.current;
+      if (el) {
+        const k = zoom || 1, W = window.innerWidth;
+        const lb = vis(document.querySelector(".hud-left .hud-prof") || document.querySelector(".hud-left")), rb = vis(document.querySelector(".hud-right"));
+        const L = lb ? lb.right + 14 : 16, R = rb ? rb.left - 14 : W - 16;
+        const s = Math.max(0.45, Math.min(k, (R - L) / Math.max(1, el.offsetWidth)));
+        const next = { left: Math.round((L + R) / 2), bottom: Math.round(22 * k), s: Math.round(s * 1000) / 1000 };
+        const key = `${next.left}:${next.bottom}:${next.s}`;
+        if (key !== last) { last = key; setAt(next); }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [ref, zoom]);
+  return at;
+}
+function HoldItBar({ hold, N, me, players, emit, onPickMove, movePicking, zoom }) {
+  const ref = useRef(null);
+  const at = useDockSlot(ref, zoom);
   const [objecting, setObjecting] = useState(false);
   const [hoverEv, setHoverEv] = useState(null);
+  const myId = me && me.id;
+  const law = (players || []).find((p) => p.id === hold.lawyerId);
   const actor = (players || []).find((p) => p.id === hold.actorId);
-  const bound = (N.evidence || []).filter((e) => !e.used && e.actorId === hold.actorId);
-  const act = (payload) => { emit("holdItAct", payload); };
+  const lawyer = hold.lawyerId === myId && !!N;
+  const isActor = hold.actorId === myId;
+  const choosing = lawyer && hold.phase === "choose" && !hold.result;
+  const bound = lawyer ? (N.evidence || []).filter((e) => !e.used && e.actorId === hold.actorId) : [];
   const tip = bound.find((e) => e.id === hoverEv) || null;
+  const nominal = HOLD_MS[hold.phase] || HOLD_MS.choose;
+  const act = (payload) => emit("holdItAct", payload);
   return (
-    <div className="nr-mini" style={{ "--k": zoom || 1 }}>
-      <div className="nr-mini-art"><img src={`${DIR}/sprite/talk.webp`} alt="" draggable={false} /></div>
+    <div ref={ref} className={`nr-mini ${at ? "" : "off"}`} style={at ? { left: at.left, bottom: at.bottom, "--s": at.s } : undefined}>
+      {choosing && objecting && (
+        <div className="nr-mini-up">
+          <button type="button" className="nr-back" onClick={() => setObjecting(false)} aria-label="กลับ">✕</button>
+          <div className="nr-mini-evs">
+            {bound.map((e) => <EvCard key={e.id} ev={e} size={56} sel={hoverEv === e.id} onHover={() => setHoverEv(e.id)} onClick={() => act({ kind: "object", evId: e.id })} />)}
+          </div>
+          {tip && <div className="nr-tip"><b>{tip.name}</b><p>{tip.desc}</p></div>}
+        </div>
+      )}
+      <div className="nr-mini-art">
+        <img className="bg" src={`${DIR}/court/bg_defense.webp`} alt="" draggable={false} />
+        <img className="fig" src={`${DIR}/sprite/${hold.phase === "flash" ? "nod.gif" : "talk.webp"}`} alt="" draggable={false} />
+        <img className="desk" src={`${DIR}/court/desk_defense.webp`} alt="" draggable={false} />
+      </div>
       <div className="nr-mini-main">
         <div className="nr-mini-head">
           <img className="nr-mini-bubble" src={`${DIR}/court/shout_holdit_jp.webp`} alt="" draggable={false} />
-          {actor && <span className="nr-mini-vs">{actor.img && <img src={actor.img} alt="" draggable={false} />}<b>{actor.name}</b></span>}
-          <span className="nr-mini-clock"><Ring key={`${hold.actorId}|choose|${hold.deadline}`} deadline={hold.deadline} nominal={HOLD_MS.choose} size={40} stroke={4} /></span>
+          {law && !lawyer && <b className="nr-mini-law">{law.name}</b>}
+          {actor && <span className="nr-mini-vs"><i aria-hidden="true">⏸</i>{actor.img && <img src={actor.img} alt="" draggable={false} />}<b>{actor.name}</b></span>}
         </div>
-        {!objecting ? (
+        {choosing ? (
           <div className="nr-mini-acts">
             <button type="button" className={`nr-act move ${movePicking ? "on" : ""}`} onClick={onPickMove}><i aria-hidden="true">👣</i><span>เดิน 2</span></button>
             <button type="button" className="nr-act gather" onClick={() => act({ kind: "gather" })}><i aria-hidden="true">🔍</i><span>เก็บหลักฐาน</span></button>
-            <button type="button" className="nr-act object" disabled={!bound.length} onClick={() => setObjecting(true)}>
+            <button type="button" className={`nr-act object ${objecting ? "on" : ""}`} disabled={!bound.length} onClick={() => setObjecting((v) => !v)}>
               <i aria-hidden="true">✋</i><span>คัดค้าน!</span>{bound.length > 0 && <b>{bound.length}</b>}
             </button>
           </div>
-        ) : (
-          <div className="nr-mini-pick">
-            <button type="button" className="nr-back" onClick={() => setObjecting(false)} aria-label="กลับ">←</button>
-            <div className="nr-mini-evs">
-              {bound.map((e) => <EvCard key={e.id} ev={e} size={52} sel={hoverEv === e.id} onHover={() => setHoverEv(e.id)} onClick={() => act({ kind: "object", evId: e.id })} />)}
-            </div>
-            {tip && (
-              <div className="nr-tip">
-                <b>{tip.name}</b>
-                <p>{tip.desc}</p>
-              </div>
-            )}
+        ) : isActor && hold.phase === "alibi" ? (
+          <div className="nr-mini-acts one">
+            <button type="button" className="nr-act alibi" onClick={() => emit("holdItAlibi", {})}><i aria-hidden="true">📍</i><span>×{(me && me.courtAlibi) | 0}</span></button>
           </div>
-        )}
-        <Bar key={`${hold.actorId}|bar|${hold.deadline}`} deadline={hold.deadline} nominal={HOLD_MS.choose} />
+        ) : null}
       </div>
-    </div>
-  );
-}
-
-// ---------- นารุโฮโดะตัวเล็กแบบ DS มุมจอ (ทุกคน) ----------
-function HoldItCorner({ hold, players, zoom }) {
-  const law = (players || []).find((p) => p.id === hold.lawyerId);
-  const nod = hold.phase === "flash";
-  return (
-    <div className="nr-corner" aria-hidden="true" style={{ "--k": zoom || 1 }}>
-      <div className="nr-corner-scr">
-        <img src={`${DIR}/court/bg_defense.webp`} alt="" className="nr-corner-bg" draggable={false} />
-        <img src={`${DIR}/sprite/${nod ? "nod.gif" : "talk.webp"}`} alt="" className="nr-corner-fig" draggable={false} />
-        <img src={`${DIR}/court/desk_defense.webp`} alt="" className="nr-corner-desk" draggable={false} />
-      </div>
-      {law && <span className="nr-corner-name">{law.name}</span>}
-    </div>
-  );
-}
-
-// ---------- ข้อแก้ตัว 📍 (ผู้ถูกคัดค้าน) ----------
-function AlibiCounter({ hold, alibi, emit }) {
-  return (
-    <div className="nr-alibi">
-      <button type="button" className="nr-alibi-btn" onClick={() => emit("holdItAlibi", {})} aria-label="ข้อแก้ตัว">
-        <Ring key={`${hold.actorId}|alibi|${hold.deadline}`} deadline={hold.deadline} nominal={HOLD_MS.alibi} size={132} stroke={7} color="#ff5a6a" />
-        <span className="nr-alibi-pin">📍</span>
-        {alibi > 0 && <b className="nr-alibi-n">×{alibi}</b>}
-      </button>
+      <span className="nr-mini-clock"><Ring key={`${hold.seq || ""}|${hold.phase}|${hold.deadline}`} deadline={hold.deadline} nominal={nominal} size={52} stroke={5} color={hold.phase === "alibi" ? "#ff5a6a" : "#ffd36a"} /></span>
+      <Bar key={`${hold.seq || ""}|bar|${hold.phase}|${hold.deadline}`} deadline={hold.deadline} nominal={nominal} />
     </div>
   );
 }
@@ -287,7 +295,8 @@ function ShoutFlash({ kind }) {
 const RESULT_SFX = { object: "naru_objection", countered: "naru_penalty" };
 
 export default function NaruhodoHud({ state, me, hidden, zoom, emit, onPickMove, movePicking }) {
-  const N = me && me.naruhodo;
+  // แฟ้ม/ปุ่มของนารุโฮโดะ: เฉพาะเมื่อ server ส่งข้อมูลเต็มของเจ้าของ (ตัวเราเป็นนารุโฮโดะ หรือ Echo สวมร่าง) — คนอื่นได้แค่ { holdReady }
+  const N = me && me.naruhodo && Array.isArray(me.naruhodo.evidence) ? me.naruhodo : null;
   const hold = state.holdIt || null;
   const players = state.players || [];
   const [recOpen, setRecOpen] = useState(false);
@@ -314,18 +323,12 @@ export default function NaruhodoHud({ state, me, hidden, zoom, emit, onPickMove,
   if (state.court) return null; // ระหว่างคดี = ฉากศาลทั้งจอ
   const myId = me && me.id;
   const otherTurn = !!myId && state.gameState === "ACTION" && !!state.actorId && state.actorId !== myId;
-  const lawyer = !!hold && hold.lawyerId === myId;
-  const isActor = !!hold && hold.actorId === myId;
   return (
     <>
       {N && !hidden && !hold && <EvidenceDock N={N} players={players} zoom={zoom} onOpen={() => setRecOpen(true)} />}
       {N && recOpen && <CourtRecord evidence={N.evidence} onClose={() => setRecOpen(false)} />}
       {N && otherTurn && !hold && N.holdCd != null && <HoldItButton N={N} zoom={zoom} onPress={() => emit("holdIt", {})} />}
-      {hold && <HoldItCorner key={`${hold.lawyerId}|${hold.actorId}`} hold={hold} players={players} zoom={zoom} />}
-      {hold && lawyer && N && hold.phase === "choose" && !res && (
-        <HoldItPanel key={`${hold.actorId}|${hold.deadline}`} hold={hold} N={N} players={players} emit={emit} onPickMove={onPickMove} movePicking={movePicking} zoom={zoom} />
-      )}
-      {hold && isActor && hold.phase === "alibi" && <AlibiCounter hold={hold} alibi={me.courtAlibi | 0} emit={emit} />}
+      {hold && <HoldItBar key={`${hold.seq || ""}|${hold.lawyerId}|${hold.actorId}`} hold={hold} N={N} me={me} players={players} emit={emit} onPickMove={onPickMove} movePicking={movePicking} zoom={zoom} />}
       {flash && <ShoutFlash kind={flash} />}
     </>
   );

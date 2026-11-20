@@ -1113,7 +1113,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               } : null}
             />
           ) : <span />}
-          right={hudMode === "turn" ? (
+          // ตาแทรก รอเดี๋ยว!!! ของนารุโฮโดะ (state.holdIt): แถบ 待った! วางแทนแถวสกิล/คำสั่ง — เหลือปุ่มกระเป๋า
+          right={hudMode === "turn" && !state.holdIt ? (
             <HudCommand
               skills={
                 <>
@@ -1150,7 +1151,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               undo={{ disabled: !(state.action && state.action.moved && !state.action.locked), onClick: () => { clickSound(); socket.emit("undoMove"); } }}
               end={{ disabled: false, onClick: () => { clickSound(); setPickReq(null); socket.emit("endAction"); } }}
             />
-          ) : hudMode === "watch" ? <BagButton solo items={me?.inventory || []} slots={me?.bagSlots || state.bagSlots || 5} onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
+          ) : hudMode === "watch" || (hudMode === "turn" && state.holdIt) ? <BagButton solo items={me?.inventory || []} slots={me?.bagSlots || state.bagSlots || 5} onClick={() => { clickSound(); setBagOpen(true); }} /> : <span />}
         />
       )}
 
