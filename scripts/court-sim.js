@@ -111,6 +111,11 @@ function trial(lawPolicy, defSmart) {
   let folder = m.folder.slice(), alibis = m.alibi + (R.bonusAlibi || 0);
   const proven = [];
   const contest = new Set([...m.folder, ...m.sight].map((e) => e.id));
+  // หลักฐานจากตำรวจตอนเปิดศาล: เรื่องที่ฝั่งทนายไม่เห็นก่อน
+  if (R.policeEvidence) {
+    const unseen = shuffle(m.events.filter((e) => !contest.has(e.id))), rest = shuffle(m.events.filter((e) => contest.has(e.id) && !folder.includes(e)));
+    folder = [...folder, ...[...unseen, ...rest].slice(0, R.policeEvidence)];
+  }
   let rounds = 0;
   for (let round = 1; round <= R.rounds; round++) {
     rounds = round;
@@ -124,6 +129,19 @@ function trial(lawPolicy, defSmart) {
     alibis -= list.filter((s) => s.alibi).length; // แปะไว้ = จองไว้ (คืนถ้าไม่ถูกแตะ)
     const known = new Set();
     let pressLeft = R.pressPer, presentLeft = R.presentPer;
+    // ขอให้ศาลเรียกพยาน (ยกละ summonPer): หลักฐานเรื่องเดียวกับประโยคที่เลือก (ถ้ามีบันทึก)
+    for (let i = 0; i < (R.summonPer || 0); i++) {
+      const live = list.filter((s) => !s.done);
+      let s;
+      if (lawPolicy === "smart") {
+        const ACC = Number(process.env.SIM_ACC) || 0.7;
+        const unproven = live.filter((x) => !folder.some((e) => Court.contradicts({ ...x, kind: "lie" }, e, "D")));
+        s = unproven.find((x) => (Math.random() < ACC ? x.kind === "lie" : x.kind !== "lie")) || null;
+      } else if (Math.random() < 0.5) s = pick(live);
+      if (!s) continue;
+      const m2 = m.events.filter((e) => !folder.includes(e) && subjectMatch(s, e));
+      if (m2.length) folder = [...folder, pick(m2)];
+    }
     const plan = lawyerPlan(list, folder, lawPolicy, known);
     // กดดัน
     for (let i = 0; i < pressLeft && plan.press; i++) {

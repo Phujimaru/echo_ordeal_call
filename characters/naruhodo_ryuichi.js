@@ -1,6 +1,7 @@
 // นารุโฮโดะ ริวอิจิ — ทนายความ (GRID_PLAN §7.38 · สัญญา .claude/plans/naruhodo-contract.md · GAME_SYSTEM §62)
 //  ระบบศาล/บันทึกเหตุการณ์/รอเดี๋ยว!!! อยู่ที่ server/court.js (engine.court) — ไฟล์นี้คือฮุคตัวละคร
-//  basic เอานี่ไปดู! (แนว 3×1 ศัตรูคนแรก −1 · มีหลักฐานของคนนั้น ใช้ 1 ชิ้น = −3 · หลบได้)
+//  basic แลกข้อมูล (ผู้ใช้อนุมัติ 2026-11-21 แทน เอานี่ไปดู!): ฟรี · คูลดาวน์ 2 · ต้องมีหลักฐานในแฟ้ม — ทิ้งหลักฐาน 1 ชิ้นแลกรางวัล 1 อย่าง:
+//   แต้มสกิล +2 / พลังชีวิต +1 / คูลดาวน์ รอเดี๋ยว!!! −1 · ปุ่มหลายตัวเลือก (skillPub choices — key "<evId>|<sp|hp|hold>") · กินโควตา + ล็อกการเดินแบบสกิลปกติ
 //  secondary สืบสวน (ระยะ 4 · หลักฐาน +1 · เห็นทะลุล่องหน/พุ่ม + คูลดาวน์ของเป้าจนจบเทิร์นหน้า · คูลดาวน์ 2)
 //  ultimate เริ่มการไต่สวน (ระยะ 5 · หลบได้ · โดน = ศาล · คูลดาวน์ 5 นับหลังคดีจบ)
 //  passive รอเดี๋ยว!!! (socket holdIt — แทรกตาศัตรูในระยะ 4 · คูลดาวน์ 3 · ตาหน้าเดินไม่ได้ · ปิดด้วยลบสกิลติดตัว)
@@ -9,12 +10,18 @@ const PassiveSeal = require("../server/passiveSeal");
 
 const ID = "naruhodo_ryuichi";
 const DIR = "/characters/naruhodo_ryuichi";
-const IMG = { scout: `${DIR}/skill1.webp`, point: `${DIR}/skill2.webp`, trial: `${DIR}/skill3.webp` };
-const NAME = { point: "เอานี่ไปดู!", scout: "สืบสวน", trial: "เริ่มการไต่สวน", hold: "รอเดี๋ยว!!!" };
-const SFX = { point: "naru_point", scout: "naru_scout", trial: "naru_trial_open" };
-const POINT = { dmg: 1, evDmg: 3 };
+const IMG = { trade: `${DIR}/skill1.webp`, scout: `${DIR}/skill2.webp`, trial: `${DIR}/skill3.webp` };
+const NAME = { trade: "แลกข้อมูล", scout: "สืบสวน", trial: "เริ่มการไต่สวน", hold: "รอเดี๋ยว!!!" };
+//  เสียง: แลกข้อมูล = เสียงแฟ้ม (naru_scout) · สืบสวน = ชี้นิ้ว (naru_point — ภาพชี้นิ้ว skill2) · ท่าไม้ตาย = เปิดศาล
+const SFX = { trade: "naru_scout", scout: "naru_point", trial: "naru_trial_open" };
+const TRADE = { cd: 2, sp: 2, hp: 1, holdCut: 1 };
+const REWARDS = {
+  sp: { name: "แต้มสกิล +2", desc: "แต้มสกิล +2" },
+  hp: { name: "พลังชีวิต +1", desc: "พลังชีวิต +1" },
+  hold: { name: "รอเดี๋ยว!!! −1", desc: "คูลดาวน์ รอเดี๋ยว!!! −1 เทิร์น" },
+};
 const SCOUT = { cd: 2 };
-const ULT = { cd: 5 };
+const ULT = { get cd() { return require("../server/court").RULES.ultCd; } }; // คูลดาวน์นับหลังคดีจบ (2026-11-21: 2)
 
 const C = () => require("../server/court");
 const isMe = (p) => !!p && !p.summon && p.characterId === ID;
@@ -36,26 +43,46 @@ function firstFoe(engine, p, targets, dir) {
 }
 const tileOf = (u) => (u && u.pos ? { x: u.pos.x, y: u.pos.y } : null);
 
-function castPoint(engine, p, targets, dir) {
-  const t = firstFoe(engine, p, targets, dir);
-  if (!t) return "";
-  const court = C();
-  const ev = court.liveEvidence(p).filter((e) => e.actorId === court.actorOf(t).id).pop() || null;
-  engine.boardFx("naruhodoPoint", { kind: "point", id: p.id, by: p.id, targetId: t.id, from: tileOf(p), to: tileOf(t), dir, icon: ev ? ev.icon : null, evName: ev ? ev.name : null });
-  t.wasAttacked = true;
-  if (engine.skillDodge(p, t, NAME.point)) return " — หลบ";
-  const block = engine.attackBlocked ? engine.attackBlocked(t, p) : null;
-  if (block) { engine.log(`🛡️ ${t.name} ${block.name} — กัน${NAME.point}ของ ${p.name}`); return ""; }
-  const n = ev ? POINT.evDmg : POINT.dmg;
-  if (ev) ev.used = true; // ใช้หลักฐานเมื่อโดนจริงเท่านั้น
-  engine.dealMixed(t, n, false);
-  engine.log(`☝️ ${p.name} ${NAME.point}${ev ? ` (${ev.name})` : ""} → ${t.name} -${n} (ลดเกราะก่อน)`);
-  if (t.alive && t.hp <= 0) {
-    engine.instantDeath(t);
-    if (!t.alive) engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`);
+// แลกข้อมูล: form = "<evId>|<sp|hp|hold>" — ทิ้งหลักฐานชิ้นนั้น (ใช้ในศาลไม่ได้อีก) แล้วรับรางวัล
+function parseTrade(p, form) {
+  const [evId, reward] = String(form || "").split("|");
+  const ev = C().liveEvidence(p).find((e) => e.id === evId);
+  return ev && REWARDS[reward] ? { ev, reward } : null;
+}
+function tradeLocked(engine, p, reward) {
+  const s = st(p);
+  if (reward === "sp") return p.skillPoints >= engine.maxSkillOf(p);
+  if (reward === "hp") return p.hp >= engine.maxHpOf(p);
+  if (reward === "hold") return (s.holdReady || 0) <= engine.roundNumber;
+  return true;
+}
+function tradeChoices(engine, p) {
+  const out = [];
+  for (const ev of C().liveEvidence(p)) {
+    for (const [k, r] of Object.entries(REWARDS)) {
+      out.push({
+        key: `${ev.id}|${k}`, name: `${ev.name} → ${r.name}`, img: IMG.trade, cost: 0, area: { kind: "self" },
+        evId: ev.id, evIcon: ev.icon, evName: ev.name, reward: k, rewardName: r.name, locked: tradeLocked(engine, p, k),
+        desc: `ทิ้ง ${ev.name} (${ev.desc}) แลก ${r.desc}`,
+      });
+    }
   }
-  if (!t.alive) t.pos = null;
-  return ev ? ` — ${ev.name}` : "";
+  return out;
+}
+function castTrade(engine, p, form) {
+  const t = parseTrade(p, form);
+  if (!t) return "";
+  const s = st(p);
+  s.tradeReady = engine.roundNumber + TRADE.cd;
+  t.ev.used = true; // ทิ้งจากแฟ้ม
+  s.evidence = s.evidence.filter((e) => !e.used);
+  let got = 0;
+  if (t.reward === "sp") { const b = p.skillPoints; engine.addSkill(p, TRADE.sp, "naruhodo"); got = p.skillPoints - b; }
+  else if (t.reward === "hp") got = engine.healHp(p, TRADE.hp) || 0;
+  else if (t.reward === "hold") { const b = s.holdReady || 0; s.holdReady = Math.max(engine.roundNumber, b - TRADE.holdCut); got = b - s.holdReady; }
+  engine.boardFx("naruhodoScout", { kind: "trade", id: p.id, by: p.id, from: tileOf(p), icon: t.ev.icon, reward: t.reward, amount: got });
+  engine.log(`📁 ${p.name} ${NAME.trade} — ทิ้ง ${t.ev.name} → ${REWARDS[t.reward].name}`);
+  return ` — ${REWARDS[t.reward].name}`;
 }
 function castScout(engine, p, targets) {
   const t = (targets || []).map((id) => engine.players[id]).find((u) => foe(engine, p, u));
@@ -90,7 +117,7 @@ function castTrial(engine, p, targets) {
 
 module.exports = {
   id: ID,
-  IMG, NAME, SFX, POINT, SCOUT, ULT, isMe, firstFoe,
+  IMG, NAME, SFX, TRADE, REWARDS, SCOUT, ULT, isMe, firstFoe, tradeChoices,
 
   resetCombat(p) {
     p.courtAlibi = 0; // ข้อแก้ตัว (ทุกคน — มีผลเฉพาะแมตช์ที่มีนารุโฮโดะ)
@@ -105,7 +132,7 @@ module.exports = {
     const inCourt = !!require("../server/match").court;
     const ult = s.ultReady >= Number.MAX_SAFE_INTEGER ? 0 : cdLeft(s.ultReady, r);
     return {
-      basic: { cd: 0, locked: false },
+      basic: { cd: cdLeft(s.tradeReady, r), locked: cdLeft(s.tradeReady, r) > 0 || !C().liveEvidence(p).length },
       secondary: { cd: sc, locked: sc > 0 },
       ultimate: { cd: ult, locked: ult > 0 || inCourt || s.ultReady >= Number.MAX_SAFE_INTEGER },
     };
@@ -115,7 +142,11 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     const m = require("../server/match");
     if (engine.action && engine.action.holdIt) return false;
-    if (tier === "basic") return !!firstFoe(engine, p, targets, opts.dir);
+    if (tier === "basic") { // แลกข้อมูล: ต้องมีหลักฐาน · ไม่ใช่ระหว่างคดี/ตาแทรก · ตัวเลือกถูกต้องและได้ผลจริง
+      if (cdLeft(s.tradeReady, r) > 0 || m.court || m.holdIt) return false;
+      const t = parseTrade(p, opts.form);
+      return !!t && !tradeLocked(engine, p, t.reward);
+    }
     const t = (targets || []).map((id) => engine.players[id]).find((u) => foe(engine, p, u));
     if (!t) return false;
     if (tier === "secondary") return cdLeft(s.scoutReady, r) === 0;
@@ -130,14 +161,19 @@ module.exports = {
   },
   applyInstantSkill(engine, p, tier, targets, opts = {}) {
     if (!isMe(p)) return "";
-    if (tier === "basic") return castPoint(engine, p, targets, opts.dir);
+    if (tier === "basic") return castTrade(engine, p, opts.form);
     if (tier === "secondary") return castScout(engine, p, targets);
     if (tier === "ultimate") return castTrial(engine, p, targets);
     return "";
   },
   skillSound(p, tier) {
     if (!isMe(p)) return null;
-    return tier === "basic" ? SFX.point : tier === "secondary" ? SFX.scout : tier === "ultimate" ? SFX.trial : null;
+    return tier === "basic" ? SFX.trade : tier === "secondary" ? SFX.scout : tier === "ultimate" ? SFX.trial : null;
+  },
+  // ปุ่มแลกข้อมูล = ปุ่มหลายตัวเลือก (หลักฐาน × รางวัล)
+  skillPub(p, tier) {
+    if (!isMe(p) || tier !== "basic") return null;
+    return { choices: tradeChoices(require("../server/engine").engine, p) };
   },
   attackElement() { return null; },
   skillElement() { return null; },

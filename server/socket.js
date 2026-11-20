@@ -440,7 +440,8 @@ io.on('connection', (socket) => {
   onPlayerEvent(socket, 'courtTestimony', courtCmd((id, { picks }) => Court.testimony(id, picks)), 6);
   onPlayerEvent(socket, 'courtAct', courtCmd((id, { type, idx, evId, evKey }) => Court.act(id, { type, idx, evId, evKey })), 12);
   onPlayerEvent(socket, 'courtObject', courtCmd((id) => Court.object(id)), 6);
-  onPlayerEvent(socket, 'courtGallery', courtCmd((id, { e, side, evKey }) => Court.gallery(id, { e, side, evKey })), 6);
+  onPlayerEvent(socket, 'courtGallery', courtCmd((id, { e, evKey }) => Court.gallery(id, { e, evKey })), 6); // ทำตามฝ่ายที่เลือกไว้
+  onPlayerEvent(socket, 'courtSide', courtCmd((id, { side }) => Court.side(id, side)), 4); // ประชาชนเลือกฝ่าย (เปิดศาล · เปลี่ยนได้ 1 ครั้ง)
   onPlayerEvent(socket, 'courtSkip', courtCmd(() => Court.skip()), 10);
   // รอเดี๋ยว!!! (ปุ่มติดตัว — แทรกตาศัตรู) · ตาแทรก (เดิน 2 / เก็บหลักฐาน / คัดค้าน) · ผู้ถูกแทรกสวนด้วยข้อแก้ตัว
   onPlayerEvent(socket, 'naruPin', courtCmd((id, { evId }) => Court.pinEvidence(Duo.controlledId(id), evId)), 8); // นารุโฮโดะ: ปักหมุดหลักฐาน 📌

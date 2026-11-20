@@ -40,7 +40,12 @@ function clear(cx, cy, r = 9) {
   }
 }
 // A = นารุโฮโดะ · B = จำเลย · C/D/E/F = คนอื่น (ประชาชน)
-function setup({ others = ["muimi"], extra = 0 } = {}) {
+const POLICE = Court.RULES.policeEvidence, BONUS = Court.RULES.bonusAlibi;
+test.after(() => { Court.RULES.policeEvidence = POLICE; Court.RULES.bonusAlibi = BONUS; });
+// ปิดหลักฐานตำรวจ/ข้อแก้ตัวโบนัสในเทสต์ทั่วไป (เทสต์เฉพาะเปิดเอง) — ตัวเลขจริงตรวจในเทสต์ "ตัวเลขศาล"
+function setup({ others = ["muimi"], extra = 0, police = 0, bonus = 0 } = {}) {
+  Court.RULES.policeEvidence = police;
+  Court.RULES.bonusAlibi = bonus;
   for (const k of Object.keys(engine.players)) delete engine.players[k];
   const mk = (id, characterId, position) => {
     engine.players[id] = {
@@ -97,10 +102,12 @@ test("ข้อมูลตัวละคร: ระยะ · ราคา · �
   assert.equal(ch.unique, true);
   assert.deepEqual(ch.range, [1, 1]);
   assert.equal(ch.mov, 4);
-  assert.deepEqual(ch.basic.area, { kind: "line", len: 3, width: 1, hostile: true });
+  assert.deepEqual(ch.basic.area, { kind: "self" });
+  assert.equal(ch.basic.img, "/characters/naruhodo_ryuichi/skill1.webp");
+  assert.equal(ch.secondary.img, "/characters/naruhodo_ryuichi/skill2.webp");
   assert.deepEqual(ch.secondary.area, { kind: "target", range: 4, hostile: true });
   assert.deepEqual(ch.ultimate.area, { kind: "target", range: 5, hostile: true });
-  assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [1, 2, 6]);
+  assert.deepEqual([ch.basic.cost, ch.secondary.cost, ch.ultimate.cost], [0, 2, 4]);
 });
 
 test("ไอคอนหลักฐาน server = client (evidenceData.js)", () => {
@@ -155,27 +162,43 @@ test("ตีปกติของศัตรูถูกจดผ่าน acti
   assert.ok(Court.liveEvidence(A).some((v) => v.evKey === e.id));
 });
 
-test("เอานี่ไปดู!: แนว 3 ดาเมจ 1 · มีหลักฐาน = 3 และใช้หลักฐาน", () => {
+test("แลกข้อมูล: ต้องมีหลักฐาน · ทิ้ง 1 ชิ้นแลก แต้ม +2 / พลังชีวิต +1 / รอเดี๋ยว!!! −1 · กินโควตา · ล็อกการเดิน · คูลดาวน์ 2 · ตัวเลือกมี desc", () => {
   const { A, B } = setup();
-  Math.random = () => 0.99;
   engine.setActor("A");
-  engine.useSkill("A", "basic", [], { dir: "right" });
-  assert.equal(B.hp, 9);
-  assert.ok(fx.some((f) => f.event === "naruhodoPoint"));
-  Court.noteAct(B, "basic", "ฟัน", ["A"]);
-  A.skillUsedRound = false; A.skillPoints = 8;
-  engine.setActor("A");
-  engine.useSkill("A", "basic", [], { dir: "right" });
-  assert.equal(B.hp, 6);
-  assert.equal(Court.liveEvidence(A).length, 0, "หลักฐานถูกใช้");
-  // นอกแนว 3 = กดไม่ได้
-  B.pos = { x: 10, y: 6 };
-  A.skillUsedRound = false; const sp = A.skillPoints;
-  engine.setActor("A");
-  engine.useSkill("A", "basic", [], { dir: "right" });
-  assert.equal(A.skillPoints, sp);
+  // ไม่มีหลักฐาน = กดไม่ได้
+  A.naruhodo.evidence = [];
+  assert.equal(N.skillLocks(engine, A).basic.locked, true);
+  engine.useSkill("A", "basic", [], { form: "x|sp" });
+  assert.equal(A.skillUsedRound, false);
+  const v1 = Court.addEvidence(A, ev({ id: "t1" })), v2 = Court.addEvidence(A, ev({ id: "t2" })), v3 = Court.addEvidence(A, ev({ id: "t3" }));
+  const pub = engine.buildStateFor("A").players.find((p) => p.id === "A").character.basic;
+  assert.equal(pub.choices.length, 9, "หลักฐาน 3 × รางวัล 3");
+  for (const o of pub.choices) assert.ok(o.desc && o.evId && o.reward && Number.isInteger(o.evIcon));
+  // แต้ม +2
+  A.skillPoints = 3;
+  engine.useSkill("A", "basic", [], { form: `${v1.id}|sp` });
+  assert.equal(A.skillPoints, 5);
+  assert.ok(!Court.liveEvidence(A).some((v) => v.id === v1.id), "หลักฐานถูกทิ้ง");
+  assert.equal(A.skillUsedRound, true, "กินโควตา");
+  assert.equal(engine.action.locked, true, "ล็อกการเดิน");
+  assert.equal(N.skillLocks(engine, A).basic.cd, 2);
+  assert.ok(fx.some((f) => f.event === "naruhodoScout" && f.payload.kind === "trade" && f.payload.reward === "sp"));
+  // พลังชีวิต +1 (เทิร์นถัดไป)
+  A.naruhodo.tradeReady = 0; A.skillUsedRound = false; engine.setActor("A");
+  A.hp = 5;
+  engine.useSkill("A", "basic", [], { form: `${v2.id}|hp` });
+  assert.equal(A.hp, 6);
+  // รอเดี๋ยว!!! −1 · ไม่มีคูลดาวน์ให้ลด = กดไม่ได้
+  A.naruhodo.tradeReady = 0; A.skillUsedRound = false; engine.setActor("A");
+  A.naruhodo.holdReady = 0;
+  engine.useSkill("A", "basic", [], { form: `${v3.id}|hold` });
+  assert.ok(Court.liveEvidence(A).some((v) => v.id === v3.id), "ไม่มีผล = ไม่ใช้");
+  A.naruhodo.holdReady = engine.roundNumber + 3;
+  engine.useSkill("A", "basic", [], { form: `${v3.id}|hold` });
+  assert.equal(A.naruhodo.holdReady, engine.roundNumber + 2);
+  assert.equal(Court.liveEvidence(A).length, 0);
+  void B;
 });
-
 test("สืบสวน: หลักฐาน +1 · เห็นทะลุพุ่ม/ล่องหน · คูลดาวน์ 2", () => {
   const { A, B } = setup();
   Court.noteAct(B, "secondary", "ยาพิษ", []);
@@ -223,13 +246,13 @@ test("สืบสวน: เห็นเป้าในพุ่มหญ้า
   } finally { hook.stealthed = was; assert.equal(Visibility.hiddenFrom, orig); }
 });
 
-test("เริ่มการไต่สวน: หลบพ้น = ไม่ขึ้นศาล คูลดาวน์ 5", () => {
+test("เริ่มการไต่สวน: หลบพ้น = ไม่ขึ้นศาล คูลดาวน์ 2", () => {
   const { A, B } = setup();
   B.statuses.evade = 2; B.statusAmt.evade = 100;
   engine.setActor("A");
   engine.useSkill("A", "ultimate", ["B"]);
   assert.equal(match.court, null);
-  assert.equal(N.skillLocks(engine, A).ultimate.cd, 5);
+  assert.equal(N.skillLocks(engine, A).ultimate.cd, 2);
 });
 
 test("เริ่มการไต่สวน: ศาลพักเกม → AI ให้การ → ซักค้าน → จบยก → คำตัดสิน → กลับตาเดินนารุโฮโดะ", () => {
@@ -253,7 +276,7 @@ test("เริ่มการไต่สวน: ศาลพักเกม �
   assert.equal(c2.list.length, Court.RULES.statements);
   assert.equal(c2.list.length, 4);
   assert.deepEqual(c2.cred, { L: 6, D: 6 });
-  assert.equal(c2.rounds, 4);
+  assert.equal(c2.rounds, 3);
   const vB = engine.buildStateFor("B").court, vA = engine.buildStateFor("A").court;
   assert.ok(vB.list.every((s) => "alibi" in s) && vA.list.every((s) => !("alibi" in s)));
   assert.ok(Array.isArray(vA.evidence) && vB.evidence === undefined);
@@ -269,7 +292,7 @@ test("เริ่มการไต่สวน: ศาลพักเกม �
   assert.equal(engine.gameState, "ACTION");
   assert.equal(engine.actorId, "A");
   assert.equal(B.alive, true);
-  assert.equal(N.skillLocks(engine, A).ultimate.cd, 5, "คูลดาวน์นับหลังคดี");
+  assert.equal(N.skillLocks(engine, A).ultimate.cd, 2, "คูลดาวน์นับหลังคดี");
 });
 
 test("คำให้การของจำเลย: ตรวจจำนวน/ซ้ำ/ข้อแก้ตัวเฉพาะประโยคโกหก/ห้ามเกินที่มี/ส่งซ้ำไม่ได้", () => {
@@ -316,7 +339,7 @@ test("ยื่นหลักฐาน: ตรง (จำเลย −2) · ผ
   // ข้อแก้ตัว
   const e2 = add({ skill: "บาง", round: 2 });
   Court.act("A", { type: "present", idx: 2, evId: e2.id }); drive("cross");
-  assert.equal(c.cred.L, 1, "ชนข้อแก้ตัว −3");
+  assert.equal(c.cred.L, 2, "ชนข้อแก้ตัว −2");
   assert.equal(c.list[2].alibi, false);
   assert.equal(B.courtAlibi, 1, "แปะ 📍 = ใช้ไปตั้งแต่ให้การ (2 → 1) ชนแล้วไม่หักซ้ำ");
   assert.ok(!Court.liveEvidence(A).some((v) => v.id === e2.id), "หลักฐานถูกเผา");
@@ -344,7 +367,7 @@ test("presentResult ครบทุกแบบ (พยานทะลุข้�
   assert.equal(Court.presentResult(plain, ev({ round: 3, type: "witness" }), "B").dD, 2);
   assert.equal(Court.presentResult(plain, ev({ round: 3, type: "weapon" }), "B").dD, 2);
   assert.equal(Court.presentResult({ kind: "truth" }, ev(), "B").dL, 1);
-  assert.equal(Court.presentResult(lie, ev({ round: 3 }), "B").dL, 3);
+  assert.equal(Court.presentResult(lie, ev({ round: 3 }), "B").dL, 2);
   assert.equal(Court.presentResult(plain, ev({ round: 3, actorId: "C" }), "B").kind, "wrong", "หลักฐานของคนอื่นไม่จับ");
   assert.equal(Court.presentResult({ kind: "truth" }, ev(), "B").kind, "irrelevant");
 });
@@ -416,7 +439,7 @@ test("ฝ่ายค้านคัดค้าน: หลักฐานจั
   assert.equal(c.cred.L, 4);
 });
 
-test("ประชาชน: เชียร์/โห่ (ไม่เกิน ±2) · ปาเกิน 3 = เงียบ! ไล่ออก · พยานช่วยทนาย/ช่วยจำเลย · รางวัล", () => {
+test("ประชาชน: เลือกฝ่ายตอนเปิดศาล (เปลี่ยนได้ 1) · เชียร์/โห่/ปาระหว่างซักค้าน ±1 ต่อยก · ปาเกิน 3 = ไล่ · พยานระหว่างซักค้าน · รางวัล", () => {
   const { A, B } = setup({ extra: 5 });
   for (const id of ["C", "D", "E", "F", "G"]) engine.players[id].pos = { x: 3, y: 2 + ["C", "D", "E", "F", "G"].indexOf(id) };
   const C = engine.players.C;
@@ -424,82 +447,97 @@ test("ประชาชน: เชียร์/โห่ (ไม่เกิน
   const seen = Court.noteAct(B, "basic", "ฟัน", ["A"]);
   assert.ok(seen.seenBy.includes("C"));
   A.naruhodo.evidence = [];
-  const c = base5(openCourt(A, B, [{ kind: "lie", text: "a", k: { skill: "ฟัน" } }, { kind: "lie", text: "a2", k: { turn: 77 } }, { kind: "truth", text: "b" }, { kind: "truth", text: "c" }]));
-  assert.deepEqual([...c.galleryIds].sort(), ["C", "D", "E", "F", "G"]);
-  assert.ok(engine.buildStateFor("C").court.sightings.some((s) => s.key === seen.id));
-  Court.act("A", { type: "end" });
-  assert.equal(drive("gallery").phase, "gallery");
-  assert.equal(Court.gallery("A", { e: "cheer", side: "L" }), false, "ทนายไม่ใช่ประชาชน");
-  assert.equal(Court.gallery("C", { e: "witnessL", evKey: seen.id }), true);
-  assert.equal(Court.gallery("C", { e: "cheer", side: "L" }), false, "1 ครั้งต่อยก");
-  Court.gallery("D", { e: "throw", side: "D" });
-  Court.gallery("E", { e: "throw", side: "D" });
-  Court.gallery("F", { e: "throw", side: "D" });
-  Court.gallery("G", { e: "throw", side: "L" });
+  engine.setActor("A");
+  engine.court.start(A, B);
+  engine.pausePlayingForCutscene();
+  B.connected = true;
+  let c = drive("sides");
+  assert.equal(c.phase, "sides");
+  assert.equal(Court.side("A", "L"), false, "ทนายไม่ใช่ประชาชน");
+  assert.equal(Court.side("C", "L"), true);
+  assert.equal(Court.side("C", "D"), true, "เปลี่ยนได้ 1 ครั้ง");
+  assert.equal(Court.side("C", "L"), false, "เปลี่ยนเกิน");
+  assert.equal(engine.buildStateFor("C").court.sideChangeLeft, 0);
+  Court.side("D", "L"); Court.side("E", "L"); Court.side("F", "L");
+  Court.side("G", "D"); // ครบทุกคน = ไปต่อทันที
+  c = drive("testimony");
+  c.pool = [{ key: "a", kind: "lie", text: "a", form: "denySkill", k: { skill: "ฟัน" } }, { key: "b", kind: "lie", text: "b", k: { turn: 77 } }, { key: "x", kind: "truth", text: "x" }, { key: "y", kind: "truth", text: "y" }];
+  Court.testimony("B", c.pool.map((x) => ({ key: x.key })));
+  c = drive("cross");
+  base5(c);
+  // ฝ่ายทนายโห่ + ปาใส่จำเลย → โห่/ปาใช้ช่องเดียวกัน = จำเลย −1 ครั้งเดียวต่อยก
+  assert.equal(Court.gallery("D", { e: "boo" }), true);
+  assert.equal(Court.gallery("D", { e: "cheer" }), false, "ยกละครั้งต่อคน");
+  Court.gallery("E", { e: "throw" }); Court.gallery("F", { e: "throw" });
+  assert.equal(c.cred.D, 4, "โห่/ปาได้ผลครั้งเดียว");
+  Court.gallery("G", { e: "cheer" }); // ฝ่ายจำเลยเชียร์ +1 (ช่องเชียร์แยกกัน)
+  assert.equal(c.cred.D, 5);
+  c.cred.L = 4;
+  assert.ok(engine.buildStateFor("A").court.feed.length >= 3);
+  // พยานระหว่างซักค้าน: C เปลี่ยนไปฝ่ายจำเลยแล้ว = ช่วยทนายไม่ได้ · ช่วยจำเลยได้
+  assert.equal(Court.gallery("C", { e: "witnessL", evKey: seen.id }), false);
+  const alibi0 = B.courtAlibi || 0;
+  assert.equal(Court.gallery("C", { e: "witnessD" }), true);
   drive("cross");
-  assert.equal(c.cred.D, 3, "รวมไม่เกิน −2");
-  assert.equal(c.cred.L, 4);
-  assert.ok(c.outIds.length === 1, "ไล่คนปาล่าสุด");
-  assert.ok(Court.liveEvidence(A).some((v) => v.evKey === seen.id), "พยานให้หลักฐาน");
-  assert.equal(c.round, 2);
-  // ยก 2: ยื่นหลักฐานจากพยาน → จำเลย 0 = มีความผิด · พยานฝ่ายชนะ +1 HP +2 เหรียญ
-  // ยก 2 (จำเลย AI): ตั้งประโยคโกหกที่หลักฐานของพยานจับได้แน่ๆ
-  c.list[0] = { ...c.list[0], form: "denySkill", kind: "lie", k: { skill: "ฟัน" }, alibi: false, done: false, presentTried: false };
-  const st = 0;
+  assert.equal(B.courtAlibi, alibi0 + 1);
+  assert.equal(Court.gallery("C", { e: "witnessD" }), false, "ครั้งเดียวต่อคดี");
+  // ปาเกิน 3 ครั้งในยก = ไล่คนปาล่าสุด (ยกถัดไป)
+  c.rx = {}; c.throws = 3;
+  Court.gallery("E", { e: "throw" });
+  assert.ok(c.outIds.includes("E"));
+  // คำตัดสินมีความผิด: ฝ่ายทนายที่มีส่วนร่วม +1 HP · พยานฝ่ายชนะ +2 เหรียญ
+  for (const id of ["D", "F"]) engine.players[id].hp = 5;
   c.cred.D = 2;
-  {
-    const w = Court.liveEvidence(A).find((v) => v.evKey === seen.id);
-    C.hp = 5; C.gold = 0;
-    Court.act("A", { type: "present", idx: st, evId: w.id });
-    const v = drive("verdict");
-    assert.equal(v.verdict.w, "guilty");
-    assert.ok(v.verdict.rewards.some((r) => r.id === "C" && r.gold === 2));
-    drive("none");
-    assert.equal(B.alive, false);
-    assert.equal(C.hp, 6);
-    assert.equal(C.gold, 2);
-  }
+  const w = Court.addEvidence(A, ev({ skill: "ฟัน" }));
+  Court.act("A", { type: "present", idx: c.list.findIndex((x) => x.text === "a"), evId: w.id });
+  const v = drive("verdict");
+  assert.equal(v.verdict.w, "guilty");
+  assert.ok(v.verdict.rewards.some((r) => r.id === "D") && v.verdict.rewards.some((r) => r.id === "F"));
+  assert.ok(!v.verdict.rewards.some((r) => r.id === "C" || r.id === "G"), "ฝ่ายแพ้ไม่ได้");
+  // เปลี่ยนฝ่าย = สละรางวัล (C เปลี่ยนจาก L ไป D)
+  drive("none");
+  assert.equal(engine.players.D.hp, 6);
 });
-
-test("มีความผิด: ตายแน่นอน ทะลุจุติของอรชุน · ทนายเป็นผู้สังหาร · คลิปฉากจบ (ไม่มีเสียงตะโกนก่อน)", () => {
+test("มีความผิด: จำเลย −9 ลดเกราะก่อน (ไม่ใช่ตายทันที) · ทนายฟื้นเท่าความน่าเชื่อถือที่เหลือ · คลิปฉากจบไม่มีเสียงตะโกนก่อน", () => {
   const { A, B } = setup();
-  B.statuses.jutti = 1;
+  B.hp = 10; B.armor = 3;
   A.hp = 3;
   const c = openCourt(A, B, [{ kind: "lie", text: "a", k: { skill: "ฟัน" } }, { kind: "truth", text: "b" }, { kind: "truth", text: "c" }]);
   c.cred.D = 2; c.cred.L = 4;
   const w = Court.addEvidence(A, ev({ skill: "ฟัน" }));
   Court.act("A", { type: "present", idx: 0, evId: w.id });
   const pre = match.court.beat.steps;
-  assert.ok(!pre.some((s) => s.k === "shout" || s.k === "say" || s.k === "present"), "ยื่นหลักฐานชี้ขาด = ไม่มีเสียงตะโกนนำ");
+  assert.ok(!pre.some((x) => x.k === "shout" || x.k === "say" || x.k === "present"), "ยื่นหลักฐานชี้ขาด = ไม่มีเสียงตะโกนนำ");
   engine.releaseBeat();
-  const b = match.court;
-  const steps = b.beat.steps;
-  const clip = steps.findIndex((s) => s.k === "clip");
+  const steps = match.court.beat.steps;
+  const clip = steps.findIndex((x) => x.k === "clip");
   assert.ok(clip >= 0, "มีคลิปฉากจบ");
-  assert.ok(!steps.slice(0, clip).some((s) => s.k === "shout" || s.k === "say" || s.k === "present"), "ไม่มีเสียงก่อนคลิป");
+  assert.ok(!steps.slice(0, clip).some((x) => x.k === "shout" || x.k === "say" || x.k === "present"), "ไม่มีเสียงก่อนคลิป");
   assert.equal(N.skillMusic(engine, A), null, "เงียบเพลงระหว่างคลิป");
   const v = drive("verdict");
   assert.equal(v.verdict.w, "guilty");
-  assert.equal(v.verdict.lawyerHeal, 4, "ฟื้นเท่าความน่าเชื่อถือที่เหลือ");
-  assert.ok(v.beat.steps.some((x) => x.k === "heal" && x.side === "L" && x.n === 4));
+  assert.equal(v.verdict.defendantDmg, 9);
+  assert.equal(v.verdict.lawyerHeal, 4);
   assert.equal(N.skillMusic(engine, A).music, "naru_bgm_victory");
   drive("none");
-  assert.equal(B.alive, false);
-  assert.equal(A.hp, 7, "ทนายฟื้น 4");
-  assert.equal(engine.players.B.statuses.jutti, 1, "จุติไม่ถูกใช้");
+  assert.equal(B.alive, true, "เลือดพอ = ไม่ตาย");
+  assert.equal(B.armor, 0);
+  assert.equal(B.hp, 4);
+  assert.equal(A.hp, 7);
 });
-
-test("มีความผิด: ทะลุอมตะของยูกิ มาโคโตะ", () => {
-  const { A, B } = setup({ others: ["yuki_makoto"] });
+test("มีความผิด: −9 ฆ่าได้ตามปกติ (ทนายเป็นผู้สังหาร) · จุติของอรชุนยังกันได้", () => {
+  const { A, B } = setup();
+  B.hp = 5; B.armor = 0;
+  B.statuses.jutti = 1;
   const c = openCourt(A, B, [{ kind: "lie", text: "a", k: { skill: "ฟัน" } }, { kind: "truth", text: "b" }, { kind: "truth", text: "c" }]);
-  c.cred.D = 1;
+  c.cred.D = 2;
   const w = Court.addEvidence(A, ev({ skill: "ฟัน" }));
   Court.act("A", { type: "present", idx: 0, evId: w.id });
   drive("verdict"); drive("none");
-  assert.equal(B.alive, false);
+  assert.equal(B.alive, true, "จุติฟื้น");
+  assert.equal(B.statuses.jutti, undefined, "จุติถูกใช้");
 });
-
-test("ไม่มีความผิด: ทนาย −7 (เกราะก่อน) + สตั้น 2 · ตานี้ทำอะไรต่อไม่ได้", () => {
+test("ไม่มีความผิด: ทนาย −5 (เกราะก่อน) + สตั้น 1 · ตานี้ทำอะไรต่อไม่ได้", () => {
   const { A, B } = setup();
   A.hp = 10; A.armor = 2;
   const c = openCourt(A, B, [{ kind: "truth", text: "a" }, { kind: "truth", text: "b" }, { kind: "truth", text: "c" }]);
@@ -508,11 +546,11 @@ test("ไม่มีความผิด: ทนาย −7 (เกราะ�
   Court.act("A", { type: "present", idx: 0, evId: w.id });
   const v = drive("verdict");
   assert.equal(v.verdict.w, "free");
-  assert.equal(v.verdict.lawyerDmg, 7);
+  assert.equal(v.verdict.lawyerDmg, 5);
   drive("none");
   assert.equal(A.armor, 0);
-  assert.equal(A.hp, 5);
-  assert.equal(A.statuses.stun, 2);
+  assert.equal(A.hp, 7);
+  assert.equal(A.statuses.stun, 1);
   assert.equal(engine.action.noSkill, true);
   assert.equal(engine.action.locked, true);
 });
@@ -574,7 +612,7 @@ test("รอเดี๋ยว!!!: แทรกตา → เก็บหลั�
   engine.releaseBeat();
   assert.equal(match.holdIt.phase, "choose");
   assert.equal(engine.gameState, "ACTION");
-  assert.ok(engine.timeLeft <= 15);
+  assert.ok(engine.timeLeft <= 25 && engine.timeLeft > 15, "ตาแทรก 25 วิ");
   // ทำอย่างอื่นไม่ได้ระหว่างตาแทรก
   assert.equal(engine.canAct(A), false);
   const sp = A.skillPoints;
@@ -721,6 +759,7 @@ test("จำเลยระบบคู่ (เคท & เอมิลิโก
   assert.ok(idx >= 0);
   {
     cc.cred.D = 1;
+    for (const u of [B, M]) { u.hp = 5; u.armor = 0; } // −9 ฆ่าได้ทั้งคู่
     const st = cc.list[idx];
     const real = match.courtLog.find((e) => e.id === st.evKey);
     const evid = Court.addEvidence(A, real) || Court.liveEvidence(A).find((v) => v.evKey === real.id);
@@ -757,10 +796,11 @@ test("ขั้นฉาก: say ทุกอันมี name · ผู้ช�
     engine.releaseBeat(); grab();
   }
   assert.ok(sawTestify);
-  Court.act("A", { type: "end" });
-  drive("gallery"); grab();
-  assert.equal(Court.gallery("C", { e: "witnessL", evKey: e.id }), true);
-  assert.equal(Court.gallery("D", { e: "cheer", side: "L" }), true);
+  // ประชาชนเลือกฝ่ายตอนเปิดศาลไปแล้ว (ช่วง sides ถูกปล่อยในลูปบน = ยังไม่มีฝ่าย) — เลือกตอนนี้แล้วทำระหว่างซักค้าน
+  assert.equal(Court.side("C", "L"), true);
+  assert.equal(Court.side("D", "L"), true);
+  assert.equal(Court.gallery("D", { e: "cheer" }), true); // ค้างไว้ขึ้นต้นจังหวะถัดไป
+  assert.equal(Court.gallery("C", { e: "witnessL", evKey: e.id }), true); // พยานระหว่างซักค้าน
   grab();
   for (let i = 0; i < 6 && match.court && match.court.phase !== "cross"; i++) { engine.releaseBeat(); grab(); }
   const says = beats.flatMap((b) => b.steps).filter((s) => s.k === "say");
@@ -1020,11 +1060,8 @@ test("คำให้การ: กอง ≤ 10 · โกหก ≥ 3 และ
   assert.ok(engine.buildStateFor("B").court.pool.every((s) => s.kind === "lie" || s.kind === "truth"), "จำเลยเห็น kind");
 });
 
-test("ข้อแก้ตัวโบนัสต้นคดี (ถ้าเปิด): นับรวมในศาล ใช้ก่อน · ไม่ติดตัวหลังคดี", (t) => {
-  const was = Court.RULES.bonusAlibi;
-  Court.RULES.bonusAlibi = 2;
-  t.after(() => { Court.RULES.bonusAlibi = was; });
-  const { A, B } = setup();
+test("ข้อแก้ตัวโบนัสต้นคดี: นับรวมในศาล ใช้ก่อน · ไม่ติดตัวหลังคดี", () => {
+  const { A, B } = setup({ bonus: 2 });
   B.courtAlibi = 1;
   engine.setActor("A");
   engine.court.start(A, B);
@@ -1052,4 +1089,119 @@ test("แปะ 📍 = ใช้ข้อแก้ตัวทันที · �
   drive("cross");
   assert.equal(c.cred.L, 4, "นั่งเฉยทั้งยก −1");
   assert.equal(c.round, 2);
+});
+
+test("หลักฐานจากตำรวจตอนเปิดศาล (เรื่องที่ฝั่งทนายไม่เห็นก่อน) · ขอให้ศาลเรียกพยาน ยกละครั้ง", () => {
+  const { A, B } = setup({ police: 2 });
+  B.pos = { x: 14, y: 6 }; // ไกล = ไม่มีใครเห็น
+  const e1 = Court.noteAct(B, "basic", "ฟัน", ["C"]);
+  const e2 = Court.noteAct(B, "secondary", "ยาพิษ", []);
+  const e3 = Court.noteAct(B, "ultimate", "ระเบิด", []);
+  B.pos = { x: 8, y: 6 };
+  A.naruhodo.evidence = [];
+  engine.setActor("A");
+  engine.court.start(A, B);
+  engine.pausePlayingForCutscene();
+  const police = Court.liveEvidence(A).filter((v) => v.source === "police");
+  assert.equal(police.length, 2);
+  assert.ok(police.every((v) => [e1.id, e2.id, e3.id].includes(v.evKey)));
+  assert.ok(police[0].desc.startsWith("รายงานตำรวจ"));
+  assert.ok(match.court.beat.steps.some((x) => x.k === "present"));
+  B.connected = true;
+  let c = drive("testimony");
+  c.pool = [
+    { key: "a", kind: "lie", form: "denySkill", text: "a", k: { skill: "ระเบิด" } }, { key: "b", kind: "lie", form: "idleTurn", text: "b", k: { turn: 99 } },
+    { key: "x", kind: "truth", form: "denySkill", text: "x", k: { skill: "ไม่มีท่านี้" } }, { key: "y", kind: "truth", text: "y" },
+  ];
+  Court.testimony("B", c.pool.map((x) => ({ key: x.key })));
+  c = drive("cross");
+  const ia = c.list.findIndex((x) => x.text === "a"), ix = c.list.findIndex((x) => x.text === "x");
+  assert.equal(c.summonLeft, 1);
+  // ไม่มีบันทึกเรื่องนี้ = ผู้พิพากษาบอกว่าไม่มี
+  const n0 = Court.liveEvidence(A).length;
+  assert.equal(Court.act("A", { type: "summon", idx: ix }), true);
+  const said = match.court.beat.steps.filter((x) => x.k === "say" && x.who === "J").map((x) => x.text).join(" ");
+  assert.ok(Lines.POOLS.summonNone.some((t) => said.includes(Lines.fill(t, { subject: "ท่า ไม่มีท่านี้" }))), said);
+  drive("cross");
+  assert.equal(Court.liveEvidence(A).length, n0);
+  assert.equal(Court.act("A", { type: "summon", idx: ia }), false, "ยกละครั้ง");
+  // ยกหน้า: เรียกพยานเรื่องท่าที่ยังไม่มีในแฟ้ม = ได้หลักฐาน
+  A.naruhodo.evidence = A.naruhodo.evidence.filter((v) => v.evKey !== e3.id);
+  c.summonLeft = 1;
+  Court.act("A", { type: "summon", idx: ia }); drive("cross");
+  const got = Court.liveEvidence(A).find((v) => v.evKey === e3.id);
+  assert.ok(got && got.source === "summon");
+});
+
+test("ตัวเลขศาล (2026-11-21): ความน่าเชื่อถือ 6 · 3 ยก · 4 ประโยค · ยื่นยกละ 2 · โบนัส 📍 2 · ตำรวจ 2 · เรียกพยาน 1 · เวลา · เห็นกับตา 6/4", () => {
+  const R = Court.RULES;
+  assert.deepEqual([R.cred, R.rounds, R.statements, R.presentPer, BONUS, POLICE, R.summonPer], [6, 3, 4, 2, 2, 2, 1]);
+  assert.deepEqual([R.guiltyDmg, R.freeDmg, R.freeStun, R.ultCd], [9, 5, 1, 2]);
+  assert.deepEqual(R.sec, { testimony: 75, cross: 120, object: 8, gallery: 20, sides: 15 });
+  assert.deepEqual([Court.HOLD.secs, Court.HOLD.alibi], [25, 8]);
+  assert.deepEqual([R.naruSight, R.sightRange], [6, 4]);
+});
+
+test("เห็นกับตา: นารุโฮโดะเห็นได้ 6 ช่อง · ผู้เล่นอื่น 4 ช่อง (ผู้ช่วย/พยาน)", () => {
+  const { A, B } = setup({ extra: 1 });
+  const C = engine.players.C;
+  A.pos = { x: 2, y: 6 }; B.pos = { x: 8, y: 6 }; C.pos = { x: 13, y: 6 }; // A ห่าง 6 · C ห่าง 5
+  const e = Court.noteAct(B, "basic", "ฟัน", []);
+  assert.ok(e.seenBy.includes("A"), "นารุโฮโดะห่าง 6 เห็น");
+  assert.ok(!e.seenBy.includes("C"), "คนอื่นห่าง 5 ไม่เห็น");
+  assert.equal(Court.liveEvidence(A).length, 1);
+  A.pos = { x: 1, y: 6 }; // ห่าง 7
+  Court.noteAct(B, "basic", "ฟัน2", []);
+  assert.equal(Court.liveEvidence(A).length, 1);
+});
+
+test("ประชาชน: เชียร์ได้ผล +1 ครั้งเดียวต่อฝ่ายต่อยก · เปลี่ยนฝ่าย = สละรางวัล", () => {
+  const { A, B } = setup({ extra: 3 });
+  engine.setActor("A");
+  engine.court.start(A, B);
+  engine.pausePlayingForCutscene();
+  B.connected = true;
+  drive("sides");
+  Court.side("C", "D"); Court.side("D", "L"); Court.side("E", "L");
+  Court.side("C", "L"); // C ย้ายมาฝ่ายทนาย = สละรางวัล
+  let c = drive("testimony");
+  c.pool = [{ key: "a", kind: "lie", text: "a", form: "denySkill", k: { skill: "ฟัน" } }, { key: "b", kind: "lie", text: "b", k: { turn: 77 } }, { key: "x", kind: "truth", text: "x" }, { key: "y", kind: "truth", text: "y" }];
+  Court.testimony("B", c.pool.map((x) => ({ key: x.key })));
+  c = drive("cross");
+  c.cred.L = 3;
+  Court.gallery("C", { e: "cheer" }); Court.gallery("D", { e: "cheer" }); Court.gallery("E", { e: "cheer" });
+  assert.equal(c.cred.L, 4, "เชียร์ 3 คน = +1 ครั้งเดียว");
+  c.cred.D = 2;
+  const w = Court.addEvidence(A, ev({ skill: "ฟัน" }));
+  Court.act("A", { type: "present", idx: c.list.findIndex((x) => x.text === "a"), evId: w.id });
+  const v = drive("verdict");
+  assert.equal(v.verdict.w, "guilty");
+  assert.ok(v.verdict.rewards.some((r) => r.id === "D") && v.verdict.rewards.some((r) => r.id === "E"));
+  assert.ok(!v.verdict.rewards.some((r) => r.id === "C"), "เปลี่ยนฝ่ายแล้วไม่ได้รางวัล");
+});
+
+test("ประชาชน: โห่/ปาดันความน่าเชื่อถือต่ำกว่า 3 ไม่ได้ (ผลอื่นยังได้) · ผู้พิพากษาบอกว่าไม่ฟังเสียงโห่", () => {
+  const { A, B } = setup({ extra: 1 });
+  engine.setActor("A");
+  engine.court.start(A, B);
+  engine.pausePlayingForCutscene();
+  B.connected = true;
+  drive("sides");
+  Court.side("C", "L");
+  let c = drive("testimony");
+  c.pool = [{ key: "a", kind: "lie", text: "a", form: "denySkill", k: { skill: "ฟัน" } }, { key: "b", kind: "lie", text: "b", k: { turn: 77 } }, { key: "x", kind: "truth", text: "x" }, { key: "y", kind: "truth", text: "y" }];
+  Court.testimony("B", c.pool.map((x) => ({ key: x.key })));
+  c = drive("cross");
+  c.cred.D = 3;
+  assert.equal(Court.gallery("C", { e: "boo" }), true, "กดได้ (โชว์ปฏิกิริยา)");
+  assert.equal(c.cred.D, 3, "ไม่ต่ำกว่า 3");
+  Court.act("A", { type: "summon", idx: 0 }); // จังหวะถัดไปขึ้นต้นด้วยฉากประชาชน
+  const says = match.court.beat.steps.filter((x) => x.k === "say" && x.who === "J").map((x) => x.text);
+  assert.ok(says.some((t) => Lines.POOLS.galleryFloorJudge.includes(t)), says.join(" | "));
+  // หลักฐานยังดันต่ำกว่า 3 ได้
+  c = drive("cross");
+  c.cred.D = 3;
+  const w = Court.addEvidence(A, ev({ skill: "ฟัน" }));
+  const ia = c.list.findIndex((x) => x.kind === "lie" && x.k && x.k.skill === "ฟัน");
+  if (ia >= 0) { Court.act("A", { type: "present", idx: ia, evId: w.id }); drive("cross"); assert.equal(c.cred.D, 1); }
 });
