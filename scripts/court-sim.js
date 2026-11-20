@@ -7,7 +7,10 @@ const Court = require("../server/court");
 const R = Court.RULES;
 
 const OLD = { presentPer: 99, bonusAlibi: 0, pressReveals: false, wrong: 1, alibiBurn: 1, witnessBreak: 2, dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 }, heal: { receipt: 1 } };
-if (process.env.SIM_PRESET === "old") Object.assign(R, OLD);
+// prev = รอบก่อนคำโกหกลับ (ยื่น 2 · ข้อแก้ตัวโบนัส 2 · ไม่มีคำโกหกลับ/แปะแล้วหมด/โทษนั่งเฉย)
+const PREV = { presentPer: 2, bonusAlibi: 2, pressReveals: true, wrong: 1, alibiBurn: 2, maxBlind: 0, blindPool: 0, pinSpends: false, idlePenalty: 0 };
+if (process.env.SIM_PRESET === "old") Object.assign(R, OLD, { maxBlind: 0, blindPool: 0, pinSpends: false, idlePenalty: 0 });
+if (process.env.SIM_PRESET === "prev") Object.assign(R, PREV);
 if (process.env.SIM_RULES) Object.assign(R, JSON.parse(process.env.SIM_RULES));
 
 const N = Number(process.argv[2]) || 5000;
@@ -51,12 +54,14 @@ function defPick(pool, need, alibis, roundsLeft, folder, smart) {
   const lies = pool.filter((s) => s.kind === "lie"), truths = pool.filter((s) => s.kind === "truth");
   const threat = (s) => folder.filter((e) => Court.contradicts(s, e, "D")).length;
   let L, T;
+  // คำโกหกลับ (blind) ได้ไม่เกิน RULES.maxBlind ต่อคำให้การ
+  const capBlind = (arr) => { let b = 0; return arr.filter((s) => !s.blind || b++ < R.maxBlind); };
   if (smart) {
-    L = lies.slice().sort((a, b) => threat(a) - threat(b) || Math.random() - 0.5).slice(0, need);
+    L = capBlind(lies.slice().sort((a, b) => threat(a) - threat(b) || (b.blind ? 1 : 0) - (a.blind ? 1 : 0) || Math.random() - 0.5)).slice(0, need);
     const bait = (s) => folder.filter((e) => subjectMatch(s, e)).length; // เรื่องจริงที่ดูเหมือนแย้งได้ = ล่อให้ยื่นผิด
     T = truths.slice().sort((a, b) => bait(b) - bait(a) || Math.random() - 0.5).slice(0, n - need);
   } else {
-    L = shuffle(lies).slice(0, need);
+    L = capBlind(shuffle(lies)).slice(0, need);
     T = shuffle(truths).slice(0, n - need);
   }
   const list = shuffle([...L, ...T]).map((s) => ({ ...s, alibi: false, done: false, tried: false, pressed: false }));
@@ -90,6 +95,8 @@ function lawyerPlan(list, folder, policy, known) {
     const thinksLie = Math.random() < ACC ? isLie : !isLie;
     if (!thinksLie) continue;
     const hit = folder.filter((e) => Court.contradicts({ ...s, kind: "lie" }, e, "D"));
+    // ไม่มีหลักฐานที่ขัดจริง: คนเก่งรู้ตัวว่าพิสูจน์ไม่ได้ (ข้าม) ตามความแม่น ACC · ไม่งั้นเดาด้วยของที่เรื่องตรง
+    if (!hit.length && Math.random() < ACC) continue;
     const evs = hit.length ? hit : folder.filter((e) => subjectMatch(s, e));
     if (evs.length) cands.push({ s, ev: evs.find((e) => e.type === "witness") || evs[0], score: hit.length + (s.pressed ? 0 : 0.5) });
   }
@@ -143,7 +150,10 @@ function trial(lawPolicy, defSmart) {
         if (r.healL) cred.L = Math.min(R.cred, cred.L + r.healL);
       }
     }
-    alibis += list.filter((s) => s.alibi).length; // ข้อแก้ตัวที่ไม่ถูกใช้คืนกอง
+    // คำโกหกที่รอดถึงจบยก = ทนายเสียความน่าเชื่อถือ (RULES.standLie ต่อประโยค)
+    if (R.idlePenalty && presentLeft === R.presentPer && folder.length && list.some((s) => !s.done)) cred.L -= R.idlePenalty; // ทั้งยกไม่คัดค้านเลย (มีหลักฐานในมือ)
+    if (R.standLie) cred.L -= Math.min(R.standCap || 99, R.standLie * list.filter((s) => s.kind === "lie" && !s.done).length);
+    if (!R.pinSpends) alibis += list.filter((s) => s.alibi).length; // ข้อแก้ตัวที่ไม่ถูกใช้คืนกอง (pinSpends = แปะแล้วหมด)
     if (cred.L <= 0 || cred.D <= 0) break;
   }
   const w = cred.D <= 0 ? "L" : cred.L <= 0 ? "D" : cred.D < cred.L ? "L" : cred.L < cred.D ? "D" : "T";

@@ -25,8 +25,12 @@ const RULES = {
   // ความสมดุล (ผู้ใช้ 2026-11-20 "ให้แฟร์" — จูนด้วย scripts/court-sim.js): ยื่นถูก/ผิดเสียเท่ากัน · ยื่นได้ยกละ presentPer ครั้ง · จำเลยได้ข้อแก้ตัวโบนัสต่อคดี
   //  ผลจำลอง (5000 คดี/คู่): ทนายมือใหม่ vs จำเลยมือใหม่ ≈ 47% · ทนายเก่ง vs จำเลยเก่ง ≈ 45% · ฝั่งเก่งชนะชัด · เสมอ < 15% · กลาง 3–4 ยก
   //  pressReveals = กดดันประโยคที่มี 📍 → เห็น 📍 (ข้อแก้ตัวไม่แตก — เลี่ยงได้ หรือใช้พยานทะลุ)
-  presentPer: 2, bonusAlibi: 2, pressReveals: true,
-  wrong: 1, alibiBurn: 2, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
+  //  รอบ 2 (หลังเพิ่มคำโกหกลับ): แปะ 📍 = ใช้ข้อแก้ตัวทันที (pinSpends — ไม่คืนตอนจบยก) · ทั้งยกไม่คัดค้านเลย (มีหลักฐานในมือ) = ทนาย −idlePenalty
+  //   ผลจำลอง: มือใหม่ vs มือใหม่ ≈ 55% · ทนายอ่านขาด vs จำเลยเก่ง ≈ 58% · เก่ง vs เก่ง ≈ 50% · เสมอ ≤ 18%
+  presentPer: 2, bonusAlibi: 0, pressReveals: true, pinSpends: true, idlePenalty: 1,
+  // คำโกหกลับ (ผู้ใช้เลือกข้อ ก 2026-11-20): โกหกเรื่องที่ฝั่งทนายไม่มีหลักฐาน ได้ไม่เกิน maxBlind ต่อคำให้การ · กองมีได้ไม่เกิน blindPool
+  maxBlind: 1, blindPool: 2,
+  wrong: 1, alibiBurn: 3, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
   dmg: { weapon: 2, foot: 2, receipt: 2, witness: 2 },
   heal: { receipt: 1 },
   galleryCap: 2, throwKick: 3,
@@ -205,8 +209,11 @@ function statementPool(events, proven, info = {}) {
     const st = { form, kind, pos: !!pos, k, evKey: null };
     if (kind === "lie") {
       const hit = contest.find((e) => contradicts(st, e));
-      if (!hit) return; // ฝั่งทนายไม่มีอะไรหักล้าง = ไม่ใช้เป็นคำโกหก
-      st.evKey = hit.id;
+      // ฝั่งทนายไม่มีอะไรหักล้าง = คำโกหกลับ (blind — หักล้างได้เมื่อพยาน/ผู้ช่วยนำเหตุการณ์นั้นเข้ามา)
+      const any = hit || evs.find((e) => contradicts(st, e));
+      if (!any) return;
+      st.evKey = any.id;
+      if (!hit) st.blind = true;
     }
     const text = Lines.pick(form === "denySkill" && ctx.skill === "ตีปกติ" ? "denyAttack" : form, ctx, used);
     if (!text || seen.has(text) || (proven && proven.includes(text))) return;
@@ -247,7 +254,7 @@ function statementPool(events, proven, info = {}) {
   let busy = 0, idle = 0;
   for (const n of turns) {
     const any = evs.some((e) => e.round === n);
-    if (any && busy < 2 && contest.some((e) => e.round === n)) { busy++; add("idleTurn", "lie", { turn: n }, { turn: n }); }
+    if (any && busy < 3) { busy++; add("idleTurn", "lie", { turn: n }, { turn: n }); } // เทิร์นที่ฝั่งทนายไม่มีหลักฐาน = คำโกหกลับ
     else if (!any && idle < 2) { idle++; add("idleTurn", "truth", { turn: n }, { turn: n }); }
   }
   // 6) ไม่ได้ขยับตั้งแต่เทิร์น n — โกหกเฉพาะเมื่อฝั่งทนายมีรอยเท้าหลังจากนั้น
@@ -306,10 +313,11 @@ function balancePool(all) {
     for (const s of shuffle(list)) if (out.length < n && !out.includes(s)) out.push(s);
     return out;
   };
-  const lies = all.filter((s) => s.kind === "lie"), truths = all.filter((s) => s.kind === "truth");
-  const nL = Math.min(lies.length, Math.max(3, RULES.poolMax - truths.length), RULES.poolMax - Math.min(truths.length, RULES.minLies), 5);
-  const nT = Math.min(truths.length, RULES.poolMax - nL);
-  return [...diverse(lies, nL), ...diverse(truths, nT)];
+  const open = all.filter((s) => s.kind === "lie" && !s.blind), blind = all.filter((s) => s.kind === "lie" && s.blind), truths = all.filter((s) => s.kind === "truth");
+  const nB = Math.min(blind.length, RULES.blindPool);
+  const nL = Math.min(open.length, Math.max(3, RULES.poolMax - truths.length - nB), RULES.poolMax - nB - Math.min(truths.length, RULES.minLies), 5);
+  const nT = Math.min(truths.length, RULES.poolMax - nL - nB);
+  return [...diverse(open, nL), ...diverse(blind, nB), ...diverse(truths, nT)];
 }
 function contradicts(s, ev, defendantId) {
   if (!s || s.kind !== "lie" || !ev || !s.k || ev.kind === "note") return false;
@@ -367,17 +375,26 @@ function presentResult(s, ev, defendantId) {
 }
 // จำเลย AI: ปลอม/จริงพอดีตาม minLiesOf · แปะข้อแก้ตัวสุ่ม
 // คำให้การต่อรอบ = 4 ประโยค ปลอม 2 จริง 2 พอดี (ผู้ใช้ 2026-11-20) — ถ้าในกองมีไม่พอ ฝั่งที่ขาดเติมด้วยอีกฝั่ง
-function statementsOf(pool) { return Math.min(RULES.statements, (pool || []).length); }
+function statementsOf(pool) { return Math.min(RULES.statements, usableLies(pool) + (pool || []).filter((s) => s.kind !== "lie").length); }
+//  นับคำโกหกที่ใช้ได้ = โกหกปกติ + คำโกหกลับไม่เกิน maxBlind
+function usableLies(pool) {
+  const open = (pool || []).filter((s) => s.kind === "lie" && !s.blind).length;
+  const blind = (pool || []).filter((s) => s.kind === "lie" && s.blind).length;
+  return open + Math.min(RULES.maxBlind, blind);
+}
 function minLiesOf(pool) {
-  const n = statementsOf(pool), L = (pool || []).filter((s) => s.kind === "lie").length, T = (pool || []).length - L;
+  const n = statementsOf(pool), L = usableLies(pool), T = (pool || []).filter((s) => s.kind !== "lie").length;
   return Math.min(L, Math.max(Math.min(RULES.minLies, L), n - T));
 }
 function aiTestimony(pool, alibi) {
   const n = statementsOf(pool);
-  const lies = shuffle(pool.filter((s) => s.kind === "lie")), truths = shuffle(pool.filter((s) => s.kind === "truth"));
+  const open = shuffle(pool.filter((s) => s.kind === "lie" && !s.blind)), blind = shuffle(pool.filter((s) => s.kind === "lie" && s.blind));
+  const truths = shuffle(pool.filter((s) => s.kind === "truth"));
   const nl = minLiesOf(pool);
-  let list = [...lies.slice(0, nl), ...truths.slice(0, n - nl)];
-  if (list.length < n) list.push(...lies.slice(nl, nl + n - list.length));
+  // ใช้คำโกหกลับ 1 ประโยคเมื่อมี (60%) หรือเมื่อโกหกปกติไม่พอ
+  const useBlind = blind.length && nl > 0 && (open.length < nl || Math.random() < 0.6) ? Math.min(RULES.maxBlind, 1) : 0;
+  const lies = [...blind.slice(0, useBlind), ...open.slice(0, nl - useBlind)];
+  let list = [...lies, ...truths.slice(0, n - lies.length)];
   list = shuffle(list).map((s) => ({ key: s.key, alibi: false }));
   let a = alibi;
   for (const x of shuffle(list)) {
@@ -530,6 +547,7 @@ function startTestimony(c) {
   c.cx = 0;
   c.pressLeft = RULES.pressPer;
   c.presentLeft = RULES.presentPer;
+  c.idleDone = false;
   c.counselLeft = RULES.counselObj;
   c.crossLeft = RULES.sec.cross * 1000;
   c.rx = {}; c.tally = { L: 0, D: 0 }; c.throws = 0; c.lastThrow = null;
@@ -563,6 +581,8 @@ function testimony(id, picks) {
   // ปลอม/จริงต้องพอดี (ผู้ใช้ 2026-11-20: 4 ประโยค = ปลอม 2 จริง 2 · กองมีไม่พอ = minLiesOf ปรับให้)
   const lies = picks.filter((x) => (c.pool.find((q) => q.key === x.key) || {}).kind === "lie").length;
   if (lies !== minLiesOf(c.pool)) return false; // ปลอม/จริงต้องพอดีตามกติกา
+  const blinds = picks.filter((x) => (c.pool.find((q) => q.key === x.key) || {}).blind).length;
+  if (blinds > RULES.maxBlind) return false; // คำโกหกลับได้ไม่เกิน 1
   c.picks = picks.map((x) => ({ key: x.key, alibi: x.alibi === true }));
   lazy.engine().releaseBeat();
   return true;
@@ -571,9 +591,10 @@ function finishTestimony(c) {
   const picks = c.picks || aiTestimony(c.pool, alibiTotal(c));
   c.list = picks.map((x) => {
     const s = c.pool.find((q) => q.key === x.key);
-    return { key: s.key, text: s.text, kind: s.kind, form: s.form || null, pos: !!s.pos, k: s.k || null, evKey: s.evKey || null, alibi: !!x.alibi, done: false, pressed: false, presentTried: false, alibiShown: false };
+    return { key: s.key, text: s.text, kind: s.kind, blind: !!s.blind, form: s.form || null, pos: !!s.pos, k: s.k || null, evKey: s.evKey || null, alibi: !!x.alibi, done: false, pressed: false, presentTried: false, alibiShown: false };
   });
   c.pool = null;
+  if (RULES.pinSpends) consumeAlibi(c, c.list.filter((x) => x.alibi).length); // แปะ 📍 = ใช้ข้อแก้ตัวไปแล้ว (ไม่คืน)
   const ctx = ctxOf(c);
   // 1) ผู้พิพากษาสั่งให้การ (ฉาก) → 2) testify: client เล่นคำให้การเอง (แบนเนอร์ 1.5 วิ + 2.5 วิ/ประโยค — beat = null)
   //  → 3) แบนเนอร์ซักค้าน + ความคิดในใจ → ซักค้าน
@@ -750,14 +771,14 @@ function resolvePresent(c) {
     ev.used = true;
     s.alibi = false;
     s.alibiShown = true;
-    consumeAlibi(c, 1);
+    if (!RULES.pinSpends) consumeAlibi(c, 1);
     steps.push(cam("witness"), line(c, "D", "alibiDefendant", ctx), cam("judge"), line(c, "J", "alibiJudge", ctx), hurtS("L", r.dL), cam("defense"), inner(c, "alibiInner", ctx));
     credHit(c, "L", r.dL, steps);
     coSays(c, steps, "coCheer", ctx, 0.5);
   } else {
     ev.used = true;
     s.done = true;
-    if (s.alibi) { s.alibi = false; s.alibiShown = true; consumeAlibi(c, 1); }
+    if (s.alibi) { s.alibi = false; s.alibiShown = true; if (!RULES.pinSpends) consumeAlibi(c, 1); }
     c.proven.push(s.text);
     c.hits++;
     const key = r.kind === "pierce" ? null : { weapon: "hitWeapon", foot: "hitFoot", receipt: "hitReceipt", witness: "hitWitness" }[ev.type];
@@ -831,6 +852,16 @@ function verdictDue(c) { return c.cred.L <= 0 || c.cred.D <= 0; }
 
 // ---------- ประชาชน ----------
 function endRound(c) {
+  // ทั้งยกไม่คัดค้านเลย ทั้งที่มีหลักฐานในมือและยังมีประโยคค้าง = ทนายเสียความน่าเชื่อถือ (กันการนั่งเฉยรอเสมอ)
+  if (RULES.idlePenalty && !c.idleDone && (c.presentLeft || 0) >= RULES.presentPer && liveEvidence(lawyerOf(c)).length && c.list && c.list.some((x) => !x.done)) {
+    c.idleDone = true; // ยกละครั้ง (ล้างตอนเริ่มยกใหม่)
+    const ctx = ctxOf(c);
+    const steps = [cam("judge"), gavelS(1), line(c, "J", "idleJudge", ctx), hurtS("L", RULES.idlePenalty)];
+    credHit(c, "L", RULES.idlePenalty, steps);
+    steps.push(cam("defense"), inner(c, "idleInner", ctx));
+    beat(c, steps, (cc) => { if (verdictDue(cc)) toVerdict(cc); else endRound(cc); });
+    return;
+  }
   const g = humansIn(c, c.galleryIds);
   if (g.length && !verdictDue(c)) { c.rx = {}; wait(c, "gallery", RULES.sec.gallery, resolveGallery); return; }
   nextRound(c);
@@ -1028,9 +1059,10 @@ function view(viewerId, controlId) {
     id: c.id, phase: c.phase, round: c.round, rounds: c.rounds, deadline: c.deadline,
     lawyerId: c.lawyerId, defendantId: c.defendantId, defendantUnits: (c.defendantUnits || []).map((u) => ({ ...u })), coIds: [...c.coIds], counselIds: [...c.counselIds], galleryIds: [...c.galleryIds], outIds: [...c.outIds],
     cred: { ...c.cred },
-    list: c.list ? c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: s.alibiShown, ...(isDef ? { alibi: s.alibi, kind: s.kind } : {}) })) : null,
+    list: c.list ? c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: s.alibiShown, ...(isDef ? { alibi: s.alibi, kind: s.kind, blind: !!s.blind } : {}) })) : null,
     cx: c.cx,
-    pool: isDef && c.phase === "testimony" && c.pool ? c.pool.map((s) => ({ key: s.key, text: s.text, kind: s.kind })) : null,
+    pool: isDef && c.phase === "testimony" && c.pool ? c.pool.map((s) => ({ key: s.key, text: s.text, kind: s.kind, blind: !!s.blind })) : null, // blind = คำโกหกลับ (🌫 ฝั่งจำเลยเท่านั้น)
+    maxBlind: isDef && c.phase === "testimony" ? RULES.maxBlind : undefined,
     minLies: isDef && c.phase === "testimony" && c.pool ? minLiesOf(c.pool) : undefined, nStatements: isDef && c.phase === "testimony" && c.pool ? statementsOf(c.pool) : undefined, // เลือก nStatements ประโยค · ปฏิเสธ (🎭) พอดี minLies
     alibiLeft: isDef ? alibiTotal(c) : undefined,
     evidence: isLaw ? liveEvidence(lawyerOf(c)) : undefined,
