@@ -205,7 +205,7 @@ const FILES = {
   freddy_box: "/characters/freddy_fazbear/sfx/music_box.mp3", // เฟรดดี้: ปุ่มกล่องดนตรี (HUD)
   freddy_growl_1: "/characters/freddy_fazbear/sfx/growl_1.mp3", // เฟรดดี้: ปุ่มขู่ (HUD · สุ่ม 2 แบบ)
   freddy_growl_2: "/characters/freddy_fazbear/sfx/growl_2.mp3",
-  freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน — บีบ+ดันที่ไฟล์ −9.4 LUFS 2026-11-20 (ผู้ใช้: เบาไป · ต้นฉบับ C:\Echo-media-backupreddy_fazbear)
+  freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน — บีบ+ดันที่ไฟล์ −9.4 LUFS 2026-11-20 (ผู้ใช้: เบาไป · ต้นฉบับ C:\Echo-media-backup\freddy_fazbear)
   foxy_steps: "/characters/foxy/sfx/steps.mp3", // ฟ็อกซี่: เดิน (กลางวัน+กลางคืน) — ไฟล์เดียวกับ freddy_steps (ดันแล้ว)
   foxy_board: "/characters/foxy/sfx/sound_board.mp3", // ฟ็อกซี่: ปุ่มกล่องเพลง (HUD) — ไฟล์ผู้ใช้ ดันที่ไฟล์ −9.7 LUFS (ผู้ใช้: ต้องดัง ข่มขวัญ)
   ot_ram: "/characters/old_truck/sfx/ot_ram.mp3",
