@@ -13,25 +13,32 @@
 //   ชั้น 2–4 = 1 ท่า/เทิร์น · ชั้น 5 = 2 ท่า + ดาเมจ +1 · เลือดต่ำกว่าครึ่งในชั้น 5 = 3 ท่า
 //   เลือด 30 + 5 ต่อผู้เล่น ไม่มีเกราะ ค้างข้ามรอบโผล่ · ไม่ตีสวน ไม่ติดสถานะ
 // ============================================================
-Object.assign(module.exports, { bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent, moveCount });
+Object.assign(module.exports, { erasedRow, bait, reset, enabled, preRound, publicInfo, layer, objects, strikeObject, footprint, posAt, bodyNow, enterLayer, damageWhale, stun, calm, syncPresent, moveCount });
 
 const FIRST_TURN = 10;
 const ON_TURNS = 3;
 const OFF_TURNS = 3;
 const HP_BASE = 30, HP_PER_PLAYER = 5;
 const SWIM_PER_TURN = 4; // ช่องที่ว่ายต่อเทิร์น
+// ชั้น 6 ทะเลข้อมูล (ด่าน 12 · ผู้ใช้ 2026-11-19 "ปลาวาฬจะเกิดถาวร · โหดสุดๆ"): อยู่ตลอดไม่ดำหนี · ตายแล้วกลับมาเป็นร่างข้อมูลเลือดเต็มหลัง 3 เทิร์น (ผู้ฆ่าได้หัวใจทุกครั้ง)
+//  เข้าชั้น 6 = ฟื้นเลือดเต็มเสมอ (ตายไปแล้วก็กลับมา) · ท่า 4 (เลือดต่ำกว่าครึ่ง 5) · ดาเมจท่า +2 · ว่าย 6 ช่อง · งับ 2 คน · คุณสมบัติ ζ = +1 ท่า +1 ดาเมจ
+const DATA_STAGE = 12, DATA_REVIVE = 3, DATA_SWIM = 6, DATA_BITE_N = 2;
+const isData = (ctx) => ctx.stage === DATA_STAGE;
+const zeta = (ctx) => isData(ctx) && !!(ctx.match.fodlan && ctx.match.fodlan.s && ctx.match.fodlan.s.nt12 && ctx.match.fodlan.s.nt12.attr === "zeta");
 const BODY_LEN = 5, BODY_W = 2;
 const BITE_REACH = 2, BITE_N = 1;
 const HEART = { key: "might", amount: 3, turns: 3 };
 const MOVES = ["tentacle", "charge", "whirl", "zap", "song", "swallow"];
-const MOVE_NAMES = { tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง", ram: "ว่ายชน", bite: "งับ" };
-const DMG = { tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2, ram: 2, bite: 2 };
+// ชั้น 6 เพิ่ม 2 ท่า (ผู้ใช้ "เอาทั้งหมด" 2026-11-19): ลบข้อมูล = แถวของเป้ากลายเป็นช่องว่าง 1 เทิร์น คนในแถวตก 3 + ถูกดีดออก · คัดลอก = ร่างเงาของเป้าฟันเจ้าของ 3×3 รอบจุดที่เตือน (แรงเท่าตีปกติของเป้า อย่างน้อย 2)
+const DATA_MOVES = ["erase", "copy"];
+const MOVE_NAMES = { erase: "ลบข้อมูล", copy: "คัดลอก", tentacle: "หนวดกวาด", charge: "พุ่งทะลวง", whirl: "วังน้ำวน", zap: "ประจุเรืองแสง", song: "เพลงวาฬ", swallow: "กลืนลงท้อง", ram: "ว่ายชน", bite: "งับ" };
+const DMG = { erase: 3, copy: 2, tentacle: 2, charge: 3, whirlCore: 2, whirlRing: 1, zap: 2, song: 1, swallow: 2, ram: 2, bite: 2 };
 // ความดุ (ผู้ใช้ 2026-11-19 หลัง 6.4.0: "ปลาไม่ดุเลย แทบไม่โจมตีเราเลย"): ท่าที่เตือนต่อเทิร์น ชั้น II–IV 2 · ชั้น V 3 (เลือดต่ำกว่าครึ่ง 4)
 //  + ว่ายชนคนที่ขวางทาง (ดาเมจ ram) + งับคนใกล้ลำตัวทุกเทิร์นที่อยู่ (BITE_REACH ช่อง · BITE_N คน) — หลบได้ทุกท่า
 // เส้นทางว่าย (พิกัดช่อง สัดส่วนของกระดาน — วนรอบ/ตัดผ่าน ออกนอกขอบได้นิดหน่อย) · ปรับตามขนาดกระดานตอนใช้
 const PATH = [[0.1, 0.24], [0.33, 0.2], [0.66, 0.22], [0.92, 0.34], [0.94, 0.66], [0.78, 0.88], [0.52, 0.8], [0.3, 0.58], [0.52, 0.42], [0.74, 0.56], [0.6, 0.9], [0.24, 0.88], [0.06, 0.6]]; // อยู่ในกระดานเกือบตลอด · ไม่ผ่านท่าจอดเรือ (แถวบน) — แก้คู่ client/server
 
-Object.assign(module.exports, { PATH, MOVES, MOVE_NAMES, FIRST_TURN, ON_TURNS, OFF_TURNS, HEART });
+Object.assign(module.exports, { DATA_MOVES, PATH, MOVES, MOVE_NAMES, FIRST_TURN, ON_TURNS, OFF_TURNS, HEART });
 
 const W = (ctx) => ctx.match.fodlan && ctx.match.fodlan.whale;
 function enabled(match) { return match.nautilusWhale !== false; }
@@ -95,13 +102,20 @@ function bodyNow(ctx, map = null) {
 //  คืนวินาทีที่พักเกมให้ client เล่นฉาก (fodlan.preRound รวมกับของชั้น · ≤ 10)
 function preRound(ctx) {
   const w = W(ctx), match = ctx.match;
-  if (!w || w.dead || !enabled(match)) return 0;
+  if (!w || !enabled(match)) return 0;
   const turn = match.roundNumber + 1;
+  if (w.erased && w.erased.until < turn) { w.erased = null; ctx.bump(); } // แถวที่ถูกลบกลับมา
+  // ชั้น 6: ตายแล้วฟื้นเป็นร่างข้อมูล
+  if (w.dead) {
+    if (!isData(ctx) || !w.reviveAt || turn < w.reviveAt) return 0;
+    revive(ctx, w, turn);
+  }
   let secs = 0;
   if (w.on) {
     secs = Math.max(secs, resolvePending(ctx, w));
-    w.left -= 1;
-    if (w.left <= 0 || w.dead) {
+    if (!isData(ctx)) w.left -= 1; // ชั้น 6 อยู่ถาวร
+    if (w.dead) return secs;
+    if (w.left <= 0) {
       if (!w.dead) leave(ctx, w, turn);
       return secs;
     }
@@ -137,9 +151,20 @@ function leave(ctx, w, turn) {
   ctx.log("🐋 ทาลัสซาดำลับไปในความมืด");
   ctx.bump(); // ลำตัวหายจากชั้นแผนที่ (เดิมไม่ bump = ช่องลำตัวค้างเป็นสิ่งกีดขวางในแผนที่ที่แคชไว้)
 }
+// ฟื้นเป็นร่างข้อมูล (ชั้น 6): เลือดเต็ม · โผล่เทิร์นนี้ (ฉากข่มขวัญตามปกติ)
+function revive(ctx, w, turn) {
+  w.dead = false; w.hp = w.hpMax; w.reviveAt = null; w.data = true; w.on = false; w.nextAt = turn;
+  ctx.log("🔷 ทาลัสซาประกอบร่างขึ้นใหม่จากข้อมูล!");
+}
 // เปลี่ยนชั้นระหว่างที่โผล่ (ตามลงไปด้วย นับเทิร์นต่อ): ท่าที่เตือนไว้บนชั้นเดิมยกเลิก · เบียดคนที่เกิดใต้ลำตัวออก
+//  ชั้น 6: ฟื้นเลือดเต็มเสมอ + ร่างข้อมูล · ยังไม่อยู่บนกระดาน = โผล่ต้นเทิร์นหน้า
 function enterLayer(ctx) {
   const w = W(ctx);
+  if (w && isData(ctx)) {
+    const turn = ctx.match.roundNumber + 1;
+    w.data = true; w.dead = false; w.hp = w.hpMax; w.reviveAt = null; w.left = Math.max(w.left || 0, 99);
+    if (!w.on) { w.nextAt = turn; return; }
+  }
   if (!w || !w.on || w.dead) return;
   w.pending = [];
   shoveOffBody(ctx);
@@ -166,8 +191,9 @@ function swim(ctx, w) {
   const map = ctx.map();
   // ช่องที่ลำตัวกวาดผ่านระหว่างว่าย (ตำแหน่งเดิม → ใหม่ ทีละครึ่งช่อง) = ว่ายชน
   const swept = new Set();
-  for (let d = 0; d <= SWIM_PER_TURN; d += 0.5) for (const c of footprint(posAt(w.s + d, map.cols, map.rows), map.cols, map.rows)) swept.add(`${c.x},${c.y}`);
-  w.s += SWIM_PER_TURN;
+  const sw = isData(ctx) ? DATA_SWIM : SWIM_PER_TURN;
+  for (let d = 0; d <= sw; d += 0.5) for (const c of footprint(posAt(w.s + d, map.cols, map.rows), map.cols, map.rows)) swept.add(`${c.x},${c.y}`);
+  w.s += sw;
   ctx.fx("whale_swim", posAt(w.s, map.cols, map.rows));
   const hits = [];
   for (const p of ctx.alive()) if (p.pos && swept.has(`${p.pos.x},${p.pos.y}`) && hit(ctx, p, DMG.ram, "ram")) hits.push(p.id);
@@ -180,7 +206,7 @@ function bite(ctx, w) {
   const body = bodyNow(ctx);
   if (!body.length) return;
   const near = (p) => Math.min(...body.map((c) => Math.max(Math.abs(c.x - p.pos.x), Math.abs(c.y - p.pos.y))));
-  const cands = ctx.alive().filter((p) => p.pos && near(p) <= BITE_REACH).sort((a, b) => near(a) - near(b)).slice(0, BITE_N);
+  const cands = ctx.alive().filter((p) => p.pos && near(p) <= BITE_REACH).sort((a, b) => near(a) - near(b)).slice(0, isData(ctx) ? DATA_BITE_N : BITE_N);
   for (const p of cands) {
     const ok = hit(ctx, p, DMG.bite, "bite");
     ctx.fx("whale_bite", { id: p.id, x: p.pos.x, y: p.pos.y, hit: ok });
@@ -216,13 +242,14 @@ function nearestFree(ctx, p, avoid) {
 
 // ---------- วางแผนท่า (เตือนช่อง) ----------
 function moveCount(ctx, w) {
+  if (isData(ctx)) return (w.hp * 2 < w.hpMax ? 5 : 4) + (zeta(ctx) ? 1 : 0);
   if (ctx.stage < 11) return 2;
   return w.hp * 2 < w.hpMax ? 4 : 3;
 }
 function plan(ctx, w) {
   const map = ctx.map();
   const count = moveCount(ctx, w);
-  const pool = MOVES.slice().filter((m) => m !== w.lastMove);
+  const pool = (isData(ctx) ? [...MOVES, ...DATA_MOVES] : MOVES.slice()).filter((m) => m !== w.lastMove);
   const picks = ctx.pick(pool, count);
   w.pending = [];
   for (const kind of picks) {
@@ -282,6 +309,15 @@ function buildMove(ctx, kind, map) {
     const t = targets(ctx, players, 1)[0];
     return { kind, at: { x: t.pos.x, y: t.pos.y }, tiles: [{ x: t.pos.x, y: t.pos.y }] };
   }
+  if (kind === "erase") {
+    const t = targets(ctx, players, 1)[0];
+    return { kind, row: t.pos.y, tiles: row(t.pos.y) };
+  }
+  if (kind === "copy") {
+    const t = targets(ctx, players, 1)[0], tiles = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (inB(map, t.pos.x + dx, t.pos.y + dy)) tiles.push({ x: t.pos.x + dx, y: t.pos.y + dy });
+    return { kind, id: t.id, at: { x: t.pos.x, y: t.pos.y }, tiles };
+  }
   return null;
 }
 
@@ -301,7 +337,7 @@ function hit(ctx, p, n, kind, extra = {}) {
   // ตัวเรือ Nautilus บังพุ่งทะลวง/เพลงวาฬ: ยืนติดเรือ = ไม่โดน (GRID_PLAN §8.9 — ทำแบบง่าย ไม่ดูฝั่ง)
   if ((kind === "charge" || kind === "song") && require("./nautilusShip").shelters(ctx, p)) { ctx.fx("whale_dodge", { id: p.id, move: kind, ship: true }); return false; }
   if (dodges(ctx, p)) { ctx.log(`💨 ${p.name} หลบ${MOVE_NAMES[kind]}ได้`); ctx.fx("whale_dodge", { id: p.id, move: kind }); return false; }
-  const bonus = ctx.stage >= 11 ? 1 : 0;
+  const bonus = isData(ctx) ? 2 + (zeta(ctx) ? 1 : 0) : ctx.stage >= 11 ? 1 : 0;
   const dealt = ctx.damage(p, n + bonus, extra);
   ctx.log(`🐋 ${MOVE_NAMES[kind]} → ${p.name} -${dealt}`);
   return true;
@@ -328,6 +364,7 @@ function resolvePending(ctx, w) {
     } else if (m.kind === "charge") {
       out.band = m.band;
       for (const p of ctx.alive().filter((q) => q.pos && m.band.includes(q.pos.y))) if (hit(ctx, p, DMG.charge, m.kind)) {
+        if (!p.pos) { out.hits.push(p.id); continue; } // ตายจากท่านี้ (ตำแหน่งถูกล้าง)
         const up = p.pos.y - m.band[0] < 1.5;
         const ty = up ? m.band[0] - 1 : m.band[2] + 1;
         if (inB(map, p.pos.x, ty) && ctx.free(p.pos.x, ty, p.id)) p.pos = { x: p.pos.x, y: ty };
@@ -368,6 +405,20 @@ function resolvePending(ctx, w) {
         if (p.alive) require("./nautilusO2").drain(ctx, p, Math.ceil(require("./nautilusO2").O2_MAX / 2), "swallow"); // ออกซิเจนหายครึ่งถัง
         out.hits.push(p.id);
       }
+    } else if (m.kind === "erase") {
+      out.row = m.row;
+      const turn = ctx.match.roundNumber + 1;
+      w.erased = { row: m.row, until: turn };
+      ctx.bump();
+      const set = new Set(m.tiles.map((c) => `${c.x},${c.y}`));
+      for (const p of ctx.alive().filter((q) => q.pos && q.pos.y === m.row)) {
+        if (hit(ctx, p, DMG.erase, m.kind)) out.hits.push(p.id);
+        if (p.alive && p.pos) { const spot = nearestFree(ctx, p, set); if (spot) { p.pos = { x: spot.x, y: spot.y }; (out.moved ||= []).push({ id: p.id, x: spot.x, y: spot.y }); } }
+      }
+    } else if (m.kind === "copy") {
+      out.at = m.at; out.id = m.id;
+      const p = ctx.alive().find((q) => q.id === m.id && q.pos && Math.abs(q.pos.x - m.at.x) <= 1 && Math.abs(q.pos.y - m.at.y) <= 1);
+      if (p) { out.x = p.pos.x; out.y = p.pos.y; if (hit(ctx, p, Math.max(DMG.copy, strikePower(ctx, p)), m.kind)) out.hits.push(p.id); }
     }
     ctx.fx(`whale_${m.kind}`, out);
   }
@@ -376,10 +427,16 @@ function resolvePending(ctx, w) {
 }
 
 // ---------- ชั้นแผนที่: ลำตัวเป็นสิ่งกีดขวาง ----------
+// ท่าลบข้อมูล: แถวที่ถูกลบเป็นช่องว่างจินตภาพถึงจบเทิร์นที่ยิง
+function erasedRow(ctx) {
+  const w = W(ctx);
+  return w && w.erased && isData(ctx) && ctx.match.roundNumber <= w.erased.until ? w.erased.row : null;
+}
 function layer(ctx, map) {
-  const body = bodyNow(ctx, map);
-  if (!body.length) return map;
+  const body = bodyNow(ctx, map), er = erasedRow(ctx);
+  if (!body.length && er == null) return map;
   const terrain = { ...(map.terrain || {}) };
+  if (er != null) for (let x = 0; x < map.cols; x++) { const k = `${x},${er}`; if (!terrain[k]) terrain[k] = "fd_nt_void"; }
   for (const c of body) {
     const k = c.x + "," + c.y;
     if (!terrain[k]) terrain[k] = "fd_nt_whale";
@@ -418,6 +475,7 @@ function damageWhale(ctx, p, n, { x, y, src = "strike" } = {}) {
   ctx.log(`${src === "torpedo" ? "🚀" : "⚔️"} ${p.name} ${src === "torpedo" ? "ยิงตอร์ปิโดใส่" : "ฟัน"}ทาลัสซา -${n} (เหลือ ${w.hp}/${w.hpMax})`);
   if (w.hp <= 0) {
     w.dead = true; w.on = false; w.present = false; w.pending = []; w.killer = p.id;
+    if (isData(ctx)) w.reviveAt = ctx.match.roundNumber + 1 + DATA_REVIVE; // ชั้น 6: กลับมาเป็นร่างข้อมูล
     ctx.Status.applyBuff(p, HEART.key, HEART.amount, HEART.turns);
     const map = ctx.map();
     ctx.fx("whale_death", { ...posAt(w.s, map.cols, map.rows), by: p.id });
@@ -439,7 +497,9 @@ function publicInfo(ctx) {
   return {
     enabled: enabled(match), on: !!pos, dead: !!w.dead, hp: w.hp, hpMax: w.hpMax, s: w.s, pos, bait: w.bait ? w.bait.id : null, appearSeq: w.appearSeq || 0,
     nextAt: w.on || w.dead ? null : w.nextAt,
-    pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, soft: !!m.soft })),
+    data: !!w.data || isData(ctx), reviveAt: w.dead && w.reviveAt ? w.reviveAt : null,
+    pending: (w.pending || []).map((m) => ({ kind: m.kind, dir: m.dir, rows: m.rows, band: m.band, centers: m.centers, at: m.at, row: m.row, id: m.id, soft: !!m.soft })),
+    erased: erasedRow(ctx),
     warn,
   };
 }

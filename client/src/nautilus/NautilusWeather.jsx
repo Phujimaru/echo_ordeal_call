@@ -18,6 +18,16 @@ export const NT_WEATHER = {
   nt_dark: { icon: "🌑", name: "ความมืดบีบ", text: "ความมืดกินเข้ามาจากขอบกระดาน · ใครอยู่นอกแสงตอนจบเทิร์นโดนความเสียหาย" },
 };
 
+// ชั้น 6 ทะเลข้อมูล: ไม่มีสภาพอากาศ — คุณสมบัติจินตภาพของเทิร์นนี้ (server/fodlan/ntImaginary.js ATTR_INFO · ตัวเลขต้องตรงกัน)
+export const NT_ATTR = {
+  alpha: { sym: "α", text: "ตีปกติ +1" },
+  beta: { sym: "β", text: "ระยะเดิน +2" },
+  gamma: { sym: "γ", text: "ความเสียหายที่ได้รับ −1 (ไม่ต่ำกว่า 1)" },
+  delta: { sym: "δ", text: "ความเสียหายที่ได้รับ +1" },
+  epsilon: { sym: "ε", text: "โอกาสคริติคอล +30%" },
+  zeta: { sym: "ζ", text: "ทาลัสซาใช้ท่าเพิ่ม 1 · ท่าของทาลัสซาแรงขึ้น 1" },
+};
+
 export default function NautilusWeather({ state, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -26,12 +36,18 @@ export default function NautilusWeather({ state, onClose }) {
   }, [onClose]);
   const fd = state.fodlan || {};
   const w = fd.weather, info = w && NT_WEATHER[w.kind];
+  const im = fd.board && fd.board.imaginary, attr = im && im.attr && NT_ATTR[im.attr];
   return (
     <div className="eos-sit-back" onClick={onClose}>
       <div className="eos-sit nt-panel" role="dialog" aria-label="สภาพอากาศ" onClick={(e) => e.stopPropagation()}>
-        <header><b>{fd.name || "Nautilus"}</b><span>{Number.isFinite(fd.depth) ? `−${Math.abs(fd.depth).toLocaleString("en-US")} ม.` : ""}</span><button type="button" aria-label="ปิด" onClick={onClose}>✕</button></header>
+        <header><b>{fd.name || "Nautilus"}</b><span>{Number(fd.stage) === 12 ? "−∞ ม." : Number.isFinite(fd.depth) ? `−${Math.abs(fd.depth).toLocaleString("en-US")} ม.` : ""}</span><button type="button" aria-label="ปิด" onClick={onClose}>✕</button></header>
         <ul>
-          {info ? (
+          {attr ? (
+            <li data-tone="warn">
+              <span className="ico nt-attr-sym">{attr.sym}</span>
+              <span className="txt"><b>คุณสมบัติจินตภาพ {attr.sym}</b><span className="det">{attr.text}</span></span>
+            </li>
+          ) : info ? (
             <li data-tone="warn">
               <span className="ico">{info.icon}</span>
               <span className="txt"><b>{info.name} · อีก {w.left} เทิร์น</b><span className="det">{info.text}</span></span>

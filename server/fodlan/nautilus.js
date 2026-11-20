@@ -34,7 +34,8 @@ function layer(ctx, map) {
 }
 function layerVer(ctx) {
   const w = whaleOn(ctx) ? ctx.match.fodlan.whale : null;
-  return w && w.on && !w.dead ? `w${w.appearSeq}.${Math.round(w.s * 100)}` : "";
+  const er = w && w.erased ? `e${w.erased.row}.${w.erased.until}` : "";
+  return (w && w.on && !w.dead ? `w${w.appearSeq}.${Math.round(w.s * 100)}` : "") + er;
 }
 function keepsTile(ctx, k) { return Ship.keepsTile(ctx, k); }
 function objects(ctx) { return whaleOn(ctx) ? Th.objects(ctx) : []; }
@@ -46,6 +47,9 @@ const BAIT_RANGE = 4, BAIT_SECS = 1.3;
 const baitOf = (p) => (p.inventory || []).find((it) => it && it.type === "whaleBait") || null;
 function baitTargets(ctx, p) { return ctx.alive().filter((u) => u.pos && u.id !== p.id && !(ctx.combat.sameTeam && ctx.combat.sameTeam(u, p)) && Math.max(Math.abs(u.pos.x - p.pos.x), Math.abs(u.pos.y - p.pos.y)) <= BAIT_RANGE); }
 function hudActions(ctx, p) {
+  // ชั้น 6: กำลังเลือกคุณสมบัติที่จะเขียนทับ (ntImaginary.js) = ซ่อนปุ่มเรือ ให้ปุ่ม α–ζ พอดีตาราง
+  const im = ctx.match.fodlan && ctx.match.fodlan.s && ctx.match.fodlan.s.nt12;
+  if (p && im && im.pick && im.pick[p.id]) return [];
   const out = Ship.hudActions(ctx, p);
   if (p && p.pos && baitOf(p)) {
     const w = whaleOn(ctx) && ctx.match.fodlan.whale, t = baitTargets(ctx, p), a = ctx.match.action;

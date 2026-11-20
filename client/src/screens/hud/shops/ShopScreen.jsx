@@ -25,6 +25,10 @@ const LOOKS = {
   // โหมด Nautilus: ร้าน = เรือ Nautilus ที่ท่าจอด (server/fodlan/nautilusShip.js)
   nautilus: { look: "apoth", theme: "apoth", crest: "🚢", name: "นอติลุส", latin: "Nautilus" },
 };
+// ร้านเรือ Nautilus: แท็บร้าน (ของเฉพาะเรือ + 3 ร้านเดิม) — server/shop.js ติด it.tab · หน้าตาของแท็บ = หน้าตาร้านนั้น
+//  ผู้ใช้ 2026-11-19: "กด tab เปลี่ยนร้านค้าได้ ไม่ใช่เอาทุกอย่างมาอัดไว้ร้านเดียว" · ปุ่ม Tab = แท็บถัดไป (Shift+Tab ย้อน)
+const TAB_ORDER = ["ship", "apoth", "forge", "cara"];
+const TAB_LOOK = { ship: "nautilus", apoth: "apoth", forge: "forge", cara: "cara" };
 const KEEP_TYPES = ["lifeCrystal", "armorCrystal", "battery"]; // ของถาวร/ชาร์จเก็บ (ชั้นที่ 3 ของแคปซูล)
 const SHELF_LABEL = { draw: "ช่วงจั่ว", turn: "ตาเดิน", keep: "ถาวร" };
 const SHELF_ORDER = ["draw", "turn", "keep"];
@@ -80,9 +84,14 @@ function BagBar({ items, bagSlots, hitN, left }) {
 
 export default function ShopScreen({ shop, me, block = null, bagSlots = 5, onClose }) {
   const k = useStageK();
-  const meta = LOOKS[shop?.kind] || LOOKS.apoth;
+  const allItems = shop?.items || [];
+  const tabs = TAB_ORDER.filter((t) => allItems.some((it) => it.tab === t));
+  const [tabSel, setTab] = useState(null);
+  const tab = tabs.length ? (tabs.includes(tabSel) ? tabSel : tabs[0]) : null;
+  const meta = tab ? LOOKS[TAB_LOOK[tab]] || LOOKS.apoth : LOOKS[shop?.kind] || LOOKS.apoth;
   const capsule = meta.theme === "capsule";
-  const items = shop?.items || [];
+  const items = tab ? allItems.filter((it) => it.tab === tab) : allItems;
+  const nextTab = (d) => { if (tabs.length < 2) return; clickSound(); setTab(tabs[(tabs.indexOf(tab) + d + tabs.length) % tabs.length]); setSelId(null); setFlipN(0); };
   const gold = me?.gold ?? 0;
   const inv = me?.inventory || [];
   const bagItems = inv.filter((it) => it.type !== "kebread"); // ขนมปังเอมิลิโกะไม่กินช่อง
@@ -109,7 +118,7 @@ export default function ShopScreen({ shop, me, block = null, bagSlots = 5, onClo
     if (meta.look !== "cara") return undefined;
     const ts = Array.from({ length: cardCount }, (_, i) => setTimeout(() => setFlipN((n) => Math.max(n, i + 1)), 450 + i * 260));
     return () => ts.forEach(clearTimeout);
-  }, [meta.look, cardCount]);
+  }, [meta.look, cardCount, tab]);
 
   const labelOf = (it) => {
     if (!it) return BUY;
@@ -153,6 +162,7 @@ export default function ShopScreen({ shop, me, block = null, bagSlots = 5, onClo
       const i = sel ? list.findIndex((x) => x.id === sel.id) : -1;
       let hit = true;
       if (key === "Escape") onClose?.();
+      else if (key === "Tab" && tabs.length > 1) nextTab(e.shiftKey ? -1 : 1);
       else if (["ArrowRight", "ArrowDown", "d", "s"].includes(key)) { if (list.length) pick(list[Math.min(list.length - 1, i + 1)]); }
       else if (["ArrowLeft", "ArrowUp", "a", "w"].includes(key)) { if (list.length) pick(list[Math.max(0, i - 1)]); }
       else if (key === "Enter") { if (!e.repeat) buy(sel); }
@@ -341,6 +351,15 @@ export default function ShopScreen({ shop, me, block = null, bagSlots = 5, onClo
               <button type="button" className="shs-x" aria-label="ปิด" onClick={close}>✕</button>
             </div>
           </header>
+          {tabs.length > 1 && (
+            <nav className="shs-tabs" role="tablist">
+              {tabs.map((t) => { const m = LOOKS[TAB_LOOK[t]] || LOOKS.apoth; return (
+                <button type="button" role="tab" key={t} aria-selected={t === tab} data-on={t === tab ? "true" : "false"} onClick={() => { if (t !== tab) { clickSound(); setTab(t); setSelId(null); setFlipN(0); } }}>
+                  <span>{m.crest}</span><b>{m.name}</b>
+                </button>
+              ); })}
+            </nav>
+          )}
           {meta.look === "forge" ? renderForge() : meta.look === "cara" ? renderCara() : renderApoth()}
           <BagBar items={bagItems} bagSlots={bagSlots} hitN={hitN} left={meta.look === "forge"} />
         </section>

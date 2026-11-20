@@ -6,3 +6,6 @@
 - `*_usgs.mp3` — USGS seafloor mapping sounds https://www.usgs.gov/media/audio/seafloor-mapping-sounds (สาธารณสมบัติ)
 - `*_usnavy.ogg` — WWII submarine dive klaxon (Wikimedia Commons, ต้นทาง US Navy — สาธารณสมบัติ)
 - `stage/` = เสียงสำรองไว้ทำด่าน/เรือ/ฉากเปลี่ยนชั้น (ยังไม่ได้ตัดแต่ง · ยังไม่มีใครฟัง)
+
+- amb_data.mp3 (ชั้น 6 ทะเลข้อมูล 2026-11-19): สังเคราะห์ล้วนด้วย .claude/plans/nautilus-amb-data.py (numpy) — ไม่มีต้นฉบับ/ลิขสิทธิ์
+- bgm_5.mp3 (ชั้น 5): "Into the Fires of War - Fae Round Table Domain Turmoil" ไฟล์จากผู้ใช้ 2026-11-19

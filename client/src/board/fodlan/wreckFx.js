@@ -26,9 +26,11 @@ export const WRECK_FX = {
 const SFX = ["boom", "impact", "deepimpact", "rumble", "whip", "slap", "squish", "splash", "bubbles", "swirl", "gulp", "whoosh", "tailslap", "spit",
   "l8_cannon", "l8_creak", "l8_crash", "l8_door", "l8_hiss", "l8_clang", "l8_debris", "l8_quake", "l8_coins", "l8_lock"];
 let SND = false;
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(SFX.map((n) => [`ntw_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`ntw_${k}`, { gain }); if (delay > 0) setTimeout(go, delay); else go();
+  const go = () => playSfx(`ntw_${k}`, { gain: gain * NT_SFX_BOOST }); if (delay > 0) setTimeout(go, delay); else go();
 }
 function sounds(e) {
   switch (e.kind) {

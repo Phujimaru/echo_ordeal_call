@@ -2,7 +2,8 @@
 //  เรือดำน้ำ Nautilus จอดที่ท่า (GRID_PLAN §8.9 · ทุกชั้น 7–11) — ภาพ 3 มิติจากรูปทรงกลึง (หมุนกล้อง/มุมนกได้)
 //  อิงภาพที่ผู้ใช้ส่ง (client/public/nautilus/nautilus_side.webp): ตัวเรือน้ำเงินเข้ม ขอบทอง หัวเจาะทองยาวที่หัวเรือ หอบังคับการ หน้าต่างกลม ใบพัดท้าย
 //  fd.ship = { x, y, w, h } (server — ช่องเรือเป็นสิ่งกีดขวาง fd_nt_ship) · ใช้: shipItems(list, g, fd, info, now, lowQ) จาก items ของชั้น
-//  ฉากคำสั่งเรือ (fd.fx): nt_refill · nt_torpedo · nt_ram · nt_light · nt_organ → shipFx(g, fd, info, now)
+//  ฉากคำสั่งเรือ (fd.fx): nt_refill · nt_torpedo · nt_sail (แล่นเรือ — ไหลตามทาง) · nt_board (ขึ้น/ลงเรือ) · nt_light · nt_organ → shipFx(g, fd, info, now)
+//  หัวเจาะ (nt_ram) ถอดออก 2026-11-19 (ผู้ใช้: ไร้ประโยชน์)
 // ============================================================
 import { P, depthOf, glow } from "../boardGeo";
 import { fxT, fxOnce } from "./index";
@@ -13,11 +14,13 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, k) => a + (b - a) * k;
 const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 
-export const SHIP_FX = { nt_refill: 1600, nt_torpedo: 1800, nt_ram: 1500, nt_light: 2600, nt_organ: 3200 };
+export const SHIP_FX = { nt_refill: 1600, nt_torpedo: 1800, nt_sail: 1400, nt_board: 700, nt_light: 2600, nt_organ: 3200 };
 let SND = false;
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(["ping", "boom", "impact", "rush", "whoosh", "bubbles", "splash", "deepimpact"].map((n) => [`nts_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`nts_${k}`, { gain });
+  const go = () => playSfx(`nts_${k}`, { gain: gain * NT_SFX_BOOST });
   if (delay > 0) setTimeout(go, delay); else go();
 }
 
@@ -30,15 +33,18 @@ function hullR(u) {
 const COL = { hullTop: [28, 34, 58], hullBot: [26, 52, 98], gold: "#c9a24a", gold2: "#f0d68a", deck: "#1b2035", tower: "#202741" };
 const shade = (c, k) => `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
 
-// ช่วงเวลาเด้งของเรือ (ลอยนิ่งในน้ำ) + ท่าพุ่ง (หัวเจาะ)
+// ช่วงเวลาเด้งของเรือ (ลอยนิ่งในน้ำ) + แล่นเรือ (nt_sail: ไหลจากตำแหน่งเดิมตามทางทีละช่อง → ตำแหน่งใหม่ของ server)
 function shipPose(fd, now) {
-  let dx = 0;
+  let dx = 0, dy = 0;
   for (const e of fd.fx || []) {
-    if (e.kind !== "nt_ram") continue;
-    const k = fxT(e, now, SHIP_FX.nt_ram);
-    if (k < 1) dx = Math.sin(clamp(k / 0.5, 0, 1) * Math.PI) * (e.dist || 3) * (e.dir || 1) * (k < 0.5 ? 1 : 0.6);
+    if (e.kind !== "nt_sail" || !e.path || e.path.length < 2) continue;
+    const k = fxT(e, now, SHIP_FX.nt_sail);
+    if (k >= 1) continue;
+    const path = e.path, last = path[path.length - 1], u = (1 - Math.pow(1 - k, 2)) * (path.length - 1);
+    const i = Math.min(path.length - 2, Math.floor(u)), f = u - i, a = path[i], b = path[i + 1];
+    dx = lerp(a.x, b.x, f) - last.x; dy = lerp(a.y, b.y, f) - last.y;
   }
-  return { bob: Math.sin(now / 1300) * 0.05, dx };
+  return { bob: Math.sin(now / 1300) * 0.05, dx, dy };
 }
 
 export function shipItems(list, g, fd, info, now, lowQ) {
@@ -61,7 +67,7 @@ function shipImg() {
 const HULL0 = 0.2, HULL1 = 0.97; // ส่วนตัวเรือในภาพ (ไม่รวมหัวเจาะ)
 const PORTS = [0.47, 0.52, 0.57, 0.62, 0.67, 0.72, 0.77, 0.82, 0.87]; // หน้าต่างกลางลำ (สัดส่วนความกว้างภาพ) แถว y 0.53
 function drawShipSprite(g, fd, s, now, lowQ) {
-  const img = TINT, { bob, dx } = shipPose(fd, now), cy = s.y + s.h / 2;
+  const img = TINT, { bob, dx, dy } = shipPose(fd, now), cy = s.y + s.h / 2 + dy;
   const xw = s.x + 0.1 + dx, xe = s.x + s.w - 0.1 + dx, z = 0.3 + bob;
   const pw = P(xw, cy, z), pe = P(xe, cy, z), cs = (pw[2] + pe[2]) / 2;
   let vx = pw[0] - pe[0], vy = pw[1] - pe[1], L = Math.hypot(vx, vy);
@@ -92,8 +98,8 @@ function drawShipSprite(g, fd, s, now, lowQ) {
 }
 
 function drawShip(g, fd, s, now, lowQ) {
-  const { bob, dx } = shipPose(fd, now);
-  const len = s.w - 0.3, x0 = s.x + 0.15 + dx, cy = s.y + s.h / 2, zc = 0.62 + bob;
+  const { bob, dx, dy } = shipPose(fd, now);
+  const len = s.w - 0.3, x0 = s.x + 0.15 + dx, cy = s.y + s.h / 2 + dy, zc = 0.62 + bob;
   const N = lowQ ? 14 : 22, M = 14;
   // เงาใต้เรือ + ทรายฟุ้ง
   const sh0 = P(x0 + len * 0.5, cy), sh1 = P(x0 + len, cy);
@@ -193,13 +199,15 @@ export function shipFx(g, fd, info, now) {
     const k = fxT(e, now, SHIP_FX[e.kind]);
     if (fxOnce(e)) {
       if (e.kind === "nt_torpedo") { snd("whoosh", 0.8); snd("rush", 0.6, 150); snd("impact", 1, 900); }
-      else if (e.kind === "nt_ram") { snd("rush", 1); snd("deepimpact", 1, 600); }
+      else if (e.kind === "nt_sail") { snd("rush", 0.9); snd("bubbles", 0.8, 100); if ((e.hits || []).length) snd("deepimpact", 1, 500); }
+      else if (e.kind === "nt_board") snd("splash", 0.5);
       else if (e.kind === "nt_light") snd("ping", 0.8);
       else if (e.kind === "nt_refill") { snd("bubbles", 1); }
       else if (e.kind === "nt_organ") snd("ping", 0.5);
     }
     if (k >= 1) continue;
     if (e.kind === "nt_torpedo") torpedo(g, e, k, now);
+    else if (e.kind === "nt_sail") wake(g, s, e, k, now);
     else if (e.kind === "nt_light") searchlight(g, s, e, k);
     else if (e.kind === "nt_refill") refill(g, e, k, now);
     else if (e.kind === "nt_organ") organ(g, s, k, now);
@@ -217,6 +225,18 @@ function torpedo(g, e, k, now) {
     const kk = (k - 0.5) / 0.5, p = P(b.x + 0.5, b.y + 0.5, 0.4);
     glow(g, p[0], p[1], p[2] * (0.6 + kk * 1.6), "255,220,150", 0.9 * (1 - kk));
     g.strokeStyle = `rgba(220,250,255,${1 - kk})`; g.lineWidth = 2; g.beginPath(); g.ellipse(p[0], p[1], p[2] * (0.3 + kk * 1.8), p[2] * (0.15 + kk * 0.8), 0, 0, TAU); g.stroke();
+  }
+  void now;
+}
+// ฟองท้ายเรือตอนแล่น (ตามทางที่ผ่าน)
+function wake(g, s, e, k, now) {
+  const path = e.path || []; if (path.length < 2) return;
+  for (let i = 0; i < path.length; i++) {
+    const c = path[i], t = clamp(k * 1.4 - i / path.length * 0.6, 0, 1); if (t <= 0 || t >= 1) continue;
+    for (let j = 0; j < 4; j++) {
+      const q = P(c.x + s.w / 2 + Math.sin(i * 3.1 + j * 1.7) * s.w * 0.35, c.y + s.h / 2 + Math.cos(j * 2.3) * 0.4, 0.3 + t * 1.2);
+      g.strokeStyle = `rgba(200,250,255,${0.55 * (1 - t)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(q[0], q[1] - t * q[2] * 0.4, q[2] * (0.05 + j * 0.02), 0, TAU); g.stroke();
+    }
   }
   void now;
 }

@@ -42,7 +42,7 @@ const WEATHER_TURNS = 3;
 const WEATHER_PCT = 50;
 const WEATHER_FROM = 3; // เทิร์นแรกของการมาเยือนที่สภาพอากาศเกิดได้
 const WEATHER_KINDS = { 1: "storm", 2: "miasma", 3: "tsunami", 4: "blizzard", 5: "aura" };
-const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์", 6: "Eos", 7: "แนวปะการังแสงรำไร", 8: "สุสานเรือรบ", 9: "หุบปล่องเพลิง", 10: "นครบาดาลที่สาบสูญ", 11: "ห้วงเหวไร้แสง" };
+const STAGE_NAMES = { 1: "แม่น้ำแอร์มิด", 2: "เรเมียร์", 3: "ชายฝั่งเดอร์ดริว", 4: "เทือกเขาฟาร์กัส", 5: "หลุมศพศักดิ์สิทธิ์", 6: "Eos", 7: "แนวปะการังแสงรำไร", 8: "สุสานเรือรบ", 9: "หุบปล่องเพลิง", 10: "นครบาดาลที่สาบสูญ", 11: "ห้วงเหวไร้แสง", 12: "ทะเลข้อมูลจินตภาพ" };
 const WEATHER_NAMES = { ...Nt.WEATHER_NAMES, storm: "ฝนฟ้าผ่า", miasma: "ไอพิษ", tsunami: "คลื่นซึนามิ", blizzard: "พายุหิมะ", aura: "แสงเขียวเรือง", eos_storm: "ฝนฟ้าคะนอง", eos_fog: "หมอก", eos_sand: "พายุทราย", eos_snow: "พายุหิมะ", eos_magnet: "พายุแม่เหล็ก" };
 // สนาม Eos (GRID_PLAN §8.6) = "ด่าน 6" ของตัวคุมนี้ในโลก "eos": แผนที่เดียวทั้งแมตช์ (ไม่หมุนด่าน)
 //  สภาพอากาศเกิดซ้ำได้ — สงบแล้วพัก EOS_WX_GAP เทิร์นก่อนสุ่มใหม่ · ชนิดสุ่มเท่ากัน
@@ -75,11 +75,14 @@ function stageState() { return match.fodlan ? match.fodlan.s : null; }
 
 // สุ่มสภาพอากาศ (random ส่งเข้ามาได้ — เทสต์): ทุกจบเทิร์นตั้งแต่เทิร์น WEATHER_FROM − 1 ที่ยังไม่เคยเกิดในการมาเยือนนี้
 function rollWeather(stage, random = Math.random) {
-  return random() * 100 < WEATHER_PCT ? { kind: weatherKindOf(stage, random), left: WEATHER_TURNS } : null;
+  if (random() * 100 >= WEATHER_PCT) return null;
+  const kind = weatherKindOf(stage, random);
+  return kind ? { kind, left: WEATHER_TURNS } : null;
 }
 // ชนิดสภาพอากาศของด่าน: Fodlan = ด่านละชนิดเดียว · Nautilus = สุ่มจากชุดของชั้น
 function weatherKindOf(stage, random = Math.random) {
   const pool = Nt.WEATHER_POOLS[stage];
+  if (pool && !pool.length) return null; // Nautilus ชั้น 6: ไม่มีสภาพอากาศ
   if (pool) return pool[Math.floor(random() * pool.length) % pool.length];
   return WEATHER_KINDS[stage];
 }
@@ -228,7 +231,9 @@ function start() {
   }
   // Nautilus เริ่มกลางเกม (dev: ECHO_DEV_START_ROUND) = ชั้นที่ตรงกับเทิร์นนั้น (ทุก 6 เทิร์นลึกลง 1 ชั้น)
   if (isNautilus() && match.roundNumber > 0) {
-    const s = Math.min(Nt.LAST_STAGE, Nt.FIRST_STAGE + Math.floor(match.roundNumber / Journey.AREA_TURNS));
+    // ชั้น 5 อยู่ 3 เทิร์น (25–27) → ชั้น 6 ตั้งแต่เทิร์น 28
+    const r = match.roundNumber, five = Nt.FIRST_STAGE + 4;
+    const s = r >= (five - Nt.FIRST_STAGE) * Journey.AREA_TURNS + Nt.LAYER_TURNS[five] ? Nt.DATA_STAGE : Math.min(five, Nt.FIRST_STAGE + Math.floor(r / Journey.AREA_TURNS));
     match.fodlan.stage = s;
     match.fodlan.route = NT_STAGES.filter((n) => n <= s);
   }
@@ -291,9 +296,12 @@ function nautilusNext(from) { return from >= Nt.FIRST_STAGE && from < Nt.LAST_ST
 // จบด่าน (ครบ 6 เทิร์น) → สุ่มด่านถัดไป → พักเกม CUTSCENE ให้ client เล่นฉากเปลี่ยนแผนที่ (fodlan/FodlanTravel.jsx)
 //  คืน true = จัดการแล้ว (ผู้เรียกหยุด) · startTimer = พักเฟสแล้วแจกไพ่ (phases/endTurn.js)
 function maybeAdvance(startTimer, random = Math.random) {
-  if (isEos() || !active() || !Journey.legEnds(match.roundNumber, match.legStart)) return false;
+  if (isEos() || !active()) return false;
   const st = match.fodlan;
   const from = st.stage;
+  // Nautilus ชั้น 5: ครบ 3 เทิร์นแล้วกลายร่าง (Nt.LAYER_TURNS) · ชั้นอื่นครบ 6 เทิร์นตามการเดินทาง
+  const short = isNautilus() && Nt.LAYER_TURNS[from];
+  if (short ? Journey.turnInArea(match.roundNumber, match.legStart) < short : !Journey.legEnds(match.roundNumber, match.legStart)) return false;
   const to = isNautilus() ? nautilusNext(from) : pickNext(from, random);
   if (to == null) return false; // Nautilus ชั้นสุดท้าย: อยู่ต่อจนจบเกม
   call("leave", undefined); // ฮุคของด่านที่กำลังออก (หลุมศพ: ศิลาตราหาย)
@@ -302,7 +310,8 @@ function maybeAdvance(startTimer, random = Math.random) {
   st.route.push(to);
   st.weather = null; // สภาพอากาศของด่านใหม่สุ่มตอนจบเทิร์น (onEndTurn)
   match.journeyScene = { seq: ++match.journeySceneSeq, active: true, mode: "advance", area: to, fromArea: from, route };
-  match.lastLog.push(isNautilus() ? `🌊 ดิ่งลงสู่${STAGE_NAMES[to]} (${Nt.DEPTHS[to]} ม.)` : `🗺️ ออกเดินทางต่อ — มุ่งหน้าสู่ด่าน ${to} ${STAGE_NAMES[to]}`);
+  if (short) match.legStart = match.roundNumber + 1; // ชั้นที่จบก่อนครบ 6: ชั้นใหม่นับเทิร์นใหม่จากเทิร์นหน้า
+  match.lastLog.push(isNautilus() && to === Nt.DATA_STAGE ? `🔷 ห้วงเหวถูกกลืนเป็นข้อมูล — ${STAGE_NAMES[to]}` : isNautilus() ? `🌊 ดิ่งลงสู่${STAGE_NAMES[to]} (${Nt.DEPTHS[to]} ม.)` : `🗺️ ออกเดินทางต่อ — มุ่งหน้าสู่ด่าน ${to} ${STAGE_NAMES[to]}`);
   action.placeOnBoard(areaOf(to)); // แผนที่ใหม่ → ทุกคนกลับไปยืนจุดเกิด
   enterStage();
   startTimer();
@@ -437,7 +446,7 @@ function publicInfo() {
     depth: isNautilus() ? Nt.DEPTHS[st.stage] : undefined,
     whaleEnabled: isNautilus() ? match.nautilusWhale !== false : undefined, // ทาลัสซาเปิด/ปิด (โหวต) — ขั้น 2 ข้ามอีเวนต์/ฉากข่มขวัญ/เพลงปลาวาฬเมื่อปิด
     weather: w ? { kind: w.kind, left: w.left } : null,
-    turnsLeft: ntLast ? null : Journey.AREA_TURNS - Journey.turnInArea(round, match.legStart) + 1,
+    turnsLeft: ntLast ? null : ((isNautilus() && Nt.LAYER_TURNS[st.stage]) || Journey.AREA_TURNS) - Journey.turnInArea(round, match.legStart) + 1,
     route: [...st.route],
     scene: scene ? { seq: scene.seq, active: !!scene.active, mode: scene.mode, stage: scene.area, fromStage: scene.fromArea } : null,
     // ของด่านปัจจุบัน: ข้อมูลวาด (ฮุค publicInfo) + ของที่ตีได้ + เหตุการณ์ล่าสุด

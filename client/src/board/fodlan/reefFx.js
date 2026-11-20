@@ -15,9 +15,11 @@ const easeOut = (k) => 1 - Math.pow(1 - k, 3);
 export const REEF_FX = { nt_puffer: 1500, nt_urchin: 900, nt_valve: 1200, nt_wall_break: 1500, nt_clam_bite: 900, nt_current: 900, nt_fall: 1300, nt_surface: 1100, nt_pearl: 1200, nt_dodge: 700, nt_shove: 500 };
 
 let SND = false;
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(["whoosh", "whip", "boom", "impact", "splash", "spit", "bubbles", "swirl", "gulp", "slap", "squish", "crackle", "rumble"].map((n) => [`ntr_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`ntr_${k}`, { gain }); if (delay > 0) setTimeout(go, delay); else go();
+  const go = () => playSfx(`ntr_${k}`, { gain: gain * NT_SFX_BOOST }); if (delay > 0) setTimeout(go, delay); else go();
 }
 
 // ---------- ของบนกระดาน (เรียงความลึก) ----------

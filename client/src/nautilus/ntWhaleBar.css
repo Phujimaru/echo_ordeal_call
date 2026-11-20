@@ -1,24 +1,53 @@
-/* แถบพลังชีวิตทาลัสซา (NtWhaleBar.jsx) — กลางจอบน */
+/* แถบพลังชีวิตทาลัสซา (NtWhaleBar.jsx) — กลางจอบน · แบบแถบบอส (ผู้ใช้ 2026-11-20: "ไม่สวย · ชื่ออยู่ตรงกลาง")
+   ชื่อกลางมีเส้นประดับสองข้าง · หลอดปลายตัดเฉียง ไม่มีกล่องพื้นหลัง · ตัวเลขใต้หลอดตรงกลาง */
 .nt-whalebar {
-  position: fixed; left: 50%; top: calc(16px * var(--k, 1)); z-index: 40; pointer-events: none;
-  width: calc(520px * var(--k, 1)); transform: translateX(-50%);
-  font-family: "Kanit", sans-serif; color: #e8fbff; animation: ntWbIn .5s cubic-bezier(.2, .9, .3, 1) both;
-  padding: calc(8px * var(--k, 1)) calc(14px * var(--k, 1)) calc(11px * var(--k, 1)); border-radius: calc(12px * var(--k, 1));
-  background: linear-gradient(180deg, rgba(6, 26, 44, .9), rgba(3, 14, 26, .86)); box-shadow: 0 6px 22px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(150, 235, 255, .22);
+  position: fixed; left: 50%; top: calc(64px * var(--k, 1)); z-index: 40; pointer-events: none; /* ใต้แถบปุ่มกล้องกลางบน (เดิมทับกัน) */
+  width: calc(430px * var(--k, 1)); transform: translateX(-50%);
+  font-family: "Kanit", sans-serif; color: #e8fbff; animation: ntWbIn .6s cubic-bezier(.2, .9, .3, 1) both;
+  display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--k, 1));
+  filter: drop-shadow(0 4px 10px rgba(0, 12, 24, .7));
 }
-.nt-whalebar-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px calc(4px * var(--k, 1)); text-shadow: 0 2px 6px rgba(0, 10, 20, .85); }
-.nt-whalebar-head b { font-size: calc(19px * var(--k, 1)); font-weight: 700; letter-spacing: .04em; color: #bff6ff; }
-.nt-whalebar-head span { font-size: calc(17px * var(--k, 1)); font-weight: 700; font-variant-numeric: tabular-nums; }
-.nt-whalebar-head i { font-style: normal; opacity: .65; font-size: .85em; }
+.nt-whalebar-head { display: flex; align-items: center; justify-content: center; gap: calc(12px * var(--k, 1)); width: 100%; }
+.nt-whalebar-head b {
+  font-size: calc(21px * var(--k, 1)); font-weight: 700; letter-spacing: .12em; color: #eafcff;
+  text-shadow: 0 0 calc(10px * var(--k, 1)) rgba(90, 225, 255, .75), 0 2px 4px rgba(0, 12, 24, .9);
+}
+.nt-whalebar-orn { flex: 1; height: calc(2px * var(--k, 1)); position: relative; }
+.nt-whalebar-orn.l { background: linear-gradient(90deg, rgba(150, 240, 255, 0), rgba(150, 240, 255, .85)); }
+.nt-whalebar-orn.r { background: linear-gradient(90deg, rgba(150, 240, 255, .85), rgba(150, 240, 255, 0)); }
+.nt-whalebar-orn::after {
+  content: ""; position: absolute; top: 50%; width: calc(8px * var(--k, 1)); height: calc(8px * var(--k, 1));
+  background: #bff6ff; box-shadow: 0 0 calc(8px * var(--k, 1)) rgba(120, 240, 255, .9); transform: translateY(-50%) rotate(45deg);
+}
+.nt-whalebar-orn.l::after { right: calc(-2px * var(--k, 1)); }
+.nt-whalebar-orn.r::after { left: calc(-2px * var(--k, 1)); }
+.nt-whalebar-frame {
+  position: relative; width: 100%; height: calc(18px * var(--k, 1)); padding: calc(3px * var(--k, 1));
+  background: linear-gradient(180deg, rgba(150, 240, 255, .9), rgba(60, 170, 210, .9));
+  clip-path: polygon(calc(12px * var(--k, 1)) 0, calc(100% - 12px * var(--k, 1)) 0, 100% 50%, calc(100% - 12px * var(--k, 1)) 100%, calc(12px * var(--k, 1)) 100%, 0 50%);
+  box-sizing: border-box;
+}
 .nt-whalebar-track {
-  position: relative; height: calc(14px * var(--k, 1)); border-radius: 999px; overflow: hidden;
-  background: rgba(4, 18, 32, .82); box-shadow: 0 0 0 1.5px rgba(150, 235, 255, .55), 0 4px 16px rgba(0, 0, 0, .5), 0 0 22px rgba(31, 184, 196, .35);
+  position: relative; width: 100%; height: 100%; overflow: hidden; background: rgba(3, 16, 30, .94);
+  clip-path: polygon(calc(10px * var(--k, 1)) 0, calc(100% - 10px * var(--k, 1)) 0, 100% 50%, calc(100% - 10px * var(--k, 1)) 100%, calc(10px * var(--k, 1)) 100%, 0 50%);
 }
-.nt-whalebar-track > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; }
-.nt-whalebar-lag { background: rgba(255, 255, 255, .85); transition: width .5s ease-in; }
-.nt-whalebar-fill { background: linear-gradient(180deg, #b8f6fb, #1fb8c4 55%, #0c7f99); transition: width .25s ease-out; }
-.nt-whalebar-track > i { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(2, 20, 34, .55); }
+.nt-whalebar-track > span { position: absolute; left: 0; top: 0; bottom: 0; }
+.nt-whalebar-lag { background: rgba(255, 255, 255, .8); transition: width .5s ease-in; }
+.nt-whalebar-fill {
+  background: linear-gradient(180deg, #d8fbff 0%, #5fe0ee 35%, #1fb8c4 60%, #0b6f8f 100%); transition: width .25s ease-out;
+  box-shadow: 0 0 calc(12px * var(--k, 1)) rgba(80, 220, 255, .7);
+}
+.nt-whalebar-fill::after {
+  content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 0 40%, rgba(255, 255, 255, .45) 50%, transparent 60% 100%);
+  background-size: 250% 100%; animation: ntWbShine 3.2s linear infinite;
+}
+.nt-whalebar-track > i { position: absolute; top: 25%; bottom: 25%; width: 1px; background: rgba(3, 16, 30, .5); }
 .nt-whalebar-flash { position: absolute; inset: 0; background: #fff; animation: ntWbHit .35s ease-out forwards; }
-.nt-whalebar[data-low] .nt-whalebar-fill { background: linear-gradient(180deg, #ffd3d3, #e0566a 55%, #9c2335); }
+.nt-whalebar-num { font-size: calc(14px * var(--k, 1)); font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .06em; text-shadow: 0 1px 3px rgba(0, 12, 24, .9); }
+.nt-whalebar-num i { font-style: normal; opacity: .6; }
+.nt-whalebar[data-low] .nt-whalebar-fill { background: linear-gradient(180deg, #ffe0e0 0%, #f08a98 35%, #e0566a 60%, #9c2335 100%); box-shadow: 0 0 calc(12px * var(--k, 1)) rgba(255, 110, 130, .7); }
+.nt-whalebar[data-low] .nt-whalebar-head b { animation: ntWbPulse 1.2s ease-in-out infinite; }
 @keyframes ntWbIn { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes ntWbHit { 0% { opacity: .75; } 100% { opacity: 0; } }
+@keyframes ntWbShine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+@keyframes ntWbPulse { 50% { text-shadow: 0 0 calc(16px * var(--k, 1)) rgba(255, 140, 160, .95), 0 2px 4px rgba(0, 12, 24, .9); } }

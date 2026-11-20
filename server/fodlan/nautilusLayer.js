@@ -10,8 +10,8 @@
 //   ขั้น 4 ลูกเล่นของชั้น + สภาพอากาศ (st.weather.kind = nt_…) + แรงดันน้ำ
 //   ขั้น 5 ฉากเข้า/เปลี่ยนชั้นของตัวเอง (ตอนนี้ยืมฉาก Fodlan)
 // ============================================================
-const DEPTHS = { 7: -30, 8: -200, 9: -1000, 10: -3000, 11: -10000 };
-const LAYERS = 5;
+const DEPTHS = { 7: -30, 8: -200, 9: -1000, 10: -3000, 11: -10000, 12: -10000 }; // ชั้น 6 ทะเลข้อมูล: ความลึกไร้ความหมาย (client แสดง −∞)
+const LAYERS = 6;
 const FIRST_STAGE = 7;
 const LAST_STAGE = FIRST_STAGE + LAYERS - 1;
 // ชนิดสภาพอากาศของแต่ละชั้น (สุ่มเท่ากันจากชุดของชั้น · ผลมาในขั้น 4)
@@ -21,7 +21,11 @@ const WEATHER_POOLS = {
   9: ["nt_eruption", "nt_quake"],
   10: ["nt_maelstrom", "nt_cold"],
   11: ["nt_dark"],
+  12: [], // ชั้น 6 ไม่มีสภาพอากาศ — คุณสมบัติจินตภาพ α–ζ เปลี่ยนทุกเทิร์นแทน (ntImaginary.js)
 };
+// ชั้น 5 อยู่แค่ 3 เทิร์นแล้วกลายร่างเป็นชั้น 6 (ผู้ใช้ 2026-11-19) · ชั้นอื่น 6 เทิร์น (Journey.AREA_TURNS)
+const LAYER_TURNS = { 11: 3 };
+const DATA_STAGE = 12;
 const WEATHER_NAMES = {
   nt_storm: "พายุใต้ทะเล",
   nt_sharks: "ฝูงฉลามได้กลิ่นเลือด",
@@ -51,4 +55,4 @@ function makeLayer(stage) {
   };
 }
 
-module.exports = { DEPTHS, LAYERS, FIRST_STAGE, LAST_STAGE, WEATHER_POOLS, WEATHER_NAMES, makeLayer, whalePresent };
+module.exports = { DEPTHS, LAYERS, FIRST_STAGE, LAST_STAGE, LAYER_TURNS, DATA_STAGE, WEATHER_POOLS, WEATHER_NAMES, makeLayer, whalePresent };

@@ -109,12 +109,12 @@ test("Fire Ball: 1 แต้ม · เก็บได้ 3 · ลูกที่
   assert.equal(engine.action.locked, true);
 });
 
-test("Baseball bat: 2 ลูก = 4 แต้ม · โดนศัตรูคนแรกในแนว ลูกละ 1 · คนหลังไม่โดน · OverHeat +1 ต่อการโจมตี", () => {
+test("Baseball bat: 2 ลูก = 2 แต้ม · โดนศัตรูคนแรกในแนว ลูกละ 1 · คนหลังไม่โดน · OverHeat +1 ต่อการโจมตี", () => {
   const { p, t, u } = setup();
   u.pos = { x: 9, y: 6 };
   st(p).balls = 2;
   engine.useSkill("a", "secondary", [], { dir: "right", form: "b2" });
-  assert.equal(p.skillPoints, 4);
+  assert.equal(p.skillPoints, 6);
   assert.equal(st(p).balls, 0);
   runFlow();
   assert.equal(t.hp, 48);
@@ -122,7 +122,7 @@ test("Baseball bat: 2 ลูก = 4 แต้ม · โดนศัตรูค�
   assert.equal(st(p).heat, 1);
 });
 
-test("Baseball bat: ลูกไม่พอ = กดไม่ได้ ไม่เสียแต้ม · ศัตรูนอกแนว 4 ไม่โดน · คูลดาวน์ 3", () => {
+test("Baseball bat: ลูกไม่พอ = กดไม่ได้ ไม่เสียแต้ม · ศัตรูนอกแนว 4 ไม่โดน · ลูกละ 1 แต้ม · คูลดาวน์ 2", () => {
   const { p, t } = setup();
   st(p).balls = 1;
   engine.useSkill("a", "secondary", [], { dir: "right", form: "b2" });
@@ -130,23 +130,24 @@ test("Baseball bat: ลูกไม่พอ = กดไม่ได้ ไม�
   t.pos = { x: 11, y: 6 }; // ห่าง 5
   engine.useSkill("a", "secondary", [], { dir: "right", form: "b1" });
   runFlow();
-  assert.equal(p.skillPoints, 6);
+  assert.equal(p.skillPoints, 7);
   assert.equal(t.hp, 50);
-  assert.equal(st(p).batReady, match.roundNumber + 3);
+  assert.equal(st(p).batReady, match.roundNumber + 2);
 });
 
-test("OverHeat: 3+ ระยะตี [1, 2] · ไม่สร้างความเสียหายทั้งเทิร์น −1 · 8 = ความเสียหายที่ได้รับ −1", () => {
+test("OverHeat: 3+ ระยะตี [1, 2] · ไม่สร้างความเสียหาย 4 เทิร์น −1 ทุกเทิร์น · 8 = ความเสียหายที่ได้รับ −1", () => {
   const { p } = setup();
   st(p).heat = 3;
   assert.deepEqual(engine.rangeOf(p), [1, 2]);
-  // ตีเทิร์นนี้ → จบเทิร์นนี้ + เทิร์นถัดไปยังไม่ลด · ไม่ตีครบเทิร์นเต็ม → ลด 1 ทุกเทิร์น
+  // ตีเทิร์น r → จบ r..r+3 ไม่ลด → จบ r+4 (ไม่ตีครบ 4 เทิร์น) ลด 1 แล้วลดต่อทุกเทิร์น
   st(p).dealtRound = match.roundNumber;
-  nextRound();
-  assert.equal(st(p).heat, 3);
-  nextRound();
+  nextRound(); nextRound(); nextRound(); nextRound();
   assert.equal(st(p).heat, 3);
   nextRound();
   assert.equal(st(p).heat, 2);
+  nextRound();
+  assert.equal(st(p).heat, 1);
+  st(p).heat = 2;
   assert.deepEqual(engine.rangeOf(p), [1, 1]);
   st(p).heat = 8;
   const hp = p.hp, ar = p.armor;
@@ -175,20 +176,20 @@ test("OverHeat 5+: สร้างความเสียหายมีโอ�
   assert.deepEqual(engine.rangeOf(env.p), [1, 1]);
 });
 
-test("Deathmatch: 6 แต้ม + บอลไฟ · ไม่มีศัตรูในแนว/ไม่มีบอลไฟ = กดไม่ได้ · โดน = คลิป → โซ่ + แต้มกองกลาง", () => {
+test("Deathmatch: 5 แต้ม + บอลไฟ · ไม่มีศัตรูในแนว/ไม่มีบอลไฟ = กดไม่ได้ · โดน = คลิป → โซ่ + แต้มกองกลาง", () => {
   const { p, t } = setup();
   engine.useSkill("a", "ultimate", [], { dir: "right" }); // ไม่มีบอลไฟ
   assert.equal(p.skillPoints, 8);
   st(p).balls = 1;
   engine.useSkill("a", "ultimate", [], { dir: "up" }); // ไม่มีศัตรู
   assert.equal(p.skillPoints, 8);
-  t.skillPoints = 5;
+  t.skillPoints = 4;
   engine.useSkill("a", "ultimate", [], { dir: "right" });
   assert.equal(st(p).balls, 0);
   runFlow();
   assert.deepEqual(clips, ["magnaDeathmatch"]);
   assert.ok(Chain.linked(p) && Chain.partnerOf(p) === t);
-  assert.equal(p.skillPoints, 7); // (8 − 6) + 5 = 7
+  assert.equal(p.skillPoints, 7); // (8 − 5) + 4 = 7
   assert.equal(t.skillPoints, 7);
   t.skillPoints -= 3;
   assert.equal(p.skillPoints, 4);
@@ -357,7 +358,7 @@ test("Finisher: ต้อง OverHeat 8 · กดแล้ว OverHeat 0 · โ�
   assert.equal(p.skillPoints, 8);
   st(p).heat = 8;
   engine.useSkill("a", "ultimate", []);
-  assert.equal(p.skillPoints, 3);
+  assert.equal(p.skillPoints, 4);
   assert.equal(st(p).heat, 0);
   assert.ok(st(p).fin);
   st(p).chainEnd = match.roundNumber + 1;
@@ -391,7 +392,7 @@ test("Finisher แบบ 2: ต้นตาเดินถัดไป → ด�
   assert.ok(clips.includes("magnaFinisher"));
   runFlow();
   assert.equal(t.hp, 47);
-  assert.equal(p.hp, 7);
+  assert.equal(p.hp, 8); // ลุกไหม้ 3 เทิร์น = ฟื้น 3
   assert.equal(Chain.linked(p), false);
   assert.deepEqual(t.pos, { x: 6, y: 12 }); // ดึงมาที่ (6,7) แล้วผลักลง 5
 });
@@ -423,12 +424,49 @@ test("โซ่กับตัวที่สองของระบบคู�
   delete engine.players.b2;
 });
 
-test("โซ่: เปลี่ยนพื้นที่ (แผนที่ใหม่) = คู่โซ่ถูกดึงมาติดตัวแม็กน่า", () => {
+test("โซ่: เปลี่ยนด่าน ห่างเกิน 4 = ดึงคู่โซ่มาห่าง 2 ช่อง · ไม่เกิน 4 = ไม่ดึง", () => {
   const { p, t } = chainUp();
   assert.ok(Chain.linked(p));
+  const dist = () => Math.abs(p.pos.x - t.pos.x) + Math.abs(p.pos.y - t.pos.y);
+  p.pos = { x: 6, y: 6 }; t.pos = { x: 6, y: 13 };
+  mg.onBoardPlaced(engine);
+  assert.equal(dist(), 2);
+  assert.deepEqual(t.pos, { x: 6, y: 8 }); // ฝั่งที่ใกล้ตำแหน่งเกิดเดิม
+  t.pos = { x: 9, y: 6 }; // ห่าง 3
+  mg.onBoardPlaced(engine);
+  assert.deepEqual(t.pos, { x: 9, y: 6 });
   engine.placeOnBoard(match.board.area);
-  assert.ok(p.pos && t.pos);
-  const d = Math.abs(p.pos.x - t.pos.x) + Math.abs(p.pos.y - t.pos.y);
-  assert.ok(d <= Chain.LEASH, `ระยะ ${d}`);
+  assert.ok(dist() <= Chain.LEASH, `ระยะ ${dist()}`);
   assert.ok(Chain.linked(p));
+});
+
+test("Deathmatch: ใช้แล้วยังเดินได้ + ไม่กินโควตาสกิล · 5 แต้ม", () => {
+  const { p } = setup();
+  st(p).balls = 2;
+  engine.useSkill("a", "ultimate", [], { dir: "right" });
+  runFlow();
+  assert.ok(Chain.linked(p));
+  assert.equal(engine.action.locked, false);
+  assert.equal(p.skillUsedRound, false);
+  assert.equal(mg.ULT.cost, 5);
+});
+
+test("โซ่: ทั้งคู่ถูกทุกคนมองเห็น แม้ล่องหน", () => {
+  const { p, t, u } = chainUp();
+  const vis = require("../../server/visibility");
+  const CHAR_HOOKS = require("../../characters/index");
+  const made = !CHAR_HOOKS[t.characterId];
+  if (made) CHAR_HOOKS[t.characterId] = {};
+  const hook = CHAR_HOOKS[t.characterId], had = hook.stealthed;
+  hook.stealthed = (q) => q.id === t.id; // ล่องหนจำลอง
+  try {
+    assert.equal(vis.hiddenFrom(u, t), false);
+    assert.equal(vis.concealed(t), false);
+    Chain.unlink(p);
+    assert.equal(vis.hiddenFrom(u, t), true);
+  } finally { if (made) delete CHAR_HOOKS[t.characterId]; else if (had) hook.stealthed = had; else delete hook.stealthed; }
+});
+
+test("OverHeat 5+: โอกาสลุกไหม้ 25% (ติดโซ่ 50%)", () => {
+  assert.equal(mg.HEAT.burnPct, 25);
 });

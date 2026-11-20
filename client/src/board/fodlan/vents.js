@@ -474,7 +474,8 @@ export function air(g, fd, info, units, now, lowQ, view) {
   vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(2,1,1,.7)"); g.fillStyle = vg; g.fillRect(X0, Y0, W, H);
   shipFx(g, fd, info, now);
   ventsFx(g, fd, info, now);
-  drawThalassaAir(g, fd, info, units, now, lowQ, view);
 }
 export function bakeSpecial() {}
 export function animSpecial() {}
+// ทาลัสซาวาดหลังหมอกความมืด (index.js drawFodlanAir เรียก airTop ต่อจาก drawFog) — ผู้ใช้ 2026-11-19: ตัวปลาโดนหมอกความมืดบัง
+export const airTop = drawThalassaAir;

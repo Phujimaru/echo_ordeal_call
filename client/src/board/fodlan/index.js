@@ -27,10 +27,11 @@ import * as S8 from "./stage8";
 import * as S9 from "./stage9";
 import * as S10 from "./stage10";
 import * as S11 from "./stage11";
+import * as S12 from "./stage12"; // ชั้น 6 ทะเลข้อมูลจินตภาพ (area 51)
 
 export const FODLAN_AREA = 40;
-const MODS = { 1: S1, 2: S2, 3: S3, 4: S4, 5: S5, 6: S6, 7: S7, 8: S8, 9: S9, 10: S10, 11: S11 };
-const LAST_STAGE = 11;
+const MODS = { 1: S1, 2: S2, 3: S3, 4: S4, 5: S5, 6: S6, 7: S7, 8: S8, 9: S9, 10: S10, 11: S11, 12: S12 };
+const LAST_STAGE = 12;
 export const stageOfArea = (area) => (Number(area) >= FODLAN_AREA && Number(area) < FODLAN_AREA + LAST_STAGE ? Number(area) - FODLAN_AREA + 1 : 0);
 const modOfArea = (area) => MODS[stageOfArea(area)] || null;
 // ชนิด fd_… ของด่านปัจจุบันก่อน (ชื่อซ้ำข้ามด่านได้ — เช่น fd_fire) · ไม่รู้ area = ด่านแรกที่มีชื่อนี้
@@ -182,6 +183,7 @@ export function drawFodlanAir(g, fd, info, units, now, lowQ, view) {
   const m = modOfArea(info.area);
   if (m && m.air) m.air(g, fd, info, units, now, lowQ, view);
   drawFog(g, info, fd.vision, now, lowQ, (m && m.fogRGB) || undefined);
+  if (m && m.airTop) m.airTop(g, fd, info, units, now, lowQ, view); // ของที่ต้องเห็นเสมอแม้ในความมืด (ทาลัสซา — Nautilus)
 }
 // ใช้ในไฟล์ด่าน (ไม่ต้อง import boardGeo ซ้ำ)
 export { P, PA };

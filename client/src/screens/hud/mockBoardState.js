@@ -268,6 +268,16 @@ function fitShop(s, taken, near, [W, H] = [1, 1]) {
 }
 function mockShops(s, round, nearMe, nearKind = "apoth") {
   const out = [];
+  // ร้านเรือ Nautilus (?shop=1&shopKind=nautilus): ร้านเดียว ของทุกร้านติดแท็บ (server/shop.js) + ของเฉพาะเรือ
+  if (nearKind === "nautilus") {
+    const pos = fitShop(s, out, nearMe, [1, 1]) || fitShop(s, out, null, [1, 1]);
+    if (!pos) return out;
+    const ship = [{ type: "o2Tank", price: 3, stockBase: 3, tab: "ship" }, { type: "whaleBait", price: 4, stockBase: 2, tab: "ship" }];
+    const all = [...ship, ...["apoth", "forge", "cara"].flatMap((t) => SHOP_ROLL[t].map((it) => ({ ...it, tab: t })))];
+    out.push({ id: "nautilus", kind: "nautilus", name: "นอติลุส", x: pos.x, y: pos.y, w: 1, h: 1, turnsLeft: 0, building: true,
+      items: all.map((it, i) => ({ id: `nautilus_${i}`, type: it.type, tab: it.tab, price: it.price, ...(it.value != null ? { value: it.value } : {}), stock: it.stockBase, stockMax: it.stockBase, sold: false, closed: false })) });
+    return out;
+  }
   const kinds = nearKind === "capsule" ? ["capsule", "apoth", "forge", "cara"] : ["apoth", "forge", "cara"];
   for (const kind of kinds) {
     const dim = SHOP_DIM[kind] || [1, 1];
@@ -533,6 +543,29 @@ export function nextTurn(prev) {
   return s;
 }
 
+// dev: ?ntarea=46..51 = กระดานชั้นของ Nautilus (51 = ชั้น 6 ทะเลข้อมูล) · &attr=alpha..zeta · ปลาวาฬร่างข้อมูล + เรือ — ตัวละครย้ายไปจุดเกิดของแผนที่นั้น
+function ntArea(s) {
+  if (typeof location === "undefined") return;
+  const q = new URLSearchParams(location.search), area = Number(q.get("ntarea"));
+  if (!(area >= 46 && area <= 51)) return;
+  const stage = area - 39, b = boardPublic(area), sp = [...(b.spawns || [])];
+  if (stage === 12) b.terrain = { ...b.terrain, "9,10": "fd_nt_stone", "11,10": "fd_nt_stone", "10,9": "fd_nt_stone" };
+  s.board = b; s.world = "nautilus"; s.shops = []; // Nautilus: ร้านอยู่ในเรือ (แท็บ) — หน้าทดลองไม่วางร้านบนกระดาน
+  s.players.forEach((p, i) => { if (p.pos && sp[i]) p.pos = { x: sp[i].x ?? sp[i][0], y: sp[i].y ?? sp[i][1] }; });
+  if (stage === 12) { const t = s.players.find((p) => p.pos && p.id !== "p0"); if (t) t.pos = { x: 10, y: 10 }; }
+  const SYM = { alpha: "α", beta: "β", gamma: "γ", delta: "δ", epsilon: "ε", zeta: "ζ" }, attr = SYM[q.get("attr")] ? q.get("attr") : "zeta";
+  const ripples = stage === 12 ? [[{ x: 6, y: 2 }, { x: 17, y: 12 }], [{ x: 16, y: 2 }, { x: 2, y: 12 }], [{ x: 2, y: 6 }, { x: 17, y: 6 }]] : [];
+  s.fodlan = {
+    stage, name: stage === 12 ? "ทะเลข้อมูลจินตภาพ" : "Nautilus", nautilus: true, depth: -10000, turnsLeft: null, weather: null,
+    board: {
+      layer: stage - 6, ship: { x: 7, y: 0, w: 6, h: 2, light: null, cd: {}, driver: null, torpedoUsed: [] },
+      whale: { enabled: true, on: true, dead: false, hp: 50, hpMax: 60, s: 6, pos: null, pending: [], warn: [], appearSeq: 1, data: stage === 12 },
+      ...(stage === 12 ? { imaginary: { attr, sym: SYM[attr], ripples, round: 30, stones: [{ x: 9, y: 10, by: "p1", until: 31 }, { x: 11, y: 10, by: "p1", until: 30 }, { x: 10, y: 9, by: "p2", until: 31 }], next: null } } : {}),
+      fx: [],
+    },
+  };
+}
+
 // opts = { scn, area (1..7), night, team, shopNear }
 export function buildMockState(opts) {
   const scn = SCENARIOS.some((x) => x.id === opts.scn) ? opts.scn : "playing";
@@ -636,6 +669,7 @@ export function buildMockState(opts) {
     return r;
   }
   if (scn === "collide") return simulateAttack(s, ME, "p4");
+  ntArea(s);
   return s;
 }
 

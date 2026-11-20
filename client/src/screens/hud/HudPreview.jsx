@@ -12,6 +12,7 @@ import { StatRow, VitalExtras } from "./StatRow";
 import { measureHud } from "./hudMeasure";
 import NautilusGuide from "../../nautilus/NautilusGuide";
 import NtWhaleBar from "../../nautilus/NtWhaleBar";
+import ShopScreen from "./shops/ShopScreen";
 
 const COLS = ["#3d8bd9", "#9b4f96", "#e0812f", "#2fa39a", "#d2455b", "#6b7fd6", "#c49a2c"];
 const MOCK_STATUS = [
@@ -129,6 +130,10 @@ export default function HudPreview() {
             onJourney={() => {}}
             onGuide={() => setNtGuide(ntGuide || 11)}
           />
+          {q.get("ntshop") != null && <ShopScreen me={{ gold: 12, inventory: [] }} onClose={() => {}} shop={{ id: "nautilus", kind: "nautilus", turnsLeft: 0, items: [
+            ["o2Tank", "ship", 3], ["whaleBait", "ship", 4], ["fortune", "apoth", 3], ["cardColor", "apoth", 2], ["armor", "apoth", 3], ["cleanse", "apoth", 2],
+            ["windBoots", "forge", 4], ["battery", "forge", 5], ["elemBomb", "forge", 4], ["lifeCrystal", "cara", 8], ["armorCrystal", "cara", 8],
+          ].map(([type, tab, price], i) => ({ id: `n${i}`, type, tab, price, value: type === "armor" ? 2 : undefined, stock: 2, stockMax: 2 })) }} />}
           {q.get("whale") != null && <NtWhaleBar whale={{ on: true, hp: Number(q.get("whale")) || 42, hpMax: 60 }} zoom={hudK} />}
           {ntGuide > 0 && <NautilusGuide state={{ fodlan: { stage: ntGuide, name: ["", "", "", "", "", "", "", "แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"][ntGuide] } }} onClose={() => setNtGuide(0)} />}
           {target && (

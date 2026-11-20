@@ -26,9 +26,11 @@ export const CITY_FX = {
 
 let SND = false;
 const KEYS = ["l10_beam", "l10_choir", "l10_slide", "l10_collapse", "l10_debris", "l10_lock", "l10_coins", "l10_riser", "l10_cold", "l10_slam", "swirl", "zap", "bubbles", "rush", "impact"];
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(KEYS.map((n) => [`ntc_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`ntc_${k}`, { gain }); if (delay > 0) setTimeout(go, delay); else go();
+  const go = () => playSfx(`ntc_${k}`, { gain: gain * NT_SFX_BOOST }); if (delay > 0) setTimeout(go, delay); else go();
 }
 
 // ทรงกล่องอย่างง่าย (ซ้ำกับ city.js — ไม่ import กลับเพื่อกันวน)

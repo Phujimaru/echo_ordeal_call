@@ -86,6 +86,7 @@ const FILES = {
   nautilus_layer_8: "/nautilus/bgm_2.mp3",
   nautilus_layer_9: "/nautilus/bgm_3.mp3",
   nautilus_layer_10: "/nautilus/bgm_4.mp3",
+  nautilus_layer_11: "/nautilus/bgm_5.mp3", // ชั้น 5 "Into the Fires of War" (ผู้ใช้ 2026-11-19) · Genjitsu ย้ายไปชั้น 6
   // สนาม Colony (GRID_PLAN §8.3 · ไฟล์จากผู้ใช้): เพลงตามปล้อง I/II/III · นับถอยหลังระเบิดตัวเอง = colony_alert
   colony_1: "/colony/colony_phase1.mp3",
   colony_2: "/colony/colony_phase2.mp3",
@@ -768,12 +769,13 @@ const LOUDNESS_GAIN = {
   "/fodlan/music/stage5_wx.mp3": 0.72, // -8.5 LUFS
   // Nautilus (ffmpeg ebur128 ทั้งไฟล์ 2026-11-19 · เป้า -14 LUFS)
   // Nautilus: ชั้น 1–4 เพลงเบากว่าเสียงบรรยากาศ ≈ −24 LUFS · ปลาวาฬ ≈ −20 · ชั้น 5 ดังกว่าเสียงเอฟเฟกต์ ≈ −12.7 (ผู้ใช้สั่ง 2026-11-19)
-  "/nautilus/bgm.mp3": 0.3, // -9.4 LUFS → −20
+  "/nautilus/bgm.mp3": 0.47, // -9.4 LUFS → −16 (ผู้ใช้ 2026-11-19: เพลงเบาไป)
   "/nautilus/bgm_abyss.mp3": 0.6, // -8.3 LUFS → ≈ −12.7 · ชั้น 5 เพลงดังกว่าเสียงเอฟเฟกต์/บรรยากาศ (ผู้ใช้สั่ง 2026-11-19)
-  "/nautilus/bgm_1.mp3": 0.6, // -19.5 LUFS → −24
-  "/nautilus/bgm_2.mp3": 0.43, // -16.6 LUFS → −24
-  "/nautilus/bgm_3.mp3": 0.22, // -10.9 LUFS → −24
-  "/nautilus/bgm_4.mp3": 0.19, // -9.4 LUFS → −24
+  "/nautilus/bgm_1.mp3": 1, // ไฟล์ทำใหม่ที่ −16 LUFS (ผู้ใช้ 2026-11-19: เพลงชั้น 1–4 เบาไป)
+  "/nautilus/bgm_2.mp3": 1, // -16.6 LUFS → −16.6
+  "/nautilus/bgm_3.mp3": 0.56, // -10.9 LUFS → −16
+  "/nautilus/bgm_4.mp3": 0.47, // -9.4 LUFS → −16
+  "/nautilus/bgm_5.mp3": 0.78, // -10.6 LUFS → ≈ −12.7 (เท่า Genjitsu — ชั้นลึกเพลงดังกว่าเสียงเอฟเฟกต์)
   // บานาจ ลิงซ์: คลิปจากผู้ใช้ปรับไฟล์เป็น -13 LUFS แล้ว — ลดอีก ~1.5 dB ให้อยู่ช่วงเดียวกับคลิปอื่น (-14 ถึง -16)
   // Road Trip (ยังไม่มีไฟล์ — วัด ffmpeg ebur128 แล้วใส่ค่าจริงเมื่อผู้ใช้ส่งมา · เป้า -14 LUFS)
   "/roadtrip/music/stop_day.mp3": 1,

@@ -25,9 +25,11 @@ export const ventH = (x, y) => 2.2 + hash(x * 3, y * 5) * 1.1;
 
 let SND = false;
 const KEYS = ["l9_steam", "l9_sizzle", "l9_lava", "l9_quake", "l9_debris", "l9_roll", "l9_blast", "boom", "impact", "deepimpact", "bubbles", "whoosh", "splash", "rumble", "swirl"];
+// เอฟเฟคดังขึ้น (ผู้ใช้ 2026-11-19: "เร่งเพลง 1-4 เสียงเอฟเฟคด้วย") — เพดาน volume 1 อยู่ที่ audio.js
+const NT_SFX_BOOST = 1.6;
 function snd(k, gain = 1, delay = 0) {
   if (!SND) { SND = true; registerSounds(Object.fromEntries(KEYS.map((n) => [`ntv_${n}`, `/nautilus/sfx/${n}.mp3`]))); }
-  const go = () => playSfx(`ntv_${k}`, { gain }); if (delay > 0) setTimeout(go, delay); else go();
+  const go = () => playSfx(`ntv_${k}`, { gain: gain * NT_SFX_BOOST }); if (delay > 0) setTimeout(go, delay); else go();
 }
 
 // ---------- ของบนกระดาน (เรียงความลึก) ----------

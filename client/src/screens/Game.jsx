@@ -303,7 +303,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   const boxOfP = (p) => ({ x: p.pos.x, y: p.pos.y, size: p.size || 1 }); // ตัวใหญ่ = กล่อง (ระยะนับจากขอบตัว)
   //  ร้านบนกระดาน = state.shops (สูงสุด 3 ร้าน 2×2 · Colony = แคปซูล 1 ช่อง) — ติดร้านไหนก็เปิดร้านนั้น
   const shopList = Array.isArray(state.shops) ? state.shops.filter((sh) => sh && Number.isFinite(sh.x) && Number.isFinite(sh.y)) : [];
-  const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh)) : [];
+  const nearShops = me?.pos ? shopList.filter((sh) => Rules.nearShop(boxOfP(me), sh) || (sh.kind === "nautilus" && state.fodlan?.board?.ship?.driver === me.id)) : []; // Nautilus: คนขับยืนบนเรือ = ติดร้านเรือ
   const bagFull = (me?.inventory || []).filter((it) => it && it.type !== "kebread").length >= (me?.bagSlots || state.bagSlots || 5);
   const openShop = shopId ? shopList.find((sh) => sh.id === shopId) || null : null; // ข้อมูลสดของร้านที่เปิดอยู่ (ร้านหายไป = ปิดเอง)
   // Gate of Babylon (me.remoteShop — กิลกาเมช): ซื้อจากร้านไหนก็ได้บนแผนที่ ไม่ต้องยืนติด
@@ -1004,7 +1004,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           : state.fodlan && state.world === "eos" && (phase === "PLAYING" || inBoardTurn) // Eos (§8.6): ชื่อสนาม + สภาพอากาศ
             ? (() => { const sit = eosSituation(state).filter((s) => s.key !== "diff"); return { numeral: "✦", color: "#2f5f9c", glow: "#9fe2ff", name: "Eos", eos: true, sit, alert: sitCount(sit) }; })()
           : state.fodlan && (phase === "PLAYING" || inBoardTurn) // Fodlan: ป้ายด่าน + สภาพอากาศ (ไม่มีหน้าผลภูมิภาค)
-            ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather, depth: state.fodlan.depth } // Nautilus: + ความลึก
+            ? { ...fodlanStage(state.fodlan.stage), name: state.fodlan.name, turnsLeft: state.fodlan.turnsLeft, weather: state.fodlan.weather, depth: state.fodlan.depth, attr: state.fodlan.board?.imaginary?.sym || null } // Nautilus: + ความลึก · ชั้น 6 คุณสมบัติจินตภาพ
             : null}
         onJourney={state.world === "eos" ? () => { clickSound(); setEosSitOpen(true); } : state.world === "nautilus" ? () => { clickSound(); setNtWxOpen(true); } : state.fodlan ? undefined : () => { clickSound(); setJourneyInfoOpen(true); }}
         onGuide={state.world === "nautilus" ? () => { clickSound(); setNtGuideOpen(true); } : undefined}

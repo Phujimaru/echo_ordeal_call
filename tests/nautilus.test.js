@@ -80,7 +80,7 @@ test('เริ่มแมตช์: ชั้น 1 = ด่าน 7 · area 46
   assert.equal(info.board.whale.on, false); // ขั้น 2: ข้อมูลทาลัสซา (server/fodlan/thalassa.js publicInfo)
 });
 
-test('ลำดับชั้นตายตัว 7→8→9→10→11 ที่จบเทิร์น 6/12/18/24 (= ต้นเทิร์น 7/13/19/25) · ย้ายกระดาน + ฉาก advance · ชั้น 11 ไม่เปลี่ยนอีก', () => {
+test('ลำดับชั้นตายตัว 7→8→9→10→11 ที่จบเทิร์น 6/12/18/24 (= ต้นเทิร์น 7/13/19/25) · ย้ายกระดาน + ฉาก advance · ชั้น 11 อยู่ 3 เทิร์นแล้วเป็นชั้น 12 · ชั้น 12 ไม่เปลี่ยนอีก', () => {
   setup();
   match.legStart = 1;
   let started = 0;
@@ -104,14 +104,21 @@ test('ลำดับชั้นตายตัว 7→8→9→10→11 ที�
   }
   assert.equal(started, 4);
   assert.deepEqual(match.fodlan.route, [7, 8, 9, 10, 11]);
+  // ชั้น 5 อยู่ 3 เทิร์น (25–27) แล้วกลายร่างเป็นชั้น 6 ทะเลข้อมูล (ผู้ใช้ 2026-11-19)
+  match.roundNumber = 25;
+  assert.equal(Fodlan.publicInfo().turnsLeft, 3, 'เทิร์น 25 = เหลือ 25–27');
+  assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false);
+  match.roundNumber = 27;
+  assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), true);
+  assert.equal(Fodlan.stageNow(), 12);
+  assert.equal(match.board.area, 51);
   assert.equal(Fodlan.publicInfo().turnsLeft, null, 'ชั้นสุดท้ายไม่มีนับถอยหลัง');
   for (const round of [30, 36, 42, 60]) {
     match.roundNumber = round;
-    assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false, `เทิร์น ${round}: อยู่ชั้น 11 ต่อ`);
-    assert.equal(Fodlan.stageNow(), 11);
-    assert.equal(match.board.area, 50);
+    assert.equal(Fodlan.maybeAdvance(() => { started++; }, () => 0), false, `เทิร์น ${round}: อยู่ชั้น 12 ต่อ`);
+    assert.equal(Fodlan.stageNow(), 12);
   }
-  assert.equal(started, 4);
+  assert.equal(started, 5);
 });
 
 test('สภาพอากาศ: กติกาเดียวกับ Fodlan (ไม่เกิดตอนเข้าชั้น · เร็วสุดเทิร์น 3 · 3 เทิร์น) · ชนิดมาจากชุดของชั้น', () => {
@@ -256,7 +263,7 @@ test('ทาลัสซาเปิด/ปิด: เสียงข้าง�
   assert.equal(Fodlan.publicInfo().whaleEnabled, true);
 });
 
-test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจำชั้น (Great Void Sea Battle I–IV) · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
+test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจำชั้น (Great Void Sea Battle I–IV) · ทาลัสซาอยู่ = nautilus_whale (ปิดในโหวต = เงียบ) · ชั้น 11 = เพลงชั้น 5 (ปลาวาฬอยู่ = เพลงปลาวาฬ) · ชั้น 12 ทะเลข้อมูล = nautilus_abyss แม้ปลาวาฬอยู่ · เพลงท่าไม้ตายทับได้', () => {
   const fs = require('node:fs');
   const vm = require('node:vm');
   const policy = vm.createContext({});
@@ -269,8 +276,10 @@ test('เพลง (audioPolicy): ชั้น 7–10 เพลงประจ�
     assert.equal(policy.musicForState(st(s, { whale: { on: false, enabled: true } })).name, `nautilus_layer_${s}`, 'ปลาวาฬพัก = เพลงชั้น');
     assert.equal(policy.musicForState(st(s, { whale: true }, { whaleEnabled: false })).name, `nautilus_layer_${s}`);
   }
-  assert.equal(policy.musicForState(st(11)).name, 'nautilus_abyss');
-  assert.equal(policy.musicForState(st(11, { whale: true })).name, 'nautilus_abyss', 'ชั้น 5 เพลงเดิมแม้ปลาวาฬโผล่');
+  assert.equal(policy.musicForState(st(11)).name, 'nautilus_layer_11');
+  assert.equal(policy.musicForState(st(11, { whale: true })).name, 'nautilus_whale', 'ชั้น 5 ปลาวาฬโผล่ = เพลงปลาวาฬ (ผู้ใช้ 2026-11-19)');
+  assert.equal(policy.musicForState(st(12)).name, 'nautilus_abyss');
+  assert.equal(policy.musicForState(st(12, { whale: true })).name, 'nautilus_abyss', 'ชั้น 6 ทะเลข้อมูล Genjitsu วนตลอดแม้ปลาวาฬอยู่');
   assert.equal(policy.musicForState(st(8, { scene: true }, { scene: { active: true } })).name, 'nautilus_layer_8', 'ฉากเปลี่ยนชั้นใช้เพลงชั้นปลายทาง ไม่ใช่เพลงแผนที่ Fodlan');
   assert.equal(policy.musicForState({ ...st(11), skillMusic: 'ult', skillMusicSeq: 2 }).name, 'ult');
   // Fodlan ไม่เปลี่ยน

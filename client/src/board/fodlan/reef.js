@@ -549,8 +549,9 @@ export function air(g, fd, info, units, now, lowQ, view) {
   reefFx(g, fd, info, now);
   reefStormFx(g, fd, now);
   reefStorm(g, fd, info, now, view);
-  drawThalassaAir(g, fd, info, units, now, lowQ, view);
 }
 export function bakeSpecial() {}
 export function animSpecial() {}
 void faceVisible; void clamp;
+// ทาลัสซาวาดหลังหมอกความมืด (index.js drawFodlanAir เรียก airTop ต่อจาก drawFog) — ผู้ใช้ 2026-11-19: ตัวปลาโดนหมอกความมืดบัง
+export const airTop = drawThalassaAir;

@@ -749,11 +749,11 @@ MAPS[EOS_AREA] = buildMap({ ...EOS_DEF.map, area: EOS_AREA, name: "Eos" });
 const isEosArea = (area) => Number(area) === EOS_AREA;
 
 // ---------- Nautilus (GRID_PLAN §8.9) ----------
-//  area 46–50 = ชั้นใต้ทะเล 1–5 (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
+//  area 46–51 = ชั้นใต้ทะเล 1–5 + ชั้น 6 ทะเลข้อมูลจินตภาพ (ชั้น 5 ครบ 3 เทิร์นแล้วกลายร่าง — ผู้ใช้ 2026-11-19) (ตัวคุมกลางใช้ของ Fodlan เป็น "ด่าน 7–11" — server/fodlan.js · กติกา server/fodlan/stage7–11.js)
 //  ลำดับตายตัว 46 → 47 → 48 → 49 → 50 (ไม่สุ่ม) · ผังอยู่ที่ server/fodlan/map7–11.js (ข้อมูลล้วน)
 const NAUTILUS_AREA = EOS_AREA + 1;
-const NAUTILUS_STAGES = 5;
-const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19
+const NAUTILUS_STAGES = 6;
+const NAUTILUS_NAMES = ["แนวปะการังแสงรำไร", "สุสานเรือรบ", "หุบปล่องเพลิง", "นครบาดาลที่สาบสูญ", "ห้วงเหวไร้แสง", "ทะเลข้อมูลจินตภาพ"]; // ชื่อไทยของผู้ใช้สั่ง 2026-11-19 · ชั้น 6 [Claude]
 //  require เขียนเป็นสตริงตรงๆ เหมือน FODLAN_DEFS (scripts/gen-board-rules.js)
 const NAUTILUS_DEFS = [(() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 1 "แนวปะการัง" −30 ม. (area 46 · GRID_PLAN §8.9) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · ดู server/fodlan/README.md · กติกา server/fodlan/stage7.js)
 //  ผู้ใช้สั่ง 2026-11-19: "ต้องเป็นภูมิประเทศจริง ไม่ใช่เอาของชิ้นเดิมวางกระจาย" → แบ่งโซนภูมิศาสตร์ (ภาพ client/src/board/fodlan/reef.js):
@@ -1098,6 +1098,59 @@ module.exports = {
     fd_nt_brine: { name: "บ่อน้ำเกลือ", icon: "🧪", desc: "เดิน 2 ก้าว · จบตา พิษ", cost: 2 },
     fd_nt_bubble: { name: "ฟองอากาศ", icon: "🫧", desc: "จบตา ฟื้นพลังชีวิต +1" },
     fd_nt_whale: { name: "ทาลัสซา", icon: "🐋" },
+  },
+  DOCK: { x: 7, y: 0, w: 6, h: 2 },
+};
+  return module.exports; })(), (() => { const module = { exports: {} }; const require = { main: null }, process = undefined, __dirname = ""; // Nautilus ชั้น 6 "ทะเลข้อมูลจินตภาพ" (area 51 · GRID_PLAN §8.9 ชั้น 6) — ผังกระดาน + ชนิดช่องใหม่ (ข้อมูลล้วน · กติกา server/fodlan/stage12.js · ลูกเล่น ntImaginary.js)
+//  ผู้ใช้ 2026-11-19: ชั้น 5 ครบ 3 เทิร์น → ออร่าพุ่งจากร่องลึกกลืนทั้งสนามเป็นข้อมูล → แผนที่ใหม่ทั้งหมด (สุ่มจุดเกิดใหม่แบบเปลี่ยนชั้น) · อยู่จนมีผู้ชนะ
+//  แรงบันดาลใจ (ออกแบบเอง ไม่ลอกของต้นฉบับ): ทะเลจินตภาพของกิจกรรมเรือดำน้ำ — ท้องทะเลถูกจัดเป็นกระดานโกะ (เส้นตาราง) ·
+//   พื้น = ทะเลข้อมูลฟ้าเรืองเส้นตาราง · แท่งข้อมูล (D) = ผลึกตารางลอยค้าง กั้นทาง · ช่องว่างจินตภาพ (V) = รูโหว่ของข้อมูล ตกไม่ได้ เดินไม่ได้
+//   ระลอกข้อมูล (a↔A · b↔B · c↔C) = วงคลื่นจับคู่ จบตา/จบเทิร์นบนวง = ถูกส่งไปวงคู่ · โหนดข้อมูล (h) = จบตา ฟื้นพลังชีวิต +1
+//  ร้านค้า = เรือ Nautilus ที่ท่าจอด (N) · ไม่มีถังออกซิเจนในชั้นนี้ (ผู้ใช้: ไม่ใช้ออกซิเจน)
+//   x  01234567890123456789
+const ROWS = [
+  "V..S...NNNNNN...S..V", // y0   ท่าจอดเรือ
+  "VV.....NNNNNN.....VV", // y1
+  "...DD.a.........b.DD", // y2   ระลอก a · b
+  "...D..............D.", // y3
+  ".S......DD..DD....S.", // y4
+  "......V.D....D.V....", // y5
+  "..c.........h....C..", // y6   ระลอก c ↔ C · โหนดข้อมูล
+  ".....VV........VV...", // y7
+  "...DD....DDDD....DD.", // y8   แนวแท่งข้อมูลกลาง
+  "......V........V....", // y9
+  ".S.........h......S.", // y10
+  "....D..DD....DD..D..", // y11
+  "..B.....D....D...A..", // y12  ระลอก B · A
+  "...DD...........DD..", // y13
+  "VV..S...........S.VV", // y14
+  "V..................V", // y15
+];
+const at = (...chs) => {
+  const out = [];
+  ROWS.forEach((row, y) => [...row].forEach((c, x) => { if (chs.includes(c)) out.push([x, y]); }));
+  return out;
+};
+// คู่ระลอก (ลำดับใน RIPPLES = ระลอกคู่กัน)
+const RIPPLES = [["a", "A"], ["b", "B"], ["c", "C"]].map(([p, q]) => [at(p)[0], at(q)[0]]);
+
+module.exports = {
+  ROWS,
+  RIPPLES,
+  map: {
+    cols: 20, rows: 16,
+    terrain: { fd_nt_datablock: at("D"), fd_nt_void: at("V") },
+    special: { fd_nt_ripple: at("a", "A", "b", "B", "c", "C") },
+    heal: at("h"), healKind: "fd_nt_node",
+    spawns: at("S"),
+    shopSpots: [],
+  },
+  TERRAIN: {
+    fd_nt_datablock: { name: "แท่งข้อมูล", icon: "🧊" },
+    fd_nt_void: { name: "ช่องว่างจินตภาพ", icon: "🕳️" },
+    fd_nt_ripple: { name: "ระลอกข้อมูล", icon: "🌀", desc: "จบตาบนวง = ถูกส่งไปวงคู่" },
+    fd_nt_node: { name: "โหนดข้อมูล", icon: "💠", desc: "จบตา ฟื้นพลังชีวิต +1" },
+    fd_nt_stone: { name: "หมากข้อมูล", icon: "⚫" },
   },
   DOCK: { x: 7, y: 0, w: 6, h: 2 },
 };
