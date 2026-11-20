@@ -208,7 +208,7 @@ module.exports = function buildTransforms() {
     // เฟรดดี้ — ความยาวจริง 1.5 วิ · ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร")
     [freddy.CUT.scare]: { img: freddy.IMG.card, video: freddy.VIDEO.scare, title: "", label: "", seconds: 1.9, music: null, afterReveal: false, noIntro: true },
     // ฟ็อกซี่ — ไม่มีการ์ดเปิด/ชื่อบนคลิป (ผู้ใช้สั่ง "ไม่ต้องใส่ชื่ออะไร") · hit = คลิปพื้นใสซ้อนบนกระดาน (clear — webm VP9 alpha)
-    [foxy.CUT.hit]: { img: foxy.IMG.card, video: foxy.VIDEO.hit, title: "", label: "", seconds: 1.0, music: null, afterReveal: false, noIntro: true, clear: true },
+    [foxy.CUT.hit]: { img: foxy.IMG.card, video: foxy.VIDEO.hit, title: "", label: "", seconds: 1.0, music: null, afterReveal: false, noIntro: true, clear: true, scale: 1.5 }, // ขยาย 1.5 เท่า (ผู้ใช้: เล็กไป)
     [foxy.CUT.brain]: { img: foxy.IMG.card, video: foxy.VIDEO.brain, title: "", label: "", seconds: 4.5, music: null, afterReveal: false, noIntro: true },
     [foxy.CUT.night]: { img: foxy.IMG.card, video: foxy.VIDEO.night, title: "", label: "", seconds: 11.0, music: null, afterReveal: false, noIntro: true },
     [freddy.CUT.night]: { img: freddy.IMG.card, video: freddy.VIDEO.night, title: "", label: "", seconds: 1.4, music: null, afterReveal: false, noIntro: true },

@@ -33,7 +33,8 @@ export function Cutscene({ cs }) {
   if (cs.clear) {
     return (
       <div className="fixed inset-0 z-50 overflow-hidden pointer-events-none">
-        <video ref={ref} src={cs.video} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-contain" />
+        <video ref={ref} src={cs.video} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-contain"
+          style={cs.scale ? { transform: `scale(${cs.scale})`, transformOrigin: "50% 50%" } : undefined} />
       </div>
     );
   }
