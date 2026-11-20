@@ -1,4 +1,4 @@
-// เฉพาะ dev: ?court=1 — เล่นฉากศาลของนารุโฮโดะ (GRID_PLAN §7.37) ผ่าน CourtOverlay ตัวจริง + server จำลอง (courtMock.js)
+// เฉพาะ dev: ?court=1 — เล่นฉากศาลของนารุโฮโดะ (GRID_PLAN §7.38) ผ่าน CourtOverlay ตัวจริง + server จำลอง (courtMock.js)
 //  เลือกบทบาทที่เล่นเอง (ทนาย/ผู้ช่วย/จำเลย/ฝ่ายค้าน/ประชาชน/ผู้ชม) + โหมด PVP/Duo + จำเลย · บทบาทที่เหลือ = AI · ?court=1&qa=1 = ตรวจท่าสไปรต์
 import { useEffect, useMemo, useRef, useState } from "react";
 import CourtOverlay from "./CourtOverlay";

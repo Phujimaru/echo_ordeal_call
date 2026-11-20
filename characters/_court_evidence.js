@@ -1,4 +1,4 @@
-// ไอคอนหลักฐานของศาลนารุโฮโดะ (GRID_PLAN §7.37) — ข้อมูลล้วน ใช้ฝั่ง server (CommonJS)
+// ไอคอนหลักฐานของศาลนารุโฮโดะ (GRID_PLAN §7.38) — ข้อมูลล้วน ใช้ฝั่ง server (CommonJS)
 //  สำเนาเดียวกับ client/src/court/evidenceData.js (atlas evidence.webp 10 คอลัมน์ × 64px) — tests/court.test.js คุมให้ตรงกัน
 const COURT_DIR = "/characters/naruhodo_ryuichi/court";
 

@@ -1,4 +1,4 @@
-// เอฟเฟกต์บนกระดานของนารุโฮโดะ ริวอิจิ (characters/naruhodo_ryuichi.js · GRID_PLAN §7.37 · สัญญา .claude/plans/naruhodo-contract.md)
+// เอฟเฟกต์บนกระดานของนารุโฮโดะ ริวอิจิ (characters/naruhodo_ryuichi.js · GRID_PLAN §7.38 · สัญญา .claude/plans/naruhodo-contract.md)
 //  แนวภาพ: Ace Attorney — นิ้วชี้ยักษ์ เส้นความเร็วแบบมังงะ ป้ายตะโกน (court/shout_*.webp) ค้อนผู้พิพากษา (court/gavel_*.webp)
 //  เหตุการณ์จาก server (engine.boardFx → socket ชื่อเดียวกัน → useCharSocketFx → fx ด้านล่าง):
 //   naruPoint   เอานี่ไปดู!     ป้าย Take that! เหนือหัว · นิ้วชี้พุ่งตามแนว 3 ช่อง + เส้นความเร็ว · ไอคอนหลักฐานบินโค้งเข้าเป้า (ใช้หลักฐาน) · ระเบิดดาวที่เป้า

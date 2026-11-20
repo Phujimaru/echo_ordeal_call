@@ -205,7 +205,9 @@ const FILES = {
   freddy_box: "/characters/freddy_fazbear/sfx/music_box.mp3", // เฟรดดี้: ปุ่มกล่องดนตรี (HUD)
   freddy_growl_1: "/characters/freddy_fazbear/sfx/growl_1.mp3", // เฟรดดี้: ปุ่มขู่ (HUD · สุ่ม 2 แบบ)
   freddy_growl_2: "/characters/freddy_fazbear/sfx/growl_2.mp3",
-  freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน
+  freddy_steps: "/characters/freddy_fazbear/sfx/night_steps.mp3", // เฟรดดี้: เดินกลางคืน — บีบ+ดันที่ไฟล์ −9.4 LUFS 2026-11-20 (ผู้ใช้: เบาไป · ต้นฉบับ C:\Echo-media-backup\freddy_fazbear)
+  foxy_steps: "/characters/foxy/sfx/steps.mp3", // ฟ็อกซี่: เดิน (กลางวัน+กลางคืน) — ไฟล์เดียวกับ freddy_steps (ดันแล้ว)
+  foxy_board: "/characters/foxy/sfx/sound_board.mp3", // ฟ็อกซี่: ปุ่มกล่องเพลง (HUD) — ไฟล์ผู้ใช้ ดันที่ไฟล์ −9.7 LUFS (ผู้ใช้: ต้องดัง ข่มขวัญ)
   ot_ram: "/characters/old_truck/sfx/ot_ram.mp3",
   ot_counter: "/characters/old_truck/sfx/ot_counter.mp3",
   ot_transform: "/characters/old_truck/sfx/ot_transform.mp3",
@@ -632,7 +634,7 @@ const FILES = {
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
   // แม็กน่า สวิง (GRID_PLAN §7.35): สังเคราะห์ .claude/plans/magna-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · ตีปกติ: จุดปะทะ 0.29 วิ (MAGNA_HIT_P)
   ...Object.fromEntries(["swing", "knuckle", "ball", "bat", "bat_hit", "boost", "throw", "arm", "pull", "fin_hit", "chain_break"].map((k) => [`magna_${k}`, `/effect_sound/magna/magna_${k}.m4a`])),
-  // นารุโฮโดะ ริวอิจิ (GRID_PLAN §7.37): เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/naruhodo-sfx.py (−16 LUFS · บลิป −24 · คนดู −19 · ยังไม่มีคนฟัง)
+  // นารุโฮโดะ ริวอิจิ (GRID_PLAN §7.38): เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/naruhodo-sfx.py (−16 LUFS · บลิป −24 · คนดู −19 · ยังไม่มีคนฟัง)
   //  กระดาน (naruhodoFx.js naruEventFx) + HUD (NaruhodoHud.jsx) + ฉากศาล (court/courtAudio.js csfx → naru_<คีย์>)
   ...Object.fromEntries(["point", "scout", "trial_open", "holdit", "objection", "takethat", "gavel", "desk_slam", "blip_low", "blip_mid", "blip_high", "damage", "evidence_ding", "whoosh", "crowd_cheer", "crowd_boo", "splat", "stamp", "penalty"]
     .map((k) => [`naru_${k}`, `/characters/naruhodo_ryuichi/sfx/naru_${k}.mp3`])),
@@ -1189,7 +1191,7 @@ export function playSfx(name, opts) {
   return playSfxNow(name, opts);
 }
 // เสียงที่ต้องเด่นคนเดียว (ผู้ใช้สั่ง 2026-11-09 — Enuma Elish ของกิลกาเมช): ระหว่างเล่น เพลงหยุด · เสียงอื่นเบาลงเหลือ FOCUS_OTHER · ลูปเสียงพัก
-const FOCUS_SFX = { gil_enuma_fire: 10900 };
+const FOCUS_SFX = { gil_enuma_fire: 10900, foxy_board: 9800 }; // ฟ็อกซี่ กล่องเพลง: เด่นคนเดียว (ผู้ใช้: อย่าให้เบา)
 const FOCUS_OTHER = 0.12;
 let focusUntil = 0, focusName = null;
 function beginFocus(name, ms) {

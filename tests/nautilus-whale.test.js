@@ -145,20 +145,21 @@ test('ทุกท่าหลบได้: หลบหลีก 100% = ไม�
   assert.ok(fxOf('whale_dodge').some((e) => e.id === 'p0'));
 });
 
-test('ลำตัว = สิ่งกีดขวาง fd_nt_whale · ยืนทับไม่ได้ · คนที่อยู่ใต้ลำตัวถูกเบียดออกข้าง', () => {
+test('ลำตัวกั้นทางด้วยตัวแทนลำตัว (ยูนิตเทียม — ไม่ใช่ terrain แล้ว ให้สกิลแนวโดนได้) · ยืนทับไม่ได้ · คนที่อยู่ใต้ลำตัวถูกเบียดออกข้าง', () => {
   setup(3);
   const body = surface(50);
+  require('../server/fodlan/thalassaProxy.js').sync(ctx());
   assert.ok(body.length >= 6, 'ลำตัว 5×2 (บางส่วนอาจพ้นขอบ)');
   const map = action.boardMap();
   const free = body.filter((c) => !Board.MAPS[match.board.area].terrain[K(c.x, c.y)]);
   assert.ok(free.length > 0);
   for (const c of free) {
-    assert.equal(map.terrain[K(c.x, c.y)], 'fd_nt_whale');
-    assert.ok(Board.isObstacle(map, c.x, c.y));
+    assert.ok(!map.terrain[K(c.x, c.y)], 'ลำตัวไม่เป็น terrain');
+    assert.ok(Board.unitAt(action.boardUnits(), c.x, c.y), 'มีตัวแทนลำตัวยืนอยู่');
   }
   // เดินเข้าช่องลำตัวไม่ได้
   const spot = besideBody(body);
-  for (const p of Object.values(engine.players)) p.pos = null;
+  for (const p of Object.values(engine.players)) if (!p.summon) p.pos = null;
   P(0).pos = { ...spot.at }; P(1).pos = { x: 0, y: 15 }; P(2).pos = { x: 19, y: 15 };
   act(0);
   const reach = action.reachableOf ? action.reachableOf(P(0)) : null;
@@ -200,7 +201,7 @@ test('ตีทาลัสซาผ่านทางตีปกติ (attack
   assert.equal(P(0).statusAmt.might, 3);
   assert.ok(fxOf('whale_death').some((e) => e.by === 'p0'));
   assert.equal(Fodlan.objects().filter((o) => o.kind === 'whale').length, 0);
-  assert.ok(!Object.values(action.boardMap().terrain).includes('fd_nt_whale'), 'ลำตัวหายจากแผนที่');
+  assert.equal(require('../server/fodlan/thalassaProxy.js').proxiesOf(match).length, 0, 'ตัวแทนลำตัวหายจากกระดาน');
   // ไม่กลับมาอีกทั้งเกม
   for (let t = 13; t <= 40; t++) { invuln(); preRoundOf(t); assert.equal(W().on, false, `เทิร์น ${t}`); }
   assert.equal(Fodlan.publicInfo().board.whale.dead, true);
@@ -271,4 +272,56 @@ test('ความดุ (2026-11-19): ชั้น II–IV เตือน 2 �
   assert.equal(Th.moveCount(c5, W()), 3);
   W().hp = Math.floor(W().hpMax / 2) - 1;
   assert.equal(Th.moveCount(c5, W()), 4);
+});
+
+test('สกิลโดนทาลัสซาได้: ทุกช่องลำตัวมีตัวแทน (ศัตรูของทุกคน) · ความเสียหายส่งเข้าปลาวาฬ · คำสั่งเดียวโดนหลายช่อง = นับครั้งเดียว · ไม่อยู่ใน ctx.alive', () => {
+  const Proxy = require('../server/fodlan/thalassaProxy.js');
+  const combat = require('../server/combat.js');
+  setup(2);
+  const body = surface(50);
+  Proxy.sync(ctx());
+  const px = Proxy.proxiesOf(match);
+  assert.equal(px.length, body.length);
+  for (const c of body) assert.ok(px.some((p) => p.pos.x === c.x && p.pos.y === c.y), 'ตัวแทนอยู่ทุกช่องลำตัว');
+  assert.ok(!ctx().alive().some((p) => Proxy.isProxy(p)), 'ท่าของปลาวาฬ/ลูกเล่นชั้นไม่เห็นตัวแทน');
+  assert.equal(combat.sameTeam(P(0), px[0]), false);
+  const hp0 = W().hp;
+  match.commandSeq = (match.commandSeq || 0) + 1;
+  combat.withEffectSource(P(0), () => { ctx().damage(px[0], 3); ctx().damage(px[1], 3); });
+  assert.equal(W().hp, hp0 - 3, 'โดนสองช่องในคำสั่งเดียว = นับครั้งเดียว');
+  assert.equal(px[0].hp, Math.max(1, W().hp), 'ตัวแทนไม่เสียเลือดเอง (แสดงเลือดปลาวาฬ)');
+  combat.withEffectSource(P(0), () => ctx().damage(px[0], 2));
+  assert.equal(W().hp, hp0 - 5, 'ช่องเดิมในคำสั่งเดียวกัน (หลายฮิต) นับทุกครั้ง');
+  match.commandSeq += 1;
+  combat.withEffectSource(P(1), () => ctx().damage(px[1], 1));
+  assert.equal(W().hp, hp0 - 6, 'คำสั่งใหม่ = นับใหม่');
+  // ตาย → ตัวแทนหาย · คนฆ่าได้หัวใจของท้องทะเล
+  match.commandSeq += 1;
+  W().hp = 2;
+  combat.withEffectSource(P(1), () => ctx().damage(px[2], 5));
+  assert.equal(W().dead, true);
+  assert.equal(W().killer, 'p1');
+  assert.equal(Proxy.proxiesOf(match).length, 0);
+});
+
+test('สกิลจริงโดนทาลัสซา: มีดของดิโอ (แนวตรง — เดิมหยุดที่ลำตัวที่เป็น terrain) ใส่ช่องลำตัว = ปลาวาฬเลือดลด', () => {
+  const Proxy = require('../server/fodlan/thalassaProxy.js');
+  const saved = { triggerCutscene: engine.triggerCutscene, queueCutscene: engine.queueCutscene, skillFlash: engine.skillFlash, boardFx: engine.boardFx };
+  Object.assign(engine, { triggerCutscene: () => {}, queueCutscene: () => {}, skillFlash: () => {}, boardFx: () => {} });
+  try {
+    setup(2);
+    P(0).characterId = 'dio_brando';
+    const body = surface(50);
+    Proxy.sync(ctx());
+    const px = Proxy.proxiesOf(match);
+    const t = px.find((p) => !body.some((c) => c.x === p.pos.x + 1 && c.y === p.pos.y) && !Board.isObstacle(action.boardMap(), p.pos.x + 1, p.pos.y));
+    assert.ok(t, 'มีช่องลำตัวที่ด้านขวาว่าง');
+    P(0).pos = { x: t.pos.x + 1, y: t.pos.y }; P(1).pos = { x: 0, y: 15 };
+    P(0).skillPoints = 12;
+    engine.setActor('p0');
+    const hp0 = W().hp;
+    engine.useSkill('p0', 'basic', [t.id], { dir: 'left', tile: { ...t.pos } });
+    assert.ok(W().hp < hp0, 'ปลาวาฬเลือดลด');
+    assert.equal(Proxy.proxiesOf(match).length, body.length);
+  } finally { Object.assign(engine, saved); engine.clearPhaseTimer(); }
 });

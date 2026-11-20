@@ -777,6 +777,7 @@ export default function BoardCanvas(props) {
       const list = [];
       for (const u of units) {
         if (!u || u.alive === false || !Number.isFinite(u.x) || !Number.isFinite(u.y)) continue;
+        if (u.proxy) continue; // ตัวแทนลำตัวทาลัสซา (Nautilus): ไม่วาดหมาก — ภาพคือตัวปลา · ยังกด/ชี้ได้ (locate ใช้ props.units)
         let rx = u.x, ry = u.y, ox = 0, oy = 0, hz = 0, sq = 0;
         if (an && !an.invalid && !an.missing && an.obj.id === u.id) {
           if (!an.done && pose) { rx = pose.x; ry = pose.y; ox = pose.ox; oy = pose.oy; hz = pose.hz || 0; sq = pose.sq || 0; }

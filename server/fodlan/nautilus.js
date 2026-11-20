@@ -7,6 +7,7 @@
 const Th = require("./thalassa");
 const Ship = require("./nautilusShip");
 const O2 = require("./nautilusO2");
+const Proxy = require("./thalassaProxy"); // ตัวแทนลำตัวทาลัสซาให้สกิลโดน
 
 const whaleOn = (ctx) => Th.enabled(ctx.match) && !!(ctx.match.fodlan && ctx.match.fodlan.whale);
 
@@ -21,11 +22,13 @@ function reset(ctx, playerCount) {
 function enter(ctx) {
   Ship.enter(ctx);
   if (whaleOn(ctx)) Th.enterLayer(ctx);
+  Proxy.sync(ctx);
 }
 function preRound(ctx) {
   if (!whaleOn(ctx)) return 0;
   const secs = Number(Th.preRound(ctx)) || 0;
   Th.syncPresent(ctx.match.fodlan.whale);
+  Proxy.sync(ctx);
   return secs;
 }
 function layer(ctx, map) {
@@ -73,8 +76,10 @@ function charAction(ctx, p, key, tile) {
   ctx.useStrike(p, BAIT_SECS);
   return true;
 }
-function onUnitEnd(ctx, p) { O2.onUnitEnd(ctx, p); }
-function onEndTurn(ctx) { O2.onEndTurn(ctx); }
+function onUnitEnd(ctx, p) { O2.onUnitEnd(ctx, p); Proxy.sync(ctx); }
+function onEndTurn(ctx) { O2.onEndTurn(ctx); Proxy.sync(ctx); }
+// ตัวแทนลำตัวโดนความเสียหาย (fodlan.incomingDamage) → ทาลัสซาเสียแทน
+function proxyHit(ctx, p, n, src) { return whaleOn(ctx) ? Proxy.hit(ctx, p, n, src) : 0; }
 function playerInfo(ctx, p) { return O2.playerInfo(ctx, p); }
 // ชั้นมืด: ช่องในลำแสงไฟฉายเรือ ทุกคนมองเห็น (ต่อเข้ากับ vision/hides ของชั้น — ขั้น 4 ทำความมืด)
 function litKeys(ctx) { return ctx.stage >= Ship.DARK_FROM ? Ship.lightTiles(ctx).map((t) => `${t.x},${t.y}`) : []; }
@@ -87,4 +92,4 @@ function publicInfo(ctx, base = {}) {
   return { whale: w, ship: Ship.publicInfo(ctx), ...(warn.length || base.warn ? { warn } : {}) };
 }
 
-module.exports = { reset, enter, preRound, layer, layerVer, keepsTile, objects, ownsObject, strikeObject, hudActions, ownsAction, charAction, onUnitEnd, onEndTurn, playerInfo, litKeys, lit, publicInfo };
+module.exports = { reset, enter, preRound, layer, layerVer, keepsTile, objects, ownsObject, strikeObject, hudActions, ownsAction, charAction, onUnitEnd, onEndTurn, playerInfo, litKeys, lit, publicInfo, proxyHit };

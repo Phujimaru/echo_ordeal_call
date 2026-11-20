@@ -349,7 +349,9 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   // ศัตรูที่ตาเราตีถึง (ใกล้สุดก่อน) — ปุ่ม "โจมตี" ใช้ · ส่งให้ Game เฉพาะตอนรายการเปลี่ยน
   const attackables = useMemo(() => {
     if (!myTurn || pick) return [];
-    return state.players.map((p) => planFor(p)).filter(Boolean).sort((a, b) => (a.ally ? 1 : 0) - (b.ally ? 1 : 0) || (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0)).map((pl) => pl.foe.id); // ศัตรูก่อนเพื่อน (ตีเพื่อน = ฮีล)
+    let whaleSeen = false; // ตัวแทนลำตัวทาลัสซา: เป้าเดียวในรายการ (ช่องที่เดินน้อยสุด)
+    return state.players.map((p) => planFor(p)).filter(Boolean).sort((a, b) => (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0))
+      .filter((pl) => !(pl.foe.summon && pl.foe.summon.kind === "ntWhale") || (!whaleSeen && (whaleSeen = true))).sort((a, b) => (a.ally ? 1 : 0) - (b.ally ? 1 : 0) || (a.path ? a.path.length : 0) - (b.path ? b.path.length : 0)).map((pl) => pl.foe.id); // ศัตรูก่อนเพื่อน (ตีเพื่อน = ฮีล)
   }, [myTurn, pick, state.players, planFor]);
   const atkSig = attackables.join(",");
   useEffect(() => { if (onAttackables) onAttackables(atkSig ? atkSig.split(",") : []); }, [atkSig]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -863,6 +865,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // ยูนิตที่ถูกเรียก (วาเลนไทน์): ร่างแยก clone / ตัวที่เหมือนกัน double (look = id เป้าที่เลียนหน้าตา)
       summon: !mk && p.summon ? { kind: p.summon.kind, look: p.summon.look || null } : null,
       ...(carDrivers.has(p.id) ? { inCar: true } : null), // สนาม Eos: คนขับนั่งในรถ (boardDraw — ไม่มีฐาน/เสา รูปอยู่ในห้องโดยสาร)
+      ...(p.summon && p.summon.kind === "ntWhale" ? { proxy: true } : null), // ตัวแทนลำตัวทาลัสซา (server/fodlan/thalassaProxy.js) — ไม่วาดหมาก
       id: p.id, x: at.x, y: at.y, img: mk ? null : p.img, color: mk ? "#ffffff" : p.color, name: mk ? "" : p.name, masked: mk,
       size: sizeOfP(p), art: (!mk && p.character && BIG_ART[p.character.id]) || null, face: faces[p.id] || null,
       ...(vehicleBars[p.id] && !mk ? { hp: vehicleBars[p.id].hp, maxHp: vehicleBars[p.id].maxHp, armor: 0, maxArmor: 0 } : { hp: (vitHold[p.id] ? vitHold[p.id].hp : p.hp) ?? 0, maxHp: p.maxHp ?? 0, armor: (vitHold[p.id] ? vitHold[p.id].armor : p.armor) ?? 0, maxArmor: p.maxArmor ?? 0 }),
@@ -892,7 +895,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
-      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
+      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,

@@ -14,7 +14,8 @@ import { holdBoard } from "../../board/boardPause";
 export function Cutscene({ cs }) {
   const ref = useRef(null);
   const [introDone, setIntroDone] = useState(false);
-  useEffect(() => holdBoard(), []); // วีดีโอทึบเต็มจอบังกระดาน → พักวาดกระดานให้เครื่องถอดรหัสวีดีโอได้เต็มที่
+  // วีดีโอทึบเต็มจอบังกระดาน → พักวาดกระดานให้เครื่องถอดรหัสวีดีโอได้เต็มที่ · คลิปพื้นใส (cs.clear — ฟ็อกซี่) = กระดานยังต้องเห็น
+  useEffect(() => (cs.clear ? undefined : holdBoard()), [cs.clear]);
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
@@ -28,6 +29,15 @@ export function Cutscene({ cs }) {
     return () => clearTimeout(t);
   }, [cs.id, cs.noIntro]);
 
+  // คลิปพื้นใส (webm alpha): ซ้อนบนกระดานตรงๆ — ไม่มีพื้นดำ/poster/แฟลช/ขอบมืด/การ์ดเปิด/ชื่อ
+  if (cs.clear) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-hidden pointer-events-none">
+        <video ref={ref} src={cs.video} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-contain"
+          style={cs.scale ? { transform: `scale(${cs.scale})`, transformOrigin: "50% 50%" } : undefined} />
+      </div>
+    );
+  }
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
       <video ref={ref} src={cs.video} poster={cs.img || undefined} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />

@@ -1,5 +1,5 @@
 // ============================================================
-//  ศาลของนารุโฮโดะ ริวอิจิ — ระบบกลาง (GRID_PLAN §7.37 · GAME_SYSTEM §61 · สัญญา .claude/plans/naruhodo-contract.md)
+//  ศาลของนารุโฮโดะ ริวอิจิ — ระบบกลาง (GRID_PLAN §7.38 · GAME_SYSTEM §62 · สัญญา .claude/plans/naruhodo-contract.md)
 //   1. บันทึกเหตุการณ์ (match.courtLog) → หลักฐาน (p.naruhodo.evidence) / ข้อแก้ตัว (p.courtAlibi) / การเห็นของทุกคน (ev.seenBy)
 //      ทำงานเฉพาะแมตช์ที่มีนารุโฮโดะ (รวม Echo สวมร่าง — characterId)
 //   2. ศาล (match.court): พักทั้งเกมด้วยจังหวะแบบเปิดต่อกัน (engine.skillBeat open → cutscene.runSkillFlow · เฟส ATTACKING)

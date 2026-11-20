@@ -1,6 +1,6 @@
 # สัญญาข้อมูล นารุโฮโดะ ริวอิจิ (`naruhodo_ryuichi`) — 2026-11-20
 
-สเปกผู้ใช้: GRID_PLAN §7.37 (อ่านก่อน) · ต้นแบบฉากศาลฝั่ง client มีแล้ว: `client/src/court/` (หน้าทดสอบ `?court=1` เล่นกับ AI ฝั่ง client ล้วน)
+สเปกผู้ใช้: GRID_PLAN §7.38 (อ่านก่อน) · ต้นแบบฉากศาลฝั่ง client มีแล้ว: `client/src/court/` (หน้าทดสอบ `?court=1` เล่นกับ AI ฝั่ง client ล้วน)
 ไฟล์นี้ = ข้อตกลงระหว่าง agent 3 คน (server / court UI / board+HUD+เสียง) — ชื่อฟิลด์/อีเวนต์ต้องตรงตามนี้ · ถ้าต้องเปลี่ยน แก้ไฟล์นี้แล้วบอกในรายงาน
 
 ## สื่อ (มีครบแล้ว — `C:\Echo\client\public\characters\naruhodo_ryuichi\` · worktree เห็นผ่าน junction `client/public/characters`)

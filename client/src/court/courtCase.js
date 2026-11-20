@@ -1,4 +1,4 @@
-// ศาลของนารุโฮโดะ (GRID_PLAN §7.37) — ข้อมูลคดี: บันทึกเหตุการณ์ → หลักฐาน / ข้อแก้ตัว / คำให้การ + กติกาตัดสินแต่ละครั้ง
+// ศาลของนารุโฮโดะ (GRID_PLAN §7.38) — ข้อมูลคดี: บันทึกเหตุการณ์ → หลักฐาน / ข้อแก้ตัว / คำให้การ + กติกาตัดสินแต่ละครั้ง
 // ไม่มี React — ใช้ได้ทั้งหน้าทดสอบ (?court=1) และฝั่ง server ภายหลัง
 //  เหตุการณ์ (event) = สัญญา naruhodo-contract.md: { id, round, actorId, actorName, kind: attack|basic|secondary|ultimate|item|move, skill, targetName, type, seen }
 //   (รับชื่อเดิม turn/target/ult ด้วย)

@@ -1,4 +1,4 @@
-// นารุโฮโดะ ริวอิจิ (characters/naruhodo_ryuichi.js · server/court.js · GRID_PLAN §7.37 · สัญญา .claude/plans/naruhodo-contract.md)
+// นารุโฮโดะ ริวอิจิ (characters/naruhodo_ryuichi.js · server/court.js · GRID_PLAN §7.38 · สัญญา .claude/plans/naruhodo-contract.md)
 process.env.JOURNEY_START_SECONDS = "0";
 const test = require("node:test");
 const assert = require("node:assert/strict");

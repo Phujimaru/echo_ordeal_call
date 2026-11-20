@@ -103,7 +103,7 @@ function makeCtx() {
     log(msg) { match.lastLog.push(msg); },
     map() { return action.boardMap(); },
     units() { return action.boardUnits(); },
-    alive() { return combat.alivePlayers().filter((p) => p.pos); },
+    alive() { return combat.alivePlayers().filter((p) => p.pos && !(p.summon && p.summon.whaleProxy)); }, // ตัวแทนลำตัวทาลัสซาไม่ใช่ผู้เล่น
     unitAt(x, y) { return Board.unitAt(action.boardUnits(), x, y); },
     free(x, y, selfId = null) {
       const map = action.boardMap();
@@ -322,7 +322,10 @@ function maybeAdvance(startTimer, random = Math.random) {
 // ชั้นแผนที่ของด่าน (action.boardMap → layeredMap) — คืน map ใหม่ (ไม่มีฮุค = เดิม)
 // ช่องที่ท่าทำลายพื้นที่ (engine.addChasm) พังไม่ได้ — true = กันไว้
 // ดาเมจที่ยูนิตของด่านได้รับ (combat.adjustIncomingDamage — Eos: ทหารโล่ตีจากหน้าเหลือ 1)
-function incomingDamage(p, n, src, kind) { const r = call("incoming", n, p, n, src, kind); return Number.isFinite(r) ? r : n; }
+function incomingDamage(p, n, src, kind) {
+  if (p && p.summon && p.summon.whaleProxy) return Number(ntCall("proxyHit", 0, p, n, src, kind)) || 0; // ตัวแทนลำตัวทาลัสซา → ทาลัสซาเสียแทน
+  const r = call("incoming", n, p, n, src, kind); return Number.isFinite(r) ? r : n;
+}
 // อาวุธจักรพรรดิ (Eos): ระยะตีปกติ · คริ · ทะลุเกราะ · ผลเมื่อตีปกติลง
 function rangeMod(p, r) { const v = call("rangeMod", r, p, r); return Array.isArray(v) ? v : r; }
 function critPct(p) { return Number(call("critPct", 0, p)) || 0; }
