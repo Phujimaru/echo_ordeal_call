@@ -43,7 +43,7 @@ const SFX = {
 };
 // เสียงพากย์ (ตัดตามประโยคจาก Whisper — .claude/plans/diego-dino-voice-cut.py · คำถอด diego-dino-voice-transcript.txt)
 //  strike เล่นเองใน preAttackClip (มีคลิป = เงียบ) · Wryyy (h04/h06) = ท่อนเดี่ยวต้นตาเดิน (ผู้ใช้สั่ง)
-//  ไม่ใช้: h05 手を貸そう… · h08 · h10 お気の毒だな · e06 よっしゃー · t01 Scary Monsters (คลิปแปลงร่างมีเสียงเอง) · d02 คำรามยาว 5.5 วิ
+//  ไม่ใช้: h05 手を貸そう… · h08 · h10 お気の毒だな · e06 よっしゃー · e20/e21 (ไดโนเสาร์พูดไม่ได้ — ผู้ใช้สั่ง) · t01 Scary Monsters (คลิปแปลงร่างมีเสียงเอง) · d02 คำรามยาว 5.5 วิ
 const VOICE = {
   human: {
     turn: ["dino_v_h03", "dino_v_h04", "dino_v_h06", "dino_v_h11", "dino_v_e22"],
@@ -54,7 +54,7 @@ const VOICE = {
     ultimate: [], // คลิป
   },
   dino: {
-    turn: ["dino_v_d03", "dino_v_d06", "dino_v_e20", "dino_v_e21"],
+    turn: ["dino_v_d03", "dino_v_d06"],
     strike: [],
     struck: ["dino_v_d01", "dino_v_d05"],
     basic: ["dino_v_d04"],
