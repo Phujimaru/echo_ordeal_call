@@ -31,6 +31,7 @@ import { rolandEventFx } from "../rolandFx";
 import { LAW_ON_HIT, lawEventFx } from "../lawFx";
 import { moonEventFx } from "../moonFx";
 import { divineEventFx } from "../divineFx";
+import { NARU_EVENTS, NARU_STATE, naruEventFx } from "../naruhodoFx";
 import { sameSide } from "../../duo";
 import { key, sizeOfP, boxOfP, dimOf } from "./stageRules";
 
@@ -536,6 +537,28 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("divineFx", onDivine);
     return () => socket.off("divineFx", onDivine);
+  }, [pushFx, look, lowQ]);
+
+  // ---------- นารุโฮโดะ ริวอิจิ (naruhodoFx.js naruEventFx · สัญญา .claude/plans/naruhodo-contract.md) ----------
+  //  socket "naruhodoPoint" / "naruhodoScout" / "naruhodoTrial" / "naruhodoHoldIt" · เสียงตอนกดสกิลมาจาก server (skillSound) · ระหว่างคดีไม่มีเสียงจากกระดาน
+  useEffect(() => {
+    const recOf = (id) => byIdRef.current[id] || (prevPlayers.current || {})[id] || null;
+    const posOf = (id) => { const p = recOf(id); return p && p.pos ? { x: p.pos.x, y: p.pos.y } : null; };
+    const sizeOf = (id) => sizeOfP(recOf(id));
+    const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+    const offs = NARU_EVENTS.map((name) => {
+      const on = (ev) => {
+        const out = naruEventFx(name, ev, { posOf, sizeOf });
+        if (!out) return;
+        pushFx(out.fx);
+        if (out.look) look(out.look);
+        for (const [snd, ms] of out.sfx) at(ms, () => { if (!NARU_STATE.court) playSfx(snd); });
+        if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+      };
+      socket.on(name, on);
+      return () => socket.off(name, on);
+    });
+    return () => offs.forEach((f) => f());
   }, [pushFx, look, lowQ]);
 
   // ---------- Master (masterFx.js · GRID_PLAN §7.34): socket "masterFx" — ทุกท่า: จอสั่น + กล้องเลื่อนไปจุดเกิดเหตุ + ซูมกระแทก (ผู้ใช้ "เต็มที่ ทุกท่า") ----------

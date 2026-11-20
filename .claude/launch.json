@@ -1214,6 +1214,40 @@
         "ECHO_DEV_ACTION_TIME": "600",
         "ECHO_DEV_RT_PHASE": "over"
       }
+    },
+    {
+      "name": "server-naru",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3065,
+      "env": {
+        "PORT": "3065",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "ECHO_DEV_RICH": "1",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-naru",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5265",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5265,
+      "env": {
+        "ECHO_SERVER_PORT": "3065"
+      }
     }
   ]
 }

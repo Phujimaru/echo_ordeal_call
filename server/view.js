@@ -226,6 +226,8 @@ function buildStateInner(viewerId) {
     // กระดาน (GRID_PLAN.md): แผนที่ของภูมิภาคปัจจุบัน + ลำดับเดิน + ตาเดินที่กำลังเล่น
     board: boardPublic(),
     dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
+    court: require("./court").view(viewerId, controlId), // ศาลของนารุโฮโดะ (server/court.js) — กรองต่อผู้ชม (คำให้การจริง/หลักฐาน/สิ่งที่เห็น)
+    holdIt: require("./court").holdView(viewerId, controlId), // รอเดี๋ยว!!! ที่กำลังแทรกตา
     freddyDoor: CHAR_HOOKS.freddy_fazbear.doorView(engine, [viewerId, controlId].filter(Boolean)), // มินิเกมประตูของเฟรดดี้ (ประตูอีกฝ่ายซ่อนจนผลออก)
     freddyNear: CHAR_HOOKS.freddy_fazbear.nearView(engine, [controlId || viewerId].filter(Boolean)), // เพลงเฟรดดี้: ผู้ชมอยู่ใกล้ (กลางวัน)
     turnOrder: masked ? [] : match.turnOrder,
@@ -429,6 +431,8 @@ function buildStateInner(viewerId) {
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งเสริมพลัง / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
         shinra: hook && hook.shinraState ? hook.shinraState(engine, p, viewer) : undefined, // คุซาคาเบะ ชินระ: เปลวเพลง / ฮีโร่ / อุ่นเครื่อง / มอดไหม้จากภายใน / คูลดาวน์ลาทัม — GRID_PLAN §7.32
         midoriya: hook && hook.midoriyaState ? hook.midoriyaState(engine, p) : undefined, // มิโดริยะ: Full Cowl (เทิร์นที่เหลือ/คูลดาวน์) · คูลดาวน์ Smash แต่ละแบบ — GRID_PLAN §7.33
+        naruhodo: hook && hook.naruhodoState ? hook.naruhodoState(engine, p, mine) : undefined, // นารุโฮโดะ: แฟ้มหลักฐาน · รอเดี๋ยว!!! · สืบสวน (เจ้าตัวเห็นเต็ม · คนอื่นเห็น holdReady)
+        courtAlibi: mine && (p.courtAlibi || 0) > 0 ? p.courtAlibi : undefined, // ข้อแก้ตัวของศาลนารุโฮโดะ (เจ้าตัว)
         magna: hook && hook.magnaState ? hook.magnaState(engine, p) : undefined, // แม็กน่า: OverHeat · บอลไฟ · Fire Knuckle/Boost · โซ่ — GRID_PLAN §7.35
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17

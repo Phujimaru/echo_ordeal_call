@@ -46,6 +46,7 @@ const kagami = require("./kagami");
 const tsurugi = require("./tsurugi");
 const gilgamesh_fake = require("./gilgamesh_fake"); // กิลกาเมช (Fake) — มหันตภัย · unique (EA · Gate of Babylon ปืนกลสมบัติ · Enuma Elish · กระเป๋า 50)
 const kurenai_otoya = require("./kurenai_otoya");
+const naruhodo_ryuichi = require("./naruhodo_ryuichi"); // นารุโฮโดะ ริวอิจิ — พิเศษ (หลักฐาน/ข้อแก้ตัว · ศาล server/court.js · รอเดี๋ยว!!! แทรกตา)
 const diego_dino = require("./diego_dino"); // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์) — ยาก · โหมดของ diego_alt ในหน้าเลือกตัว (ไวรัสบรรพกาล / ร่างไดโนเสาร์ / ควบคุมร่าง server/possess.js)
 const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
@@ -91,6 +92,7 @@ const CHARACTER_MODULES = [
   master,
   magna,
   diego_dino,
+  naruhodo_ryuichi,
 ];
 
 const CHAR_HOOKS = {};

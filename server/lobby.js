@@ -358,6 +358,7 @@ function startMatch() {
   require("./matchStats").reset(); // สรุปผลแมตช์ (server/matchStats.js)
   match.yukiBoom = null;
   match.arjunaUlt = null;
+  match.court = null; match.holdIt = null; match.courtLog = []; // ศาลนารุโฮโดะ (server/court.js)
   match.endTurnHold = 0;
   match.endTurnHoldStart = null;
   Duo.setup(); // ระบบคู่ (เคท & เอมิลิโกะ): สร้างตัวที่สองของผู้เล่นที่เลือกตัวละครแบบคู่

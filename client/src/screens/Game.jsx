@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { DRAW_ITEM_TYPES } from "../data/shop";
 import EosMap from "../eos/EosMap";
 import EosGuide from "../eos/EosGuide";
@@ -12,7 +13,7 @@ import EosScoreboard from "../eos/EosScoreboard";
 import EosPerks from "../eos/EosPerks";
 import { beginNotice, endNotice, noticeBusy, onNotice } from "../ui/noticeBus";
 import { TickSeconds } from "../tickStore";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import Card from "../components/Card";
 import VictoryScreen from "../components/VictoryScreen";
 import { journeyArea } from "../journey/areas";
@@ -25,6 +26,7 @@ import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
 import { RolandEgo } from "./hud/RolandHud";
 import { MagnaHeat } from "./hud/MagnaHud";
+import NaruhodoHud from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
@@ -74,6 +76,10 @@ const SCENE_MS = { cycle: 3500, draw: 2000, atk: 2200, shop: 3700 };
 
 // Road Trip: เลือกจอตามเฟสของโหมด — ช่วงขับไม่ mount กระดาน (ไม่มีการ์ด/สกิล/ปุ่มตัวละครเลย — ผู้ใช้สั่ง 2026-11-14)
 //  ภาพที่โชว์ (drive/board/over) ตามหลังเฟสจริงเล็กน้อยเพื่อเล่นฉากเปลี่ยน (roadtrip/RtTransitions.jsx useRtView) — ระหว่างค้างภาพกระดานเดิมใช้ state ชุดสุดท้ายของกระดาน
+// ฉากศาลของนารุโฮโดะ (state.court — ทั้งจอ): โหลดเมื่อมีคดีเท่านั้น · glob = ไฟล์ยังไม่มีก็ build ผ่าน (court agent ทำ CourtOverlay.jsx)
+const COURT_MODS = import.meta.glob("../court/CourtOverlay.jsx");
+const CourtOverlay = COURT_MODS["../court/CourtOverlay.jsx"] ? lazy(COURT_MODS["../court/CourtOverlay.jsx"]) : null;
+
 export default function GameBoard(props) {
   const { state } = props;
   const rt = state && state.gameMode === "roadtrip" ? state.roadtrip : null;
@@ -574,8 +580,10 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   useEffect(() => {
     if (!pickReq) return;
     const gone = (pickReq.kind === "action" && !(me?.actions || []).some((x) => x.key === pickReq.key && !x.disabled && Array.isArray(x.tiles) && x.tiles.length));
+    // ตาแทรกของนารุโฮโดะ (เดิน 2): เลือกช่องนอกตาตัวเอง — ออกเมื่อหมดขั้นเลือก
+    if (pickReq.kind === "naruMove") { if (!(state.holdIt && state.holdIt.lawyerId === me?.id && state.holdIt.phase === "choose" && !state.holdIt.result)) setPickReq(null); return; }
     if (!myTurn || canto || gone) setPickReq(null);
-  }, [pickReq, myTurn, canto, me?.actions]);
+  }, [pickReq, myTurn, canto, me?.actions, state.holdIt, me?.id]);
   // Road Trip: ปุ่มรถตู้ตอนสู้บนรถ (หักรถชน · ยิงป้อมปืน · ขึ้น/ลงหลังคา) — เข้าแถวปุ่มพิเศษของ HUD · ปุ่มลัด G H T Y (roadtrip/rtVanActions.jsx)
   const rtVanBtns = rtVanButtons({
     rt: state.gameMode === "roadtrip" ? state.roadtrip : null, youId: state.youId, me, round: state.roundNumber,
@@ -626,6 +634,18 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         if (!mob) return;
         clickSound(); rtEmit("rt:turret", { x: tile.x, y: tile.y }); done();
       }, onCancel: done };
+    } else if (pickReq.kind === "naruMove") {
+      // รอเดี๋ยว!!! → เดิน 2 ช่อง (เดินปกติ) · server ส่ง holdIt.tiles มาก็ใช้ · ไม่มี = คำนวณเองจากกระดาน
+      const hi = state.holdIt || {};
+      let tiles = Array.isArray(hi.tiles) ? hi.tiles : null;
+      if (!tiles && state.board && me.pos) {
+        const map = Rules.normalizeMap(state.board);
+        const units = (state.players || []).filter((p) => p.alive && p.pos).map((p) => ({ id: p.id, x: p.pos.x, y: p.pos.y, size: p.size || 1, teamId: p.teamId || null, alive: true }));
+        const ally = (a, b) => !!a.teamId && a.teamId === b.teamId;
+        tiles = [...Rules.reachable(map, { id: me.id, x: me.pos.x, y: me.pos.y, size: me.size || 1, teamId: me.teamId || null }, 2, units, { isAlly: ally }).values()]
+          .filter((t) => !(t.x === me.pos.x && t.y === me.pos.y)).map((t) => ({ x: t.x, y: t.y }));
+      }
+      boardPick = { kind: "tile", place: "list", tiles: tiles || [], foot: Math.max(1, me.size | 0), label: "👣 2", onPick: (tile) => { clickSound(); socket.emit("holdItAct", { kind: "move", tile }); done(); }, onCancel: done };
     } else if (pickReq.kind === "action") {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
@@ -1225,6 +1245,11 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {me?.roland && !hudAway && !rtTravel && <RolandEgo roland={me.roland} lowQ={lowQ} />}
       {/* แม็กน่า สวิง: แถบ OverHeat */}
       {me?.magna && !hudAway && !rtTravel && <MagnaHeat magna={me.magna} lowQ={lowQ} />}
+      {/* นารุโฮโดะ ริวอิจิ: แฟ้มหลักฐาน · ปุ่ม รอเดี๋ยว!!! · ตาแทรก · ข้อแก้ตัว 📍 (hud/NaruhodoHud.jsx) */}
+      {state.board && !rtTravel && (me?.naruhodo || state.holdIt) && (
+        <NaruhodoHud state={state} me={me} hidden={hudAway} zoom={hudZ} emit={(e, p) => socket.emit(e, p)}
+          movePicking={pickReq?.kind === "naruMove"} onPickMove={() => { clickSound(); setPickReq((r) => (r && r.kind === "naruMove" ? null : { kind: "naruMove" })); }} />
+      )}
       {me?.dio && !rtTravel && <DioInterrupt dio={me.dio} onPress={() => { clickSound(); socket.emit("charAction", { key: "dio:world" }); }} />}
       {/* ช่วง Clock Up (ไรเดอร์ ZECT / Faiz Start Up — server/clockUp.js): ปุ่มแทรก/เข้าร่วมนอกตา · หมากชนกันกดรัว */}
       <ClockUpButton me={rtTravel ? null : me} onPress={(key) => () => { clickSound(); socket.emit("charAction", { key }); }} />
@@ -1232,6 +1257,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {/* เฟรดดี้ ฟาซแบร์: มินิเกมประตู 10 วิ (state.freddyDoor — characters/freddy_fazbear.js) */}
       <FreddyDoors door={state.freddyDoor || null} onPick={(d) => { clickSound(); socket.emit("freddyDoor", { door: d }); }} />
       <LastStandDuel duel={state.dioDuel || null} players={state.players} onDraw={() => { clickSound(); socket.emit("dioDuel", { action: "draw" }); }} onStand={() => { clickSound(); socket.emit("dioDuel", { action: "stand" }); }} />
+      {/* ฉากศาลของนารุโฮโดะ (state.court): ทุกคนในแมตช์เห็นพร้อมกัน — ทับกระดาน/HUD (portal ไป body: ปุ่มมุมขวาบน .ocv อยู่คนละ stacking context เคยลอยทับ) */}
+      {state.court && CourtOverlay && createPortal(<Suspense fallback={null}><CourtOverlay state={state} me={state.youId} emit={(e, p) => socket.emit(e, p)} /></Suspense>, document.body)}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
       {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}

@@ -840,6 +840,7 @@ function hasActed(id) {
 //  เดินต่อหลังจบตา (canto — เอมิลิโกะ): ได้แค่เดิน/ย้อน/รอ (move: true) · อย่างอื่นกดไม่ได้
 function canAct(p, { move = false } = {}) {
   if (!p || !p.alive || match.gameState !== "ACTION" || match.actorId !== p.id || !match.action) return false;
+  if (match.action.holdIt) return false; // ตาแทรก รอเดี๋ยว!!! (server/court.js): กดได้เฉพาะ holdItAct
   return move || !match.action.canto;
 }
 // ใช้สกิล/ไอเทม/ซื้อของแล้ว เดินไม่ได้อีก (ยังโจมตีปกติได้) — GRID_PLAN §4 กฎพื้นฐาน
@@ -1230,6 +1231,7 @@ function strikeTarget(id, targetId) {
   if (ClockUp.duelWanted(p, target)) { Visibility.onHostileAct(p, "strike"); return ClockUp.startDuel(p, target, done); }
   timers.clearPhaseTimer();
   match.action.locked = true;
+  require("../court").noteAct(p, "attack", "ตีปกติ", [target.id]); // บันทึกเหตุการณ์ของศาลนารุโฮโดะ (มีนารุโฮโดะในแมตช์เท่านั้น)
   Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   // ฮุค interceptStrike(engine, p, target) → { after } = รับช่วงการตีนี้ (เฟรดดี้: มินิเกมประตู) — ฉากที่ฮุคคิวไว้ (skillBeat) เล่นก่อน
   //  after() คืน "strike" = ตีลงต่อโดยข้ามด่านหลบ (match.strikeSure) · ตัวเลข = วินาทีพักฉากก่อนจบตา

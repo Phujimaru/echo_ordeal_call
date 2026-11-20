@@ -91,7 +91,7 @@ test('ตัวละครที่ตารางบอกว่าปกต�
   const plain = ['muimi', 'oberon_summer', 'sliver_bullet', 'kira', 'gyro_zeppeli', 'dio_brando', 'funny_valentine', 'fern', 'ryougi',
     'emiya_shirou', 'yuki_makoto', 'old_truck', 'giorno_giovanna', 'kurenai_otoya', 'freddy_fazbear', 'gray', 'yuna', 'arjuna',
     'emiya_kiritsugu', 'inui_takumi', 'trafalgar_law', 'diego_alt', 'gilgamesh_fake',
-    'daisuke', 'yaguruma', 'tsurugi'];
+    'daisuke', 'yaguruma', 'tsurugi', 'naruhodo_ryuichi'];
   for (const ch of plain) {
     if (!CHAR_BY_ID[ch]) continue;
     const P = setup(ch);
@@ -107,7 +107,8 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'master', // Master: ตี/สกิลเฟส 1 พิษ · เฟส 2 แสง · Knockdown ลม→แสง · Smite สายฟ้า→มืด — tests/characters/master.test.js
     'magna', // แม็กน่า สวิง: ไฟทุกการกระทำ — tests/characters/magna.test.js
     'diego_dino', // ดิเอโก้ อสูรกายดึกดำบรรพ์: ตีปกติพิษ (ลบสกิลติดตัว = ปกติ) · ร่างไดโนเสาร์ทุกสกิล + ฉันจะฆ่าแก พิษ — tests/characters/diego_dino.test.js
-    'midoriya_izuku']); // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
+    'midoriya_izuku',
+    'naruhodo_ryuichi']); // นารุโฮโดะ: ปกติทุกการกระทำ (สัญญา naruhodo-contract.md) // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));
   assert.deepEqual(missing, [], `ตัวที่ยังไม่อยู่ในตารางธาตุ: ${missing.join(', ')}`);

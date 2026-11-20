@@ -26,6 +26,7 @@ import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
 import { preloadIceArt } from "./iceFx";
 import { preloadGyroArt } from "./gyroFx";
+import { NARU_STATE, preloadNaruhodoArt } from "./naruhodoFx";
 import { preloadDiegoArt } from "./diegoFx";
 import { ELEMENTS, auraOf } from "../data/elements";
 import ReactionPanel from "./ReactionPanel";
@@ -245,6 +246,11 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   useEffect(() => { if (hasGyro) preloadGyroArt(); }, [hasGyro]);
   const hasDiego = state.players.some((p) => !!p.diego);
   useEffect(() => { if (hasDiego) preloadDiegoArt(); }, [hasDiego]);
+  const hasNaru = state.players.some((p) => !!p.naruhodo);
+  useEffect(() => { if (hasNaru) preloadNaruhodoArt(); }, [hasNaru]);
+  useEffect(() => { NARU_STATE.court = !!state.court; }, [state.court]); // ระหว่างคดี: fx กระดานของนารุโฮโดะไม่เล่นเสียง
+  // นารุโฮโดะ: เป้าที่เรากำลังสืบสวน (me.naruhodo.scout — เห็นเฉพาะเจ้าของ) → แว่นขยายเล็กบนหมาก
+  const naruScoutId = me && me.naruhodo && me.naruhodo.scout ? me.naruhodo.scout.targetId : null;
   // เริ่มตาเรา → กล้องมาที่ตัวเรา (ปรับ state ระหว่าง render ตามตาที่เปลี่ยน — ไม่ต้องรอ effect)
   //  ตาคนอื่นไม่ดึงกล้องไปหา (ผู้ใช้สั่ง 2026-11-10) · ตัวคู่/ยูนิตที่เราคุม = ตาเรา · คนดู (ไม่มีตัว) = ตามทุกตาเหมือนเดิม
   const [lookedTurn, setLookedTurn] = useState("");
@@ -890,6 +896,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,
+      // นารุโฮโดะ (naruhodoFx.js naruUnitFront): ถูกสืบสวน (เฉพาะคนสืบเห็น) · ถูกคัดค้าน (statuses.naruhodoObjected — ทุกคนเห็น)
+      naru: !mk && (naruScoutId === p.id || (p.statuses && p.statuses.naruhodoObjected > 0)) ? { scout: naruScoutId === p.id, objected: !!(p.statuses && p.statuses.naruhodoObjected > 0) } : null,
       possessed: !mk && !!p.possessedBy,
       master: !mk && p.master ? { phase: p.master.phase || 1, down: !!p.master.down, summon: p.master.summon || null } : null, // Master (masterFx.js): ออร่า/ท่าทาง
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
@@ -923,7 +931,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       size: sizeOfP(t), art: (!t.masked && t.character && BIG_ART[t.character.id]) || null, face: faces[t.id] || null,
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
-  [state.players, state.actorId, state.clockUp, me, myDim, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
+  [state.players, state.actorId, state.clockUp, me, myDim, naruScoutId, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
   const { songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp } = useCharLayers({ celFlora, dirPick, hover, pickInfo, sameDim, spikeList, state, wallHold, wallOrient, wallPlan });
   // ---------- คลิก ----------
   const busy = !!anim;

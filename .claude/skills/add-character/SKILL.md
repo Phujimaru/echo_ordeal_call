@@ -36,6 +36,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 - ฮุค `resetCombat` ของตัวใหม่ถูกเรียกตอน Echo สวมร่าง — ห้ามแจกของ/รีเซ็ตแต้ม/เงินซ้ำได้ (Echo เก็บ `KEEP_ON_MIMIC` ไว้ให้ แต่ฟิลด์ใหม่ที่ควรค้างต้องเพิ่มเข้าไป) · ผลค้างต้องตัดได้ตอนคืนร่าง (`severables`)
 - รัน `tests/echo-mimic-all.test.js` + `tests/echo-mimic-stress.test.js` ทุกครั้ง · ห้ามเพิ่มเข้า `BLOCKED` เองโดยไม่ถามผู้ใช้
 
+## บันทึกเหตุการณ์ของศาลนารุโฮโดะ (ระบบกลาง 2026-11-20 · GAME_SYSTEM §61)
+
+- ตี/สกิล/นกหวีด ถูกจดอัตโนมัติ (`server/court.js noteAct`) · ทางลงมือใหม่ที่ไม่ผ่าน `useSkill`/`strikeTarget` (ปุ่ม HUD ที่ทำดาเมจ · ไอเทมโจมตี) ควรเรียก `engine.court.noteAct(p, kind, ชื่อท่า, [เป้า])` เอง
+- ตายแน่นอนทะลุจุติ = `engine.instantDeath(t, "final")` · ปิดการกดทั้งตาพิเศษ = `match.action.holdIt` (canAct false) · ห้ามสกิลตานี้ = `match.action.noSkill`
+
 ## สกิลที่ย้ายตัวเองต้องติดป้าย "สกิลเคลื่อนที่" (ระบบกลาง 2026-11-18 · GAME_SYSTEM §59)
 
 - โซ่ Soul Chain ของแม็กน่า (`server/soulChain.js`) ห้ามคนที่ติดโซ่ใช้สกิลเคลื่อนที่ — ตัวใหม่ที่มีท่าพุ่ง/วาร์ป/สลับที่/เข้าชั้นมิติ (ย้าย `p.pos` ของตัวเอง) ต้องเพิ่มลงตาราง `MOVES[id][tier](p, opts)` (ปุ่ม HUD → `ACTIONS[id]`) ในไฟล์นั้น

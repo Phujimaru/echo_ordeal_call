@@ -7,8 +7,9 @@
 - `naruhodo.webp` ปก/หมาก (ครึ่งตัว พื้นโปร่ง) · `skill1.webp` แฟ้มเอกสาร (สืบสวน) · `skill2.webp` ชี้นิ้วที่โต๊ะทนาย (เอานี่ไปดู!) · `skill3.webp` ตะโกนชี้หน้าจอ (เริ่มการไต่สวน)
 - `court/` = ฉากศาลทั้งหมด (atlas `naruhodo.webp`/`judge.webp` + json · `bg_*` · `desk_*`/`stand_witness` · `gavel_0..5` · `shout_objection|takethat|holdit` (อังกฤษ) · `shout_holdit_jp.webp` (待った! — ใช้กับปุ่ม รอเดี๋ยว!!!) · `lines_top|bottom` · `ui_title|bottom|top|cross|talk` · `evidence.webp` atlas ไอคอนหลักฐาน 93 ช่อง (10 คอลัมน์ × 64px))
 - `sprite/normal.webp` `sprite/talk.webp` `sprite/nod.gif` = นารุโฮโดะตัวเล็กแบบ DS (ใช้บนกระดาน/HUD ตอน "รอเดี๋ยว!!!" แทรก)
-- `music/` (−16 LUFS): `trial.mp3` เปิดศาล+ให้การ · `think.mp3` ซักค้าน · `objection.mp3` หลังคัดค้านสำเร็จครั้งแรก · `cornered.mp3` จำเลยความน่าเชื่อถือ ≤ 2 · `trouble.mp3` ทนาย ≤ 2 · `victory.mp3` คำตัดสินฝั่งทนายชนะ (มีความผิด)
-- ไม่มีวีดีโอ · ไม่มีเสียงเอฟเฟกต์/เสียงพากย์จริง → agent เสียงสังเคราะห์ (ห้ามดาวน์โหลดเอง)
+- `music/` (−12 LUFS — ผู้ใช้ขอให้ดังขึ้น 2026-11-20): `trial.mp3` เปิดศาล+ให้การ · `think.mp3` ซักค้าน · `objection.mp3` หลังคัดค้านสำเร็จครั้งแรก · `cornered.mp3` จำเลยความน่าเชื่อถือ ≤ 2 · `pursuit.mp3` (Pressing Pursuit ~ Cornered — ผู้ใช้เพิ่ม 2026-11-20) จำเลยเหลือ 1 = ช่วงปิดคดี (ทับ cornered) · `trouble.mp3` ทนาย ≤ 2 · `victory.mp3` คำตัดสินฝั่งทนายชนะ (มีความผิด)
+- **วีดีโอปิดคดี `court/finale.mp4`** (5 วิ · ผู้ใช้ 2026-11-20 "ผมขอคัดค้าน"): เล่นตอนการยื่นหลักฐานครั้งสุดท้ายที่ทำให้จำเลยหมดความน่าเชื่อถือ (ก่อนคำตัดสินมีความผิด) · beat step `{ k: "clip", src: "/characters/naruhodo_ryuichi/court/finale.mp4", ms: 5300 }` · ระหว่างคลิป: เพลงศาลหยุด/เบาลง ห้ามเสียงเอฟเฟกต์/บลิป/ตะโกนซ้อนหรือตัดหน้า (กฎผู้ใช้) — แทนที่ shout objection + ฉากเส้นความเร็วของครั้งนั้น · เล่นครั้งเดียวต่อคดี
+- ไม่มีเสียงเอฟเฟกต์/เสียงพากย์จริง → agent เสียงสังเคราะห์ (ห้ามดาวน์โหลดเอง)
 
 ## ข้อมูลตัวละคร (`characters.js`)
 `id: "naruhodo_ryuichi"` · `name: "นารุโฮโดะ ริวอิจิ"` · `gender: "m"` · `difficulty: "special"` · `unique: true` · `img: "/characters/naruhodo_ryuichi/naruhodo.webp"` · `mov: 4` · `range: [1, 1]` · ค่าพื้นฐานกลาง (HP 10 / เกราะ 5 / atk 1) · ธาตุทุกการกระทำ = ปกติ (`null`)
@@ -51,7 +52,7 @@
    - เพื่อนร่วมทีมทนาย (co) ก็ยื่นหลักฐานที่ตัวเองเห็นให้ทนายได้ระหว่าง `cross` (`courtAct { type: "lend", evKey }` · 1 ครั้งต่อคนต่อคดี) · ฝ่ายค้านใช้ข้อแก้ตัวของตัวเองแทนจำเลยได้ (`courtTestimony` picks ของฝ่ายค้านรวมกองเดียวกับจำเลย)
 6. `verdict` — guilty (จำเลยหมด หรือครบ 3 รอบแล้วจำเลยน้อยกว่า) / free (ทนายหมด หรือน้อยกว่า) / tie
    - guilty: จำเลย `engine.instantDeath(t, "absolute")` (ข้ามจุติ/อมตะ/ฟื้นทุกแบบ — ผู้ใช้สั่ง) · มีเหรียญ/ค่าหัวตามปกติของการฆ่า (ผู้ฆ่า = ทนาย)
-   - free: ทนาย ดาเมจ 3 (เกราะก่อน · ไม่มีต้นตอ) + `stun` 2 เทิร์น
+   - free: ทนาย ดาเมจ **5** (ผู้ใช้เปลี่ยนจาก 3 · 2026-11-20 · เกราะก่อน · ไม่มีต้นตอ) + `stun` 2 เทิร์น · `verdict.lawyerDmg: 5` / `verdict.lawyerStun: 2` ส่งมาให้ client แสดงตัวเลข (อย่า hardcode)
    - tie: ไม่มีผล
    - PVP: ประชาชนที่เชียร์ฝ่ายชนะมากสุด (≥1) ได้ HP +1 (`healHp`)
    - ฉาก verdict ~6 วิ แล้ว `court = null` กลับเกม
@@ -77,7 +78,7 @@ state.court = null | {
   pressLeft, counselLeft,
   beat: { seq, steps: [ ...ขั้นฉาก ] } | null,   // ฉากที่ client ต้องเล่นตอนนี้ (seq เพิ่มทุกครั้ง)
   verdict: null | { w: "guilty"|"free"|"tie", rewards: [{ id, name, hp: 1 }] },
-  music: "trial"|"think"|"objection"|"cornered"|"trouble"|"victory"|null,
+  music: "trial"|"think"|"objection"|"cornered"|"pursuit"|"trouble"|"victory"|null,
 }
 ```
 `beat.steps` (client เล่นตามลำดับ · server ประเมินเวลาเอง `sum(step.ms)` แล้วไปขั้นต่อ):
@@ -111,3 +112,25 @@ state.court = null | {
 - server ส่ง `engine.boardFx("naruhodoPoint"|"naruhodoScout"|"naruhodoTrial"|"naruhodoHoldIt", payload)` — ชื่อ event ตามนี้
 - HUD: ช่องแฟ้มหลักฐาน (ไอคอน + ชี้แล้วขึ้นชื่อ+desc) · ปุ่ม รอเดี๋ยว!!! ลอยตอนตาคนอื่น (กดได้/คูลดาวน์) · แผงตาแทรก (เดิน 2 / เก็บหลักฐาน / คัดค้าน!) · ป้ายสถานะ `naruhodoObjected` (ถูกคัดค้าน: ห้ามสกิล/ตี) · `naruhodoScouted`
 - เสียง: สังเคราะห์ (`.claude/plans/naruhodo-sfx.py` → `public/characters/naruhodo_ryuichi/sfx/*.wav|mp3`): `point`, `scout`, `trial_open`, `holdit`, `objection`, `takethat`, `gavel`, `blip_low|mid|high`, `damage`, `evidence_ding`, `whoosh`, `crowd_cheer`, `crowd_boo`, `splat`, `stamp`, `penalty` · ลงทะเบียนคีย์ `naru_*` ใน `client/src/audio.js`
+
+## หมายเหตุจาก board/HUD/เสียง (2026-11-20)
+- fx กระดาน `client/src/board/naruhodoFx.js` (`naruEventFx`) อ่าน payload ตามที่ server ส่งจริง: `from`/`to`/`targetId`/`icon`/`dir` + `kind` ย่อย (Trial: cast/dodge/open · HoldIt: shout/object/alibi · Scout: scout/gather) — Point ไม่ต้องส่ง tiles (คำนวณจาก `dir`)
+- เสียงตอนกดสกิล = server `skillSound` (naru_point / naru_scout / naru_trial_open) · client เล่นเฉพาะ: ปะทะ (naru_damage/stamp/whoosh) · ได้หลักฐาน (evidence_ding) · ค้อน (gavel ตอน cast) · รอเดี๋ยว (holdit) · gather (scout) · ผลคัดค้าน (objection/penalty จาก HUD ตาม `holdIt.result`) — ระหว่าง `state.court` ไม่มีเสียงจากกระดาน/HUD เลย
+- HUD อ่าน `holdIt.result = { kind: "move"|"gather"|"object", ok? }` (object + ok:false = ถูกข้อแก้ตัวสวน) · `holdIt.seq` · ถ้า server ส่ง `holdIt.tiles` (ช่องที่เดิน 2 ได้) HUD ใช้เลย ไม่มี = คำนวณเองด้วย Rules.reachable
+- ⚠️ **คีย์เพลงชนกับเสียงเอฟเฟกต์**: `skillMusic` ส่ง `naru_${court.music}` → `naru_objection` ชนกับเสียงตะโกน naru_objection (ฉากศาลใช้ csfx("objection")) → **server ควรส่ง `naru_bgm_${court.music}`** (audio.js มีคีย์ naru_bgm_* ครบทุกเพลงแล้ว · naru_trial/think/cornered/trouble/victory/pursuit ยังลงทะเบียนไว้ด้วยเพื่อไม่พังระหว่างเปลี่ยน) · เพลงศาลทุกเพลง MUSIC_TRACK_SCALE 1.3 (ผู้ใช้ขอให้ดัง)
+
+## หมายเหตุจาก server (2026-11-20 — สิ่งที่ลงโค้ดจริง · client อ่านตามนี้)
+- `skillMusic` ส่ง **`naru_bgm_${court.music}`** แล้ว · ระหว่างคลิปปิดคดี `court.music = null` (ฮุคคืน null) แล้ว `victory` ตอนคำตัดสิน
+- `state.court` เพิ่ม: `rx: [ids]` (ประชาชนที่กดแล้วในขั้น gallery) · `sightings` ส่งให้ทุกคนที่ไม่ใช่จำเลย (เฉพาะเจ้าตัว) · `list[].kind` ส่งเฉพาะฝั่งจำเลย · `verdict.rewards[].gold` (2 = พยานฝ่ายชนะ)
+- `state.holdIt` เพิ่ม `seq` · `canAlibi` (true เฉพาะผู้ถูกแทรกตอน phase alibi ที่ยังมีข้อแก้ตัว) · ไม่ส่ง `tiles` (client คำนวณเอง — movLeft 2) · `result = { kind: "move"|"gather"|"object", ok?, ev? }`
+- `players[].naruhodo` (เจ้าตัว) เพิ่ม `sealed` (ลบสกิลติดตัว) · `players[].courtAlibi` (เจ้าตัว · มีเมื่อ > 0)
+- `courtAct` รับ `evKey` สำหรับ `lend` · `courtGallery` รับ `evKey` สำหรับ `witnessL`
+- ทุกจังหวะของคดีเป็นจังหวะแบบเปิด (`engine.skillBeat` open) — server ไปต่อเองเมื่อครบ `sum(ms)` · ขั้นรอ (testimony/cross/objectWindow/gallery) จบก่อนเวลาเมื่อผู้เล่นกดครบ · `beat` = null ระหว่างขั้นรอ
+- คัดค้านของฝ่ายค้าน = ทายใจ: หลักฐานที่จะจับได้จริง → ปัดตก (หลักฐานไม่เสีย) · หลักฐานผิดอยู่แล้ว → ฝ่ายจำเลย −1 (ตาม GRID_PLAN "ทายผิด = ฝ่ายจำเลย −1") · ยื่นแล้วประโยคนั้นยื่นซ้ำไม่ได้ในยกนั้น (`presentTried`) ยกเว้นยื่นชนข้อแก้ตัว
+- 🍅 = −1 ฝ่ายนั้นเหมือนโห่ (รวมเพดาน ±2) · ประชาชนมีทุกโหมดที่ไม่ใช่ PVE (ffa + คนนอกสองฝ่ายใน duo/trio) · Eos/Road Trip/Moon Cell ไม่มีประชาชน
+- คำตัดสินมีความผิด = `combat.instantDeath(t, "final")` (ระดับใหม่: แบบ absolute + ข้ามจุติ) · ผู้สังหาร = ทนาย
+- มอน/บอส PVE ถูกจดในบันทึกด้วย (ผู้กระทำ = ตัวมันเอง · ไม่มีข้อแก้ตัว) เพื่อให้คดีใน PVE มีหลักฐานจริง
+- **จำเลยระบบคู่ (เคท & เอมิลิโกะ · ผู้ใช้ 2026-11-20)**: `state.court.defendantUnits: [{ id, name, img }]` — ทุกตัวของจำเลยที่ยังมีชีวิต (ตัวที่ถูกเลือกก่อน · ตัวเดียว = array 1 ตัว) · `defendantId` = ตัวที่ถูกเลือก · ชื่อจำเลยในบทพูด = "เคท & เอมิลิโกะ" · ทั้งคู่ส่งคำให้การ/ข้อแก้ตัวได้ (เห็น pool/alibi ฝั่งจำเลย) · บันทึก/หลักฐาน/ข้อแก้ตัวของทั้งคู่ผูกกับฝ่ายเดียวกัน (`actorId` = เจ้าของ · `actorName` = ตัวที่ลงมือ) · มีความผิด = ตายทั้งคู่ (`final`) · ไม่มีความผิด/เสมอ = เหมือนเดิม
+- **ขั้นฉากตาม court UI (server 2026-11-20)**: `say` ทุกอันมี `name` · ผู้พูดรหัส `C` (ฝ่ายค้าน) / `T` (ผู้ช่วยทนาย + พยานจากประชาชน) / `G` (ประชาชนเชียร์/โห่/ปา/คนถูกไล่) ใส่ `id` ผู้เล่น · `cam` ก่อนบทของคนเหล่านั้นใส่ `who: id` · ทุกขั้นมี `ms` ตาม `client/src/court/courtSteps.js stepMs` (pan 420 · gavel 640/ครั้ง · present 1500 · hurt 1100 · heal 800 · gallery 2800 · kick 700 · verdict 3800 · clash 1500 · clip 5300 · say = min(5200, 1300 + 48×ตัวอักษร))
+- ยกหนึ่ง: ฉากผู้พิพากษาสั่งให้การ (`beat`) → `testify` (`beat = null` · client เล่นเอง · server รอ 1.5 + 2.5 × จำนวนประโยค วิ) → ฉากแบนเนอร์ซักค้าน + ความคิดในใจ (`beat`) → `cross`
+- `verdict.rewards[]` = `{ id, name, hp: 1, gold?: 2 }`

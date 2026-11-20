@@ -1436,3 +1436,19 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **โหมดในหน้าเลือกตัวที่เป็นตัวละครอีกตัว**: `modes: [{ key, name, char: "<id>" }]` → join สลับ characterId · ตัวนั้นตั้ง `modeOf: "<id การ์ด>"` = ไม่ขึ้นการ์ดแยก (publicRoster `hidden`) แต่ยังอยู่ในสมุดไดอารี่ของ Echo · แผงหน้าเลือกตัวใช้ชื่อการ์ด + ภาพ/สกิลของตัวนั้น
 - **ปุ่ม tile list + พรีวิวระเบิด**: `area { kind: "tile", place: "list", tiles, blast: N }` → ชี้ช่อง = ไฮไลต์ข้าวหลามตัดรัศมี N รอบช่องนั้น (BoardStage)
 - **สองร่างชุดสกิลแยกขาดในตัวเดียว** (ไม่ใช่ choices): `skillPub` ส่งเฉพาะ name/img/desc (view ทับ skillPub หลัง skillArea — ห้ามส่ง area/cost) · `skillArea` / `skillCost` ตามร่าง · หมากภาพเต็มตัวตามร่าง `dinoState.standee` (ขี่ม้า = หกเหลี่ยม)
+
+## 61. บันทึกเหตุการณ์ / ศาล / แทรกตาแบบมีตัวเลือก / ตายแน่นอนทะลุจุติ (นารุโฮโดะ ริวอิจิ — `characters/naruhodo_ryuichi.js` · `server/court.js` · `server/courtLines.js` · GRID_PLAN §7.37 · สัญญา `.claude/plans/naruhodo-contract.md`)
+
+- **บันทึกเหตุการณ์** (`match.courtLog` · ทำงานเฉพาะแมตช์ที่มีนารุโฮโดะ รวม Echo สวม): `Court.noteAct(u, kind, skill, targetIds)` เรียกจาก `skills.runSkill` (หลังลงผล · ก่อน `applyEffect`) · `action.strikeTarget` (ตีปกติใส่คน) · `whistle.blow` · เดินไกล ≥ 3 ช่อง = ฮุค broadcast `afterActorEnd` → `noteMove`
+  · ทุกเหตุการณ์จด `seenBy` = ผู้เล่นทุกคนที่ห่าง ≤ 4 + มองเห็น (`Visibility.hiddenFrom`) ตอนนั้น · นารุโฮโดะฝ่ายตรงข้ามที่เห็น = หลักฐาน (`p.naruhodo.evidence` ≤ 5) · ไม่มีใครเห็น = ข้อแก้ตัว `p.courtAlibi` +1 (≤ 3)
+  · ยูนิตอัญเชิญที่มีเจ้าของ = นับเป็นเจ้าของ · มอน/บอส = ตัวมันเอง (ไม่มีข้อแก้ตัว) · ไอคอนหลักฐาน `characters/_court_evidence.js` (สำเนาเดียวกับ client `court/evidenceData.js` — เทสต์คุม)
+- **ศาล** (`match.court` · `engine.court.start(lawyer, t)`): ทั้งคดีคือ **จังหวะแบบเปิดต่อกัน** (`engine.skillBeat(วิ, fn, { open: true })` ภายใน `cutscene.runSkillFlow` — เฟส ATTACKING · ตาเดินถูกพัก) · ขั้นที่รอผู้เล่นจบก่อนเวลาด้วย `engine.releaseBeat()` · ไม่มีจังหวะต่อ = คดีจบ → กลับตาเดินของทนายด้วยเวลาที่เหลือ
+  · ทุกจังหวะผ่าน `guarded()` — ทนายตาย/หลุด/หาย หรือจำเลยหาย = ยุติไม่มีผล · error = ปิดคดี (ไม่ค้าง)
+  · state ต่อผู้ชม `Court.view(viewerId, controlId)` (ข้อแก้ตัวจริง/คำให้การที่เลือกได้ = ฝั่งจำเลย · หลักฐาน = ฝั่งทนาย · สิ่งที่เห็น = เจ้าตัว) · เพลง `court.music` → ฮุค `skillMusic` คืน `naru_bgm_<ชื่อ>`
+  · บทพูดทั้งหมด = กองหลายแบบใน `server/courtLines.js` (`pick(key, ctx)` เติมชื่อ/ท่า/เป้า/เทิร์นจริง) · ประโยคคำให้การสร้างจากบันทึกจริงของจำเลย (`statementPool`)
+- **คำตัดสิน**: มีความผิด = จำเลยทุกตัวของฝ่าย (ระบบคู่ = ทั้งคู่) ตายแน่นอน · ไม่มีความผิด = ทนาย −5 (ลดเกราะก่อน · ไม่มีต้นตอ — ผู้ใช้ 2026-11-20 เดิม −3) + สตั้น 2 + ตานั้นล็อก · `verdict.lawyerDmg/lawyerStun` ส่งให้ client · เสมอ = ไม่มีผล · จำเลยระบบคู่ขึ้นศาลด้วยกัน `court.defendantUnits`
+- **ตายแน่นอนทะลุจุติ**: `combat.instantDeath(p, "final")` = แบบ `absolute` + ข้ามจุติ (คำตัดสินมีความผิด — ผู้ใช้ 2026-11-20) · ผู้สังหาร = `effectSourceId`
+- **แทรกตาแบบมีตัวเลือก** (รอเดี๋ยว!!!): `TimeStop.interrupt(id, "holdIt", เวลาที่เหลือ)` → ฮุค `onExtraTurn` ตั้ง `action.holdIt` (= `action.canAct` false ทุกคำสั่ง) + `movLeft 2` + ฉาก 1.5 วิ แล้วฮุค `clockSeconds` คืน 15 วิ · socket `holdItAct` เดินด้วย `action.moveTo` (ปลด `holdIt` ชั่วคราว) / เก็บหลักฐาน / คัดค้าน → `pausePlayingForCutscene(null, { endTurn: true })` จบตาแทรก → `resumeFrom` กลับตาเดิม
+  · ผลคัดค้าน: `resume.action.noSkill` + `noStrike` (ใหม่: `match.action.noSkill` = `skills.runSkill` ไม่รับ) + ป้าย `statuses.naruhodoObjected` 1
+- **เห็นทะลุเฉพาะคน**: `visibility.hiddenFromOne` → `Court.scoutSees(viewer, target)` (สืบสวน — ล่องหน/พุ่ม/ม่าน · ชั้นมิติยังบัง)
+

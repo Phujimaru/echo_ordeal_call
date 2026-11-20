@@ -22,6 +22,10 @@ const match = {
   forcedWinnerId: null, // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner) · gameOver ข้ามกติกาปกติ
   yukiBoom: null,       // ฉากระเบิดของยูกิ { seq, by, x, y, size } — ส่งให้ client ตลอดช่วงพักจนจบเกม
   yukiBoomSeq: 0,
+  court: null,         // ศาลของนารุโฮโดะ (server/court.js) — คดีที่กำลังพิจารณา
+  holdIt: null,        // รอเดี๋ยว!!! ที่กำลังแทรกตา { lawyerId, actorId, phase, deadline, result }
+  courtLog: [],        // บันทึกเหตุการณ์ (ตี/สกิล/ไอเทม/เดินไกล) — เฉพาะแมตช์ที่มีนารุโฮโดะ
+  courtLogSeq: 0, courtSeq: 0, holdItSeq: 0,
   arjunaUlt: null,     // ฉาก Mahapralaya ของอรชุน { seq, by, targets: [id], hits: { id: ดาเมจ } }
   arjunaUltSeq: 0,
   endTurnHold: 0,       // วินาทีที่ endTurn ต้องพักให้ฉากของ client เล่นจบ (engine.holdEndTurn) — ใช้แล้วล้าง

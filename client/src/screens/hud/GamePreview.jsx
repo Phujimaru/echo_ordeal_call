@@ -52,6 +52,21 @@ function writeOpts(o) {
   history.replaceState(null, "", `${location.pathname}?${q.toString()}`);
 }
 
+// ?naru=1 = ใส่แฟ้มหลักฐานของนารุโฮโดะให้ตัวเรา (NaruhodoHud) · &hold=1 = ตาแทรก รอเดี๋ยว!!! (ใช้กับ scn=other) — ทดสอบตำแหน่ง HUD
+const NARU_Q = new URLSearchParams(location.search);
+const NARU_DL = Date.now() + 15000;
+const NARU_EV = [
+  { id: "e1", round: 1, actorId: "", actorName: "", kind: "basic", type: "weapon", icon: 46, name: "มีดเปื้อนเลือด", desc: "ตีปกติ ตอนเทิร์น 1", used: false },
+  { id: "e2", round: 2, actorId: "", actorName: "", kind: "move", type: "foot", icon: 83, name: "แม่พิมพ์รอยเท้า", desc: "เดินข้ามสนามตอนเทิร์น 2", used: false },
+];
+function naruPatch(state) {
+  if (NARU_Q.get("naru") !== "1" || !state || !state.players) return state;
+  const meId = state.youId, foe = state.players.find((p) => p.id !== meId && p.alive) || null;
+  const players = state.players.map((p) => (p.id === meId ? { ...p, naruhodo: { evidence: NARU_EV.map((e) => ({ ...e, actorId: foe ? foe.id : "" })), holdCd: 0, holdReady: true, noMoveNext: false, scout: foe ? { targetId: foe.id, until: 3, cds: { basic: 0, secondary: 2, ultimate: 4 } } : null } } : p));
+  const hold = NARU_Q.get("hold") === "1" && foe ? { seq: 1, lawyerId: meId, actorId: state.actorId && state.actorId !== meId ? state.actorId : foe.id, phase: "choose", deadline: NARU_DL, result: null } : null;
+  return { ...state, players, holdIt: hold };
+}
+
 export default function GamePreview() {
   const showBar = new URLSearchParams(location.search).get("bar") !== "0";
   const [opts, setOpts] = useState(readOpts);
@@ -109,7 +124,7 @@ export default function GamePreview() {
 
   return (
     <>
-      <Game key={remount} state={state} lowQ={opts.lowQ} skillConfirmOn />
+      <Game key={remount} state={naruPatch(state)} lowQ={opts.lowQ} skillConfirmOn />
       {showBar && (
         <div style={BAR}>
           <button type="button" style={HEAD} onClick={() => setOpen((v) => !v)}>

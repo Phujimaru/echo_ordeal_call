@@ -181,6 +181,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
     match.actorId = id;
     match.action = { from: p && p.pos ? { ...p.pos } : null, moved: false, locked: false, path: null };
   },
+  get court() { return require("./court"); }, // ศาล/บันทึกเหตุการณ์/รอเดี๋ยว!!! ของนารุโฮโดะ (server/court.js)
   get lastAttack() { return match.lastAttack; },
   setLastAttack(v) { match.lastAttack = v; },
   attackableTargets: attack.attackableTargets,

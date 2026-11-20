@@ -251,7 +251,8 @@ function maxArmorOf(p) {
 //  force = "absolute": ตายแน่นอน ข้ามทุกด่าน (เพื่อนร่วมทีม/หยุดเวลา/กันตาย/ฟื้น/มิตรภาพ) — ระเบิดของยูกิ มาโคโตะ
 function instantDeath(p, force) {
   if (!p.alive) return; // ตายไปแล้ว — ไม่เก็บกวาด/ยิงฮุคการตายซ้ำ
-  const absolute = force === "absolute";
+  // "final" = คำตัดสินมีความผิดของศาลนารุโฮโดะ (server/court.js): แบบ absolute + ข้ามจุติด้วย (ผู้ใช้ 2026-11-20)
+  const absolute = force === "absolute" || force === "final";
   if (!absolute && friendlyEffectBlocked(p)) return;
   if (!absolute) TimeStop.checkHit(p); // ตั้งรับที่นับสังหารทันทีด้วย (โจรุโน่ Requiem)
   if (!absolute && TimeStop.holdsDeath(p)) return; // หยุดเวลา (server/timeStop.js): คนอื่นยังไม่ตาย — ตกรอบพร้อมกันตอนเวลาเดินต่อ
@@ -272,7 +273,7 @@ function instantDeath(p, force) {
   // Fodlan: ชีพจรเทพ (นั่งบัลลังก์ผู้ให้กำเนิด — server/fodlan/stage5.js preventDeath ตั้งเลือดเอง)
   if (!force && !p.summon && require("./fodlan").preventDeath(p)) return;
   // จุติ (สถานะ Universal — ตะเกียงวิญญาณของอรชุน): ฟื้นทันทีแม้การตายแบบ absolute · ล้างดีบัฟทั้งหมด บัฟยังอยู่ · ใช้ครั้งเดียว
-  if ((p.statuses.jutti || 0) > 0) {
+  if ((p.statuses.jutti || 0) > 0 && force !== "final") {
     delete p.statuses.jutti;
     clearAllDebuffs(p);
     p.hp = 1;

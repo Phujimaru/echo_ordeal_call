@@ -64,6 +64,7 @@ function runSkill(id, tier, targets, opts = {}) {
   if (!action.canAct(p, { move: !!(hook && hook.cantoSkill && hook.cantoSkill(p, tier)) })) return;
   // ห้ามใช้สกิล: เทิร์นนี้ใช้สกิลไม่ได้ · ฮุค ignoresNoSkill(p, tier) = ช่องนี้ยังกดได้ (โรลันด์: BS Page)
   if ((p.statuses.noskill || 0) > 0 && !(hook && hook.ignoresNoSkill && hook.ignoresNoSkill(p, tier))) return;
+  if (match.action && match.action.noSkill) return; // ถูกคัดค้าน! (รอเดี๋ยว!!! ของนารุโฮโดะ — server/court.js) / ตาแทรก / แพ้คดี
   if (require("./fodlan").noSkill(p)) return; // สนาม Eos: อยู่ในรถ = ใช้สกิลไม่ได้
 
   // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)
@@ -170,6 +171,7 @@ function runSkill(id, tier, targets, opts = {}) {
   if (spikeTiles.length) deferred.push(() => Ice.hitSpikesInArea(p, spikeTiles));
   const runDeferred = () => { for (const fn of deferred) combat.withEffectSource(p, fn); };
 
+  require("./court").noteAct(p, tier, flashName, targets); // บันทึกเหตุการณ์ของศาลนารุโฮโดะ (มีนารุโฮโดะในแมตช์เท่านั้น)
   combat.applyEffect(p, skill.effect);
 
   // สกิลช่วงจั่วการ์ด (instant): เด้งโชว์ทันทีบนกระดานของทุกคน ไม่ต้องรอเปิดไพ่/ไม่ตัดจอดำ

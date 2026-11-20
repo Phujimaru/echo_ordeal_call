@@ -20,6 +20,7 @@ import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
 import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
+import { naruUnitFront } from "./naruhodoFx";
 import { dinoAuraBack, dinoAuraFront, drawDinoStandee, isDinoStandee } from "./dinoFx";
 import { kazumaKingAuraBack, kazumaKingAuraFront } from "./kazumaFx";
 import { otoUnitBack, otoUnitFront } from "./otoyaFx";
@@ -407,6 +408,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.elem && !tb) elemUnitFront(g, u, bx, hy, hexR); // ป้ายไอคอนคราบธาตุมุมขวาบนของหมาก
   if (u.otoya) otoUnitFront(g, u, now, wx, wy); // ค้างคาวโคจร · ไวโอลินเหนือหัว · โน้ตวนรอบเป้า
   if (u.giorno) gioUnitFront(g, u, now, wx, wy); // เปลวทอง Requiem ครึ่งหน้า · ธนูปักตัว (รอผลธนู)
+  if (u.naru && !tb) naruUnitFront(g, u, now, bx, hy, hexR); // นารุโฮโดะ (naruhodoFx.js): แว่นขยาย (กำลังถูกสืบสวน — เห็นเฉพาะคนสืบ) · มือชี้แดง (ถูกคัดค้าน)
   if (u.offline && !tb) drawOffline(g, bx, hy, hexR, now);
   if (hitAge >= 0 && hitAge < 150 && !tb) { g.save(); hexPath(g, bx, hy, hexR); g.fillStyle = `rgba(255,255,255,${0.85 * (1 - hitAge / 150)})`; g.fill(); g.restore(); }
   if (u.yuki) yukiAuraFront(g, u, wx, wy, bx, by, hy, hexR, now, u.lowQ, UNIT_FRAME.uiK);

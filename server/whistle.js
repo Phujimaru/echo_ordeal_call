@@ -94,6 +94,7 @@ function blow(id) {
   const spell = forced && forced !== "any" ? forced : SPELL_KEYS[Math.floor(Math.random() * SPELL_KEYS.length)];
   const S = SPELLS[spell];
   Visibility.onHostileAct(p, "item");
+  require("./court").noteAct(p, "item", S.name, []); // บันทึกเหตุการณ์ของศาลนารุโฮโดะ
   match.lastLog.push(`📯 ${p.name} เป่านกหวีดอัญเชิญมนต์อสูรเทพ — ${S.name}!`);
   // คลิปเต็มจอทุกครั้งที่เป่าติด (ผู้ใช้สั่ง 2026-11-03)
   engine.queueCutscene(p, S.cut);

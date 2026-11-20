@@ -632,6 +632,14 @@ const FILES = {
   midoriya_million: "/characters/midoriya_izuku/million_sfx.m4a",
   // แม็กน่า สวิง (GRID_PLAN §7.35): สังเคราะห์ .claude/plans/magna-sfx.py (−16 LUFS · ยังไม่มีคนฟัง) · ตีปกติ: จุดปะทะ 0.29 วิ (MAGNA_HIT_P)
   ...Object.fromEntries(["swing", "knuckle", "ball", "bat", "bat_hit", "boost", "throw", "arm", "pull", "fin_hit", "chain_break"].map((k) => [`magna_${k}`, `/effect_sound/magna/magna_${k}.m4a`])),
+  // นารุโฮโดะ ริวอิจิ (GRID_PLAN §7.37): เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/naruhodo-sfx.py (−16 LUFS · บลิป −24 · คนดู −19 · ยังไม่มีคนฟัง)
+  //  กระดาน (naruhodoFx.js naruEventFx) + HUD (NaruhodoHud.jsx) + ฉากศาล (court/courtAudio.js csfx → naru_<คีย์>)
+  ...Object.fromEntries(["point", "scout", "trial_open", "holdit", "objection", "takethat", "gavel", "desk_slam", "blip_low", "blip_mid", "blip_high", "damage", "evidence_ding", "whoosh", "crowd_cheer", "crowd_boo", "splat", "stamp", "penalty"]
+    .map((k) => [`naru_${k}`, `/characters/naruhodo_ryuichi/sfx/naru_${k}.mp3`])),
+  //  เพลงศาล (state.skillMusic "naru_<court.music>" — characters/naruhodo_ryuichi.js skillMusic · ไฟล์ −12 LUFS ผู้ใช้ขอให้ดัง)
+  //  ⚠️ "objection" ชนกับเสียงเอฟเฟกต์ naru_objection → เพลงใช้คีย์ naru_bgm_objection (server ต้องส่งคีย์นี้) · คีย์ naru_bgm_* มีครบทุกเพลง
+  ...Object.fromEntries(["trial", "think", "cornered", "trouble", "victory", "pursuit"].map((k) => [`naru_${k}`, `/characters/naruhodo_ryuichi/music/${k}.mp3`])),
+  ...Object.fromEntries(["trial", "think", "objection", "cornered", "trouble", "victory", "pursuit"].map((k) => [`naru_bgm_${k}`, `/characters/naruhodo_ryuichi/music/${k}.mp3`])),
   // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์ · characters/diego_dino.js) — เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/diego-dino-sfx.py (ยังไม่มีคนฟัง)
   //  เสียงพากย์ตัดตามประโยค (Whisper) จากไฟล์ผู้ใช้ → characters/diego_dino/voice · .claude/plans/diego-dino-voice-cut.py · หน้าฟัง diego-dino-voice.html
   ...Object.fromEntries(["claw", "bite", "crack", "virus", "possess", "charge", "slam", "leap", "drain", "revert"].map((k) => [`dino_${k}`, `/effect_sound/diego_dino/dino_${k}.m4a`])),
@@ -828,6 +836,9 @@ const MUSIC_TRACK_SCALE = {
   yuna_idol: 1.34,
   // รองโกมิเนียตของเกรย์: เพลงชาร์จ 2 เทิร์นต้องครองฉาก — เต็มหลอดแบบม่านแดง
   gray_ult: 1.34,
+  // เพลงศาลของนารุโฮโดะ: ผู้ใช้ขอให้ดังกว่าเพลงต่อสู้ (2026-11-20 · ไฟล์ −12 LUFS แล้ว) — ดันเกือบเต็มหลอด (0.75 × 1.3 ≈ 0.98)
+  ...Object.fromEntries(["trial", "think", "cornered", "trouble", "victory", "pursuit"].flatMap((k) => [[`naru_${k}`, 1.3], [`naru_bgm_${k}`, 1.3]])),
+  naru_bgm_objection: 1.3,
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)

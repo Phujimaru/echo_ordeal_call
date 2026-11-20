@@ -18,6 +18,7 @@
 //   ?valentine=1 = ฟันนี่ วาเลนไทน์ (D4C) · ปุ่มเล่นเอฟเฟกต์ทุกเหตุการณ์ของ socket "valentineFx" + ธงปัก/มุมมองมิติ/คนละโลก/ตัวเหมือน (ValentineFxDev.jsx)
 //   ?celine=1 = องค์หญิงดอกไม้ เซลิน · ปุ่มเล่นเอฟเฟกต์ตีปกติ 6 อาวุธ + ทุกเหตุการณ์ของ socket "celineFx" + พุ่มดอกไม้/กำแพง/ราชาดอกไม้ (CelineFxDev.jsx)
 //   ?shinra=1 = คุซาคาเบะ ชินระ · ปุ่มเล่นเอฟเฟกต์ไฟทุกแบบ + สลับออร่า (ShinraFxDev.jsx)
+//   ?naruhodo=1 = นารุโฮโดะ ริวอิจิ · ปุ่มเล่นเอานี่ไปดู! / สืบสวน / เริ่มการไต่สวน / รอเดี๋ยว!!! + HUD จำลอง (NaruhodoFxDev.jsx)
 //   ?magna=1 = แม็กน่า สวิง · ปุ่มเล่นบอลไฟ / ไม้เบสบอล / โซ่ Deathmatch / Finisher (MagnaFxDev.jsx)
 //   ?dino=1 = ดิเอโก้ อสูรกายดึกดำบรรพ์ · ปุ่มเล่นทุกท่า + คลิป + ร่างคน/ไดโนเสาร์/ม้า (DinoFxDev.jsx)
 //   ?midoriya=1 = มิโดริยะ อิซึคุ · ปุ่มเล่น Smash ทุกแบบ / Full Cowl / ออร่า (MidoriyaFxDev.jsx)
@@ -54,6 +55,7 @@ import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่�
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
+import NaruhodoFxDev from "./NaruhodoFxDev"; // ?naruhodo=1 = ปุ่มเล่นเอฟเฟกต์ของนารุโฮโดะ ริวอิจิ
 import MagnaFxDev from "./MagnaFxDev"; // ?magna=1 = ปุ่มเล่นเอฟเฟกต์ของแม็กน่า สวิง
 import DinoFxDev from "./DinoFxDev"; // ?dino=1 = ปุ่มเล่นเอฟเฟกต์ของดิเอโก้ อสูรกายดึกดำบรรพ์
 import MasterFxDev from "./MasterFxDev"; // ?master=1 = ปุ่มเล่นเอฟเฟกต์ของ Master // ?midoriya=1 = ปุ่มเล่นเอฟเฟกต์ของมิโดริยะ อิซึคุ
@@ -157,11 +159,12 @@ const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
 const MAGNA_DEV = Q.get("magna") === "1";
+const NARU_DEV = Q.get("naruhodo") === "1";
 const DINO_DEV = Q.get("dino") === "1";
 const MASTER_DEV = Q.get("master") === "1";
 const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
-  : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
+  : NARU_DEV ? baseUnits().map((u) => (u.id === "me" ? { ...u, name: "นารุโฮโดะ ริวอิจิ", img: "/characters/naruhodo_ryuichi/naruhodo.webp", color: "#2c56b0" } : u)) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
   { id: "me", name: "มุยมิ", img: MUIMI, color: "#3B82C4", x: 2, y: 9, hp: 5, maxHp: 7, armor: 2, maxArmor: 3, tag: "18" },
   { id: "p2", name: "โอเบรอน", img: OBERON, color: "#C0392B", x: 6, y: 8, hp: 6, maxHp: 7, armor: 1, maxArmor: 3, tag: "พอ" },
@@ -602,6 +605,7 @@ export default function BoardPreview() {
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} setShell={setSoraShell} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
+      {NARU_DEV && <NaruhodoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MAGNA_DEV && <MagnaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {DINO_DEV && <DinoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MASTER_DEV && <MasterFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}

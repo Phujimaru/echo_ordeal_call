@@ -434,6 +434,18 @@ io.on('connection', (socket) => {
   onUnitEvent(socket, 'dioDuel', combatOnly((id, { action: act } = {}) => {
     if (act === 'draw' || act === 'stand') CHAR_HOOKS.dio_brando.duelAction(engine, id, act);
   }), 12);
+  // ศาลของนารุโฮโดะ (server/court.js · สัญญา .claude/plans/naruhodo-contract.md) — ทุกคำสั่งเช็คบทบาท/ขั้นเอง
+  const Court = require('./court');
+  const courtCmd = (fn) => combatOnly((id, payload) => { if (fn(id, payload && typeof payload === 'object' ? payload : {})) return true; return false; });
+  onPlayerEvent(socket, 'courtTestimony', courtCmd((id, { picks }) => Court.testimony(id, picks)), 6);
+  onPlayerEvent(socket, 'courtAct', courtCmd((id, { type, idx, evId, evKey }) => Court.act(id, { type, idx, evId, evKey })), 12);
+  onPlayerEvent(socket, 'courtObject', courtCmd((id) => Court.object(id)), 6);
+  onPlayerEvent(socket, 'courtGallery', courtCmd((id, { e, side, evKey }) => Court.gallery(id, { e, side, evKey })), 6);
+  onPlayerEvent(socket, 'courtSkip', courtCmd(() => Court.skip()), 10);
+  // รอเดี๋ยว!!! (ปุ่มติดตัว — แทรกตาศัตรู) · ตาแทรก (เดิน 2 / เก็บหลักฐาน / คัดค้าน) · ผู้ถูกแทรกสวนด้วยข้อแก้ตัว
+  onPlayerEvent(socket, 'holdIt', courtCmd((id) => { const p = match.players[id]; return combat.withEffectSource(p, () => Court.holdIt(id)); }), 4);
+  onPlayerEvent(socket, 'holdItAct', courtCmd((id, { kind, tile, evId }) => combat.withEffectSource(match.players[id], () => Court.holdItAct(id, { kind, tile, evId }))), 6);
+  onPlayerEvent(socket, 'holdItAlibi', courtCmd((id) => Court.holdItAlibi(Duo.controlledId(id))), 4);
   // มินิเกมประตูของเฟรดดี้: เป้าเลือกประตูที่จะปิด / เฟรดดี้เลือกประตูที่จะเข้า (characters/freddy_fazbear.js)
   onUnitEvent(socket, 'freddyDoor', combatOnly((id, { door } = {}) => {
     if (door === 'left' || door === 'right') CHAR_HOOKS.freddy_fazbear.doorAction(engine, id, door);

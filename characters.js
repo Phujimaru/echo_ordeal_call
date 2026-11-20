@@ -1893,6 +1893,48 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    id: "naruhodo_ryuichi",
+    gender: "m",
+    name: "นารุโฮโดะ ริวอิจิ",
+    avatar: 0,
+    difficulty: "special",
+    unique: true,
+    img: "/characters/naruhodo_ryuichi/naruhodo.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "รอเดี๋ยว!!!",
+      desc: "กดได้ตอนตาศัตรูที่อยู่ในระยะ 4 และมองเห็น: แทรกตาเขา 15 วิ เลือก 1 อย่าง — เดิน 2 ช่อง / เก็บหลักฐานของคนนั้น / คัดค้าน! (ใช้หลักฐานของคนนั้น 1 ชิ้น → เขาใช้สกิลและตีปกติไม่ได้จนจบตานั้น · เขาสวนด้วยข้อแก้ตัว = คัดค้านล้ม หลักฐานเสีย เกราะ −2) · ตาหน้าของตัวเองเดินไม่ได้ (คูลดาวน์ 3 เทิร์น) · แฟ้มหลักฐาน: ศัตรูลงมือในระยะ 4 ที่มองเห็น = หลักฐาน +1 (สูงสุด 5) · ไม่มีใครเห็น = ศัตรูได้ข้อแก้ตัว +1 (สูงสุด 3)",
+    },
+    basic: {
+      name: "เอานี่ไปดู!",
+      desc: "เลือกทิศ แนว 3×1: ศัตรูคนแรกในแนว −1 (หลบได้ · ลดเกราะก่อน) · มีหลักฐานของคนนั้น = ใช้ 1 ชิ้น −3 แทน",
+      area: { kind: "line", len: 3, width: 1, hostile: true },
+      cost: 1,
+      img: "/characters/naruhodo_ryuichi/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "สืบสวน",
+      desc: "ศัตรู 1 คนในระยะ 4: หลักฐานของคนนั้น +1 ทันที · เห็นแม้ซ่อนตัว (ล่องหน/พุ่มไม้) และเห็นคูลดาวน์สกิลของเขาจนจบเทิร์นหน้า (คูลดาวน์ 2 เทิร์น)",
+      area: { kind: "target", range: 4, hostile: true },
+      cost: 2,
+      img: "/characters/naruhodo_ryuichi/skill1.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "เริ่มการไต่สวน",
+      desc: "ศัตรู 1 คนในระยะ 5 (หลบได้): ขึ้นศาลทั้งเกม — จำเลยให้การ 3 ยก ทนายซักค้าน/ยื่นหลักฐาน ความน่าเชื่อถือฝ่ายละ 5 · มีความผิด = จำเลยตายทันที · ไม่มีความผิด = ตัวเอง −5 (ลดเกราะก่อน) + สตั้น 2 เทิร์น · เสมอ = ไม่มีผล (คูลดาวน์ 5 เทิร์นหลังคดีจบ)",
+      area: { kind: "target", range: 5, hostile: true },
+      cost: 6,
+      img: "/characters/naruhodo_ryuichi/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

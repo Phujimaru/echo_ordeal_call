@@ -37,6 +37,9 @@ const STATUS_INFO = {
   numb:     { icon: "🫨", label: "เหน็บชา", cls: "bg-echo-hp", desc: "ใช้สกิลมีโอกาส 30% ไม่ทำงาน แต่ยังเสียแต้มสกิล" },
   weak:      { icon: "🥀", label: "อ่อนแอ", cls: "bg-echo-hp", desc: "ดาเมจที่คุณทำลดลงตามจำนวนที่ระบุ" },
   fragile:   { icon: "💔", label: "เปราะบาง", cls: "bg-echo-hp", desc: "ดาเมจที่คุณได้รับเพิ่มขึ้นตามจำนวนที่ระบุ" },
+  // นารุโฮโดะ ริวอิจิ (GRID_PLAN §7.37): คัดค้านค้างจนจบตาเดิน · ถูกสืบสวน (เห็นทะลุ/คูลดาวน์)
+  naruhodoObjected: { icon: "✋", label: "ถูกคัดค้าน", cls: "bg-red-600 text-white", desc: "ห้ามสกิล · ห้ามตีปกติ" },
+  naruhodoScouted:  { icon: "🔍", label: "ถูกสืบสวน", cls: "bg-amber-300 text-gray-900", desc: "" },
   jutti:     { icon: "🪔", label: "จุติ", cls: "bg-amber-400 text-gray-900", desc: "ตายแล้วคืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด บัฟยังอยู่ (1 ครั้ง)" },
   arjunaPurge: { icon: "🔱", label: "ขจัดสิ่งแปลกปลอม", cls: "bg-cyan-500 text-gray-900", desc: "ตีปกติพลังโจมตี +1 · ตีปกติและท่าไม้ตาย ความเสียหายเพิ่มตามชนิดดีบัฟที่เป้าติดอยู่" },
   might:     { icon: "💪", label: "เสริมพลัง", cls: "bg-echo-ice text-gray-900", desc: "ดาเมจที่คุณทำเพิ่มขึ้นตามจำนวนที่ระบุ" },
@@ -265,6 +268,13 @@ export function statusEntries(p, full) {
     if (m.boost > 0) out.push({ key: "magnaBoost", v: m.boost, turns: true, icon: "💨", label: "Fire Boost", cls: "bg-red-500 text-white", desc: "ตีปกติได้ 2 ครั้งต่อตาเดิน · หลบหลีก 35%" });
   }
   if (p.soulChain) out.push({ key: "soulChain", v: p.magna && p.magna.chain > 0 ? p.magna.chain : 1, turns: !!(p.magna && p.magna.chain > 0), icon: "⛓️", label: p.magna && p.magna.armed ? "Soul Chain Finisher" : "Soul Chain Deathmatch", cls: p.magna && p.magna.armed ? "bg-sky-400 text-gray-900" : "bg-orange-600 text-white", desc: "แชร์แต้มสกิล · ห่างกันไม่เกิน 4 ช่อง · ใช้สกิลเคลื่อนที่ไม่ได้ · โจมตีและได้รับผลได้แค่จากกันเอง" });
+  // นารุโฮโดะ ริวอิจิ: แฟ้มหลักฐาน n/5 · คูลดาวน์ รอเดี๋ยว!!! · ห้ามเดินตาหน้า (ข้อมูลเต็มเฉพาะเจ้าของ — คนอื่นได้แค่ holdReady)
+  if (p.naruhodo && Array.isArray(p.naruhodo.evidence)) {
+    const n = p.naruhodo;
+    out.push({ key: "naruEvidence", v: 1, icon: "📁", label: `หลักฐาน ${n.evidence.filter((e) => e && !e.used).length}/5`, cls: "bg-amber-700 text-white", desc: "" });
+    if (n.holdCd > 0) out.push({ key: "naruHoldCd", v: n.holdCd, turns: true, icon: "⏳", label: "รอเดี๋ยว!!!", cls: "bg-white/20", desc: "" });
+    if (n.noMoveNext) out.push({ key: "naruNoMove", v: 1, icon: "🚫", label: "ห้ามเดิน", cls: "bg-echo-hp", desc: "" });
+  }
   // ผู้นำแห่งตระกูลเรียวกิ: คูลดาวน์หยินหยาง (เนตรมณะ/เยียวยา) · ดับสิ้นซะ — เนตรมณะ/รากฐานจิต/ดับสิ้นซะ เป็นสถานะ netramana / ryougiMind / ryougiBloom
   if (p.ryougi) {
     const r = p.ryougi;
