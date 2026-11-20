@@ -6,7 +6,7 @@
 //
 //  ติดตัว Soul vow Blazing — OverHeat 0–8:
 //    สร้างความเสียหาย = +1 ต่อการโจมตี 1 ครั้ง (ตีปกติ · ตีสวน · สกิล — ไม่นับลุกไหม้ที่ติกเอง) · ทั้งเทิร์นไม่สร้างความเสียหาย = −1 ตอนจบเทิร์น
-//    3+ ระยะตี +1 · 5+ ตอนสร้างความเสียหาย 20% ลุกไหม้ 1 (ติดโซ่อยู่ 40%) · 8 = ความเสียหายที่ได้รับ −1 ต่อครั้ง
+//    3+ ระยะตี +1 · 5+ ตอนสร้างความเสียหาย 25% ลุกไหม้ 1 (ติดโซ่อยู่ 50%) · 8 = ความเสียหายที่ได้รับ −1 ต่อครั้ง
 //    ลบสกิลติดตัว: ไม่เพิ่ม/ไม่ลด · ไม่มีผลทั้งหมด (ค่าค้างไว้)
 //  สกิลพื้นฐาน Fire Ball (1 แต้ม): บอลไฟ +1 ลูก (เก็บได้ 3)
 //    ติดโซ่ = Fire Knuckle (2 แต้ม · คูลดาวน์ 5): ไม่กินโควตาสกิล + ยังเดินได้ · ตีปกติใน 4 เทิร์นติดลุกไหม้ 1
@@ -16,7 +16,7 @@
 //    โดน = คลิป → โซ่ 5 เทิร์น (server/soulChain.js) · คูลดาวน์ 5 เทิร์นนับหลังโซ่หาย (หลบพ้น = นับเลย)
 //    ติดโซ่ = Soul Chain Finisher (5 แต้ม + OverHeat 8 ทั้งหมด): โซ่ไม่หายจนท่านี้ทำงาน
 //      แบบ 1: คู่โซ่ทำให้เสียหาย/ตีใส่ = ยกเลิกทั้งก้อน → คลิป → เสียหาย 3 คงที่ (หลบได้) → ติดตัว = ผลักออก 5
-//      แบบ 2: ต้นตาเดินถัดไปของแม็กน่า → คลิป → ดึงมาติดตัว → เสียหาย 3 คงที่ → ผลัก 5 → ฟื้นพลังชีวิตตามลุกไหม้บนเป้า (1–2 = 1 · 3–4 = 2 · 5–6 = 3)
+//      แบบ 2: ต้นตาเดินถัดไปของแม็กน่า → คลิป → ดึงมาติดตัว → เสียหาย 3 คงที่ → ผลัก 5 → ฟื้นพลังชีวิตเท่าจำนวนเทิร์นลุกไหม้บนเป้า
 //      ทำงานแล้วโซ่ขาด (ก่อนผลัก — ไม่ติดสายจูง)
 // ============================================================
 const PassiveSeal = require("../server/passiveSeal");
@@ -50,13 +50,13 @@ const NAME = {
   ball: "Fire Ball", knuckle: "Fire Knuckle", bat: "Baseball bat", boost: "Fire Boost",
   deathmatch: "Soul Chain Deathmatch", finisher: "Soul Chain Finisher",
 };
-const HEAT = { max: 8, range: 3, burn: 5, guard: 8, burnPct: 20 };
+const HEAT = { max: 8, range: 3, burn: 5, guard: 8, burnPct: 25, idle: 4 }; // idle: ไม่สร้างความเสียหายครบกี่เทิร์นถึงเริ่มลด (ผู้ใช้ 2026-11-20)
 const BALL_MAX = 3;
 const KNUCKLE = { cost: 2, cd: 5, turns: 4, burn: 1 };
-const BAT = { cd: 3, per: 2, dmg: 1, area: { kind: "line", len: 4, width: 1, hostile: true } };
+const BAT = { cd: 2, per: 1, dmg: 1, area: { kind: "line", len: 4, width: 1, hostile: true } };
 const BOOST = { cost: 4, cd: 4, turns: 2, evade: 35 };
-const ULT = { cost: 6, cd: 5, turns: 5, area: { kind: "line", len: 4, width: 1, hostile: true } };
-const FIN = { cost: 5, dmg: 3, push: 5 };
+const ULT = { cost: 5, cd: 5, turns: 5, area: { kind: "line", len: 4, width: 1, hostile: true } };
+const FIN = { cost: 4, dmg: 3, push: 5 };
 // จังหวะฉาก (วินาที) — client MAGNA_T (ms) ต้องตรงกัน
 const T = { bat: 0.55, throw: 0.6, pull: 0.55, finHit: 0.5 };
 
@@ -264,17 +264,25 @@ function pullSpot(engine, p, t) {
   opts.sort((a, b) => (Math.abs(a.x - t.pos.x) + Math.abs(a.y - t.pos.y)) - (Math.abs(b.x - t.pos.x) + Math.abs(b.y - t.pos.y)));
   return opts[0] || null;
 }
-// ช่องติดตัวเต็ม → ช่องว่างที่ใกล้แม็กน่าที่สุดในระยะสายจูง (ไล่วงข้าวหลามตัด)
-function nearSpot(engine, p, t) {
+// เปลี่ยนด่าน: ห่างเกินสายจูง (4) → ช่องว่างห่างแม็กน่า 2 ช่อง (ฝั่งที่ใกล้ตำแหน่งเกิดของคู่โซ่สุด)
+//  วง 2 เต็ม → ไล่วง 1, 3, 4 · ไม่เกินสายจูง = ไม่ดึง (ผู้ใช้ 2026-11-20)
+const REGION_PULL = 2;
+function regionSpot(engine, p, t) {
   if (Board.dist(boxOf(p), boxOf(t)) <= Chain.LEASH) return null;
-  for (let r = 2; r <= Chain.LEASH; r++) {
+  const rings = [REGION_PULL, ...Array.from({ length: Chain.LEASH }, (_, k) => k + 1).filter((r) => r !== REGION_PULL)];
+  for (const r of rings) {
+    const opts = [];
     for (let dy = -r; dy <= r; dy++) {
       const w = r - Math.abs(dy);
       for (const dx of w ? [-w, w] : [0]) {
         const c = { x: Board.wx ? Board.wx(p.pos.x + dx) : p.pos.x + dx, y: p.pos.y + dy };
-        if (engine.tileFree(c.x, c.y, t.id)) return c;
+        if (engine.tileFree(c.x, c.y, t.id)) opts.push(c);
       }
     }
+    if (!opts.length) continue;
+    const far = (c) => Math.abs(Board.wdx ? Board.wdx(c.x, t.pos.x) : t.pos.x - c.x) + Math.abs(c.y - t.pos.y);
+    opts.sort((a, b) => far(a) - far(b));
+    return opts[0];
   }
   return null;
 }
@@ -294,7 +302,7 @@ function finisherHit(engine, p, t, mode) {
     }
   }
   if (mode === "pull" && burn > 0 && p.alive) {
-    const n = burn >= 5 ? 3 : burn >= 3 ? 2 : 1;
+    const n = burn; // ลุกไหม้ 1 เทิร์น = 1 HP (ผู้ใช้ 2026-11-20)
     const got = engine.healHp(p, n);
     if (got > 0) engine.log(`❤️‍🔥 ${p.name} ${NAME.finisher} — ฟื้นพลังชีวิต +${got} จากลุกไหม้ ${burn} บน ${t.name}`);
   }
@@ -425,8 +433,9 @@ module.exports = {
       ultimate: { cd: ult, locked: ult > 0 || s.balls < 1 },
     };
   },
-  skipsTurnQuota(p, tier) { return chained(p) && tier === "basic"; },
-  keepsMove(engine, p, tier) { return chained(p) && (tier === "basic" || tier === "secondary" || tier === "ultimate"); },
+  // Deathmatch (ยังไม่ติดโซ่): ไม่กินโควตา + ยังเดินได้ (ผู้ใช้ 2026-11-20)
+  skipsTurnQuota(p, tier) { return chained(p) ? tier === "basic" : tier === "ultimate"; },
+  keepsMove(engine, p, tier) { return chained(p) ? (tier === "basic" || tier === "secondary" || tier === "ultimate") : tier === "ultimate"; },
   canUseSkill(engine, p, tier, targets, opts = {}) {
     if (!isMe(p)) return true;
     const s = st(p), r = engine.roundNumber;
@@ -480,9 +489,9 @@ module.exports = {
     for (const p of Object.values(engine.players)) {
       if (!isMe(p)) continue;
       const s = st(p);
-      // OverHeat −1 เมื่อไม่ได้สร้างความเสียหายครบ 1 เทิร์นเต็ม (ผู้ใช้ 2026-11-19: เทิร์นถัดจากที่ตียังไม่ลด)
-      //  ตีเทิร์น r → จบ r และจบ r+1 ไม่ลด → จบ r+2 (ยังไม่ตี) ลด 1 แล้วลดต่อทุกเทิร์น
-      if (p.alive && passiveOn(p) && s.heat > 0 && s.dealtRound < engine.roundNumber - 1) {
+      // OverHeat −1 เมื่อไม่ได้สร้างความเสียหายครบ HEAT.idle (4) เทิร์น (ผู้ใช้ 2026-11-20)
+      //  ตีเทิร์น r → จบ r+1..r+3 ไม่ลด → จบ r+4 (ยังไม่ตี) ลด 1 แล้วลดต่อทุกเทิร์นจนกว่าจะสร้างความเสียหาย
+      if (p.alive && passiveOn(p) && s.heat > 0 && s.dealtRound <= engine.roundNumber - HEAT.idle) {
         s.heat--;
         engine.log(`🔥 ${p.name} ${PASSIVE} — OverHeat ${s.heat}`);
       }
@@ -491,14 +500,14 @@ module.exports = {
       else if (s.chainWith && !Chain.linked(p)) endChain(engine, p, "death");
     }
   },
-  // เปลี่ยนพื้นที่ (แผนที่ใหม่): ทุกคนได้จุดเกิดใหม่ → โซ่ดึงคู่โซ่มาติดตัวแม็กน่า (กันห่างเกินสายจูง)
+  // เปลี่ยนพื้นที่ (แผนที่ใหม่): ทุกคนได้จุดเกิดใหม่ → ห่างเกิน 4 = โซ่ดึงคู่โซ่มาห่าง 2 ช่องทันทีที่เริ่มด่าน
   onBoardPlaced(engine) {
     for (const p of Object.values(engine.players)) {
       if (!isMe(p) || !p.alive || !p.pos) continue;
       const s = st(p);
       const t = s.chainWith && engine.players[s.chainWith];
       if (!t || !t.alive || !t.pos || !Chain.linked(p)) continue;
-      const to = pullSpot(engine, p, t) || nearSpot(engine, p, t);
+      const to = regionSpot(engine, p, t);
       if (to) t.pos = { ...to };
     }
   },
@@ -527,7 +536,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     return {
       heat: s.heat, balls: s.balls, chained: chained(p),
-      cool: s.heat > 0 && s.dealtRound < r - 1, sealed: !passiveOn(p), // HUD: จบเทิร์นนี้จะลด 1 ถ้ายังไม่ตี · สกิลติดตัวถูกปิด
+      cool: s.heat > 0 && s.dealtRound <= r - HEAT.idle, sealed: !passiveOn(p), // HUD: จบเทิร์นนี้จะลด 1 ถ้ายังไม่ตี · สกิลติดตัวถูกปิด
       knuckle: knuckleOn(p, r) ? s.knuckleEnd - r : 0,
       boost: boostOn(p, r) ? s.boostEnd - r : 0,
       chain: chained(p) ? Math.max(1, s.chainEnd - r) : 0,

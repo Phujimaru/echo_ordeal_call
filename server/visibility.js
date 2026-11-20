@@ -43,6 +43,7 @@ function inBush(p) {
 }
 // ศัตรูอย่างน้อยบางคนมองไม่เห็นคนนี้อยู่ (ใช้วาดหมากโปร่งแสงให้ตัวเอง/เพื่อนร่วมทีม)
 function concealed(p) {
+  if (require("./soulChain").linked(p)) return false; // ติดโซ่ Soul Chain (แม็กน่า): ทุกคนเห็นตลอด
   return stealthed(p) || inBush(p);
 }
 // viewer มองไม่เห็น target ไหม — viewer ไม่มี (ผู้ชมนอกเกม/เทสต์) = เห็น
@@ -68,6 +69,8 @@ function hiddenFromOne(viewer, target) {
   if (!target.alive || !target.pos) return false;
   if (Dim.unseen(viewer, target)) return true; // ชั้นมิติ: คนละมิติมองไม่เห็นกัน (เพื่อนร่วมทีมก็ไม่เห็น)
   if (combat.sameTeam(viewer, target)) return false;
+  // ติดโซ่ Soul Chain Deathmatch (server/soulChain.js · แม็กน่า): ทั้งคู่ถูกทุกคนมองเห็นตลอด — ล่องหน/พุ่มไม้/หมอก/ม่านไม่ซ่อน (ผู้ใช้ 2026-11-20 · ชั้นมิติยังบังตามด้านบน)
+  if (require("./soulChain").linked(target)) return false;
   // Fodlan: หมอก (ด่าน II — server/fodlan/stage2.js hides) · ฮาคุโนะไม่มีในโหมดนี้
   if (require("./fodlan").hides(eyeOf(viewer), target)) return true;
   // เห็นทะลุทุกอย่างบนกระดานหลัก (summon.trueSight — ฮาคุโนะของ Moon Cell server/moonCell.js): ล่องหน · พุ่มหญ้า · ม่านแดง (ชั้นมิติยังบังตามด้านบน)
