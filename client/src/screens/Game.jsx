@@ -26,7 +26,7 @@ import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
 import { RolandEgo } from "./hud/RolandHud";
 import { MagnaHeat } from "./hud/MagnaHud";
-import NaruhodoHud from "./hud/NaruhodoHud";
+import NaruhodoHud, { TradePanel } from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
@@ -76,6 +76,8 @@ const SCENE_MS = { cycle: 3500, draw: 2000, atk: 2200, shop: 3700 };
 
 // Road Trip: เลือกจอตามเฟสของโหมด — ช่วงขับไม่ mount กระดาน (ไม่มีการ์ด/สกิล/ปุ่มตัวละครเลย — ผู้ใช้สั่ง 2026-11-14)
 //  ภาพที่โชว์ (drive/board/over) ตามหลังเฟสจริงเล็กน้อยเพื่อเล่นฉากเปลี่ยน (roadtrip/RtTransitions.jsx useRtView) — ระหว่างค้างภาพกระดานเดิมใช้ state ชุดสุดท้ายของกระดาน
+// นารุโฮโดะ แลกข้อมูล: ตัวเลือกเป็นหลักฐาน × รางวัล (choice.evId + reward) → แผง TradePanel แทน SkillChoices
+const isTradeChoices = (choices) => Array.isArray(choices) && choices.length > 0 && choices.every((c) => c && c.evId != null && c.reward);
 // ฉากศาลของนารุโฮโดะ (state.court — ทั้งจอ): โหลดเมื่อมีคดีเท่านั้น · glob = ไฟล์ยังไม่มีก็ build ผ่าน (court agent ทำ CourtOverlay.jsx)
 const COURT_MODS = import.meta.glob("../court/CourtOverlay.jsx");
 const CourtOverlay = COURT_MODS["../court/CourtOverlay.jsx"] ? lazy(COURT_MODS["../court/CourtOverlay.jsx"]) : null;
@@ -514,7 +516,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
-  const choiceFree = (c) => (c.free != null ? !!c.free : (c.cost || 0) === 0);
+  //  นารุโฮโดะ แลกข้อมูล (c.evId): ราคา 0 แต่กินโควตา
+  const choiceFree = (c) => (c.free != null ? !!c.free : c.evId != null ? false : (c.cost || 0) === 0);
   // เลือกตัวเลือกแล้ว: self = ใช้ทันที · มีระยะ = เข้าโหมดเลือกเป้า/ทิศบนกระดานตามพื้นที่ของตัวเลือก
   const pickChoice = (tier, c) => {
     setChoiceOpen(null);
@@ -1229,7 +1232,18 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           onPick={(c) => pickChoice(choiceOpen.tier, c)}
         />
       )}
-      {choiceOpen && ch?.[choiceOpen.tier]?.choices && !ch[choiceOpen.tier].book && (
+      {/* นารุโฮโดะ: แลกข้อมูล — เลือกหลักฐาน → รางวัล → ยืนยัน (hud/NaruhodoHud.jsx TradePanel) */}
+      {choiceOpen && isTradeChoices(ch?.[choiceOpen.tier]?.choices) && (
+        <TradePanel
+          title={ch[choiceOpen.tier].name}
+          choices={ch[choiceOpen.tier].choices}
+          evidence={me?.naruhodo?.evidence || []}
+          disabled={!!me?.skillUsed}
+          onClose={() => setChoiceOpen(null)}
+          onPick={(c) => { clickSound(); pickChoice(choiceOpen.tier, c); }}
+        />
+      )}
+      {choiceOpen && ch?.[choiceOpen.tier]?.choices && !ch[choiceOpen.tier].book && !isTradeChoices(ch[choiceOpen.tier].choices) && (
         <SkillChoices
           title={ch[choiceOpen.tier].name}
           choices={ch[choiceOpen.tier].choices}

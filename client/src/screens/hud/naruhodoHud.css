@@ -216,3 +216,36 @@
 @keyframes nrToast { 0% { opacity: 0; transform: translateX(28px) scale(.9); } 12% { opacity: 1; transform: none; } 85% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-10px); } }
 @keyframes nrSpark { to { transform: translateX(120%); } }
 @media (prefers-reduced-motion: reduce) { .nr-toast, .nr-toast-spark, .nr-toast-ic { animation: none !important; } .nr-toast-spark { display: none; } }
+
+/* ---------- แลกข้อมูล (TradePanel) ---------- */
+.nr-trade { width: min(720px, calc(100vw - 32px)); }
+.nr-trade-body { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px 18px; }
+.nr-trade-step { position: relative; display: flex; align-items: center; gap: 16px; padding: 12px 14px 12px 46px; border-radius: 10px; background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02)); border: 1px solid rgba(232, 189, 85, .3); }
+.nr-trade-n { position: absolute; left: 12px; top: 12px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(#e8bd55, #9a6a16); color: #2a1504; font: 900 14px/1 "Kanit", sans-serif; box-shadow: 0 2px 4px rgba(0, 0, 0, .4); }
+.nr-trade-evs { display: flex; gap: 10px; flex-wrap: wrap; flex: none; }
+.nr-trade-ev { min-width: 0; flex: 1; animation: nrFade .2s ease-out both; }
+.nr-trade-ev h4 { margin: 0 0 4px; font: 800 18px/1.2 "Kanit", sans-serif; color: #ffe7a6; }
+.nr-trade-ev p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--nr-ink); }
+.nr-trade-pin { margin-right: 6px; }
+.nr-trade-rews { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; flex: 1; }
+.nr-rew { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 104px; cursor: pointer; color: #fff; border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, .35); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 4px 0 rgba(0, 0, 0, .45); transition: transform .12s ease, filter .12s ease, box-shadow .12s ease; }
+.nr-rew.sp { background: linear-gradient(180deg, #8b5cf6, #5a2ea8); }
+.nr-rew.hp { background: linear-gradient(180deg, #ef4b5a, #9c1424); }
+.nr-rew.hold { background: radial-gradient(ellipse at 50% 35%, #ffffff 0 30%, #ffd9d4 60%, #e79a8c 100%); color: #6a0a10; }
+.nr-rew-ic { display: grid; place-items: center; height: 40px; font-size: 32px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)); }
+.nr-rew-ic img { height: 40px; }
+.nr-rew b { font: 900 22px/1 "Kanit", sans-serif; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.nr-rew.hold b { text-shadow: none; }
+.nr-rew small { font: 600 12px/1.1 "Kanit", sans-serif; opacity: .9; }
+.nr-rew:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-3px); }
+.nr-rew.on { outline: 3px solid #ffd36a; outline-offset: 3px; transform: translateY(-3px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 0 18px rgba(255, 211, 106, .7); }
+.nr-rew:disabled { cursor: default; filter: grayscale(1) brightness(.55); box-shadow: none; }
+.nr-trade-desc { min-height: 22px; margin: 0; padding: 0 4px; font-size: 14px; line-height: 1.5; color: var(--nr-mute); }
+.nr-trade-foot { display: flex; justify-content: flex-end; }
+.nr-trade-go { min-width: 150px; height: 46px; padding: 0 22px; cursor: pointer; color: #2a1504; font: 900 19px/1 "Kanit", sans-serif; border: 1px solid #fff0c0; border-radius: 10px;
+  background: linear-gradient(180deg, #ffe08a, #d39b2a); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 4px 0 #6b4510; transition: filter .12s, transform .12s; }
+.nr-trade-go:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.nr-trade-go.warn { background: linear-gradient(180deg, #ffb36b, #e2622e); border-color: #ffd7b0; color: #3a1004; }
+.nr-trade-go:disabled { cursor: default; filter: grayscale(1) brightness(.6); }
+.nr-trade .nr-x { margin-left: auto; }

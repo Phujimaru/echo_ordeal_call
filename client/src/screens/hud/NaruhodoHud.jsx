@@ -206,6 +206,92 @@ export function CourtRecord({ evidence, onClose, pick, onPick, onDiscard, onPin 
   );
 }
 
+// ---------- แลกข้อมูล (สกิลพื้นฐาน · skill.choices = หลักฐาน × รางวัล จาก server) ----------
+//  ขั้น 1 เลือกหลักฐาน (ไอคอน + ชื่อ/คำอธิบาย · 📌 = ปักหมุด → ปุ่มยืนยันเตือนสีอำพัน) · ขั้น 2 เลือกรางวัล 3 ปุ่ม (ชี้ = desc ของตัวเลือก) · ยืนยัน
+//  choices: [{ key, evId, evIcon, evName, reward: "sp"|"hp"|"hold", rewardName, desc, locked }] · evidence = me.naruhodo.evidence (desc/pinned)
+const REWARD_LOOK = {
+  sp: { icon: "⬆", cls: "sp", label: "+2" },
+  hp: { icon: "❤", cls: "hp", label: "+1" },
+  hold: { icon: null, cls: "hold", label: "−1" },
+};
+export function TradePanel({ title, choices, evidence, disabled, onClose, onPick }) {
+  const byEv = [];
+  for (const c of choices || []) {
+    let g = byEv.find((x) => x.evId === c.evId);
+    if (!g) {
+      const ev = (evidence || []).find((e) => e.id === c.evId) || {};
+      g = { evId: c.evId, icon: c.evIcon != null ? c.evIcon : ev.icon, name: c.evName || ev.name, desc: ev.desc || "", pinned: !!ev.pinned, type: ev.type, list: [] };
+      byEv.push(g);
+    }
+    g.list.push(c);
+  }
+  const [evSel, setEvSel] = useState(() => (byEv.find((g) => !g.pinned) || byEv[0] || {}).evId || null);
+  const [rew, setRew] = useState(null);
+  const [tip, setTip] = useState(null);
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const g = byEv.find((x) => x.evId === evSel) || null;
+  const choice = g && rew ? g.list.find((c) => c.reward === rew) : null;
+  const ok = !!choice && !choice.locked && !disabled;
+  const shown = tip || choice;
+  return (
+    <div className="nr-rec-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }} onContextMenu={(e) => { e.preventDefault(); onClose(); }}>
+      <div className="nr-rec nr-trade" role="dialog" aria-label={title}>
+        <header className="nr-rec-head">
+          <Binder />
+          <h3>{title}</h3>
+          <button type="button" className="nr-x" onClick={onClose} aria-label="ปิด">✕</button>
+        </header>
+        <div className="nr-trade-body">
+          <section className="nr-trade-step">
+            <span className="nr-trade-n">1</span>
+            <div className="nr-trade-evs">
+              {byEv.map((x) => (
+                <EvCard key={x.evId} ev={{ id: x.evId, icon: x.icon, name: x.name, pinned: x.pinned }} size={64} sel={x.evId === evSel}
+                  onHover={() => {}} onClick={() => { setEvSel(x.evId); setTip(null); }} />
+              ))}
+            </div>
+            {g && (
+              <div className="nr-trade-ev" key={g.evId}>
+                <h4>{g.pinned && <span className="nr-trade-pin">📌</span>}{g.name}</h4>
+                <p>{g.desc}</p>
+              </div>
+            )}
+          </section>
+          <section className="nr-trade-step">
+            <span className="nr-trade-n">2</span>
+            <div className="nr-trade-rews">
+              {["sp", "hp", "hold"].map((k) => {
+                const c = g && g.list.find((x) => x.reward === k);
+                if (!c) return null;
+                const L = REWARD_LOOK[k];
+                return (
+                  <button key={k} type="button" className={`nr-rew ${L.cls} ${rew === k ? "on" : ""}`} disabled={!!c.locked} title={c.desc}
+                    onMouseEnter={() => setTip(c)} onMouseLeave={() => setTip(null)} onFocus={() => setTip(c)} onBlur={() => setTip(null)}
+                    onClick={() => setRew(k)}>
+                    <span className="nr-rew-ic">{L.icon ? L.icon : <img src={`${DIR}/court/shout_holdit_jp.webp`} alt="" draggable={false} />}</span>
+                    <b>{L.label}</b>
+                    <small>{c.rewardName}</small>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+          <p className="nr-trade-desc" aria-live="polite">{shown ? shown.desc : "\u00a0"}</p>
+          <footer className="nr-trade-foot">
+            <button type="button" className={`nr-trade-go ${g && g.pinned ? "warn" : ""}`} disabled={!ok} onClick={() => ok && onPick(choice)}>
+              {g && g.pinned ? "📌 " : ""}แลก
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- ปุ่ม รอเดี๋ยว!!! ----------
 function HoldItButton({ N, onPress, zoom }) {
   const cd = N.holdCd | 0, ready = !!N.holdReady && cd <= 0;

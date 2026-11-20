@@ -52,6 +52,9 @@ export default function NaruhodoFxDev({ units, setUnits, pushFx, setFocus }) {
     trial: () => { const f = foeU(); send("naruhodoTrial", { kind: "cast", targetId: f.id, to: tileOf(f) }); },
     trialDodge: () => { const f = foeU(); send("naruhodoTrial", { kind: "cast", targetId: f.id, to: tileOf(f) }); setTimeout(() => send("naruhodoTrial", { kind: "dodge", targetId: f.id, to: tileOf(f) }), 0); },
     holdIt: () => { const f = foeU(); send("naruhodoHoldIt", { kind: "shout", targetId: f.id, to: tileOf(f) }); },
+    tradeSp: () => send("naruhodoScout", { kind: "trade", icon: 46, reward: "sp", amount: 2 }),
+    tradeHp: () => send("naruhodoScout", { kind: "trade", icon: 83, reward: "hp", amount: 1 }),
+    tradeHold: () => send("naruhodoScout", { kind: "trade", icon: 12, reward: "hold", amount: 1 }),
     object: () => { const f = foeU(); send("naruhodoHoldIt", { kind: "object", targetId: f.id, to: tileOf(f), icon: 46 }); playSfx("naru_objection"); },
   };
   const toggleMark = (k) => {
@@ -78,7 +81,7 @@ export default function NaruhodoFxDev({ units, setUnits, pushFx, setFocus }) {
   const state = { gameState: "ACTION", actorId: hud.hold === "hide" ? "me" : foe.id, players, holdIt, court: null };
   const set = (patch) => setHud((h) => ({ ...h, ...patch }));
   const stamp = () => Date.now() + (hud.alibi ? 3000 : 15000);
-  const fxLabels = [["point", "เอานี่ไปดู!"], ["pointEv", "เอานี่ไปดู! + หลักฐาน"], ["scout", "สืบสวน"], ["gather", "เก็บหลักฐาน"], ["trial", "เริ่มการไต่สวน"], ["trialDodge", "ไต่สวน หลบ"], ["holdIt", "รอเดี๋ยว!!!"], ["object", "คัดค้าน!"]];
+  const fxLabels = [["point", "เอานี่ไปดู!"], ["pointEv", "เอานี่ไปดู! + หลักฐาน"], ["scout", "สืบสวน"], ["gather", "เก็บหลักฐาน"], ["trial", "เริ่มการไต่สวน"], ["trialDodge", "ไต่สวน หลบ"], ["holdIt", "รอเดี๋ยว!!!"], ["object", "คัดค้าน!"], ["tradeSp", "แลก SP"], ["tradeHp", "แลก ❤"], ["tradeHold", "แลก ⏳"]];
   return (
     <>
       <NaruhodoHud state={state} me={me} hidden={false} zoom={1} emit={(e, p) => { console.log("emit", e, p); if (e === "holdItAct" && p.kind === "object") set({ result: { kind: "object", ok: true }, seq: (hud.seq || 0) + 1 }); if (e === "holdItAlibi") set({ alibi: false }); }}

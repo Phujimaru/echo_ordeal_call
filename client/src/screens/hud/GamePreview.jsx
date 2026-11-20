@@ -67,7 +67,12 @@ const NARU_NEW = [
 function naruPatch(state) {
   if (NARU_Q.get("naru") !== "1" || !state || !state.players) return state;
   const meId = state.youId, foe = state.players.find((p) => p.id !== meId && p.alive) || null;
-  const players = state.players.map((p) => (p.id === meId ? { ...p, naruhodo: { evidence: [...NARU_EV, ...(state._naruNew ? NARU_NEW : [])].map((e) => ({ ...e, actorId: foe ? foe.id : "" })), holdCd: 0, holdReady: true, noMoveNext: false, scout: foe ? { targetId: foe.id, until: 3, cds: { basic: 0, secondary: 2, ultimate: 4 } } : null } } : p));
+  // แลกข้อมูล: หลักฐาน × รางวัล (รูปเดียวกับ server tradeChoices) · hp ล็อก (เลือดเต็มสมมติ)
+  const evs = [...NARU_EV, ...(state._naruNew ? NARU_NEW : [])];
+  const RW = { sp: ["แต้มสกิล +2", "แต้มสกิล +2"], hp: ["พลังชีวิต +1", "ฟื้นพลังชีวิต 1"], hold: ["รอเดี๋ยว!!! −1", "คูลดาวน์ รอเดี๋ยว!!! −1 เทิร์น"] };
+  const choices = evs.flatMap((e) => Object.keys(RW).map((k) => ({ key: `${e.id}|${k}`, name: `${e.name} → ${RW[k][0]}`, img: "/characters/naruhodo_ryuichi/skill1.webp", cost: 0, area: { kind: "self" },
+    evId: e.id, evIcon: e.icon, evName: e.name, reward: k, rewardName: RW[k][0], locked: k === "hp", desc: `ทิ้ง ${e.name} (${e.desc}) แลก ${RW[k][1]}` })));
+  const players = state.players.map((p) => (p.id === meId ? { ...p, character: { ...(p.character || {}), basic: { ...((p.character || {}).basic || {}), name: "แลกข้อมูล", cost: 0, img: "/characters/naruhodo_ryuichi/skill1.webp", desc: "แลกข้อมูล", area: { kind: "self" }, choices } }, naruhodo: { evidence: [...NARU_EV, ...(state._naruNew ? NARU_NEW : [])].map((e) => ({ ...e, actorId: foe ? foe.id : "" })), holdCd: 0, holdReady: true, noMoveNext: false, scout: foe ? { targetId: foe.id, until: 3, cds: { basic: 0, secondary: 2, ultimate: 4 } } : null } } : p));
   const hold = NARU_Q.get("hold") === "1" && foe ? { seq: 1, lawyerId: meId, actorId: state.actorId && state.actorId !== meId ? state.actorId : foe.id, phase: "choose", deadline: NARU_DL, result: null } : null;
   return { ...state, players, holdIt: hold };
 }

@@ -38,8 +38,8 @@ function img(k) {
 export function preloadNaruhodoArt() { for (const k of Object.keys(SRC)) img(k); }
 
 // จังหวะ (ms) — ตัวรับ socket ใช้ตั้งเสียง/จอสั่นให้ตรงภาพ
-export const NARU_T = { point: 1500, pointHit: 560, scout: 1700, scoutGot: 1150, trial: 2500, trialSlam: 1050, holdIt: 2100 };
-export const NARU_FX_DUR = { naruPoint: NARU_T.point, naruScout: NARU_T.scout, naruTrial: NARU_T.trial, naruHoldIt: NARU_T.holdIt };
+export const NARU_T = { point: 1500, pointHit: 560, scout: 1700, scoutGot: 1150, trial: 2500, trialSlam: 1050, holdIt: 2100, trade: 1700, tradePop: 720 };
+export const NARU_FX_DUR = { naruPoint: NARU_T.point, naruScout: NARU_T.scout, naruTrial: NARU_T.trial, naruHoldIt: NARU_T.holdIt, naruTrade: NARU_T.trade };
 export const isNaruFx = (kind) => typeof kind === "string" && kind in NARU_FX_DUR;
 
 function bodyAt(x, y, n = 1) {
@@ -453,6 +453,68 @@ function holdItFx(g, e, now, p, seed, lowQ) {
   }
 }
 
+// ---------- แลกข้อมูล ----------
+//  e: x,y = นารุโฮโดะ · ev = { icon } · reward "sp"|"hp"|"hold" · amount
+//  การ์ดหลักฐานลอยขึ้นเหนือหัว → ลุกไหม้จากขอบ (ส้มทอง) แตกเป็นประกาย → ป้ายรางวัลเด้ง (+2 SP ม่วง / +1 ❤ แดง / ⏳−1 ขาวแดง)
+const REWARD_FX = { sp: { rgb: "170,120,255", txt: (n) => `+${n} SP` }, hp: { rgb: "255,80,95", txt: (n) => `+${n} ❤` }, hold: { rgb: "255,120,110", txt: (n) => `⏳−${n}` } };
+function tradeFx(g, e, now, p, seed, lowQ) {
+  const A = bodyAt(e.x, e.y, e.size);
+  const R = REWARD_FX[e.reward] || REWARD_FX.sp;
+  const pop = NARU_T.tradePop / NARU_T.trade;
+  const cx = A.bx, cy = A.hy - A.s * 0.95;
+  // การ์ดลอยขึ้น (0–0.2) · ไหม้ (0.2–pop)
+  const up = easeOut(seg(p, 0, 0.2)), burn = seg(p, 0.2, pop);
+  if (e.ev && p < pop + 0.02) {
+    const w = A.s * 0.5, y = A.hy - A.s * 0.3 - (A.s * 0.65) * up;
+    g.save();
+    g.beginPath(); g.rect(cx - w, y - w * 0.6 + w * 1.2 * burn, w * 2, w * 1.4); g.clip(); // เผาจากบนลงล่าง
+    evidenceCard(g, e.ev.icon, cx, y, w, seg(p, 0, 0.06), Math.sin(now / 160) * 0.05);
+    g.restore();
+    if (burn > 0 && burn < 1) {
+      const ey = y - w / 2 + w * burn;
+      g.save(); g.globalCompositeOperation = "lighter";
+      g.strokeStyle = rgba("255,170,60", 0.95); g.lineWidth = Math.max(2, w * 0.08);
+      g.beginPath();
+      for (let i = 0; i <= 8; i++) { const xx = cx - w / 2 + (w * i) / 8, yy = ey + Math.sin(i * 2.1 + now / 60) * w * 0.04; if (i) g.lineTo(xx, yy); else g.moveTo(xx, yy); }
+      g.stroke();
+      glow(g, cx, ey, w * 0.9, "255,150,40", 0.55, "255,240,200");
+      g.restore();
+    }
+  }
+  // ประกายไฟปลิว (ตอนไหม้ → หลังแตก)
+  const sq = seg(p, 0.22, 0.85);
+  if (sq > 0 && sq < 1) {
+    g.save(); g.globalCompositeOperation = "lighter";
+    const k = lowQ ? 10 : 26;
+    for (let i = 0; i < k; i++) {
+      const h = hash(seed + i * 3.7), h2 = hash(seed + i * 9.1), t0 = h * 0.4;
+      const q = clamp01((sq - t0) / 0.6);
+      if (q <= 0 || q >= 1) continue;
+      const ang = -Math.PI / 2 + (h2 - 0.5) * 2.4, d = A.s * (0.2 + 0.9 * easeOut(q));
+      g.fillStyle = rgba(i % 3 ? "255,190,80" : R.rgb, (1 - q) * 0.95);
+      g.beginPath(); g.arc(cx + Math.cos(ang) * d, cy + A.s * 0.35 + Math.sin(ang) * d * 0.8 + q * A.s * 0.2, Math.max(1, A.s * 0.025 * (1 - q * 0.5)), 0, TAU); g.fill();
+    }
+    g.restore();
+  }
+  // ป้ายรางวัล: เด้ง → ลอยขึ้นจาง
+  const rq = seg(p, pop, 1);
+  if (rq > 0) {
+    const sc = elastic(seg(p, pop, pop + 0.18)), y = cy - A.s * 0.35 * easeOut(rq), a = 1 - seg(p, 0.82, 1);
+    g.save(); g.globalCompositeOperation = "lighter";
+    if (rq < 0.35) ring(g, cx, cy + A.s * 0.1, A.s * (0.2 + 0.9 * easeOut(rq / 0.35)), A.s * 0.04, (1 - rq / 0.35) * 0.9, R.rgb);
+    glow(g, cx, y, A.s * 0.7, R.rgb, a * 0.5);
+    g.restore();
+    const fs = Math.max(14, A.s * 0.42) * Math.max(0.01, sc);
+    g.save(); g.globalAlpha *= a;
+    g.font = `900 ${Math.round(fs)}px Kanit, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.lineWidth = Math.max(3, fs * 0.16); g.strokeStyle = "rgba(20,8,30,.9)"; g.lineJoin = "round";
+    const txt = R.txt(Math.max(1, e.amount | 0));
+    g.strokeText(txt, cx, y); g.fillStyle = "#ffffff"; g.fillText(txt, cx, y);
+    g.globalCompositeOperation = "source-atop"; g.fillStyle = rgba(R.rgb, 0.45); g.fillText(txt, cx, y);
+    g.restore();
+  }
+}
+
 export function naruhodoFx(g, e, now, lowQ) {
   const dur = e.dur || NARU_FX_DUR[e.kind];
   const p = (now - e.t0) / dur;
@@ -463,6 +525,7 @@ export function naruhodoFx(g, e, now, lowQ) {
   else if (e.kind === "naruScout") scoutFx(g, e, now, p, seed, lowQ);
   else if (e.kind === "naruTrial") trialFx(g, e, now, p, seed, lowQ);
   else if (e.kind === "naruHoldIt") holdItFx(g, e, now, p, seed, lowQ);
+  else if (e.kind === "naruTrade") tradeFx(g, e, now, p, seed, lowQ);
   g.restore();
 }
 
@@ -502,6 +565,11 @@ export function naruEventFx(name, ev, ctx = {}) {
     return out([{ kind: "naruPoint", x: from.x, y: from.y, size, to, toSize, tiles, hit, ev: icon != null ? { icon } : null }], to || from);
   }
   if (name === "naruhodoScout") {
+    if (k === "trade" && from) {
+      // แลกข้อมูล (สกิลพื้นฐาน — เสียงกดสกิลมาจาก server): การ์ดไหม้ → ป้ายรางวัล
+      sfx.push(["naru_whoosh", 200], ["naru_evidence_ding", NARU_T.tradePop]);
+      return out([{ kind: "naruTrade", x: from.x, y: from.y, size, ev: icon != null ? { icon } : null, reward: ev.reward || "sp", amount: ev.amount | 0 }], from);
+    }
     if (!from || !to) return null;
     if (k === "gather") sfx.push(["naru_scout", 0]); // ตาแทรก: ไม่ใช่สกิล — server ไม่ได้เล่นเสียง
     // เสียงได้หลักฐาน = ป้ายหลักฐานใหม่ใน HUD (NaruhodoHud EvidenceToasts) — ไม่เล่นซ้ำที่นี่
