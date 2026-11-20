@@ -12,8 +12,9 @@ export const EV_TYPES = {
   witness: { i: "📜", n: "พยาน" },
 };
 export const RULES = {
-  cred: 6, testimonies: 4, statements: 4, pressPer: 1, counselObj: 1,
-  wrong: 1, alibiBurn: 3, witnessBreak: 2, maxEvidence: 5, maxAlibi: 3, presentPer: 2, alibiBonus: 0, maxBlind: 1, idlePenalty: 1,
+  cred: 6, testimonies: 3, statements: 4, pressPer: 1, counselObj: 1,
+  wrong: 1, alibiBurn: 2, witnessBreak: 2, maxEvidence: 7, maxAlibi: 3, presentPer: 2, alibiBonus: 2, maxBlind: 1, idlePenalty: 1,
+  summonPer: 1, booFloor: 3, sidesMs: 15000, guiltyDmg: 9, freeDmg: 5, freeStun: 1,
   dmg: { weapon: 2, foot: 2, receipt: 2, witness: 2 },
   heal: { receipt: 1 },
 };

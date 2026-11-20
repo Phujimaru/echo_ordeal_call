@@ -465,3 +465,50 @@
 /* คำโกหกลับ 🌫 */
 .cblind { font-style: normal; font-size: calc(var(--u) * 6); flex: none; filter: drop-shadow(0 0 calc(var(--u) * 1.5) rgba(180, 200, 255, .8)); }
 .cline.lie:has(.cblind) span { color: #cfd8ff; }
+
+/* ===== ประชาชนรอบ 2026-11-21 ===== */
+.cact.summon { background: linear-gradient(#3f6fc6, #1d3a7c 60%, #10224d); }
+.cact.summon svg { fill: #10224d; }
+.cslotsrc { position: absolute; right: calc(var(--u) * -2.5); top: calc(var(--u) * -3); font-style: normal; font-size: calc(var(--u) * 7.5); filter: drop-shadow(0 calc(var(--u) * .5) 0 rgba(0, 0, 0, .6)); }
+.ccfans { display: flex; align-items: center; }
+.ccfans i { width: calc(var(--u) * 7.5); height: calc(var(--u) * 7.5); border-radius: 50%; background: #222 center 15% / cover; border: calc(var(--u) * .5) solid #e7c36a; box-shadow: 0 0 calc(var(--u) * 1.5) rgba(0, 0, 0, .6); }
+.ccfans i + i { margin-left: calc(var(--u) * -2.5); }
+.ccfans.s-L i { border-color: #6fa4ff; } .ccfans.s-D i { border-color: #ff7d74; }
+.ccfans b { font: 700 calc(var(--u) * 5) Kanit, sans-serif; margin-left: calc(var(--u) * 1); color: #ffe7a3; }
+/* เลือกฝ่าย */
+.csides { justify-content: center; background: rgba(0, 0, 0, .45); }
+.csides-box { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 5); padding: calc(var(--u) * 7) calc(var(--u) * 10); background: linear-gradient(rgba(16, 24, 58, .94), rgba(8, 12, 32, .97)); border: calc(var(--u) * .9) solid #e7c36a; border-radius: calc(var(--u) * 3); box-shadow: 0 calc(var(--u) * 5) calc(var(--u) * 14) rgba(0, 0, 0, .7); animation: crecin .25s cubic-bezier(.2, 1.3, .4, 1); }
+.csides-row { display: flex; align-items: center; gap: calc(var(--u) * 8); }
+.csides-row em { font: 900 italic calc(var(--u) * 14) Kanit, sans-serif; color: #ffe7a3; text-shadow: 0 0 calc(var(--u) * 4) rgba(244, 196, 48, .7); }
+.cside-btn { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 2); width: calc(var(--u) * 62); padding: calc(var(--u) * 4); border-radius: calc(var(--u) * 3); border: calc(var(--u) * .8) solid #e7c36a; background: linear-gradient(#22396f, #0f1f48); color: #fff7e2; cursor: pointer; transition: transform .12s, box-shadow .15s, filter .15s; }
+.cside-btn.s-D { background: linear-gradient(#6f2222, #3a0f0f); }
+.cside-btn i { width: calc(var(--u) * 40); height: calc(var(--u) * 40); border-radius: 50%; background: #222 center 15% / cover; border: calc(var(--u) * .8) solid #e7c36a; }
+.cside-btn b { font: 900 italic calc(var(--u) * 10) Kanit, sans-serif; }
+.cside-btn small { font: 600 calc(var(--u) * 5.5) Kanit, sans-serif; opacity: .85; }
+.cside-btn:hover:not(:disabled) { transform: translateY(calc(var(--u) * -1.5)); box-shadow: 0 0 calc(var(--u) * 8) rgba(244, 196, 48, .7); }
+.cside-btn.on { box-shadow: 0 0 0 calc(var(--u) * .8) #fff3c4, 0 0 calc(var(--u) * 10) rgba(244, 196, 48, .9); }
+.cside-btn:disabled { filter: grayscale(1) brightness(.5); cursor: not-allowed; }
+.cside-ask { display: flex; align-items: center; gap: calc(var(--u) * 2.5); padding: calc(var(--u) * 1.5) calc(var(--u) * 4); border-radius: 999px; background: rgba(154, 24, 16, .85); border: calc(var(--u) * .6) solid #ffb0a8; font: 700 calc(var(--u) * 6) Kanit, sans-serif; color: #fff; animation: cwaitIn .25s; }
+.cside-ask button { width: calc(var(--u) * 10); height: calc(var(--u) * 10); border-radius: 50%; border: calc(var(--u) * .5) solid #fff; background: rgba(0, 0, 0, .35); color: #fff; cursor: pointer; font-size: calc(var(--u) * 5.5); padding: 0; }
+/* แถบเชียร์ (ซ้ายกลางจอ) */
+.cgbar { position: absolute; left: calc(var(--u) * 4); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 2.5); padding: calc(var(--u) * 3) calc(var(--u) * 2.5); border-radius: calc(var(--u) * 4); background: linear-gradient(rgba(16, 24, 58, .9), rgba(8, 12, 32, .92)); border: calc(var(--u) * .7) solid #e7c36a; box-shadow: 0 calc(var(--u) * 2) calc(var(--u) * 6) rgba(0, 0, 0, .6); animation: crecin .25s; }
+.cgbar.s-D { border-color: #ff9d8f; }
+.cgbar-side { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 1); }
+.cgbar-side i { width: calc(var(--u) * 13); height: calc(var(--u) * 13); border-radius: 50%; background: #222 center 15% / cover; border: calc(var(--u) * .6) solid #e7c36a; }
+.cgbar-side b { font: 800 italic calc(var(--u) * 5.2) Kanit, sans-serif; color: #ffe7a3; }
+.cgbar > button { width: calc(var(--u) * 17); height: calc(var(--u) * 17); border-radius: calc(var(--u) * 3); border: calc(var(--u) * .6) solid #d9c7a2; background: rgba(0, 0, 0, .45); font-size: calc(var(--u) * 9); cursor: pointer; padding: 0; transition: transform .1s, background .15s; }
+.cgbar > button:hover:not(:disabled) { transform: scale(1.12); background: rgba(244, 196, 48, .35); }
+.cgbar > button:active:not(:disabled) { transform: scale(.94); }
+.cgbar > button:disabled { opacity: .3; cursor: not-allowed; }
+.cgbar > button.w { border-color: #f4c430; box-shadow: 0 0 calc(var(--u) * 3) rgba(244, 196, 48, .6); }
+.cgbar.used > button:not(.w) { filter: grayscale(1); }
+.cside-compact { position: relative; }
+.cside-swap { width: calc(var(--u) * 12); height: calc(var(--u) * 12); border-radius: 50%; border: calc(var(--u) * .5) solid #e7c36a; background: rgba(0, 0, 0, .45); color: #ffe7a3; font-size: calc(var(--u) * 6.5); cursor: pointer; padding: 0; }
+.cside-compact .cside-ask { position: absolute; left: calc(100% + var(--u) * 3); top: 50%; transform: translateY(-50%); white-space: nowrap; }
+/* ป๊อปปฏิกิริยา */
+.cfeed { position: absolute; inset: 0; z-index: 11; pointer-events: none; overflow: hidden; }
+.cfeedpop { position: absolute; font-size: calc(var(--u) * 13); filter: drop-shadow(0 calc(var(--u) * 1) calc(var(--u) * 1.5) rgba(0, 0, 0, .6)); animation: cfeedL 1.8s cubic-bezier(.2, .9, .3, 1) forwards; }
+.cfeedpop.s-L { left: calc(50% - var(--u) * 128); } .cfeedpop.s-D { right: calc(50% - var(--u) * 128); animation-name: cfeedR; }
+@keyframes cfeedL { 0% { opacity: 0; transform: translateX(-120%) scale(.4); } 20% { opacity: 1; transform: translateX(20%) scale(1.25); } 70% { opacity: 1; transform: translateX(40%) translateY(-30%) scale(1); } 100% { opacity: 0; transform: translateX(60%) translateY(-120%) scale(.8); } }
+@keyframes cfeedR { 0% { opacity: 0; transform: translateX(120%) scale(.4); } 20% { opacity: 1; transform: translateX(-20%) scale(1.25); } 70% { opacity: 1; transform: translateX(-40%) translateY(-30%) scale(1); } 100% { opacity: 0; transform: translateX(-60%) translateY(-120%) scale(.8); } }
+.cpresent { top: calc(var(--u) * 22); } .cpresent.box { top: calc(var(--u) * 22); }

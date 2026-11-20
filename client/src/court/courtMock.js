@@ -17,7 +17,7 @@ export class MockCourt {
   constructor({ players, roles, events, humanId, mode, onChange, quick = false, dcred = 0, slow = false }) {
     this.quick = quick; this.dcred = dcred; this.slow = slow;
     this.players = players; this.roles = roles; this.events = events; this.human = humanId; this.mode = mode;
-    this.onChange = onChange; this.timers = []; this.seq = 0; this.c = null;
+    this.onChange = onChange; this.timers = []; this.seq = 0; this.c = null; this.pendRx = []; this.feedSeq = 0;
     this.N = (id) => {
       if (id === roles.D && roles.Dunits) return roles.Dunits.map((u) => u.name).join(" & ");
       const p = players.find((x) => x.id === id); return p ? p.character?.name || p.name : "?";
@@ -34,6 +34,8 @@ export class MockCourt {
     const other = this.players.find((p) => p.id !== r.L && p.id !== r.D);
     if (other) seen.splice(1, 0, toEvidence({ id: "ox1", round: 2, actorId: other.id, actorName: this.N(other.id), kind: "basic", skill: "ตีปกติ", targetName: this.N(r.L), type: "weapon" }));
     if (seen[0]) seen[0].pinned = true;
+    const pol = ev.find((e) => !e.seen);
+    if (pol) { const x = toEvidence(pol); seen.push({ ...x, source: "police", desc: "รายงานตำรวจ — " + x.desc }); }
     const sightings = {};
     for (const id of [...r.co, ...r.C, ...r.G]) {
       sightings[id] = ev.filter(() => Math.random() < 0.45).map((e) => { const x = toEvidence(e); return { key: e.id, desc: x.desc, icon: x.icon, name: x.name, type: x.type }; });
@@ -44,6 +46,7 @@ export class MockCourt {
       cred: { L: RULES.cred, D: this.dcred || RULES.cred }, list: null, cx: 0, pool: null, alibi: Math.min(RULES.maxAlibi, ev.filter((e) => !e.seen).length) + RULES.alibiBonus,
       evidence: seen, sightings, witnessUsed: [], lent: [], pressLeft: 0, counselLeft: 0, beat: null, verdict: null, music: "trial",
       proven: new Set(), objFlag: false, cheer: {}, acted: {},
+      sides: {}, sideChange: {}, switched: new Set(), feed: [], rx: [], galEff: { L: {}, D: {} }, summonLeft: 0,
     };
     this.opening();
   }
@@ -69,7 +72,8 @@ export class MockCourt {
         alibiLeft: sideD ? c.alibi : undefined,
         evidence: sideL ? c.evidence.map((e) => ({ ...e })) : undefined,
         sightings: viewer === c.defendantId ? [] : c.sightings[viewer] || [],
-        rx: c.phase === "gallery" ? (c.gx || []).map((g) => g.id) : [],
+        rx: c.rx.slice(), feed: c.feed.slice(), sides: { ...c.sides }, summonLeft: c.summonLeft,
+        ...(c.galleryIds.includes(viewer) ? { sideChangeLeft: c.sideChange[viewer] ?? 1 } : {}),
         witnessUsed: c.witnessUsed.slice(), lent: c.lent.slice(), pressLeft: c.pressLeft, presentLeft: c.presentLeft, counselLeft: c.counselLeft,
         beat: c.beat, verdict: c.verdict, music: c.music,
       },
@@ -88,6 +92,7 @@ export class MockCourt {
   }
 
   beat(steps, then) {
+    if (this.pendRx.length) steps = [...this.galleryScene(), ...steps];
     const c = this.c; c.phase = "beat"; c.deadline = null; c.beat = { seq: ++this.seq, steps };
     this.push();
     this.later(() => then && then(), stepsMs(steps) + 250);
@@ -101,7 +106,7 @@ export class MockCourt {
 
   // ---------- ขั้นต่างๆ ----------
   opening() {
-    if (this.quick) return this.beat([{ k: "gavel", n: 1 }], () => this.testimony()); // ?quick=1 (dev) ข้ามบทเปิด
+    if (this.quick) return this.beat([{ k: "gavel", n: 1 }], () => this.sidesPhase()); // ?quick=1 (dev) ข้ามบทเปิด
     const c = this.c, s = [
       { k: "cam", cam: "wide" }, { k: "gavel", n: 3 },
       this.say("J", "judgeOpen"),
@@ -110,13 +115,14 @@ export class MockCourt {
     if (c.coIds[0]) s.push({ k: "cam", cam: "cocounsel", who: c.coIds[0] }, this.say("T", "coReady", "", { name: this.N(c.coIds[0]), id: c.coIds[0] }));
     if (c.counselIds[0]) s.push({ k: "cam", cam: "prosecution", who: c.counselIds[0] }, this.say("C", "counselReady", "", { name: this.N(c.counselIds[0]), id: c.counselIds[0] }));
     else if (c.galleryIds.length) s.push({ k: "cam", cam: "wide" }, this.say("J", "galleryHush"));
-    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
-    this.beat(s, () => this.testimony());
+    s.push({ k: "cam", cam: "witness" }, this.say("D", "defTaunt"), this.say("D", "openAlibiBonus"), { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeTestify"));
+    this.beat(s, () => this.sidesPhase());
   }
 
   testimony() {
     const c = this.c;
     c.phase = "testimony"; c.beat = null; c.inCross = false;
+    c.rx = []; c.galEff = { L: {}, D: {} }; c.summonLeft = RULES.summonPer;
     c.presentLeft = RULES.presentPer; c.pressLeft = RULES.pressPer; c.counselLeft = c.counselIds.length ? RULES.counselObj : 0; c.list = null; c.cx = 0;
     const held = this.lawyerSideEvents();
     let blindN = 0;
@@ -170,6 +176,7 @@ export class MockCourt {
     c.phase = "cross"; c.beat = null; c.deadline = c.crossEnd;
     this.push();
     clearTimeout(this.tCross); this.tCross = this.later(() => { if (c.phase === "cross") this.roundEnd(); }, Math.max(0, c.crossEnd - Date.now()));
+    if (c.galRound !== c.round) { c.galRound = c.round; this.aiGalleryRound(); }
     if (this.isAI(c.lawyerId) && !c.coIds.includes(this.human)) this.later(() => this.aiLawyer(), 1300);
     else if (this.isAI(c.lawyerId)) this.later(() => this.aiLawyer(), 6000); // ผู้ช่วยเป็นคน: เปิดโอกาสให้กดก่อน
     for (const co of c.coIds) if (this.isAI(co) && !c.lent.includes(co) && c.sightings[co]?.length && Math.random() < 0.3) {
@@ -205,7 +212,8 @@ export class MockCourt {
     }
     if (ev === "courtAct") return this.act(from, ev, p);
     if (ev === "courtObject" && c.phase === "objectWindow" && c.counselIds.includes(from) && c.counselLeft > 0) return this.objResolve(true, from);
-    if (ev === "courtGallery" && c.phase === "gallery") return this.galleryAct(from, p);
+    if (ev === "courtGallery") return this.galleryAct(from, p);
+    if (ev === "courtSide") return this.pickSide(from, p.side);
   }
   act(from, ev, p) {
     const c = this.c;
@@ -213,6 +221,7 @@ export class MockCourt {
     if (p.type === "view") { c.cx = Math.max(0, Math.min(c.list.length - 1, p.idx | 0)); this.push(); return; }
     if (p.type === "end") { clearTimeout(this.tCross); return this.roundEnd(); }
     if (p.type === "lend") return this.lend(from, p.evKey);
+    if (p.type === "summon") return this.summon(p.idx | 0);
     const st = c.list[p.idx]; if (!st || st.done) return;
     c.cx = p.idx;
     if (p.type === "press" && !st.pressed && c.pressLeft > 0) return this.press(st);
@@ -317,7 +326,119 @@ export class MockCourt {
     this.beat(s, () => this.cross());
   }
 
-  // ---------- ประชาชน ----------
+  // ---------- ประชาชน: เลือกฝ่ายหลังเปิดศาล · เชียร์/โห่/ปาระหว่างคดี (server รอบ 2026-11-21) ----------
+  sidesPhase() {
+    const c = this.c;
+    const live = c.galleryIds.filter((id) => !c.outIds.includes(id));
+    if (this.mode !== "pvp" || !live.length) return this.testimony();
+    c.phase = "sides"; c.beat = null; c.deadline = Date.now() + RULES.sidesMs;
+    this.push();
+    for (const id of live) if (this.isAI(id)) this.later(() => this.pickSide(id, Math.random() < 0.5 ? "L" : "D"), 1200 + Math.random() * 5000);
+    this.tSides = this.later(() => this.sidesEnd(), RULES.sidesMs);
+  }
+  pickSide(id, side) {
+    const c = this.c;
+    if (!c || !c.galleryIds.includes(id) || c.outIds.includes(id) || (side !== "L" && side !== "D") || c.phase === "verdict") return;
+    const cur = c.sides[id];
+    if (cur === side) return;
+    if (cur) { if ((c.sideChange[id] ?? 1) <= 0) return; c.sideChange[id] = 0; c.switched.add(id); }
+    c.sides[id] = side;
+    this.push();
+    if (c.phase === "sides" && c.galleryIds.every((g) => c.outIds.includes(g) || c.sides[g])) { clearTimeout(this.tSides); this.later(() => this.sidesEnd(), 700); }
+  }
+  sidesEnd() {
+    const c = this.c; if (!c || c.phase !== "sides") return;
+    for (const g of c.galleryIds) if (!c.sides[g] && !c.outIds.includes(g)) c.sides[g] = Math.random() < 0.5 ? "L" : "D";
+    const rx = c.galleryIds.filter((g) => c.sides[g]).map((g) => ({ id: g, e: "👏", side: c.sides[g] }));
+    this.beat([{ k: "cam", cam: "wide" }, { k: "gallery", rx, ms: 2200 }, this.say("J", "sidesJ")], () => this.testimony());
+  }
+  galleryAct(id, p) {
+    const c = this.c;
+    if (!c || !["testimony", "testify", "cross", "beat", "objectWindow"].includes(c.phase)) return;
+    if (!c.galleryIds.includes(id) || c.outIds.includes(id) || !c.sides[id]) return;
+    const mine = c.sides[id], other = mine === "L" ? "D" : "L";
+    if (p.e === "witnessL" || p.e === "witnessD") {
+      if (c.phase !== "cross" || c.witnessUsed.includes(id) || (p.e === "witnessL") !== (mine === "L")) return;
+      if (p.e === "witnessL" && !(c.sightings[id] || []).some((x) => x.key === p.evKey)) return;
+      c.witnessUsed.push(id);
+      return this.witnessBeat(id, p);
+    }
+    if (!["cheer", "boo", "throw"].includes(p.e) || c.rx.includes(id)) return;
+    c.rx.push(id);
+    const e = p.e === "cheer" ? "👏" : p.e === "boo" ? "👎" : "🍅";
+    const side = p.e === "cheer" ? mine : other;
+    c.feed = [...c.feed, { id, e, side, seq: ++this.feedSeq }].slice(-8);
+    // ต่อฝ่ายต่อยกมีผลอย่างละครั้ง (โห่/ปาช่องเดียวกัน) · โห่/ปาไม่มีผลเมื่อฝ่ายนั้นเหลือ ≤ 3
+    let eff = 0, ignored = false;
+    if (p.e === "cheer") {
+      c.cheer[id] = (c.cheer[id] || 0) + 1;
+      if (!c.galEff[mine].up) { c.galEff[mine].up = true; if (c.cred[mine] < RULES.cred) { c.cred[mine]++; eff = 1; } }
+    } else if (!c.galEff[other].down) {
+      if (c.cred[other] > RULES.booFloor) { c.galEff[other].down = true; c.cred[other]--; eff = -1; } else ignored = true;
+    }
+    this.pendRx.push({ id, e, side, eff, ignored });
+    this.push();
+  }
+  // ฉากประชาชนขึ้นต้นจังหวะถัดไป
+  galleryScene() {
+    const pend = this.pendRx; this.pendRx = [];
+    if (!pend.length) return [];
+    const s = [{ k: "cam", cam: "wide" }, { k: "gallery", rx: pend.map(({ id, e, side }) => ({ id, e, side })), ms: 2400 }];
+    for (const r of pend) {
+      if (r.eff > 0) s.push({ k: "cam", cam: r.side === "L" ? "defense" : "witness" }, { k: "heal", side: r.side, n: 1, ms: 700 });
+      if (r.eff < 0) s.push({ k: "cam", cam: r.side === "L" ? "defense" : "witness" }, { k: "hurt", side: r.side, n: 1, ms: 900 });
+    }
+    if (pend.some((r) => r.ignored)) s.push({ k: "pose", who: "J", pose: "normal" }, this.say("J", "booIgnoredJ"));
+    return s;
+  }
+  witnessBeat(id, p) {
+    const c = this.c, nm = this.N(id), s = [];
+    if (p.e === "witnessL") {
+      const e = this.events.find((x) => x.id === p.evKey); const x = toEvidence(e); this.addEvidence(x);
+      s.push({ k: "pose", who: "J", pose: "surprised" }, this.say("J", "judgeWitness"), { k: "cam", cam: "cocounsel", who: id },
+        this.say("G", "witnessL", "", { name: nm, id, vars: { X: x.desc } }), { k: "present", ev: { icon: x.icon, name: x.name, desc: x.desc }, ms: 1400 });
+      (c.witL = c.witL || []).push(id);
+    } else {
+      c.alibi = Math.min(RULES.maxAlibi + RULES.alibiBonus, c.alibi + 1);
+      s.push({ k: "cam", cam: "witness", who: id }, this.say("G", "witnessD", "", { name: nm, id }), { k: "cam", cam: "witness" }, { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeWitness"));
+      (c.witD = c.witD || []).push(id);
+    }
+    this.beat(s, () => this.cross());
+  }
+  aiGalleryRound() {
+    const c = this.c;
+    for (const id of c.galleryIds) {
+      if (!this.isAI(id) || c.outIds.includes(id)) continue;
+      this.later(() => {
+        if (!this.c || c.phase !== "cross" || c.rx.includes(id) || !c.sides[id]) return;
+        const mine = c.sides[id];
+        if (!c.witnessUsed.includes(id) && Math.random() < 0.15) {
+          const sg = c.sightings[id] || [];
+          if (mine === "L" && sg.length) return this.galleryAct(id, { e: "witnessL", evKey: rnd(sg).key });
+          if (mine === "D") return this.galleryAct(id, { e: "witnessD" });
+        }
+        const r = Math.random();
+        this.galleryAct(id, { e: r < 0.55 ? "cheer" : r < 0.8 ? "boo" : "throw" });
+      }, 2500 + Math.random() * 25000);
+    }
+  }
+  // ขอให้ศาลเรียกพยาน (ยกละครั้ง): ได้หลักฐานใหม่ (source "summon")
+  summon(idx) {
+    const c = this.c, st = c.list[idx];
+    if (!st || st.done || c.summonLeft <= 0) return;
+    c.summonLeft--; c.cx = idx;
+    const held = new Set(c.evidence.map((e) => e.id));
+    const e = this.events.find((x) => contradicts(st, x) && !held.has(x.id)) || shuffle(this.events.filter((x) => !held.has(x.id)))[0];
+    const who = rnd(c.galleryIds.length ? c.galleryIds : [null]);
+    const nm = who ? this.N(who) : "พยาน";
+    const s = [{ k: "gavel", n: 1 }, { k: "pose", who: "J", pose: "normal" }, this.say("J", "summonJ"), { k: "cam", cam: "cocounsel", ...(who ? { who } : {}) }];
+    if (e) {
+      const x = { ...toEvidence(e), source: "summon" }; this.addEvidence(x);
+      s.push(this.say("T", "summonW", "", { name: nm, ...(who ? { id: who } : {}), vars: { X: x.desc } }), { k: "present", ev: { icon: x.icon, name: x.name, desc: x.desc }, ms: 1400 },
+        { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "confident" }, this.say("L", "summonL", "blue"));
+    } else s.push(this.say("T", "summonNone", "", { name: nm, ...(who ? { id: who } : {}) }), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "sheepish" }, this.say("L", "pressSheepish", "blue"));
+    this.beat(s, () => this.cross());
+  }
   roundEnd() {
     const c = this.c; clearTimeout(this.tCross); c.inCross = false;
     if (c.cred.D <= 0) return this.verdict("guilty");
@@ -328,74 +449,7 @@ export class MockCourt {
         { k: "hurt", side: "L", n: RULES.idlePenalty, ms: DMG_STEP_MS }, this.say("L", "idleInner", "blue")], () => this.roundEnd());
     }
     c.idleChecked = false;
-    const live = c.galleryIds.filter((id) => !c.outIds.includes(id));
-    if (this.mode !== "pvp" || !live.length) return this.nextRound();
-    c.phase = "gallery"; c.beat = null; c.deadline = Date.now() + 8000; c.gx = []; c.acted = {};
-    this.push();
-    for (const id of live) if (this.isAI(id)) this.later(() => this.aiGallery(id), 900 + Math.random() * 5500);
-    this.tGal = this.later(() => this.galleryEnd(), 8000);
-  }
-  aiGallery(id) {
-    const c = this.c; if (c.phase !== "gallery" || c.acted[id]) return;
-    const lead = c.cred.L > c.cred.D ? "L" : c.cred.D > c.cred.L ? "D" : rnd(["L", "D"]);
-    const r = Math.random();
-    if (!c.witnessUsed.includes(id) && r < 0.18) {
-      const sg = c.sightings[id] || [];
-      if (sg.length && Math.random() < 0.6) return this.galleryAct(id, { e: "witnessL", evKey: rnd(sg).key });
-      return this.galleryAct(id, { e: "witnessD" });
-    }
-    const side = Math.random() < 0.6 ? lead : rnd(["L", "D"]);
-    this.galleryAct(id, { e: r < 0.55 ? "cheer" : r < 0.78 ? "boo" : "throw", side });
-  }
-  galleryAct(id, p) {
-    const c = this.c;
-    if (c.phase !== "gallery" || !c.galleryIds.includes(id) || c.outIds.includes(id) || c.acted[id]) return;
-    if ((p.e === "witnessL" || p.e === "witnessD") && c.witnessUsed.includes(id)) return;
-    if (p.e === "witnessL" && !(c.sightings[id] || []).some((x) => x.key === p.evKey)) return;
-    c.acted[id] = true; c.gx.push({ id, ...p });
-    if (p.e === "witnessL" || p.e === "witnessD") c.witnessUsed.push(id);
-    this.push();
-    const live = c.galleryIds.filter((g) => !c.outIds.includes(g));
-    if (live.every((g) => c.acted[g])) { clearTimeout(this.tGal); this.later(() => this.galleryEnd(), 400); }
-  }
-  galleryEnd() {
-    const c = this.c; if (c.phase !== "gallery") return;
-    const rx = [], delta = { L: 0, D: 0 }; let throws = 0, last = null;
-    const s = [{ k: "cam", cam: "wide" }];
-    const wit = [];
-    for (const g of c.gx) {
-      if (g.e === "cheer") { rx.push({ id: g.id, e: "👏", side: g.side }); delta[g.side]++; c.cheer[g.id] = c.cheer[g.id] || { L: 0, D: 0 }; c.cheer[g.id][g.side]++; }
-      else if (g.e === "boo") { rx.push({ id: g.id, e: "👎", side: g.side }); delta[g.side]--; }
-      else if (g.e === "throw") { rx.push({ id: g.id, e: "🍅", side: g.side }); delta[g.side]--; throws++; last = g.id; }
-      else wit.push(g);
-    }
-    if (rx.length) s.push({ k: "gallery", rx }, this.say("G", "murmur", "", { name: "ประชาชน" }));
-    if (throws > 3 && last) {
-      c.outIds.push(last);
-      s.push({ k: "gavel", n: 2 }, { k: "pose", who: "J", pose: "angry" }, this.say("J", "kickJ"), { k: "cam", cam: "wide" }, { k: "kick", id: last });
-    }
-    for (const w of wit) {
-      const nm = this.N(w.id);
-      if (w.e === "witnessL") {
-        const e = this.events.find((x) => x.id === w.evKey); const x = toEvidence(e); this.addEvidence(x);
-        s.push({ k: "pose", who: "J", pose: "surprised" }, this.say("J", "judgeWitness"), { k: "cam", cam: "cocounsel", who: w.id },
-          this.say("G", "witnessL", "", { name: nm, id: w.id, vars: { X: x.desc } }), { k: "present", ev: { icon: x.icon, name: x.name, desc: x.desc }, ms: 1400 });
-        (c.witL = c.witL || []).push(w.id);
-      } else {
-        c.alibi = Math.min(RULES.maxAlibi, c.alibi + 1);
-        s.push({ k: "cam", cam: "witness", who: w.id }, this.say("G", "witnessD", "", { name: nm, id: w.id }), { k: "cam", cam: "witness" }, { k: "pose", who: "J", pose: "normal" }, this.say("J", "judgeWitness"));
-        (c.witD = c.witD || []).push(w.id);
-      }
-    }
-    for (const k of ["L", "D"]) {
-      const d = Math.max(-2, Math.min(2, delta[k]));
-      const before = c.cred[k]; c.cred[k] = Math.max(0, Math.min(RULES.cred, c.cred[k] + d));
-      const real = c.cred[k] - before;
-      if (real > 0) s.push({ k: "cam", cam: k === "L" ? "defense" : "witness" }, { k: "heal", side: k, n: real });
-      if (real < 0) s.push({ k: "cam", cam: k === "L" ? "defense" : "witness" }, { k: "hurt", side: k, n: -real, ms: DMG_STEP_MS });
-    }
-    if (s.length === 1) s.push({ k: "say", who: "G", name: "ประชาชน", text: "(...)", ms: 1200 });
-    this.beat(s, () => (c.cred.D <= 0 ? this.verdict("guilty") : c.cred.L <= 0 ? this.verdict("free") : this.nextRound()));
+    this.nextRound();
   }
 
   nextRound() {
@@ -422,13 +476,12 @@ export class MockCourt {
     const rewards = [];
     if (w !== "tie") {
       const side = w === "guilty" ? "L" : "D";
-      const live = c.galleryIds.filter((id) => !c.outIds.includes(id));
-      const best = Math.max(0, ...live.map((id) => c.cheer[id]?.[side] || 0));
-      if (best > 0) live.filter((id) => (c.cheer[id]?.[side] || 0) === best).forEach((id) => rewards.push({ id, name: this.N(id), hp: 1 }));
-      for (const id of (side === "L" ? c.witL : c.witD) || []) { const r0 = rewards.find((r) => r.id === id); if (r0) r0.coins = 2; else rewards.push({ id, name: this.N(id), hp: 1, coins: 2 }); }
+      const live = c.galleryIds.filter((id) => !c.outIds.includes(id) && c.sides[id] === side && !c.switched.has(id));
+      live.forEach((id) => rewards.push({ id, name: this.N(id), hp: 1 }));
+      for (const id of (side === "L" ? c.witL : c.witD) || []) { if (c.switched.has(id)) continue; const r0 = rewards.find((r) => r.id === id); if (r0) r0.gold = 2; else rewards.push({ id, name: this.N(id), hp: 1, gold: 2 }); }
     }
     this.beat(s, () => {
-      c.phase = "verdict"; c.beat = null; c.verdict = { w, rewards, ...(w === "guilty" ? { lawyerHeal } : {}), ...(w === "free" ? { lawyerDmg: 7 } : {}) }; c.deadline = Date.now() + 6000; this.push();
+      c.phase = "verdict"; c.beat = null; c.verdict = { w, rewards, ...(w === "guilty" ? { lawyerHeal, defendantDmg: RULES.guiltyDmg } : {}), ...(w === "free" ? { lawyerDmg: RULES.freeDmg, stun: RULES.freeStun } : {}) }; c.deadline = Date.now() + 6000; this.push();
       this.later(() => { this.c = null; this.push(); }, 6000);
     });
     c.verdict = null;

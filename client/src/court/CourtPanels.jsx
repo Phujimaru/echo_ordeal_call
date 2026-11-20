@@ -76,6 +76,8 @@ export function CourtRecord({ items: raw, mode, cap = 5, onPick, onClose, who, r
                     <EvidenceIcon idx={e.icon} size={26} u />
                     {isRel(e) && rel.face && <i className="cslotface" style={{ backgroundImage: `url(${rel.face})` }} />}
                     {e.pinned && <i className="cslotpin">📌</i>}
+                    {e.source === "police" && <i className="cslotsrc">🚔</i>}
+                    {e.source === "summon" && <i className="cslotsrc">🧑‍⚖️</i>}
                     {hov === e && <span className="ctip"><b><Rich text={e.name} /></b><Rich text={e.desc} /></span>}
                   </button>
                 );
@@ -84,7 +86,7 @@ export function CourtRecord({ items: raw, mode, cap = 5, onPick, onClose, who, r
             {cur && (
               <div className="cdetail" key={kid(cur)}>
                 <div className="cdicon"><EvidenceIcon idx={cur.icon} size={36} u /></div>
-                <div className="cdtext"><b>{cur.pinned ? "📌 " : ""}<Rich text={cur.name} /></b><p><Rich text={cur.desc} /></p></div>
+                <div className="cdtext"><b>{cur.source === "police" ? "🚔 " : cur.source === "summon" ? "🧑‍⚖️ " : ""}{cur.pinned ? "📌 " : ""}<Rich text={cur.name} /></b><p><Rich text={cur.desc} /></p></div>
               </div>
             )}
           </div>
@@ -118,7 +120,7 @@ export function CrossControls({ court, emit, role, sightings, me, meImg, rel }) 
   if (!st) return null;
   const go = (d) => { const n = list.length; let j = i; for (let k = 0; k < n; k++) { j = (j + d + n) % n; if (!list[j].done) break; } emit("courtAct", { type: "view", idx: j }); };
   if (rec === "present" || rec === "view") {
-    return <CourtRecord items={ev} mode={rec} rel={rel} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "present", idx: i, evId: e.id }); }} />;
+    return <CourtRecord items={ev} mode={rec} rel={rel} cap={7} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "present", idx: i, evId: e.id }); }} />;
   }
   if (rec === "lend") {
     return <CourtRecord items={sightings} mode="lend" who={meImg} onClose={() => setRec(null)} onPick={(e) => { setRec(null); emit("courtAct", { type: "lend", evKey: e.key }); }} />;
@@ -130,6 +132,7 @@ export function CrossControls({ court, emit, role, sightings, me, meImg, rel }) 
     <div className="cui pass" onClick={stop}>
       <div className="cdock">
         <button className="cact press" disabled={noPress} onClick={() => emit("courtAct", { type: "press", idx: i })}><i>{Ico.bubble}</i><span>เดี๋ยวก่อน!</span></button>
+        <button className="cact summon" disabled={st.done || (court.summonLeft ?? 0) <= 0} onClick={() => { csfx("gavel"); emit("courtAct", { type: "summon", idx: i }); }}><i>{Ico.gavel}</i><span>เรียกพยาน</span><em className="cleft">×{court.summonLeft ?? 0}</em></button>
         <button className="cact present" disabled={noPresent} onClick={() => setRec("present")}><i>{Ico.folder}</i><span>คัดค้าน!</span><em className="cleft">×{presentLeft}</em></button>
       </div>
       <button className="cchev l" onClick={() => go(-1)} aria-label="ก่อนหน้า">{Ico.chevL}</button>
@@ -147,37 +150,37 @@ export function CrossControls({ court, emit, role, sightings, me, meImg, rel }) 
 export function RecordButton({ court, rel }) {
   const [open, setOpen] = useState(false);
   const ev = court.evidence || [];
-  if (open) return <CourtRecord items={ev} mode="view" rel={rel} onClose={() => setOpen(false)} />;
+  if (open) return <CourtRecord items={ev} mode="view" rel={rel} cap={7} onClose={() => setOpen(false)} />;
   return <div className="cui pass"><div className="ctools"><button className="ctool" onClick={(e) => { stop(e); setOpen(true); }} title="แฟ้มหลักฐาน"><i>{Ico.folder}</i><b>{ev.filter((e) => !e.used).length}</b></button></div></div>;
 }
 
 // วิธีเล่นตามบทบาท (ผู้ใช้ขอปุ่ม ? 2026-11-20 — ข้อความอธิบายมีได้เฉพาะในหน้านี้)
 const HELP = {
-  L: { t: "ทนาย", goal: "ทำให้จำเลยหมดความน่าเชื่อถือก่อนตัวเอง", items: [
-    ["💬 เดี๋ยวก่อน!", "ซักประโยคที่ดูอยู่ 1 ครั้ง/รอบ · มี 📍 = เปิดเผยว่าประโยคนั้นมีข้อแก้ตัว (ไม่แตก) · ไม่มี = ผู้พิพากษาบอกว่าประโยคนั้นเกี่ยวกับเรื่องอะไร · ประโยคยอมรับที่เป็นความจริง = จำเลยสารภาพ −1"],
-    ["📁 คัดค้าน! ×2", "ยื่นหลักฐานที่ขัดกับประโยคได้ยกละ 2 ครั้ง · ถูก = จำเลย −2 · ผิด หรือยื่นใส่ความจริง = ทนาย −1"],
-    ["📍 ข้อแก้ตัว", "ยื่นใส่ประโยคที่มี 📍 = หลักฐานไหม้ ทนาย −3 · ยกเว้นหลักฐานพยานทะลุได้ (จำเลย −2)"],
-    ["📜 หลักฐานที่ขาด", "ผู้ช่วยทนายส่งสิ่งที่เห็นเข้าแฟ้มได้ · ประชาชนขึ้นเป็นพยานช่วยทนายได้ — คำโกหกบางประโยคจับได้ด้วยหลักฐานจากพวกเขาเท่านั้น"],
-    ["‹ ›  🔨", "เลื่อนดูประโยค · 🔨 จบ = จบการซักค้านรอบนี้ · จบยกโดยไม่ยื่นเลยทั้งที่มีหลักฐาน = ทนาย −1"],
-  ], win: "มีความผิด = จำเลยตายทันที และนารุโฮโดะ ❤ ฟื้นเท่าความน่าเชื่อถือที่เหลือ · ไม่มีความผิด = นารุโฮโดะ −7 และสตั้น 2 เทิร์น", time: "ซักค้าน 60 วิต่อรอบ" },
+  L: { t: "ทนาย", goal: "ทำให้จำเลยหมดความน่าเชื่อถือก่อนตัวเอง ภายใน 3 รอบ", items: [
+    ["💬 เดี๋ยวก่อน!", "ซักประโยคที่ดูอยู่ 1 ครั้ง/รอบ · มี 📍 = รู้ว่าประโยคนั้นมีข้อแก้ตัว · ไม่มี = ผู้พิพากษาบอกว่าประโยคเกี่ยวกับเรื่องอะไร · ประโยคยอมรับที่จริง = จำเลยสารภาพ −1"],
+    ["⚖️ เรียกพยาน", "ขอให้ศาลเรียกพยาน 1 ครั้ง/รอบ · ได้หลักฐานใหม่ 🧑‍⚖️ เข้าแฟ้ม"],
+    ["📁 คัดค้าน! ×2", "ยื่นหลักฐานที่ขัดกับประโยคได้ยกละ 2 ครั้ง · ถูก = จำเลย −2 · ผิด/ยื่นใส่ความจริง = ทนาย −1 · ชน 📍 = หลักฐานไหม้ ทนาย −2 (หลักฐานพยานทะลุได้)"],
+    ["📁 แฟ้ม", "เก็บได้ 7 ชิ้นระหว่างคดี · 🚔 = รายงานตำรวจ · ผู้ช่วยทนายและประชาชนฝ่ายทนายเอาหลักฐานที่ขาดมาให้ได้ · จบยกโดยไม่ยื่นเลยทั้งที่มีหลักฐาน = ทนาย −1"],
+  ], win: "มีความผิด = จำเลย −9 และนารุโฮโดะ ❤ ฟื้นเท่าความน่าเชื่อถือที่เหลือ · ไม่มีความผิด = นารุโฮโดะ −5 และสตั้น 1 เทิร์น", time: "ซักค้าน 120 วิต่อรอบ" },
   co: { t: "ผู้ช่วยทนาย", goal: "ช่วยทนายให้จำเลยหมดความน่าเชื่อถือ", items: [
-    ["💬 / 📁", "กดซักหรือยื่นหลักฐานแทนทนายได้ (ใช้สิทธิ์ยื่นยกละ 2 ร่วมกับทนาย)"],
+    ["💬 / ⚖️ / 📁", "กดซัก เรียกพยาน หรือยื่นหลักฐานแทนทนายได้ (ใช้สิทธิ์ร่วมกับทนาย)"],
     ["📜 ส่งให้ทนาย", "ยื่นเหตุการณ์ของจำเลยที่คุณเห็นเองเข้าแฟ้มทนาย 1 ครั้งต่อคดี"],
-  ], win: "ทนายชนะ = จำเลยตายทันที", time: "ซักค้าน 60 วิต่อรอบ" },
-  D: { t: "จำเลย", goal: "รอดให้ครบทุกรอบ หรือทำให้ทนายหมดความน่าเชื่อถือ", items: [
+  ], win: "ทนายชนะ = จำเลย −9", time: "ซักค้าน 120 วิต่อรอบ" },
+  D: { t: "จำเลย", goal: "รอดให้ครบ 3 รอบ หรือทำให้ทนายหมดความน่าเชื่อถือ", items: [
     ["คำให้การ", "เลือกประโยคต่อรอบ · 🎭 = โกหก · ⚖️ = ความจริง (ทนายยื่นอะไรใส่ก็ผิด)"],
-    ["🌫 โกหกลับ", "คำโกหกที่ทนายยังไม่มีหลักฐาน · ใส่ได้ไม่เกิน 1 ประโยคต่อรอบ · ผู้ช่วยทนาย/ประชาชนอาจเอาหลักฐานมาให้ทีหลัง"],
-    ["📍 ข้อแก้ตัว", "แปะบนประโยคโกหก = หลักฐานที่ยื่นใส่ไหม้ ทนาย −3 · ข้อแก้ตัวถูกใช้ทันทีที่แปะ (ไม่คืน) · ทนายกดดันจะเห็นว่ามี 📍 แต่ไม่แตก"],
-  ], win: "มีความผิด = ตายทันที · ไม่มีความผิด = ทนาย −7 และสตั้น", time: "เลือกคำให้การ 40 วิ (หมดเวลา = สุ่มให้)" },
+    ["🌫 โกหกลับ", "คำโกหกที่ทนายยังไม่มีหลักฐาน · ใส่ได้ไม่เกิน 1 ประโยคต่อรอบ"],
+    ["📍 ข้อแก้ตัว", "แปะบนประโยคโกหก = หลักฐานที่ยื่นใส่ไหม้ ทนาย −2 · ใช้ทันทีที่แปะ · เริ่มคดีมีโบนัส +2"],
+  ], win: "มีความผิด = จำเลย −9 · ไม่มีความผิด = ทนาย −5 และสตั้น", time: "เลือกคำให้การ 75 วิ (หมดเวลา = สุ่มให้)" },
   C: { t: "ฝ่ายค้าน", goal: "ปกป้องจำเลยฝ่ายเดียวกับคุณ", items: [
     ["คำให้การ", "ช่วยเลือกคำให้การ/ข้อแก้ตัวแทนจำเลยได้"],
-    ["คัดค้าน!", "ตอนทนายยื่นหลักฐาน กดภายใน 3 วิ · ถ้าหลักฐานจับได้จริง = ปัดตก · ถ้าหลักฐานผิดอยู่แล้ว = ฝ่ายจำเลย −1 (1 ครั้งต่อรอบ)"],
-  ], win: "จำเลยไม่มีความผิด = ทนาย −7 และสตั้น", time: "ปุ่มคัดค้านขึ้น 3 วิ" },
-  G: { t: "ประชาชน", goal: "เชียร์ฝ่ายที่คิดว่าจะชนะ", items: [
-    ["👏 / 👎 / 🍅", "เชียร์ +1 · โห่หรือปา −1 ความน่าเชื่อถือของฝ่ายนั้น (1 ครั้งต่อรอบ) · ปาเกิน 3 ลูกในรอบเดียว = คนปาล่าสุดถูกไล่ออก"],
-    ["📜 / 📍", "ขึ้นให้การ — ช่วยทนาย: ยื่นเหตุการณ์ของจำเลยที่คุณเห็น · ช่วยจำเลย: ข้อแก้ตัว +1 (1 ครั้งต่อคดี)"],
-  ], win: "คนเชียร์ฝ่ายชนะมากสุด ❤ +1 · พยานฝ่ายชนะ ❤ +1 🪙 +2", time: "ช่วงประชาชน 8 วิหลังจบแต่ละรอบ" },
-  spec: { t: "ผู้ชม", goal: "ชมการพิจารณาคดี", items: [["⚖️", "ทนายยื่นหลักฐานจับคำโกหกของจำเลย · จำเลยใช้ข้อแก้ตัวป้องกัน"]], win: "มีความผิด = จำเลยตาย · ไม่มีความผิด = ทนาย −7", time: "" },
+    ["คัดค้าน!", "ตอนทนายยื่นหลักฐาน กดภายใน 8 วิ · หลักฐานจับได้จริง = ปัดตก · หลักฐานผิดอยู่แล้ว = ฝ่ายจำเลย −1 (1 ครั้งต่อรอบ)"],
+  ], win: "จำเลยไม่มีความผิด = ทนาย −5 และสตั้น", time: "ปุ่มคัดค้านขึ้น 8 วิ" },
+  G: { t: "ประชาชน", goal: "เลือกฝ่ายตอนเปิดศาล แล้วเชียร์ให้ฝ่ายนั้นชนะ", items: [
+    ["เลือกฝ่าย", "ทนาย หรือ จำเลย (15 วิ) · เปลี่ยนได้ 1 ครั้ง แต่เปลี่ยนแล้วไม่ได้รางวัล"],
+    ["👏 / 👎 / 🍅", "ระหว่างคดี รอบละครั้งต่อคน · 👏 ฝ่ายตัวเอง +1 · 👎 หรือ 🍅 อีกฝ่าย −1 · แต่ละฝ่ายได้ผลเชียร์/โห่อย่างละครั้งต่อรอบ · โห่ไม่มีผลเมื่อฝ่ายนั้นเหลือ ≤ 3"],
+    ["📜 / 📍", "ขึ้นให้การ (เฉพาะช่วงซักค้าน · 1 ครั้งต่อคดี) — ฝ่ายทนาย: ยื่นเหตุการณ์ของจำเลยที่คุณเห็น · ฝ่ายจำเลย: ข้อแก้ตัว +1"],
+  ], win: "ฝ่ายที่เลือกชนะ (ไม่เปลี่ยนฝ่าย) ❤ +1 · พยานฝ่ายชนะ 🪙 +2", time: "เลือกฝ่าย 15 วิ" },
+  spec: { t: "ผู้ชม", goal: "ชมการพิจารณาคดี", items: [["⚖️", "ทนายยื่นหลักฐานจับคำโกหกของจำเลย · จำเลยใช้ข้อแก้ตัวป้องกัน · ประชาชนเลือกข้างเชียร์"]], win: "มีความผิด = จำเลย −9 · ไม่มีความผิด = ทนาย −5", time: "" },
 };
 export function HelpButton({ role }) {
   const [open, setOpen] = useState(false);
@@ -306,12 +309,13 @@ export function VerdictBar({ court, cast }) {
   const vd = court.verdict || {};
   const r = vd.rewards || [];
   const L = cast.L;
-  if (!r.length && !vd.lawyerHeal && !vd.lawyerDmg) return null;
+  if (!r.length && !vd.lawyerHeal && !vd.lawyerDmg && !vd.defendantDmg) return null;
   return (
     <div className="cui pass">
       <div className="cresbar">
         {vd.lawyerHeal > 0 && <span className="creschip heal">{L?.img && <i style={{ backgroundImage: `url(${L.img})` }} />}{L?.name} ❤+{vd.lawyerHeal}</span>}
-        {vd.lawyerDmg > 0 && <span className="creschip dmg">{L?.img && <i style={{ backgroundImage: `url(${L.img})` }} />}{L?.name} ❤−{vd.lawyerDmg} 😵</span>}
+        {vd.lawyerDmg > 0 && <span className="creschip dmg">{L?.img && <i style={{ backgroundImage: `url(${L.img})` }} />}{L?.name} ❤−{vd.lawyerDmg} 😵{vd.stun || 1}</span>}
+        {vd.defendantDmg > 0 && <span className="creschip dmg">{cast.D?.img && <i style={{ backgroundImage: `url(${cast.D.img})` }} />}{cast.D?.name} ❤−{vd.defendantDmg}</span>}
         {r.map((x) => (
           <span key={x.id} className="creschip">
             {cast.byId?.[x.id]?.img && <i style={{ backgroundImage: `url(${cast.byId[x.id].img})` }} />}

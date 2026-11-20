@@ -342,7 +342,7 @@ export function useCourtDirector(court, cast, viewerSide) {
     else if (phase === "cross" && st) {
       cur.current = "witness";
       set({ cam: "witness", standId: null, pan: null, present: null, presentBox: false, dlg: { who: "D", name: D?.name || "", text: stText, n: 9999, color: "green", done: true, cross: true } });
-    } else if (phase === "gallery") { cur.current = "wide"; set({ cam: "wide", dlg: null }); }
+    } else if (phase === "gallery" || phase === "sides") { cur.current = "wide"; set({ cam: "wide", dlg: null }); }
   }, [busy, phase, cx, stText, court?.round]); // eslint-disable-line react-hooks/exhaustive-deps
   // รอบใหม่ / ขั้นประชาชน = ฉากเปลี่ยนขั้นฝั่ง client
   const roundShown = useRef(court?.round || 1);

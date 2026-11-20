@@ -2,9 +2,9 @@
 //  วาดเมื่อ state.court ไม่ใช่ null · เล่น beat.steps ตาม seq · แผงกดตามบทบาทของผู้ชม · เพลงศาลเกมเล่นเอง (skillMusic) — ที่นี่ไม่เล่นเพลง
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CourtStage, useCourtDirector } from "./CourtStage";
-import { Ring, RoleChip, CrossControls, RecordButton, Builder, ObjectButton, GalleryPanel, VerdictBar, HelpButton } from "./CourtPanels";
+import { Ring, RoleChip, CrossControls, RecordButton, Builder, ObjectButton, GalleryPanel, VerdictBar, HelpButton, CourtRecord } from "./CourtPanels";
 import CourtVolume from "./CourtVolume";
-import { CredBar, WaitLayer } from "./CourtHud";
+import { CredBar, WaitLayer, SidePicker, GalleryBar, FeedPops } from "./CourtHud";
 import CharInfo from "./CourtCharInfo";
 import "./court.css";
 
@@ -56,6 +56,7 @@ function CourtRoom({ court, players, me, emit, embedded }) {
   const cast = useMemo(() => buildCast(players, court), [castKey, players?.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const { v, busy, onClick, endOne, onClipEnd, cred } = useCourtDirector(court, cast, side);
   const [infoId, setInfoId] = useState(null);
+  const [witRec, setWitRec] = useState(false);
   const infoWho = infoId == null ? null : cast.byId[infoId] || (cast.Dunits || []).find((u) => u.id === infoId) || null;
   const wrap = useRef(null);
   const { w, h } = useFit(wrap);
@@ -71,10 +72,12 @@ function CourtRoom({ court, players, me, emit, embedded }) {
   else if (ph === "cross" && side === "L" && !busy) panel = <CrossControls court={court} emit={send} role={role} me={me} meImg={cast.byId[me]?.img} sightings={court.sightings || []} rel={rel} />;
   else if (ph === "objectWindow" && role === "C" && (court.counselLeft ?? 1) > 0) panel = <ObjectButton key={"o" + (court.beat?.seq || 0)} emit={send} />;
   else if (ph === "gallery" && role === "G" && !out) panel = <GalleryPanel court={court} emit={send} me={me} cast={cast} />;
+  else if (ph === "sides" && role === "G" && !out) panel = <SidePicker court={court} me={me} cast={cast} emit={send} />;
   else if (ph === "verdict") panel = <VerdictBar court={court} cast={cast} />;
   else if (side === "L" && (court.evidence || []).length && live && ph !== "beat" && ph !== "verdict") panel = <RecordButton court={court} rel={rel} />;
 
-  const showRing = court.deadline && ["testimony", "cross", "objectWindow", "gallery"].includes(ph);
+  const showRing = court.deadline && ["testimony", "cross", "objectWindow", "gallery", "sides"].includes(ph);
+  const galLive = role === "G" && !out && ["testimony", "testify", "cross", "beat", "objectWindow"].includes(ph);
   const list = court.list || [];
   return (
     <div className={`court-ov ${embedded ? "embedded" : ""}`} ref={wrap}>
@@ -82,7 +85,7 @@ function CourtRoom({ court, players, me, emit, embedded }) {
         <CourtStage v={v} cast={cast} cred={cred} onClick={onClick} endOne={endOne} onClipEnd={onClipEnd} onInfo={setInfoId}>
           <div className="chud">
             <RoleChip role={role} me={cast.byId[me]} out={out} />
-            {v.cam !== "title" && !v.verdict && !v.clip && <CredBar cred={cred} cast={cast} round={court.round} rounds={court.rounds} onInfo={setInfoId} />}
+            {v.cam !== "title" && !v.verdict && !v.clip && <CredBar cred={cred} cast={cast} round={court.round} rounds={court.rounds} onInfo={setInfoId} sides={court.sides} />}
             {(ph === "cross" || (ph === "beat" && list.length > 0 && v.cam === "witness")) && list.length > 0 && (
               <div className="cdots">
                 {list.map((x, i) => <i key={i} className={`${i === court.cx ? "cur" : ""} ${x.done ? "done" : ""} ${x.pressed ? "pressed" : ""}`} />)}
@@ -92,6 +95,9 @@ function CourtRoom({ court, players, me, emit, embedded }) {
           </div>
           {!v.clip && (!busy || ph !== "beat") && <WaitLayer phase={ph} role={out ? "spec" : role} crowd={(cast.G || []).length > 0} />}
           {panel}
+          {!v.clip && <FeedPops feed={court.feed} />}
+          {galLive && !v.clip && !witRec && <div className="cui pass"><GalleryBar court={court} me={me} cast={cast} emit={send} onWitnessL={() => setWitRec(true)} /></div>}
+          {witRec && <CourtRecord items={court.sightings || []} mode="witness" who={cast.byId[me]?.img} onClose={() => setWitRec(false)} onPick={(e) => { setWitRec(false); send("courtGallery", { e: "witnessL", evKey: e.key }); }} />}
           {infoWho && <CharInfo who={infoWho} onClose={() => setInfoId(null)} />}
           <div className="cui pass chelpwrap"><CourtVolume /><HelpButton role={out ? "spec" : role} /></div>
         </CourtStage>
