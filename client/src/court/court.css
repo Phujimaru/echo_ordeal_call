@@ -420,3 +420,8 @@
 .cslot.unrel:not(.on):hover { opacity: .85; filter: none; }
 .cslotface { position: absolute; right: calc(var(--u) * -2.5); bottom: calc(var(--u) * -2.5); width: calc(var(--u) * 10); height: calc(var(--u) * 10); border-radius: 50%; background: #222 center 15% / cover; border: calc(var(--u) * .6) solid #ff7d74; box-shadow: 0 0 calc(var(--u) * 2) rgba(0, 0, 0, .7); }
 .cslotpin { position: absolute; left: calc(var(--u) * -2.5); top: calc(var(--u) * -3); font-style: normal; font-size: calc(var(--u) * 8); filter: drop-shadow(0 calc(var(--u) * .5) 0 rgba(0, 0, 0, .6)); }
+
+/* คำให้การ: ประโยคปฏิเสธ 🎭 ยังไม่ครบขั้นต่ำ */
+.ccnt em { font-style: normal; }
+.ccnt em.cneed { color: #ff7a6b; animation: cblinkneed 1s infinite alternate; }
+@keyframes cblinkneed { to { opacity: .45; } }

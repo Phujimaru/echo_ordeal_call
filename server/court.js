@@ -9,7 +9,7 @@
 // ============================================================
 Object.assign(module.exports, {
   fresh, st, isNaru, active, who, actorOf, noteAct, noteMove, lastEventOf, addEvidence, noteEvidence, liveEvidence,
-  scoutSees, statementPool, contradicts, presentResult, aiTestimony,
+  scoutSees, statementPool, minLiesOf, contradicts, presentResult, aiTestimony,
   start, view, testimony, act, object, gallery, skip, abort, alibiTotal,
   discardEvidence, pinEvidence, canHold, holdIt, holdStart, holdClock, holdItAct, holdItAlibi, holdEnded, holdView,
 });
@@ -21,7 +21,7 @@ const Lines = require("./courtLines");
 
 const ID = "naruhodo_ryuichi";
 const RULES = {
-  cred: 5, rounds: 3, statements: 3, pressPer: 1, counselObj: 1, poolMax: 9,
+  cred: 5, rounds: 3, statements: 3, minLies: 2, confess: 1, pressPer: 1, counselObj: 1, poolMax: 9,
   wrong: 1, alibiBurn: 1, witnessBreak: 2, counselMiss: 1, maxEvidence: 5, maxAlibi: 3, sightRange: 4,
   dmg: { weapon: 3, foot: 2, receipt: 2, witness: 4 },
   heal: { receipt: 1 },
@@ -225,6 +225,7 @@ function presentResult(s, ev, defendantId) {
   return { kind: "hit", dD: RULES.dmg[ev.type] || 2, healL: RULES.heal[ev.type] || 0, burn: true, reveal: ev.type === "foot" };
 }
 // จำเลย AI: โกหก 2–3 + เรื่องจริงอุด · แปะข้อแก้ตัวสุ่ม
+function minLiesOf(pool) { return Math.min(RULES.minLies, (pool || []).filter((s) => s.kind === "lie").length, RULES.statements); }
 function aiTestimony(pool, alibi) {
   const n = Math.min(RULES.statements, pool.length);
   const lies = shuffle(pool.filter((s) => s.kind === "lie")), truths = shuffle(pool.filter((s) => s.kind === "truth"));
@@ -411,6 +412,9 @@ function testimony(id, picks) {
     if (x.alibi === true) { if (s.kind !== "lie") return false; pins++; }
   }
   if (pins > alibiTotal(c)) return false;
+  // ต้องปฏิเสธอย่างน้อย 2 ประโยค (ผู้ใช้ 2026-11-20: เลือกแต่ความจริง = ทนายไม่มีอะไรสู้)
+  const lies = picks.filter((x) => (c.pool.find((q) => q.key === x.key) || {}).kind === "lie").length;
+  if (lies < minLiesOf(c.pool)) return false;
   c.picks = picks.map((x) => ({ key: x.key, alibi: x.alibi === true }));
   lazy.engine().releaseBeat();
   return true;
@@ -505,7 +509,13 @@ function doPress(c, p) {
     steps.push(line(c, "D", "pressLieDef", { ...ctx, skill: s.k && s.k.skill }), cam("defense"), inner(c, "pressNothingInner", ctx));
     aside(c, steps, ctx);
   } else {
-    steps.push(line(c, "D", "pressTruthDef", ctx), cam("defense"), inner(c, "pressNothingInner", ctx));
+    // ประโยคจริงโดนกดดัน = รับสารภาพต่อหน้าศาล → จำเลยเสียความน่าเชื่อถือ (ผู้ใช้ 2026-11-20)
+    steps.push(line(c, "D", "pressTruthDef", ctx), cam("defense"), line(c, "L", "pressConfessLawyer", ctx, "red"),
+      cam("witness"), hurtS("D", RULES.confess), line(c, "D", "pressConfessDef", ctx), cam("judge"), line(c, "J", "pressConfessJudge", ctx));
+    s.done = true;
+    c.hits = (c.hits || 0) + 1;
+    credHit(c, "D", RULES.confess, steps);
+    if (c.cred.D > 0) steps.push(cam("defense"), inner(c, "pressConfessInner", ctx));
   }
   beat(c, steps, afterAction);
 }
@@ -847,6 +857,7 @@ function view(viewerId, controlId) {
     list: c.list ? c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: s.alibiShown, ...(isDef ? { alibi: s.alibi, kind: s.kind } : {}) })) : null,
     cx: c.cx,
     pool: isDef && c.phase === "testimony" && c.pool ? c.pool.map((s) => ({ key: s.key, text: s.text, kind: s.kind })) : null,
+    minLies: isDef && c.phase === "testimony" && c.pool ? minLiesOf(c.pool) : undefined, // ต้องเลือกประโยคปฏิเสธ (🎭) อย่างน้อยเท่านี้
     alibiLeft: isDef ? alibiTotal(c) : undefined,
     evidence: isLaw ? liveEvidence(lawyerOf(c)) : undefined,
     sightings: me && !isDefUnit(c, me) ? sightingsOf(c, me).map((e) => { const icon = Ev.iconFor(e.type, e.id); return { key: e.id, desc: descOf(e), icon, name: Ev.EV_ICON_NAMES[icon] || "", type: e.type }; }) : [],

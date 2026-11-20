@@ -77,7 +77,7 @@ export function contradicts(st, ev) {
 // คำให้การของจำเลย AI: โกหก 2–3 + เรื่องจริงอุด · แปะข้อแก้ตัวสุ่ม
 export function aiTestimony(pool, alibi, r = Math.random) {
   const lies = shuffle(pool.filter((s) => s.kind === "lie"), r), truths = shuffle(pool.filter((s) => s.kind === "truth"), r);
-  const nl = Math.min(lies.length, r() < 0.5 ? 2 : 3);
+  const nl = Math.min(lies.length, r() < 0.5 ? 2 : 3); // ต้องปฏิเสธอย่างน้อย 2 (ผู้ใช้ 2026-11-20)
   let list = [...lies.slice(0, nl), ...truths.slice(0, RULES.statements - nl)];
   list = shuffle(list, r).map((s) => ({ ...s, alibi: false, pressed: false, done: false }));
   let a = alibi;

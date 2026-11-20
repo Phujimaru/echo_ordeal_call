@@ -765,3 +765,25 @@ test("ปักหมุดหลักฐาน 📌: แฟ้มเต็ม�
   match.court = null;
   assert.equal(Court.pinEvidence("B", s.evidence[0].id), false);
 });
+
+test("ต้องปฏิเสธอย่างน้อย 2 ประโยค · กดเดี๋ยวก่อน! ใส่ประโยคจริง = รับสารภาพ จำเลย −1 (ผู้ใช้ 2026-11-20)", () => {
+  const { A, B } = setup();
+  engine.setActor("A");
+  engine.court.start(A, B);
+  engine.pausePlayingForCutscene();
+  let c = drive("testimony");
+  c.pool = [
+    { key: "a", kind: "lie", text: "1", k: { turn: 1 } }, { key: "b", kind: "truth", text: "2" },
+    { key: "c", kind: "lie", text: "3", k: { turn: 2 } }, { key: "d", kind: "truth", text: "4" }, { key: "e", kind: "truth", text: "5" },
+  ];
+  assert.equal(Court.testimony("B", [{ key: "b" }, { key: "d" }, { key: "e" }]), false, "จริงล้วน");
+  assert.equal(Court.testimony("B", [{ key: "a" }, { key: "d" }, { key: "e" }]), false, "ปฏิเสธแค่ 1");
+  assert.equal(Court.testimony("B", [{ key: "a" }, { key: "c" }, { key: "e" }]), true);
+  c = drive("cross");
+  const ti = c.list.findIndex((s) => s.kind === "truth");
+  const before = c.cred.D;
+  Court.act("A", { type: "press", idx: ti });
+  c = drive("cross") || match.court;
+  assert.equal(c.cred.D, before - 1, "สารภาพ −1");
+  assert.equal(c.list[ti].done, true);
+});

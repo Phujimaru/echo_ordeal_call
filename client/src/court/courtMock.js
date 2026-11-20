@@ -64,6 +64,7 @@ export class MockCourt {
         list: c.list && c.list.map((s) => ({ text: s.text, done: s.done, pressed: s.pressed, presentTried: s.presentTried, alibiShown: !!s.alibiShown, ...(sideD ? { alibi: !!s.alibi, kind: s.kind } : {}) })),
         cx: c.cx,
         pool: sideD && c.phase === "testimony" ? c.pool.map(({ key, text, kind }) => ({ key, text, kind })) : null,
+        minLies: sideD && c.phase === "testimony" ? Math.min(2, c.pool.filter((x) => x.kind === "lie").length) : undefined,
         alibiLeft: sideD ? c.alibi : undefined,
         evidence: sideL ? c.evidence.map((e) => ({ ...e })) : undefined,
         sightings: viewer === c.defendantId ? [] : c.sightings[viewer] || [],
@@ -176,7 +177,8 @@ export class MockCourt {
       const picks = (p.picks || []).slice(0, RULES.statements);
       let al = c.alibi;
       const list = picks.map((k) => { const st = c.pool.find((x) => x.key === k.key); if (!st) return null; const a = !!k.alibi && st.kind === "lie" && al > 0; if (a) al--; return { ...st, alibi: a }; }).filter(Boolean);
-      if (list.length === RULES.statements) this.setList(list);
+      const need = Math.min(2, c.pool.filter((x) => x.kind === "lie").length);
+      if (list.length === RULES.statements && list.filter((x) => x.kind === "lie").length >= need) this.setList(list);
       return;
     }
     if (ev === "courtAct") return this.act(from, ev, p);
@@ -206,8 +208,13 @@ export class MockCourt {
         const x = toEvidence(hid); this.addEvidence(x);
         s.push({ k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "paper" }, { k: "present", ev: { icon: x.icon, name: x.name, desc: x.desc }, ms: 1300 }, this.say("L", "pressGain", "blue"));
       }
+    } else if (st.kind === "truth") {
+      // ประโยคจริงโดนกดดัน = รับสารภาพ → จำเลย −1 (ผู้ใช้ 2026-11-20)
+      st.done = true; c.cred.D = Math.max(0, c.cred.D - 1);
+      s.push(this.say("D", "pressTruthD"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "confident" }, this.say("L", "confessL", "red"),
+        { k: "cam", cam: "witness" }, { k: "hurt", side: "D", n: 1, ms: DMG_STEP_MS }, this.say("D", "confessD"));
     } else {
-      s.push(this.say("D", st.kind === "truth" ? "pressTruthD" : "pressLieD"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "sheepish" }, this.say("L", "pressSheepish", "blue"));
+      s.push(this.say("D", "pressLieD"), { k: "cam", cam: "defense" }, { k: "pose", who: "L", pose: "sheepish" }, this.say("L", "pressSheepish", "blue"));
     }
     this.beat(s, () => this.cross());
   }
