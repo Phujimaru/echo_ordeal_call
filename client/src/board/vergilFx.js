@@ -11,6 +11,8 @@
 //   doppel  vgDoppel  ระเบิดออร่าม่วง + ร่างเงาแยกออกจากตัว
 //   sheathe vgSheathe เก็บดาบ: ประกายแวบที่ตัว + วงฟ้าบาง
 //   break   vgBreak   คอมโบหลุด: เศษแสงฟ้าแตกร่วง
+//   land    vgLand    จบตาขณะลอย: ดิ่งฟันจากฟ้าตบเป้าลงพื้น (วงกระแทก)
+//  กลางอากาศ: ev.vair = เวอจิลลอยอยู่ก่อนท่า · ev.air = เป้าลอย — ฟันรัวค้างบนฟ้า ไม่ลงพื้นจนจบตา
 //  ตัวหมาก: u.vg = { air, doppel } — ลอยกลางอากาศ (ยกหมาก + วงแสงใต้ตัว) · ออร่าม่วง Doppelganger
 //  เสียง: เล่นตามจังหวะปะทะของแต่ละครั้ง (VG_SFX) · mute = ครั้งที่เปิด Judgment Cut End (ห้ามเสียงตัดหน้าคลิป)
 //  lowQ = ตัดอนุภาค/เงาครึ่งหนึ่ง · ลดการเคลื่อนไหว = ไม่สั่น ไม่เต้น
@@ -23,15 +25,16 @@ const CYAN = "120,220,255", ICE = "205,245,255", WHITE = "255,255,255", DEEP = "
 
 // ---------- จังหวะ (ms) — สัญญากับ server (FX_MS ใน characters/vergil.js ต้องไม่สั้นกว่านี้) ----------
 export const VG_T = {
-  rapid: 640, rapidDash: 90, rapidHits: [150, 260, 370], rapidBack: 500, slam: 470,
+  rapid: 640, rapidDash: 90, rapidHits: [150, 260, 370], rapidBack: 500,
   upper: 620, upperDash: 90, upperHit: 230,
   shadow: 520, shadowHit: 200,
   whiff: 520, whiffHit: 170,
   doppel: 1100, sheathe: 700, brk: 650,
+  land: 560, landHit: 230,
 };
 export const VG_FX_DUR = {
   vgRapid: VG_T.rapid, vgUpper: VG_T.upper, vgShadow: VG_T.shadow, vgWhiff: VG_T.whiff,
-  vgDoppel: VG_T.doppel, vgSheathe: VG_T.sheathe, vgBreak: VG_T.brk,
+  vgDoppel: VG_T.doppel, vgSheathe: VG_T.sheathe, vgBreak: VG_T.brk, vgLand: VG_T.land,
 };
 export const isVergilFx = (kind) => typeof kind === "string" && (kind in VG_FX_DUR);
 // เสียงต่อจังหวะ (คีย์ใน client/src/audio.js) — สลับไฟล์ให้ไม่ซ้ำซาก
@@ -133,15 +136,6 @@ function rapidFx(g, e, t, lowQ) {
     hitFlash(g, to.x, to.y, z, q * 2.2, big);
     if (!lowQ) sparks(g, to.x, to.y, z, q, 10, e.seed * 7 + i * 13, ICE, 1.1 * big);
   });
-  // ฟันเป้าลอย = ตบลงพื้น
-  if (e.air) {
-    const q = (t - VG_T.slam) / (VG_T.rapid - VG_T.slam);
-    if (q >= 0 && q < 1) {
-      ring(g, to.x, to.y, 0.3 + 1.2 * easeOut3(q), 0.9 * (1 - q), ICE, 3.5 * (1 - q) + 0.5);
-      if (!lowQ) ring(g, to.x, to.y, 0.2 + 0.7 * easeOut3(q), 0.7 * (1 - q), DEEP, 6 * (1 - q) + 0.5);
-      if (!lowQ) sparks(g, to.x, to.y, 0.05, q, 14, e.seed * 3 + 99, CYAN, 1.4);
-    }
-  }
 }
 function upperFx(g, e, t, lowQ) {
   const n = Math.max(1, e.size | 0), from = ctr(e.from, n), to = ctr(e.to, Math.max(1, e.tsize | 0));
@@ -179,6 +173,28 @@ function whiffFx(g, e, t) {
   const to = ctr(e.to, Math.max(1, e.tsize | 0));
   const q = (t - VG_T.whiffHit) / 320;
   if (q >= 0 && q < 1) crescent(g, to.x + 0.25, to.y - 0.2, 0.55, -0.3, 1.2, q, 0.55, CYAN, 0.8, e.seed);
+}
+// ดิ่งลงจากฟ้า: รอยฟันแนวดิ่งจากบนลงเป้า → ตบลงพื้น วงกระแทก 2 ชั้น + ประกาย
+function landFx(g, e, t, lowQ) {
+  const to = ctr(e.to, Math.max(1, e.tsize | 0));
+  const dive = clamp01(t / VG_T.landHit);
+  if (t < VG_T.landHit + 80) {
+    const [tx, ty, s] = P(to.x, to.y, VG_AIR_Z + 1.6 * (1 - easeIn2(dive))), [bx, by] = P(to.x, to.y, 0.1);
+    g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+    const a = t < VG_T.landHit ? 1 : 1 - (t - VG_T.landHit) / 80;
+    for (const [lw, al, col] of [[16, 0.25, DEEP], [8, 0.6, CYAN], [3, 1, WHITE]]) {
+      g.strokeStyle = `rgba(${col},${al * a})`; g.lineWidth = lw * s / 60;
+      g.beginPath(); g.moveTo(tx + s * 0.12, ty - s * 0.4); g.lineTo(bx, by); g.stroke();
+    }
+    g.restore();
+  }
+  const q = (t - VG_T.landHit) / (VG_T.land - VG_T.landHit);
+  if (q >= 0 && q < 1) {
+    hitFlash(g, to.x, to.y, 0.1, q * 1.6, 1.3);
+    ring(g, to.x, to.y, 0.3 + 1.3 * easeOut3(q), 0.95 * (1 - q), ICE, 4 * (1 - q) + 0.5);
+    if (!lowQ) ring(g, to.x, to.y, 0.2 + 0.8 * easeOut3(q), 0.75 * (1 - q), DEEP, 7 * (1 - q) + 0.5);
+    if (!lowQ) sparks(g, to.x, to.y, 0.05, q, 16, e.seed * 3 + 99, CYAN, 1.5);
+  }
 }
 function doppelFx(g, e, t, lowQ) {
   const at = ctr(e.at, Math.max(1, e.size | 0)), q = t / VG_T.doppel;
@@ -228,6 +244,7 @@ export function vergilFx(g, e, now, lowQ) {
     case "vgDoppel": if (okT(e.at)) doppelFx(g, e, t, lowQ); break;
     case "vgSheathe": if (okT(e.at)) sheatheFx(g, e, t); break;
     case "vgBreak": if (okT(e.at)) breakFx(g, e, t, lowQ); break;
+    case "vgLand": if (okT(e.to)) landFx(g, e, t, lowQ); break;
     default:
   }
   g.restore();
@@ -239,45 +256,70 @@ export function vergilFx(g, e, now, lowQ) {
 export function vergilPose(list, u, now) {
   if (!u || u.id == null || !Array.isArray(list)) return null;
   for (const e of list) {
-    if (!e || (e.kind !== "vgRapid" && e.kind !== "vgUpper" && e.kind !== "vgWhiff")) continue;
+    if (!e || (e.kind !== "vgRapid" && e.kind !== "vgUpper" && e.kind !== "vgWhiff" && e.kind !== "vgLand")) continue;
     const t = e.holdT != null ? e.holdT : now - e.t0;
     if (t < 0 || t >= (VG_FX_DUR[e.kind] || 0)) continue;
     if (!okT(e.from) || !okT(e.to)) continue;
-    if (e.id === u.id) return attackerPose(e, t);
-    if (e.targetId === u.id) return targetPose(e, t, u);
+    if (e.id === u.id) return attackerPose(e, t, u);
+    if (e.targetId != null && e.targetId === u.id) return targetPose(e, t, u);
   }
   return null;
 }
-function attackerPose(e, t) {
-  const dx = e.to.x - e.from.x, dy = e.to.y - e.from.y, d = Math.hypot(dx, dy) || 1;
-  const stop = Math.max(0, d - 0.38), ex = e.from.x + (dx / d) * stop, ey = e.from.y + (dy / d) * stop;
+// ความสูงของเวอจิลหลังท่า: ลอยอยู่แล้ว (vair) · ท่านี้พาขึ้นฟ้า (ฟันขึ้นโดน / ฟันเป้าที่ลอย)
+const airAfter = (e) => !!(e.vair || e.air || (e.kind === "vgUpper" && e.hits));
+function attackerPose(e, t, u) {
+  const home = { x: Number.isFinite(u.rx) ? u.rx : e.from.x, y: Number.isFinite(u.ry) ? u.ry : e.from.y };
+  const dx = e.to.x - home.x, dy = e.to.y - home.y, d = Math.hypot(dx, dy) || 1;
+  if (e.kind === "vgLand") {
+    // ดิ่งลงไปข้างเป้าแล้วถอยกลับช่องตัวเอง
+    const stop = Math.max(0, d - 0.42);
+    const k = t < VG_T.landHit ? easeOut3(t / VG_T.landHit) : 1 - easeIn2(clamp01((t - VG_T.landHit - 120) / (VG_T.land - VG_T.landHit - 120)));
+    const hz = t < VG_T.landHit ? VG_AIR_Z * (1 - easeIn2(t / VG_T.landHit)) + 0.35 * Math.sin(Math.PI * (t / VG_T.landHit)) : 0;
+    return { x: home.x + (dx / d) * stop * k, y: home.y + (dy / d) * stop * k, hz, sq: 0 };
+  }
+  const stop = Math.max(0, d - 0.38), ex = home.x + (dx / d) * stop, ey = home.y + (dy / d) * stop;
   const dash = e.kind === "vgUpper" ? VG_T.upperDash : VG_T.rapidDash, end = VG_FX_DUR[e.kind], back = e.kind === "vgRapid" ? VG_T.rapidBack : end - 130;
   let k;
   if (t < dash) k = easeOut3(t / dash);
   else if (t < back) k = 1;
   else k = 1 - easeIn2(clamp01((t - back) / (end - back)));
-  let x = e.from.x + (ex - e.from.x) * k, y = e.from.y + (ey - e.from.y) * k, hz = 0;
+  let x = home.x + (ex - home.x) * k, y = home.y + (ey - home.y) * k;
   if (!REDUCED && e.kind === "vgRapid" && t >= dash && t < back) {
     const j = Math.sin(t * 0.09) * 0.05; x += (dy / d) * j; y += (-dx / d) * j;
   }
-  if (e.kind === "vgUpper" && t >= VG_T.upperHit) hz = 0.55 * Math.sin(Math.PI * clamp01((t - VG_T.upperHit) / (end - VG_T.upperHit)));
-  if (e.kind === "vgRapid" && e.air && t >= dash && t < VG_T.slam + 60) hz = VG_AIR_Z * 0.85;
+  const h0 = e.vair ? VG_AIR_Z : 0, h1 = airAfter(e) ? VG_AIR_Z : 0;
+  let hz;
+  if (e.kind === "vgUpper" && e.hits && t >= VG_T.upperHit) {
+    // ฟันขึ้นแล้วกระโดดตามเป้าขึ้นฟ้า (โค้งเกินแล้วลอยค้าง)
+    const q = clamp01((t - VG_T.upperHit) / (end - VG_T.upperHit));
+    hz = h0 + (h1 - h0) * easeOut3(q) + 0.45 * Math.sin(Math.PI * q);
+  } else if (e.kind === "vgUpper") hz = h0;
+  else hz = h0 + (h1 - h0) * clamp01(t / end);
+  if (!REDUCED && hz > 0.3) hz += 0.05 * Math.sin(t * 0.03); // กลางอากาศ: ขยับขึ้นลงเบาๆ ระหว่างฟันรัว
   return { x, y, hz, sq: 0 };
 }
 function targetPose(e, t, u) {
   const x0 = Number.isFinite(u.rx) ? u.rx : e.to.x, y0 = Number.isFinite(u.ry) ? u.ry : e.to.y;
   const dx = e.to.x - e.from.x, dy = e.to.y - e.from.y, d = Math.hypot(dx, dy) || 1;
+  if (e.kind === "vgLand") {
+    let hz = VG_AIR_Z;
+    if (t >= VG_T.landHit + 100) hz = t < VG_T.landHit + 260 ? 0.12 * Math.sin(Math.PI * (t - VG_T.landHit - 100) / 160) : 0;
+    else if (t >= VG_T.landHit) hz = VG_AIR_Z * (1 - easeIn2((t - VG_T.landHit) / 100));
+    return { x: x0, y: y0, hz, sq: 0 };
+  }
   if (e.kind === "vgWhiff") {
     const k = Math.sin(Math.PI * clamp01((t - VG_T.whiffHit + 60) / 300)) * 0.28; // เบี่ยงตัวออกข้าง
-    return { x: x0 + (dy / d) * k, y: y0 + (-dx / d) * k, hz: 0, sq: 0 };
+    return { x: x0 + (dy / d) * k, y: y0 + (-dx / d) * k, hz: e.air ? VG_AIR_Z : 0, sq: 0 };
   }
   let shake = 0;
   const hits = e.kind === "vgRapid" ? VG_T.rapidHits.slice(0, Math.max(0, e.hits | 0)) : [VG_T.upperHit];
   for (const h of hits) { const q = (t - h) / 120; if (q >= 0 && q < 1) shake = Math.max(shake, 1 - q); }
   const push = REDUCED ? 0 : shake * 0.1;
   let hz = 0;
-  if (e.kind === "vgUpper" && (e.hits | 0) > 0 && t >= VG_T.upperHit) hz = VG_AIR_Z * easeOut3(clamp01((t - VG_T.upperHit) / 260)) + 0.25 * Math.sin(Math.PI * clamp01((t - VG_T.upperHit) / 380));
-  if (e.kind === "vgRapid" && e.air) hz = t < VG_T.slam ? VG_AIR_Z + 0.15 : VG_AIR_Z * (1 - easeIn2(clamp01((t - VG_T.slam) / 110)));
+  if (e.kind === "vgUpper" && (e.hits | 0) > 0 && t >= VG_T.upperHit) {
+    const q = clamp01((t - VG_T.upperHit) / 380), h0 = e.air ? VG_AIR_Z : 0;
+    hz = h0 + (VG_AIR_Z - h0) * easeOut3(clamp01((t - VG_T.upperHit) / 260)) + (e.air ? 0.45 : 0.25) * Math.sin(Math.PI * q);
+  } else if (e.air) hz = VG_AIR_Z + 0.1 + shake * 0.12; // ฟันกลางอากาศ: เด้งขึ้นทุกจังหวะ ค้างอยู่บนฟ้า
   return { x: x0 + (dx / d) * push, y: y0 + (dy / d) * push, hz, sq: 0 };
 }
 
@@ -317,16 +359,15 @@ export function vergilEventFx(ev, ctx = {}) {
     case "rapid": {
       if (!okT(ev.from) || !okT(ev.to)) break;
       const hits = Math.max(0, Math.min(3, ev.hits | 0));
-      out.fx.push({ ...base, kind: "vgRapid", from: pt(ev.from), to: pt(ev.to), hits, air: !!ev.air, dur: VG_T.rapid });
+      out.fx.push({ ...base, kind: "vgRapid", from: pt(ev.from), to: pt(ev.to), hits, air: !!ev.air, vair: !!ev.vair, dur: VG_T.rapid });
       out.busy.push({ id: ev.id, ms: VG_T.rapid });
       VG_T.rapidHits.slice(0, hits).forEach((ms, i) => { out.shake.push(ms); snd(ms - 20, VG_SFX.rapid[i % 3]); });
-      if (ev.air && hits) { out.shake.push(VG_T.slam + 40); snd(VG_T.slam, VG_SFX.slam); }
       if (hits) out.defer.push({ id: ev.targetId, ms: VG_T.rapidHits[hits - 1] });
       break;
     }
     case "upper":
       if (!okT(ev.from) || !okT(ev.to)) break;
-      out.fx.push({ ...base, kind: "vgUpper", from: pt(ev.from), to: pt(ev.to), hits: ev.hits ? 1 : 0, dur: VG_T.upper });
+      out.fx.push({ ...base, kind: "vgUpper", from: pt(ev.from), to: pt(ev.to), hits: ev.hits ? 1 : 0, air: !!ev.air, vair: !!ev.vair, dur: VG_T.upper });
       out.busy.push({ id: ev.id, ms: VG_T.upper });
       out.shake.push(VG_T.upperHit);
       snd(VG_T.upperHit - 40, VG_SFX.upper);
@@ -341,7 +382,7 @@ export function vergilEventFx(ev, ctx = {}) {
       break;
     case "whiff":
       if (!okT(ev.from) || !okT(ev.to)) break;
-      out.fx.push({ ...base, kind: "vgWhiff", from: pt(ev.from), to: pt(ev.to), dur: VG_T.whiff });
+      out.fx.push({ ...base, kind: "vgWhiff", from: pt(ev.from), to: pt(ev.to), air: !!ev.air, vair: !!ev.vair, dur: VG_T.whiff });
       out.busy.push({ id: ev.id, ms: VG_T.whiff });
       snd(VG_T.whiffHit - 30, VG_SFX.whiff);
       break;
@@ -355,6 +396,14 @@ export function vergilEventFx(ev, ctx = {}) {
       if (!okT(ev.at)) break;
       out.fx.push({ ...base, kind: "vgSheathe", at: pt(ev.at), dur: VG_T.sheathe });
       snd(0, VG_SFX.sheathe);
+      break;
+    case "land":
+      if (!okT(ev.from) || !okT(ev.to)) break;
+      out.fx.push({ ...base, kind: "vgLand", from: pt(ev.from), to: pt(ev.to), dur: VG_T.land });
+      out.busy.push({ id: ev.id, ms: VG_T.land });
+      out.shake.push(VG_T.landHit, VG_T.landHit + 120);
+      snd(VG_T.landHit - 30, VG_SFX.slam);
+      if (ev.targetId) out.defer.push({ id: ev.targetId, ms: VG_T.landHit });
       break;
     case "break":
       if (!okT(ev.at)) break;

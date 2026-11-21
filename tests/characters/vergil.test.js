@@ -88,7 +88,12 @@ test('ฟันรัวได้หลายครั้งในตาเด�
   engine.useSkill('V', 'basic', ['D']);
   assert.equal(vit(P.D), 9); // เพดาน 6 ต่อเทิร์น: 2 + (2+2+2) → ตัดเหลือ 6
   assert.equal(P.V.vergil.combo, 4);
+  assert.ok(P.D.vergilAir); // ฟันกลางอากาศ = ยังลอยค้าง
+  assert.ok(P.V.vergil.air);
+  vg.charAction(engine, P.V, 'sheathe'); // จบตา = ดิ่งตบลงพื้น
   assert.ok(!P.D.vergilAir);
+  assert.ok(!P.V.vergil.air);
+  assert.ok(log.some((l) => l.fx === 'land'));
 });
 
 test('เพดาน 6 ต่อเป้าต่อเทิร์น · ยังนับ HIT และได้แต้มคืน', () => {

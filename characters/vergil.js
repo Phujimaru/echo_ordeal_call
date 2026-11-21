@@ -3,7 +3,8 @@
 //
 //  ค่าพื้นฐาน: HP 10 / เกราะ 5 / พลังโจมตี 1 (ค่าตั้งต้น) · เดิน 4 · ตีประชิด [1, 1]
 //  สกิลพื้นฐาน ฟันโหมกระหน่ำ (1 แต้ม · ประชิด): ฟันรัว 3 ครั้ง ครั้งละ 1 (+3 HIT) · เป้าลอย = ครั้งละ 2 แล้วตบลงพื้น (หายลอย)
-//  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 2 (+1 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้)
+//  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 2 (+1 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้) · เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
+//    กลางอากาศ (ผู้ใช้สั่ง 2026-11-21): ฟันโหมกระหน่ำ/ฟันขึ้นใส่เป้าลอย = เป้าลอยค้าง ฟันต่อได้ไม่หยุด · จบตาเดิน = ดิ่งตบเป้าลงพื้น
 //  ท่าไม้ตาย Doppelganger (4 แต้ม · ใช้กับตัวเอง): 2 เทิร์น — ทุกครั้งที่ฟันโหมกระหน่ำ/ฟันขึ้นโดน เงาฟันตามอีก 1 ครั้ง (ดาเมจ 1 · +1 HIT)
 //  สกิลติดตัว คอมโบ A+:
 //    ฟันโหมกระหน่ำ/ฟันขึ้นไม่กินโควตาสกิลของเทิร์น (กดได้ไม่จำกัดในตาเดิน) · โดน = แต้มสกิลคืน 1 (ผู้ใช้เลือก 2026-11-21)
@@ -54,7 +55,7 @@ const isMe = (p) => !!p && p.characterId === ID && !p.summon;
 const fresh = () => ({
   combo: 0, last: null, repeat: 0, target: null, left: 0, max: 0, // หน้าต่างเวลาต่อคอมโบ (ms ที่เหลือ · ms เต็ม)
   dealt: {}, dealtRound: -1, capNow: null,
-  doppelUntil: 0, doppelAt: 0, endNow: false, clipNow: false, stormShown: false, music: false, musicAt: 0, duelShown: false,
+  doppelUntil: 0, doppelAt: 0, endNow: false, clipNow: false, stormShown: false, music: false, musicAt: 0, duelShown: false, air: null,
 });
 const st = (p) => p.vergil || (p.vergil = fresh());
 const passiveOn = (p) => PassiveSeal.on(p);
@@ -159,7 +160,8 @@ function comboSlash(engine, p, tier, t) {
   if (!t || !foe(engine, p, t)) return;
   stopWindow(p);
   const from = { ...p.pos }, to = { ...t.pos };
-  const fx = (ev) => engine.boardFx(FX, { id: p.id, targetId: t.id, from, to, ...ev });
+  const vair = !!s.air; // เวอจิลลอยอยู่ก่อนท่านี้ (ต่อคอมโบกลางอากาศ)
+  const fx = (ev) => engine.boardFx(FX, { id: p.id, targetId: t.id, from, to, vair, ...ev });
   const beat = (sec) => engine.skillBeat(sec, () => {});
   if (readDodge(engine, p, t)) {
     fx({ kind: "whiff" });
@@ -177,14 +179,16 @@ function comboSlash(engine, p, tier, t) {
       if (res.dodge || res.blocked) break;
       hits++;
     }
-    if (air && hits > 0 && t.alive) { delete t.vergilAir; delete t.statuses.rooted; engine.log(`⬇️ ${t.name} ถูกตบลงพื้น`); }
+    // ฟันกลางอากาศ (Aerial Rave): เป้ายังลอยค้าง — ลงพื้นตอนเวอจิลจบตา (landAir)
+    if (air && hits > 0 && t.alive) s.air = t.id;
   } else {
     const res = slash(engine, p, t, NAME.secondary, UPPER.dmg + bonus);
     if (!res.dodge && !res.blocked) {
       hits = 1;
-      if (t.alive && engine.applyDebuff(t, "rooted", null, UPPER.air)) {
+      if (t.alive && (air || engine.applyDebuff(t, "rooted", null, UPPER.air))) {
         t.vergilAir = { by: p.id };
-        engine.log(`⬆️ ${t.name} ลอยกลางอากาศ`);
+        s.air = t.id; // เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
+        if (!air) engine.log(`⬆️ ${t.name} ลอยกลางอากาศ`);
       }
     }
   }
@@ -197,7 +201,7 @@ function comboSlash(engine, p, tier, t) {
   const jce = passive && !broken && hits > 0 && s.combo + hits + shadow >= JCE.at;
   if (!jce) {
     if (!hits) fx({ kind: "whiff" });
-    else fx({ kind: tier === "basic" ? "rapid" : "upper", hits, air: tier === "basic" && air });
+    else fx({ kind: tier === "basic" ? "rapid" : "upper", hits, air });
     if (shadow) fx({ kind: "shadow", delay: tier === "basic" ? 260 : 120 });
     beat(!hits ? FX_MS.whiff : tier === "basic" ? FX_MS.rapid : FX_MS.upper);
   }
@@ -218,6 +222,16 @@ function comboSlash(engine, p, tier, t) {
   engine.log(`⚔️ ${p.name} ${s.combo} HIT`);
   if (jce) { judgmentCutEnd(engine, p); return; }
   openWindow(engine, p);
+}
+
+// ---------- ลงพื้นจากกลางอากาศ (จบตา / คอมโบหลุด) — เวอจิลดิ่งฟันตบเป้าลงพื้น (เป้ายังติดลอย = เดินไม่ได้ตามเทิร์นเดิม) ----------
+function landAir(engine, p) {
+  const s = st(p);
+  if (!s.air) return;
+  const t = engine.players[s.air];
+  s.air = null;
+  if (t && t.vergilAir && t.vergilAir.by === p.id) delete t.vergilAir;
+  if (p.pos) engine.boardFx(FX, { kind: "land", id: p.id, targetId: t && t.alive && t.pos ? t.id : null, from: { ...p.pos }, to: t && t.pos ? { ...t.pos } : { ...p.pos } });
 }
 
 // ---------- Judgment Cut End (ทำงานเองที่ 30 HIT) ----------
@@ -315,7 +329,7 @@ module.exports = {
     breakCombo(engine, p, "โดนโจมตี");
   },
 
-  onActorEnd(engine, p) { if (isMe(p)) stopWindow(p); },
+  onActorEnd(engine, p) { if (isMe(p)) { stopWindow(p); landAir(engine, p); } },
   // พายุไม่หยุด: เริ่มทำงานครั้งแรกของแมตช์ = คลิปให้ทุกคนดู (ต้นเทิร์น — แบบคลิปเข้ากลางคืนของฟ็อกซี่)
   onRoundDealt(engine) {
     for (const p of Object.values(engine.players)) {
@@ -385,6 +399,6 @@ module.exports = {
   vergilState(engine, p) {
     if (!isMe(p)) return undefined;
     const s = st(p);
-    return { combo: s.combo, left: Math.max(0, s.left), max: s.max, doppel: doppelOn(engine, p), at: JCE.at, target: s.target, storm: duelOn(engine, p) };
+    return { combo: s.combo, left: Math.max(0, s.left), max: s.max, doppel: doppelOn(engine, p), at: JCE.at, target: s.target, storm: duelOn(engine, p), air: !!s.air };
   },
 };
