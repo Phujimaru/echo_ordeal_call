@@ -69,10 +69,10 @@ test('ข้อมูล: พิเศษ (เลือกซ้ำได้) ·
   assert.equal(engine.maxArmorOf(P.V), 5);
 });
 
-test('ฟันโหมกระหน่ำ: 3 ครั้ง ครั้งละ 1 · +3 HIT · แต้มคืน 1 · เปิดหน้าต่างเวลา 3 วิ', () => {
+test('ฟันโหมกระหน่ำ: 3 ครั้ง ความเสียหายรวม 1 · +3 HIT · แต้มคืน 1 · เปิดหน้าต่างเวลา 3 วิ', () => {
   const P = vergilVs();
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(vit(P.D), 12);
+  assert.equal(vit(P.D), 14);
   assert.equal(P.V.vergil.combo, 3);
   assert.equal(P.V.skillPoints, 8);
   assert.equal(P.V.vergil.max, 3000);
@@ -86,7 +86,7 @@ test('ฟันรัวได้หลายครั้งในตาเด�
   assert.ok(P.D.statuses.rooted > 0);
   assert.ok(P.D.vergilAir);
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(vit(P.D), 12); // ความเสียหาย 1 เสมอ (กลางอากาศก็ 1) · ชนเพดาน 3
+  assert.equal(vit(P.D), 13); // ฟันขึ้น 1 + ฟันโหมกระหน่ำ 1 (กลางอากาศก็ 1)
   assert.equal(P.V.vergil.combo, 5);
   assert.ok(P.D.vergilAir);
   assert.ok(P.V.vergil.air);
@@ -105,7 +105,7 @@ test('เพดาน 3 ต่อเป้าต่อเทิร์น · ย�
   engine.setRoundNumber(2);
   engine.setActor('V');
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(vit(P.D), 15 - 3 - 3); // เทิร์นใหม่ เพดานรีเซ็ต
+  assert.equal(vit(P.D), 15 - 3 - 1); // เทิร์นใหม่ เพดานรีเซ็ต · ฟันโหมกระหน่ำรวม 1
 });
 
 test('ท่าเดิม 3 ครั้งติด = ไม่นับ HIT แต่คอมโบไม่หลุด · พ พ พ ร = Judgment Cut', () => {
@@ -130,7 +130,7 @@ test('ศัตรูอ่านทางออก = คอมโบหลุ�
   Math.random = () => 0.01; // < 5%
   engine.useSkill('V', 'secondary', ['D']);
   assert.equal(P.V.vergil.combo, 0);
-  assert.equal(vit(P.D), 12);
+  assert.equal(vit(P.D), 14);
   assert.notEqual(engine.actorId, 'V');
 });
 
@@ -168,14 +168,14 @@ test('ความเสียหาย 1 เสมอ (ไม่มีโบน
   P.V.hp = 5;
   P.V.vergil.combo = 9;
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(vit(P.D), 12);
+  assert.equal(vit(P.D), 14);
   assert.equal(P.V.vergil.combo, 12);
   assert.equal(P.V.hp, 6);
   engine.setRoundNumber(2); // เทิร์นใหม่ เพดานรีเซ็ต
   engine.setActor('V');
   P.V.vergil.combo = 25;
   engine.useSkill('V', 'secondary', ['D']);
-  assert.equal(vit(P.D), 11); // 25 HIT ก็ยังเสียหาย 1
+  assert.equal(vit(P.D), 13); // 25 HIT ก็ยังเสียหาย 1
 });
 
 test('Doppelganger: เงาฟันตาม +1 HIT ความเสียหาย 1 · 2 เทิร์น · ตัดได้ (severables)', () => {
@@ -363,7 +363,7 @@ test('ท่าไม้ตาย: พุ่งแนว 4×1 หยุดหน
   assert.deepEqual(P.V.pos, { x: 5, y: 7 });
   assert.equal(P.V.vergil.combo, 3 + 1); // ฟันโหมกระหน่ำ 3 + เงา 1
   assert.equal(P.V.vergil.seq, 'b');
-  assert.equal(vit(P.D), 15 - 3); // ชนเพดาน 3
+  assert.equal(vit(P.D), 15 - 2); // ฟันโหมกระหน่ำ 1 + เงา 1
   assert.ok(P.V.vergil.max > 0); // เปิดหน้าต่างเวลาให้ฟันต่อ
   assert.equal(engine.actorId, 'V');
   engine.useSkill('V', 'secondary', ['D']);
