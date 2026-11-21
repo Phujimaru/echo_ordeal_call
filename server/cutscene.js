@@ -47,6 +47,7 @@ function queueCutscene(p, key, onlyFor) {
       noIntro: !!t.noIntro, // true = ตัดการ์ดเปิดตัว 950ms ทิ้ง เข้าวีดีโอทันที (คลิปสั้นมาก)
       clear: !!t.clear, // true = คลิปพื้นใส (webm alpha) ซ้อนบนกระดาน — ไม่มีพื้นดำ/แฟลช/ขอบมืด (ฟ็อกซี่: ตีปกติ)
       scale: Number(t.scale) > 0 ? Number(t.scale) : null, // ขยายคลิป (คลิปพื้นใส — ฟ็อกซี่: 1.5)
+      noFlash: !!t.noFlash, // true = ไม่มีแสงวาบขาวตอนเริ่มคลิป (เวอจิล: คลิปต่อกันหลายท่อน — ผู้ใช้ทักว่าวาบขาว 2 ครั้ง)
       onlyFor: Array.isArray(onlyFor) && onlyFor.length ? [...onlyFor] : null,
     },
   });

@@ -41,7 +41,7 @@ export function Cutscene({ cs }) {
   return (
     <div className="fixed inset-0 z-50 bg-black overflow-hidden">
       <video ref={ref} src={cs.video} poster={cs.img || undefined} preload="auto" autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-white cut-flash pointer-events-none" />
+      {!cs.noFlash && <div className="absolute inset-0 bg-white cut-flash pointer-events-none" />}
       <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle, transparent 45%, rgba(0,0,0,0.75) 100%)" }} />
       {!introDone && (
         <div className="absolute inset-0 z-10 bg-black/70 flex flex-col items-center justify-center gap-3 transition-opacity duration-200">

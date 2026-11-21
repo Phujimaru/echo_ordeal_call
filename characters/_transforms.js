@@ -254,9 +254,9 @@ module.exports = function buildTransforms() {
       ["counterRun", arm.IMG.basic, "", "", true],
     ].map(([k, img, title, label, noIntro]) => [arm.CUT[k], { img, video: arm.VIDEO[k], title, label, seconds: arm.CLIP_SEC[k], music: null, afterReveal: false, ...(noIntro ? { noIntro: true } : {}), ...(k === "counterRun" ? { clear: true } : {}) }])), // ท่อนวิ่งพื้นใส (webm alpha) ซ้อนบนกระดาน
     [vergil.CUT.dash]: { img: vergil.IMG.card, video: vergil.VIDEO.dash, title: "", label: "", seconds: vergil.CLIP_SEC.dash, music: null, afterReveal: false, noIntro: true, clear: true },
-    [vergil.CUT.jce]: { img: vergil.IMG.card, video: vergil.VIDEO.jce, title: "", label: "", seconds: vergil.CLIP_SEC.jce, music: null, afterReveal: false, noIntro: true },
-    [vergil.CUT.storm]: { img: vergil.IMG.card, video: vergil.VIDEO.storm, title: "", label: "", seconds: vergil.CLIP_SEC.storm, music: null, afterReveal: false, noIntro: true },
-    [vergil.CUT.duel]: { img: vergil.IMG.card, video: vergil.VIDEO.duel, title: "", label: "", seconds: vergil.CLIP_SEC.duel, music: null, afterReveal: false, noIntro: true }, // พายุไม่หยุด (ครั้งแรกของแมตช์ · ไม่มีชื่อ — ผู้ใช้สั่ง)
+    [vergil.CUT.jce]: { img: vergil.IMG.card, video: vergil.VIDEO.jce, title: "", label: "", seconds: vergil.CLIP_SEC.jce, music: null, afterReveal: false, noIntro: true, noFlash: true },
+    [vergil.CUT.storm]: { img: vergil.IMG.card, video: vergil.VIDEO.storm, title: "", label: "", seconds: vergil.CLIP_SEC.storm, music: null, afterReveal: false, noIntro: true, noFlash: true },
+    [vergil.CUT.duel]: { img: vergil.IMG.card, video: vergil.VIDEO.duel, title: "", label: "", seconds: vergil.CLIP_SEC.duel, music: null, afterReveal: false, noIntro: true, noFlash: true }, // พายุไม่หยุด (ครั้งแรกของแมตช์ · ไม่มีชื่อ — ผู้ใช้สั่ง)
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };
