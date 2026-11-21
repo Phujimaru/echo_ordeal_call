@@ -31,10 +31,22 @@ export const VG_T = {
   whiff: 520, whiffHit: 170,
   doppel: 1100, sheathe: 700, brk: 650,
   land: 560, landHit: 230,
+  route: 740, routeHits: [120, 260, 400], // ท่าคอมโบ (FX_MS.route 0.75 วิ) — จังหวะปะทะของดาบเทพ/ฟันเพิ่ม
 };
 export const VG_FX_DUR = {
   vgRapid: VG_T.rapid, vgUpper: VG_T.upper, vgShadow: VG_T.shadow, vgWhiff: VG_T.whiff,
-  vgDoppel: VG_T.doppel, vgSheathe: VG_T.sheathe, vgBreak: VG_T.brk, vgLand: VG_T.land,
+  vgDoppel: VG_T.doppel, vgSheathe: VG_T.sheathe, vgBreak: VG_T.brk, vgLand: VG_T.land, vgRoute: VG_T.route,
+};
+// เสียงของท่าคอมโบแต่ละท่า: [ms, คีย์] (จุดปะทะในไฟล์ ~55 ms)
+const ROUTE_SFX = {
+  rising: [[60, "vergil_upper"]],
+  helm: [[110, "vergil_slam"]],
+  flow: [[0, "vergil_sheathe"]],
+  lunar: [[0, "vergil_shadow"]],
+  stinger: [[60, "vergil_slash1"], [205, "vergil_slash3"]],
+  swords: [[40, "vergil_shadow"], [70, "vergil_slash1"], [210, "vergil_slash2"], [350, "vergil_slash3"]],
+  jcut: [[40, "vergil_slash2"], [180, "vergil_slash3"], [300, "vergil_slam"]],
+  starfall: [[150, "vergil_slam"]],
 };
 export const isVergilFx = (kind) => typeof kind === "string" && (kind in VG_FX_DUR);
 // เสียงต่อจังหวะ (คีย์ใน client/src/audio.js) — สลับไฟล์ให้ไม่ซ้ำซาก
@@ -232,6 +244,110 @@ function breakFx(g, e, t, lowQ) {
   g.restore();
 }
 
+// ดาบเทพ (ใบดาบแสงฟ้า) พุ่งจาก (fx, fy, fz) เข้าหา (tx, ty, tz) · q 0..1
+function spectralSword(g, fx, fy, fz, tx, ty, tz, q, a = 1) {
+  if (q <= 0 || q > 1.15) return;
+  const k = easeIn2(clamp01(q));
+  const [x0, y0, s] = P(fx + (tx - fx) * Math.max(0, k - 0.18), fy + (ty - fy) * Math.max(0, k - 0.18), fz + (tz - fz) * Math.max(0, k - 0.18));
+  const [x1, y1] = P(fx + (tx - fx) * k, fy + (ty - fy) * k, fz + (tz - fz) * k);
+  const fade = q > 1 ? 1 - (q - 1) / 0.15 : 1;
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (const [lw, al, col] of [[10, 0.3, DEEP], [5, 0.7, CYAN], [2, 1, WHITE]]) {
+    g.strokeStyle = `rgba(${col},${al * a * fade})`; g.lineWidth = lw * s / 60;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  }
+  glow(g, x1, y1, s * 0.16, ICE, 0.8 * a * fade);
+  g.restore();
+}
+// ท่าคอมโบ: ฉากตาม route (rising/helm/flow/lunar/stinger/swords/jcut/starfall)
+function routeFx(g, e, t, lowQ) {
+  const n = Math.max(1, e.size | 0), me = ctr(e.from, n), to = ctr(e.to, Math.max(1, e.tsize | 0));
+  const q = t / VG_T.route, fade = 1 - clamp01((q - 0.7) / 0.3);
+  const hitAt = (ms, i, big = 1, rgb = CYAN) => {
+    const k = (t - ms) / 280;
+    if (k < 0 || k >= 1) return;
+    crescent(g, to.x, to.y, 0.55, -0.9 + i * 1.1 + (hash01(e.seed + i) - 0.5) * 0.4, 1.5 * big, k, 1, rgb, big, e.seed + i * 3);
+    hitFlash(g, to.x, to.y, 0.55, k * 2, big);
+    if (!lowQ) sparks(g, to.x, to.y, 0.5, k, 10, e.seed * 7 + i * 5, ICE, 1.1 * big);
+  };
+  switch (e.route) {
+    case "rising": { // เสาแสงพุ่งขึ้นฟ้าสูงกว่าฟันขึ้นปกติ + วงแสงรอบเป้า
+      const [bx, by, s] = P(to.x, to.y, 0), [tx, ty] = P(to.x, to.y, 0.4 + 3.6 * easeOut3(clamp01(q * 2)));
+      g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+      for (const [lw, al, col] of [[26, 0.25, DEEP], [12, 0.6, CYAN], [4, 1, WHITE]]) {
+        g.strokeStyle = `rgba(${col},${al * fade})`; g.lineWidth = lw * s / 60;
+        g.beginPath(); g.moveTo(bx, by); g.lineTo(tx, ty); g.stroke();
+      }
+      g.restore();
+      ring(g, to.x, to.y, 0.3 + 1.1 * easeOut3(q), 0.9 * fade, ICE, 3 * fade + 0.5);
+      hitAt(60, 0, 1.3, ICE);
+      break;
+    }
+    case "helm": { // ดิ่งฟันจากฟ้า (ใช้ฉากตบลงพื้น)
+      landFx(g, { ...e, to: e.to }, Math.min(t * (VG_T.land / VG_T.route), VG_T.land - 1), lowQ);
+      break;
+    }
+    case "flow": case "lunar": { // ประกายดาบหมุนรอบตัว (flow ฟ้า · lunar จันทร์เสี้ยวม่วง)
+      const rgb = e.route === "lunar" ? VIOLET_HI : ICE;
+      for (let i = 0; i < 3; i++) {
+        const an = q * TAU * 1.5 + (i * TAU) / 3;
+        crescent(g, me.x + Math.cos(an) * 0.35, me.y + Math.sin(an) * 0.35, 0.6, an + Math.PI / 2, 0.9, clamp01(q * 1.4), fade, rgb, 0.8, e.seed + i);
+      }
+      if (e.route === "lunar") ring(g, me.x, me.y, 0.4 + 0.6 * easeOut3(q), 0.8 * fade, VIOLET, 2.5);
+      break;
+    }
+    case "stinger": { // แทงพุ่งทะลุ: เส้นแสงยาวผ่านเป้า + ฟัน 2 ครั้ง
+      const dx = to.x - me.x, dy = to.y - me.y, d = Math.hypot(dx, dy) || 1;
+      const k = easeOut3(clamp01(q * 3));
+      const [x0, y0, s] = P(me.x, me.y, 0.5), [x1, y1] = P(me.x + (dx / d) * (d + 1.4) * k, me.y + (dy / d) * (d + 1.4) * k, 0.5);
+      g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+      for (const [lw, al, col] of [[18, 0.25, DEEP], [8, 0.65, CYAN], [3, 1, WHITE]]) {
+        g.strokeStyle = `rgba(${col},${al * fade})`; g.lineWidth = lw * s / 60;
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      }
+      g.restore();
+      for (let i = 0; i < Math.min(2, e.hits | 0); i++) hitAt(VG_T.routeHits[i], i, i ? 1.3 : 1);
+      break;
+    }
+    case "swords": { // ดาบเทพ 3 เล่มลอยเหนือเวอจิลแล้วพุ่งใส่เป้าทีละเล่ม
+      for (let i = 0; i < 3; i++) {
+        const sx = me.x + (i - 1) * 0.45, sy = me.y - 0.2, launch = VG_T.routeHits[i] - 110;
+        const appear = clamp01(t / 90);
+        if (t < launch) { spectralSword(g, sx, sy, 1.4, sx, sy, 1.55, 0.99, appear); continue; }
+        spectralSword(g, sx, sy, 1.5, to.x, to.y, 0.55, (t - launch) / 110, 1);
+        if (i < (e.hits | 0)) hitAt(VG_T.routeHits[i], i, 0.9, ICE);
+      }
+      break;
+    }
+    case "jcut": { // ฟันมิติเป็นทรงกลมคลุมกรอบ 3×3 รอบเป้า
+      const k = clamp01(q * 1.3);
+      g.save(); g.globalCompositeOperation = "lighter";
+      const [bx, by, s] = P(to.x, to.y, 0.6);
+      glow(g, bx, by, s * (1.1 + 0.6 * easeOut3(k)), DEEP, 0.45 * fade);
+      g.restore();
+      for (let i = 0; i < (lowQ ? 7 : 14); i++) {
+        const delay = (i / 14) * 0.45, kk = clamp01((k - delay) / 0.5);
+        if (kk <= 0) continue;
+        const an = hash01(e.seed + i * 7) * TAU, r = 0.2 + 0.9 * hash01(e.seed + i * 3);
+        crescent(g, to.x + Math.cos(an) * r, to.y + Math.sin(an) * r, 0.3 + hash01(i) * 1.1, hash01(i * 5) * TAU, 1.2 + hash01(i * 9) * 0.8, kk, fade, i % 3 ? CYAN : WHITE, 0.8, e.seed + i);
+      }
+      ring(g, to.x, to.y, 1.5 * easeOut3(k), 0.85 * fade, ICE, 3 * fade + 0.5);
+      if (!lowQ) sparks(g, to.x, to.y, 0.5, k, 18, e.seed * 13, ICE, 1.6);
+      break;
+    }
+    case "starfall": { // ดิ่งจากฟ้าพร้อมดาวตก + ดาวหมุนเหนือหัวเป้า (สตั้น)
+      landFx(g, e, Math.min(t * (VG_T.land / VG_T.route) * 1.2, VG_T.land - 1), lowQ);
+      if (q > 0.35) for (let i = 0; i < 5; i++) {
+        const an = (t / 300) + (i * TAU) / 5;
+        const [x, y, s] = P(to.x + Math.cos(an) * 0.3, to.y + Math.sin(an) * 0.3, 1.25);
+        g.save(); g.globalCompositeOperation = "lighter"; glow(g, x, y, s * 0.07, "255,240,160", 0.9 * fade); g.restore();
+      }
+      break;
+    }
+    default:
+  }
+}
+
 export function vergilFx(g, e, now, lowQ) {
   const t = e.holdT != null ? e.holdT : now - e.t0;
   if (t < 0) return;
@@ -245,6 +361,7 @@ export function vergilFx(g, e, now, lowQ) {
     case "vgSheathe": if (okT(e.at)) sheatheFx(g, e, t); break;
     case "vgBreak": if (okT(e.at)) breakFx(g, e, t, lowQ); break;
     case "vgLand": if (okT(e.to)) landFx(g, e, t, lowQ); break;
+    case "vgRoute": if (okT(e.from) && okT(e.to)) routeFx(g, e, t, lowQ); break;
     default:
   }
   g.restore();
@@ -409,6 +526,16 @@ export function vergilEventFx(ev, ctx = {}) {
       if (!okT(ev.at)) break;
       out.fx.push({ ...base, kind: "vgBreak", at: pt(ev.at), dur: VG_T.brk });
       break;
+    case "route": { // ท่าคอมโบ — เล่นต่อจากฉากท่าหลัก (ev.after ms) · playOut ต้องมี fx ทันที = ประกายเล็กที่ตัว
+      if (!okT(ev.from) || !okT(ev.to)) break;
+      const after = Math.max(0, ev.after | 0);
+      out.fx.push({ ...base, kind: "vgSheathe", at: pt(ev.from), dur: 1 });
+      out.later.push([after, [{ ...base, kind: "vgRoute", route: ev.route, hits: ev.hits | 0, from: pt(ev.from), to: pt(ev.to), dur: VG_T.route }]]);
+      for (const [ms, k] of ROUTE_SFX[ev.route] || []) snd(after + ms, k);
+      if (ev.route === "jcut" || ev.route === "helm" || ev.route === "starfall") out.shake.push(after + 260, after + 380);
+      else if (ev.hits) for (const ms of VG_T.routeHits.slice(0, ev.hits | 0)) out.shake.push(after + ms);
+      break;
+    }
     default:
   }
   return out;

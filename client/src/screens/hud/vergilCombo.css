@@ -6,3 +6,12 @@
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .vg-rank-pop { animation: none; } }
+/* ชื่อท่าคอมโบเด้งเข้าแล้วจาง */
+.vg-route-pop { animation: vg-route-in 1500ms ease-out both; will-change: transform, opacity; }
+@keyframes vg-route-in {
+  0% { transform: translateX(40px) scale(1.4); opacity: 0; }
+  12% { transform: translateX(0) scale(1); opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateX(-10px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .vg-route-pop { animation: none; } }
