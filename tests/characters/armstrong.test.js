@@ -112,12 +112,12 @@ test("Nanomachines: เปิด/ปิดได้ 1 ครั้งต่อ�
   assert.equal(arm.damageBonus(engine, p, t), 0);
 });
 
-test("Nanomachines: ต้นเทิร์นเสียแต้ม 1 + เกราะ +2 · แต้มไม่พอ = ปิดเอง ตัดเกราะเกิน", () => {
+test("Nanomachines: ต้นเทิร์นเสียแต้ม 1 + เกราะ +1 · แต้มไม่พอ = ปิดเอง ตัดเกราะเกิน", () => {
   const { p } = setup({ points: 1 });
   nano(p);
   arm.onRoundStartTick(engine, p);
   assert.equal(p.skillPoints, 0);
-  assert.equal(p.armor, 7);
+  assert.equal(p.armor, 6);
   arm.onRoundStartTick(engine, p);
   assert.equal(st(p).nano, false);
   assert.equal(p.armor, 5);
@@ -137,10 +137,10 @@ test("Nanomachines: เกราะเสีย 1 = ฟื้นพลังช�
 
 test("ขอสักหมัดเถอะ (สวนกลับ): ยังรับดาเมจ แล้วพุ่งไปต่อยผู้โจมตี 3 + ผลัก 5 · ทำงานครั้งเดียว", () => {
   const { p, t } = setup();
-  engine.useSkill("a", "basic", [], { form: "self" });
-  assert.equal(st(p).stance.mode, "self");
+  engine.useSkill("a", "basic", []);
+  assert.ok(st(p).stance);
   assert.equal(p.skillPoints, 5);
-  engine.useSkill("a", "basic", [], { form: "self" }); // ค้างอยู่ = กดซ้ำไม่ได้
+  engine.useSkill("a", "basic", []); // ค้างอยู่ = กดซ้ำไม่ได้
   assert.equal(p.skillPoints, 5);
   hitBy("b", p, 2);
   assert.equal(p.armor, 3);
@@ -157,7 +157,7 @@ test("ขอสักหมัดเถอะ (สวนกลับ): ยัง
 
 test("ขอสักหมัดเถอะ (ช่วยเหลือ): กันการโจมตีใส่คนในระยะ 4 ทั้งก้อน แล้วสวน", () => {
   const { p, t, u } = setup();
-  engine.useSkill("a", "basic", [], { form: "ally" });
+  engine.useSkill("a", "basic", []);
   hitBy("b", u, 4);
   combat.withEffectSource(t, () => engine.dealMixed(u, 4, false)); // ในการกระทำเดียวกัน = กันต่อ
   assert.equal(u.hp, 50);
@@ -168,7 +168,7 @@ test("ขอสักหมัดเถอะ (ช่วยเหลือ): ก
 
 test("ขอสักหมัดเถอะ (ช่วยเหลือ): นอกระยะ 4 / ผลสถานะ ไม่ทำงาน · หมดใน 2 เทิร์น", () => {
   const { p, u } = setup();
-  engine.useSkill("a", "basic", [], { form: "ally" });
+  engine.useSkill("a", "basic", []);
   u.pos = { x: 2, y: 11 };
   hitBy("b", u, 2);
   assert.equal(u.hp, 48);
@@ -230,7 +230,7 @@ test("ยืนวัดกันบลูกผู้ชาย: ทะลุเ
   assert.equal(p.armor, 7);
 });
 
-test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 10 ครั้ง = 1 (สูงสุด 10) · คูลดาวน์ 3", () => {
+test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 25 ครั้ง = 1 (สูงสุด 5) · คูลดาวน์ 3", () => {
   const { p, t } = setup();
   engine.useSkill("a", "ultimate", ["b"]); // ห่าง 3 = นอกระยะ
   assert.equal(p.skillPoints, 8);
@@ -238,11 +238,12 @@ test("ไปคุยกับรากมะม่วง: ประชิด ·
   t.armor = 2;
   engine.useSkill("a", "ultimate", ["b"]);
   assert.equal(p.skillPoints, 2);
-  if (st(p).qte) for (let i = 0; i < 57; i++) arm.mash(engine, "a"); // useSkill รันผลหลังคลิปแรกทันที (คลิปถูก stub)
+  if (st(p).qte) for (let i = 0; i < 57; i++) arm.mash(engine, "a"); // 25 ครั้ง = 1 → 2 // useSkill รันผลหลังคลิปแรกทันที (คลิปถูก stub)
   runFlow(() => { const w = st(p).qte; if (w && w.count === 0) { for (let i = 0; i < 57; i++) arm.mash(engine, "a"); } });
+  // 57 ครั้ง = 2 (25 ครั้งต่อ 1)
   assert.deepEqual(clips.filter((k) => k.startsWith("armUlt")), [arm.CUT.ultStart, arm.CUT.ultMash, arm.CUT.ultEnd]);
   assert.equal(t.armor, 0);
-  assert.equal(t.hp, 47);
+  assert.equal(t.hp, 50);
   assert.equal(arm.skillLocks(engine, p).ultimate.cd, 3);
 });
 
@@ -271,11 +272,34 @@ test("ขอทำลายปอดแปบ: ปุ่ม HUD แต้ม +2 
 
 test("ตัดผลสกิล (severables): ท่าสวน + นาโน", () => {
   const { p } = setup();
-  engine.useSkill("a", "basic", [], { form: "self" });
+  engine.useSkill("a", "basic", []);
   nano(p);
   const sev = arm.severables(engine, p);
   assert.deepEqual(sev.map((s) => s.key).sort(), ["nano", "stance"]);
   for (const s of sev) s.cancel();
   assert.equal(st(p).stance, null);
   assert.equal(st(p).nano, false);
+});
+
+test("ไปคุยกับรากมะม่วง: กด 200 ครั้ง ได้สูงสุด 5", () => {
+  const { p, t } = setup();
+  t.pos = { x: 3, y: 6 };
+  engine.useSkill("a", "ultimate", ["b"]);
+  if (st(p).qte) for (let i = 0; i < 200; i++) arm.mash(engine, "a");
+  runFlow();
+  assert.equal(t.hp, 45);
+  assert.equal(arm.qteView(engine), null);
+});
+
+test("ขอสักหมัดเถอะ: ท่าเดียวมีทั้งสองแบบ — ป้องกันเพื่อนทำงานก่อน = ท่าหาย (ไม่สวนซ้ำตอนตัวเองโดน)", () => {
+  const { p, t, u } = setup();
+  engine.useSkill("a", "basic", []);
+  hitBy("b", u, 3);
+  assert.equal(u.hp, 50);
+  runFlow();
+  assert.equal(t.hp, 47);
+  assert.equal(st(p).stance, null);
+  hitBy("b", p, 1);
+  runFlow();
+  assert.equal(t.hp, 47);
 });
