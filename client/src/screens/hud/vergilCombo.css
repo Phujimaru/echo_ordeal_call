@@ -15,9 +15,9 @@
   --vgc-b: #2a78c0;   /* ปุ่ม 1 ฟันโหมกระหน่ำ */
   --vgc-s: #7b4fc0;   /* ปุ่ม 2 ฟันขึ้น */
   --vgc-shadow: 0 6px 18px rgba(28,63,110,.18);
-  position: fixed; left: 58px; top: 86px; z-index: 60;
+  position: fixed; left: 0; top: 86px; z-index: 60;
   width: 214px; pointer-events: none;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 0;
   font-family: "Chakra Petch", Kanit, sans-serif; color: var(--vgc-ink);
 }
 :root[data-ui="dark"] .vgc {
@@ -38,7 +38,8 @@
 .vgc-card {
   background: var(--vgc-lattice), var(--vgc-paper);
   border: 1px solid var(--vgc-line);
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  border-left: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%); /* ติดขอบซ้าย: ตัดมุมเฉพาะขวาล่าง */
   box-shadow: var(--vgc-shadow);
 }
 
@@ -46,7 +47,6 @@
 .vgc-head {
   display: flex; align-items: center; justify-content: space-between; gap: 6px;
   background: var(--vgc-head); color: #fff; padding: 4px 6px 4px 12px;
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%);
   pointer-events: auto;
 }
 .vgc-title { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; opacity: .95; }
@@ -84,6 +84,7 @@
 
 /* ชื่อท่าคอมโบที่เพิ่งออก */
 .vgc-pop {
+  position: absolute; left: 0; top: calc(100% + 6px); white-space: nowrap;
   align-self: flex-start; padding: 4px 14px 4px 10px; color: #fff; font-size: 17px; font-weight: 800; font-style: italic; letter-spacing: .04em;
   background: var(--vgc-head); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
   box-shadow: var(--vgc-shadow);
@@ -97,7 +98,9 @@
 }
 
 /* รายการท่าที่กดต่อได้ */
-.vgc-list { padding: 5px 6px; display: flex; flex-direction: column; gap: 3px; }
+/* รายการท่าอยู่ในแผงเดียวกัน คั่นด้วยเส้น */
+.vgc-list { padding: 5px 6px 7px 10px; display: flex; flex-direction: column; gap: 3px; border-top: 1px solid var(--vgc-line); }
+.vgc-list .vgc-keys { width: 85px; justify-content: flex-start; } /* 4 ช่อง — ท่า 3/4 ปุ่มเริ่มตรงแนวเดียวกัน */
 .vgc-item { display: flex; align-items: center; gap: 6px; padding: 2px 4px; }
 .vgc-item[data-near="true"] { background: rgba(14,165,233,.12); }
 .vgc-name { flex: 1 1 auto; font-size: 12px; font-weight: 700; color: var(--vgc-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -120,6 +123,7 @@
 .vgc-manual-bg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; background: rgba(12,28,58,.35); }
 :root[data-ui="dark"] .vgc-manual-bg { background: rgba(2,6,16,.6); }
 .vgc-manual { width: min(620px, 92vw); max-height: 86vh; overflow-y: auto; pointer-events: auto; }
+.vgc-manual { border-left: 1px solid var(--vgc-line); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
 .vgc-manual .vgc-head { padding: 8px 10px 8px 16px; }
 .vgc-manual .vgc-title { font-size: 15px; }
 .vgc-mrow { display: grid; grid-template-columns: 128px 1fr; gap: 4px 14px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--vgc-line); }

@@ -148,20 +148,20 @@ export default function VergilCombo({ v, live }) {
           ) : (
             <div className="vgc-mini"><span className="vgc-hitlbl">0 HIT</span></div>
           )}
+          {showList && open.length > 0 && (
+            <div className="vgc-list">
+              {open.slice(0, 4).map((r) => (
+                <div key={r.key} className="vgc-item" data-near={seq.length > 0 && r.seq.length - seq.length === 1 ? "true" : "false"}>
+                  <span className="vgc-name">{r.name}</span>
+                  <span className="vgc-keys">
+                    {r.seq.split("").map((k, i) => <Key key={i} k={k} st={i < seq.length ? "done" : i === seq.length ? "next" : ""} />)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         {flash && <div key={flash.k} className="vgc-pop">{flash.name}</div>}
-        {showList && open.length > 0 && (
-          <div className="vgc-card vgc-list">
-            {open.slice(0, 4).map((r) => (
-              <div key={r.key} className="vgc-item" data-near={seq.length > 0 && r.seq.length - seq.length === 1 ? "true" : "false"}>
-                <span className="vgc-name">{r.name}</span>
-                <span className="vgc-keys">
-                  {r.seq.split("").map((k, i) => <Key key={i} k={k} st={i < seq.length ? "done" : i === seq.length ? "next" : ""} />)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
       {manual && <Manual routes={routes} onClose={() => setManual(false)} />}
     </>
