@@ -180,18 +180,19 @@ test('ความเสียหาย 1 เสมอ (ไม่มีโบน
 
 test('Doppelganger: เงาฟันตาม +1 HIT ความเสียหาย 1 · 2 เทิร์น · ตัดได้ (severables)', () => {
   const P = vergilVs();
-  engine.useSkill('V', 'ultimate', []);
-  assert.equal(P.V.skillPoints, 4);
+  engine.useSkill('V', 'ultimate', [], { dir: 'right' }); // เป้าติดตัวทางขวา = ไม่ขยับ ฟันเริ่มคอมโบทันที
+  assert.ok(P.V.skillPoints >= 4);
+  assert.equal(P.V.vergil.combo, 4); // พุ่ง-ฟันโหมกระหน่ำ 3 + เงา 1
   engine.useSkill('V', 'secondary', ['D']);
-  assert.equal(P.V.vergil.combo, 3);
-  assert.equal(vit(P.D), 15 - 2);
+  assert.equal(P.V.vergil.combo, 4 + 2 + 1); // ฟันขึ้น +2 · เงา +1
+  assert.equal(vit(P.D), 15 - 3);
   const sev = vg.severables(engine, P.V);
   assert.equal(sev.length, 1);
   sev[0].cancel();
   assert.equal(vg.severables(engine, P.V).length, 0);
 });
 
-test('ครบ 30 HIT = Judgment Cut End ทำงานเอง: ศัตรูที่มองเห็น -6 ไม่ติดเพดาน · คอมโบ 0 · จบตาเดิน · ไม่มีเสียง/ฉากซ้อนคลิป', () => {
+test('ครบ 30 HIT = Judgment Cut End ทำงานเอง: เฉพาะเป้า -3 ไม่ติดเพดาน · คอมโบ 0 · จบตาเดิน · ไม่มีเสียง/ฉากซ้อนคลิป', () => {
   const P = setup([['V', 'vergil', 5, 7], ['D', 'dummy', 6, 7], ['E', 'dummy', 9, 7]]);
   P.V.skillPoints = 8;
   engine.setActor('V');
@@ -202,8 +203,8 @@ test('ครบ 30 HIT = Judgment Cut End ทำงานเอง: ศัตร
   assert.ok(log.some((l) => l.cut === vg.CUT.jce));
   assert.ok(!log.some((l) => l.sfx));
   assert.ok(!log.some((l) => l.fx === 'upper'));
-  assert.equal(vit(P.E), 15 - 6);
-  assert.equal(vit(P.D), 15 - 1 - 6);
+  assert.equal(vit(P.E), 15); // เฉพาะเป้าที่กำลังคอมโบ
+  assert.equal(vit(P.D), 15 - 1 - 3);
   assert.notEqual(engine.actorId, 'V');
 });
 
@@ -283,7 +284,7 @@ test('พายุไม่หยุด: เหลือ 2 คน = โดนต
   assert.ok(!vg.duelOn(engine, Q.V));
 });
 
-test('เพดาน 3 + Judgment Cut End 6 = เป้าเสียรวม 9 ในเทิร์นเดียว', () => {
+test('เพดาน 3 + Judgment Cut End 3 = เป้าเสียรวม 6 ในเทิร์นเดียว', () => {
   const P = vergilVs();
   P.D.hp = 20; P.D.armor = 0;
   for (let i = 0; i < 4; i++) engine.useSkill('V', i % 2 ? 'secondary' : 'basic', ['D']); // 10 HIT · ชนเพดาน 3
@@ -291,12 +292,12 @@ test('เพดาน 3 + Judgment Cut End 6 = เป้าเสียรวม
   P.V.vergil.combo = 28;
   engine.useSkill('V', 'basic', ['D']); // เกิน 30 → JCE
   assert.equal(P.V.vergil.combo, 0);
-  assert.equal(P.D.hp, 11);
+  assert.equal(P.D.hp, 14);
 });
 
 test('กด Doppelganger แล้วยังฟันต่อได้ · ปุ่ม 2 ท่าไม่ติดโควตา (skillLocks free)', () => {
   const P = vergilVs();
-  engine.useSkill('V', 'ultimate', []);
+  engine.useSkill('V', 'ultimate', [], { dir: 'right' }); // เป้าติดตัวทางขวา = ไม่ขยับ ฟันเริ่มคอมโบทันที
   assert.ok(P.V.skillUsedRound);
   engine.useSkill('V', 'basic', ['D']);
   assert.ok(P.V.vergil.combo > 0);
@@ -309,7 +310,7 @@ test('Doppelganger: เงากันคอมโบหลุด 3 ครั้
   const P = setup([['V', 'vergil', 5, 7], ['D', 'dummy', 6, 7], ['E', 'dummy', 9, 7]]);
   P.V.skillPoints = 8;
   engine.setActor('V');
-  engine.useSkill('V', 'ultimate', []);
+  engine.useSkill('V', 'ultimate', [], { dir: 'right' }); // เป้าติดตัวทางขวา = ไม่ขยับ ฟันเริ่มคอมโบทันที
   engine.useSkill('V', 'basic', ['D']);
   const c0 = P.V.vergil.combo;
   Math.random = () => 0.01; // ถูกอ่านทางออก
@@ -331,7 +332,7 @@ test('Doppelganger: เงากันคอมโบหลุด 3 ครั้
 
 test('Doppelganger: หมดเวลาต่อคอมโบ = เงารับแทน เปิดหน้าต่างใหม่ ไม่จบตา', async () => {
   const P = vergilVs();
-  engine.useSkill('V', 'ultimate', []);
+  engine.useSkill('V', 'ultimate', [], { dir: 'right' }); // เป้าติดตัวทางขวา = ไม่ขยับ ฟันเริ่มคอมโบทันที
   P.V.vergil.combo = 21; // 20+ = 1.2 วิ
   engine.useSkill('V', 'basic', ['D']);
   await new Promise((r) => setTimeout(r, 1500));
@@ -350,4 +351,21 @@ test('ฟันโดนมีโอกาส 20% ไม่ได้แต้ม
   Math.random = () => 0.5;
   engine.useSkill('V', 'secondary', ['D']);
   assert.equal(P.V.skillPoints, 7); // จ่าย 1 ได้คืน 1
+});
+
+test('ท่าไม้ตาย: พุ่งแนว 4×1 หยุดหน้าศัตรูคนแรก แล้วฟันโหมกระหน่ำเริ่มคอมโบ (+เงาฟันตาม) · ไม่มีทิศ = กดไม่ได้', () => {
+  const P = setup([['V', 'vergil', 3, 7], ['D', 'dummy', 6, 7]]);
+  P.V.skillPoints = 8;
+  engine.setActor('V');
+  engine.useSkill('V', 'ultimate', []); // ไม่เลือกทิศ
+  assert.equal(P.V.skillPoints, 8);
+  engine.useSkill('V', 'ultimate', [], { dir: 'right' });
+  assert.deepEqual(P.V.pos, { x: 5, y: 7 });
+  assert.equal(P.V.vergil.combo, 3 + 1); // ฟันโหมกระหน่ำ 3 + เงา 1
+  assert.equal(P.V.vergil.seq, 'b');
+  assert.equal(vit(P.D), 15 - 3); // ชนเพดาน 3
+  assert.ok(P.V.vergil.max > 0); // เปิดหน้าต่างเวลาให้ฟันต่อ
+  assert.equal(engine.actorId, 'V');
+  engine.useSkill('V', 'secondary', ['D']);
+  assert.ok(P.V.vergil.combo > 4);
 });

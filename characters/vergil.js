@@ -5,7 +5,7 @@
 //  สกิลพื้นฐาน ฟันโหมกระหน่ำ (1 แต้ม · ประชิด): ฟันรัว 3 ครั้ง ครั้งละ 1 (+3 HIT)
 //  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 1 (+2 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้) · เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
 //    กลางอากาศ (ผู้ใช้สั่ง 2026-11-21): ฟันโหมกระหน่ำ/ฟันขึ้นใส่เป้าลอย = เป้าลอยค้าง ฟันต่อได้ไม่หยุด · จบตาเดิน = ดิ่งตบเป้าลงพื้น
-//  ท่าไม้ตาย Doppelganger (4 แต้ม · ใช้กับตัวเอง): 2 เทิร์น — ทุกครั้งที่ฟันโหมกระหน่ำ/ฟันขึ้นโดน เงาฟันตามอีก 1 ครั้ง (ดาเมจ 1 · +1 HIT)
+//  ท่าไม้ตาย Doppelganger (4 แต้ม · เลือกทิศ แนว 4×1): พุ่งไปข้างหน้า หยุดหน้าศัตรูคนแรกแล้วฟันโหมกระหน่ำเริ่มคอมโบ (ผู้ใช้สั่ง 2026-11-21) · 2 เทิร์น — ทุกครั้งที่ฟันโหมกระหน่ำ/ฟันขึ้นโดน เงาฟันตามอีก 1 ครั้ง (ดาเมจ 1 · +1 HIT)
 //    + เงากันหลุด 3 ครั้ง (ผู้ใช้เลือก 2026-11-21): คอมโบที่จะหลุดเพราะถูกหลบ/หมดเวลา/โดนตี = เงารับแทน ไม่หลุด ไม่จบตา
 //  สกิลติดตัว คอมโบ A+:
 //    ฟันโหมกระหน่ำ/ฟันขึ้นไม่กินโควตาสกิลของเทิร์น (กดได้ไม่จำกัดในตาเดิน) · โดน = แต้มสกิลคืน 1 (ผู้ใช้เลือก 2026-11-21)
@@ -17,7 +17,7 @@
 //    ทุกการฟันของ 2 ท่า (รวมเงา/ท่าคอมโบ) ความเสียหาย 1 เสมอ (ผู้ใช้สั่ง 2026-11-21 — เพดานต่อครั้ง 1 ผ่านฮุค damageCap)
 //    ทุก 10 HIT ฟื้นพลังชีวิต 1 (ผู้ใช้สั่ง 2026-11-21) · ศัตรู 1 คนเสียจากเวอจิลได้ไม่เกิน 3 ต่อเทิร์น (ผู้ใช้สั่ง — เดิม 6 → 4 → 3 · 2026-11-21)
 //    ท่าคอมโบตามลำดับปุ่ม (ROUTES — ผู้ใช้ขอ "ท่าโจมตีเยอะๆ" + คู่มือ · ชื่อ/ผลเป็นการตัดสินของ Claude): กดครบลำดับ = ท่าออก แล้วนับลำดับใหม่
-//    30 HIT: Judgment Cut End ทำงานเองทันที (ไม่เสียแต้ม) — ศัตรูทุกตัวที่มองเห็น ดาเมจ 6 (เกราะก่อน · หลบได้ · ไม่ติดเพดาน = รวมสูงสุด 3 + 6 = 9 ต่อคน)
+//    30 HIT: Judgment Cut End ทำงานเองทันที (ไม่เสียแต้ม) — เฉพาะเป้าที่กำลังคอมโบ ดาเมจ 3 (ผู้ใช้สั่ง 2026-11-21 · เดิมทุกตัวที่มองเห็น 6) (เกราะก่อน · หลบได้ · ไม่ติดเพดาน = รวมสูงสุด 3 + 3 = 6 ต่อคน)
 //      คลิป: ท่อนพุ่ง (ฉากเขียวตัดเป็นพื้นใส ซ้อนกระดาน) → JCE เต็มจอ → ดาเมจลง → ครั้งแรกของแมตช์ต่อคลิป "I am the storm"
 //      จบแล้วคอมโบเป็น 0 และจบตาเดิน
 //  สกิลติดตัว 2 พายุไม่หยุด (ผู้ใช้เลือก 2026-11-21): เหลือผู้เล่นที่ยังอยู่แค่เวอจิลกับอีก 1 คน →
@@ -48,8 +48,8 @@ const NAME = { basic: "ฟันโหมกระหน่ำ", secondary: "ฟ
 
 const RAPID = { hits: 3, dmg: 1 };
 const UPPER = { dmg: 1, air: 1, hits: 2 }; // ฟันขึ้นโดน = +2 HIT (ผ่อน 2026-11-21)
-const DOPPEL = { turns: 2, dmg: 1, guard: 3 }; // guard = เงากันคอมโบหลุดได้กี่ครั้ง
-const JCE = { at: 30, dmg: 6 };
+const DOPPEL = { turns: 2, dmg: 1, guard: 3, dash: 4 }; // dash = พุ่งไปข้างหน้าแนว 4×1 แล้วเริ่มคอมโบ (ผู้ใช้สั่ง 2026-11-21) // guard = เงากันคอมโบหลุดได้กี่ครั้ง
+const JCE = { at: 30, dmg: 3 }; // เฉพาะเป้าที่กำลังคอมโบ (ผู้ใช้สั่ง 2026-11-21 — เดิมศัตรูทุกตัวที่มองเห็น 6)
 const STORM = { sp: 2, armor: 1 }; // พายุไม่หยุด: ต้นเทิร์น
 const CAP = 3; // ศัตรู 1 คนเสียจากเวอจิลได้ไม่เกิน 3 ต่อเทิร์น (ไม่นับ JCE ที่ระเบิดเพิ่มอีก 6 — ผู้ใช้สั่ง 2026-11-21: 6 → 4 → 3)
 const TICK_MS = 100;
@@ -204,7 +204,7 @@ function comboSlash(engine, p, tier, t) {
   stopWindow(p);
   const from = { ...p.pos }, to = { ...t.pos };
   const vair = !!s.air; // เวอจิลลอยอยู่ก่อนท่านี้ (ต่อคอมโบกลางอากาศ)
-  const fx = (ev) => engine.boardFx(FX, { id: p.id, targetId: t.id, from, to, vair, ...ev });
+  const fx = (ev) => { const pay = { id: p.id, targetId: t.id, from, to, vair, ...ev }; if (s.fxHold) s.fxHold.push(pay); else engine.boardFx(FX, pay); };
   const beat = (sec) => engine.skillBeat(sec, () => {});
   if (readDodge(engine, p, t)) {
     fx({ kind: "whiff" });
@@ -282,7 +282,7 @@ function comboSlash(engine, p, tier, t) {
   }
   refund(engine, p);
   engine.log(`⚔️ ${p.name} ${s.combo} HIT`);
-  if (s.combo >= JCE.at) { judgmentCutEnd(engine, p); return; }
+  if (s.combo >= JCE.at) { judgmentCutEnd(engine, p, t); return; }
   openWindow(engine, p);
 }
 
@@ -344,8 +344,42 @@ function landAir(engine, p) {
   if (p.pos) engine.boardFx(FX, { kind: "land", id: p.id, targetId: t && t.alive && t.pos ? t.id : null, from: { ...p.pos }, to: t && t.pos ? { ...t.pos } : { ...p.pos } });
 }
 
+// ---------- ท่าไม้ตาย: พุ่งไปข้างหน้า 4×1 แล้วเริ่มคอมโบ ----------
+//  หยุดหน้าศัตรูคนแรกในแนว → ฟันโหมกระหน่ำให้ทันที (นับ HIT/ลำดับท่าคอมโบ/เปิดหน้าต่างเวลา) · ชนเพื่อน/สิ่งกีดขวาง = หยุดก่อน
+//  ไม่เจอใคร = พุ่งไปสุดแนว · ฉากฟันรอจนพุ่งถึง (s.fxHold → ส่งในจังหวะพุ่งจบ)
+const DASH_STEP_MS = 60;
+function ultDash(engine, p, dir) {
+  const s = st(p);
+  if (!p.pos || !dir) { if (p.pos) engine.boardFx(FX, { kind: "doppel", id: p.id, at: { ...p.pos } }); return; }
+  const tiles = engine.chargeTiles(p, dir, DOPPEL.dash);
+  const path = [{ ...p.pos }];
+  let target = null;
+  for (const c of tiles) {
+    if (c.obstacle || c.shop) break;
+    const u = c.unitId ? engine.players[c.unitId] : null;
+    if (u) { if (foe(engine, p, u)) target = u; break; }
+    path.push({ x: c.x, y: c.y });
+  }
+  const land = path[path.length - 1];
+  if (land.x !== p.pos.x || land.y !== p.pos.y) {
+    engine.rebaseMove(p);
+    p.pos = { ...land };
+  }
+  engine.setDash({ id: p.id, path });
+  // ช่องที่พุ่งผ่าน (+ ช่องของเป้า) = พื้นที่ที่โดนจริง (ฮุค ownsAreaHit — useSkill ข้ามผลพื้นที่ทั้งแนว)
+  engine.hitArea(p, path.slice(1).concat(target ? [{ ...target.pos }] : []), target ? [target.id] : []);
+  engine.boardFx(FX, { kind: "doppel", id: p.id, at: { ...land } });
+  const secs = Math.max(0.3, (path.length - 1) * DASH_STEP_MS / 1000 + 0.2);
+  if (!target) { engine.skillBeat(secs, () => {}); return; }
+  // ฉากพุ่งก่อน แล้วฉากฟันตาม (comboSlash ลงผลทันที แต่เก็บเอฟเฟกต์ไว้ส่งตอนพุ่งถึง)
+  s.fxHold = [];
+  const held = s.fxHold;
+  engine.skillBeat(secs, () => { for (const pay of held) engine.boardFx(FX, pay); });
+  try { comboSlash(engine, p, "basic", target); } finally { s.fxHold = null; }
+}
+
 // ---------- Judgment Cut End (ทำงานเองที่ 30 HIT) ----------
-function judgmentCutEnd(engine, p) {
+function judgmentCutEnd(engine, p, t) {
   const s = st(p);
   stopWindow(p);
   s.combo = 0; s.last = null; s.repeat = 0;
@@ -355,8 +389,8 @@ function judgmentCutEnd(engine, p) {
   engine.queueCutscene(p, CUT.dash);
   engine.queueCutscene(p, CUT.jce);
   engine.deferAfterCutscene(() => {
-    const foes = Object.values(engine.players).filter((t) => foe(engine, p, t) && !engine.hiddenFromUnit(p, t));
-    for (const t of foes) if (t.alive) slash(engine, p, t, NAME.jce, JCE.dmg, { noCap: true });
+    // เฉพาะเป้าที่กำลังคอมโบ (หลบได้ · เกราะก่อน · ไม่ติดเพดาน)
+    if (t && foe(engine, p, t)) slash(engine, p, t, NAME.jce, JCE.dmg, { noCap: true });
     if (!s.stormShown && p.alive) { s.stormShown = true; engine.queueCutscene(p, CUT.storm); }
   });
 }
@@ -379,6 +413,7 @@ module.exports = {
     return foe(engine, p, t);
   },
   // ฟันโหมกระหน่ำ/ฟันขึ้น: ไม่กินโควตา + กดได้แม้ใช้โควตาแล้ว (ลบสกิลติดตัว = โควตาปกติ)
+  ownsAreaHit(p, tier) { return isMe(p) && tier === "ultimate"; },
   skipsTurnQuota(p, tier) { return isMe(p) && tier !== "ultimate" && passiveOn(p); },
   ignoresTurnQuota(p, tier) { return isMe(p) && tier !== "ultimate" && passiveOn(p); },
   silentFlash(p, tier) { return isMe(p) && tier !== "ultimate"; }, // ฟันรัว = ไม่ขึ้นป้ายกลางทุกครั้ง
@@ -386,7 +421,7 @@ module.exports = {
     if (!isMe(p)) return undefined;
     return tier === "ultimate" ? null : undefined;
   },
-  applyInstantSkill(engine, p, tier, targets) {
+  applyInstantSkill(engine, p, tier, targets, opts) {
     if (!isMe(p)) return undefined;
     const s = st(p);
     if (tier === "ultimate") {
@@ -394,7 +429,7 @@ module.exports = {
       s.guard = DOPPEL.guard;
       s.doppelAt = engine.severStamp();
       engine.log(`👥 ${p.name} ${NAME.ult} (${DOPPEL.turns} เทิร์น)`);
-      if (p.pos) engine.boardFx(FX, { kind: "doppel", id: p.id, at: { ...p.pos } });
+      ultDash(engine, p, opts && opts.dir);
       return "";
     }
     const t = engine.players[(targets || [])[0]];

@@ -158,6 +158,7 @@ const MOVES = {
   dio_brando: { ultimate: (p) => !!(p.dio && p.dio.stopping) },
   armstrong: { basic: () => true }, // อาร์มสตรอง: ขอสักหมัดเถอะ (พุ่งไปต่อยผู้โจมตี)
   foxy: { basic: () => true }, // ฟ็อกซี่: ขอสักทีนะ ที่หน้า (พุ่งแนวตรง 7)
+  vergil: { ultimate: () => true }, // เวอจิล: Doppelganger พุ่งแนวตรง 4
   giorno_giovanna: { ultimate: (p) => !!(p.giorno && p.giorno.requiem) },
   kate: { secondary: (p, o) => o.form === "whip" || o.form === "wings" },
   emiliko: { ultimate: (p) => { const k = ownerShadow(p); return !!(k && k.weapon === "mop"); } },
