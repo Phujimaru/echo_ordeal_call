@@ -73,7 +73,7 @@ function crescent(g, cx, cy, z, ang, len, q, a, rgb = CYAN, w = 1, seed = 0) {
     pts.push(P(cx + ca * s + nx * bend * k * len * 0.5, cy + sa * s + ny * bend * k * len * 0.5, z + k * 0.12));
   }
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
-  for (const [lw, al, col] of [[14 * w, 0.22, DEEP], [8 * w, 0.55, rgb], [3 * w, 0.95, WHITE]]) {
+  for (const [lw, al, col] of [[22 * w, 0.2, DEEP], [12 * w, 0.55, rgb], [4.5 * w, 1, WHITE]]) {
     g.beginPath();
     pts.forEach(([x, y], i) => { if (i) g.lineTo(x, y); else g.moveTo(x, y); });
     g.strokeStyle = `rgba(${col},${al * a * fade})`;
@@ -133,51 +133,174 @@ function hitFlash(g, cx, cy, z, q, a = 1) {
   g.restore();
 }
 
+
+// ---------- ชิ้นส่วนอลังการ (ผู้ใช้สั่ง 2026-11-21 "ทำให้แต่ละท่าอลังการกว่านี้") ----------
+function viewRect(view) {
+  const x0 = (view && Number.isFinite(view.x0) ? view.x0 : 0) - 60, y0 = (view && Number.isFinite(view.y0) ? view.y0 : 0) - 60;
+  const x1 = (view && Number.isFinite(view.x1) ? view.x1 : 1600) + 60, y1 = (view && Number.isFinite(view.y1) ? view.y1 : 1000) + 60;
+  return [x0, y0, x1 - x0, y1 - y0];
+}
+// สีทับทั้งจอ: op "lighter" = แสงวาบ · "source-over" = มืดลง
+function screenTint(g, view, rgb, a, op = "lighter") {
+  if (!(a > 0)) return;
+  g.save(); g.globalCompositeOperation = op; g.fillStyle = `rgba(${rgb},${Math.min(1, a)})`; g.fillRect(...viewRect(view)); g.restore();
+}
+// มืดลงรอบเป้า เหลือแสงตรงกลาง (spotlight)
+function spotlight(g, view, cx, cy, a) {
+  if (!(a > 0)) return;
+  const [x, y, s] = P(cx, cy, 0.4);
+  const [rx, ry, rw, rh] = viewRect(view);
+  g.save();
+  const gr = g.createRadialGradient(x, y, s * 0.9, x, y, s * 6);
+  gr.addColorStop(0, "rgba(4,10,26,0)"); gr.addColorStop(1, `rgba(4,10,26,${Math.min(0.75, a)})`);
+  g.fillStyle = gr; g.fillRect(rx, ry, rw, rh);
+  g.restore();
+}
+// เส้นความเร็วพุ่งออกจากจุดปะทะ (มังงะ)
+function speedLines(g, cx, cy, z, q, n, seed, rgb = WHITE, reach = 2.2) {
+  if (q <= 0 || q >= 1) return;
+  const [x, y, s] = P(cx, cy, z);
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  for (let i = 0; i < n; i++) {
+    const an = hash01(seed + i * 7) * TAU, r0 = s * (0.5 + 0.6 * easeOut3(q)), len = s * reach * (0.4 + 0.6 * hash01(seed + i * 3));
+    g.strokeStyle = `rgba(${rgb},${0.85 * (1 - q)})`; g.lineWidth = Math.max(1, s * (0.015 + 0.02 * hash01(seed + i)));
+    g.beginPath(); g.moveTo(x + Math.cos(an) * r0, y + Math.sin(an) * r0 * 0.6);
+    g.lineTo(x + Math.cos(an) * (r0 + len), y + Math.sin(an) * (r0 + len) * 0.6); g.stroke();
+  }
+  g.restore();
+}
+// พื้นแตกเป็นรอยร้าวเรืองแสงรอบจุด
+function cracks(g, cx, cy, q, seed, reach = 1.4) {
+  if (q <= 0 || q >= 1) return;
+  const grow = easeOut3(clamp01(q * 2.5)), a = 1 - clamp01((q - 0.5) / 0.5);
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round"; g.lineJoin = "round";
+  for (let i = 0; i < 7; i++) {
+    let an = hash01(seed + i * 11) * TAU, x = cx, y = cy;
+    const pts = [P(x, y, 0.01)];
+    const steps = 4, seg = (reach * (0.6 + 0.4 * hash01(seed + i * 5)) * grow) / steps;
+    for (let k = 0; k < steps; k++) {
+      an += (hash01(seed + i * 13 + k) - 0.5) * 0.9;
+      x += Math.cos(an) * seg; y += Math.sin(an) * seg;
+      pts.push(P(x, y, 0.01));
+    }
+    for (const [lw, col, al] of [[5, DEEP, 0.5], [2, ICE, 0.95]]) {
+      g.strokeStyle = `rgba(${col},${al * a})`; g.lineWidth = lw;
+      g.beginPath(); pts.forEach(([px, py], j) => { if (j) g.lineTo(px, py); else g.moveTo(px, py); }); g.stroke();
+    }
+  }
+  g.restore();
+}
+// คลื่นกระแทกหลายชั้น
+function shockwave(g, cx, cy, q, big = 1, rgb = ICE) {
+  if (q <= 0 || q >= 1) return;
+  for (let i = 0; i < 3; i++) {
+    const k = clamp01(q * 1.25 - i * 0.12);
+    if (k <= 0 || k >= 1) continue;
+    ring(g, cx, cy, (0.3 + 1.6 * big) * easeOut3(k), 0.9 * (1 - k), i ? rgb : WHITE, (5 - i * 1.5) * (1 - k) + 0.5);
+  }
+}
+
 // ---------- ท่า ----------
-function rapidFx(g, e, t, lowQ) {
+// ---------- วาร์ปรอบเป้า (ฟันโหมกระหน่ำ) ----------
+//  จุดยืนรอบเป้า: หน้าเป้า (ฝั่งเวอจิล) → อ้อมหลังซ้าย → อ้อมหลังขวา · หายตัวก่อนฟันแต่ละครั้ง BLINK_LEAD ms แล้วโผล่จุดใหม่
+const BLINK_R = 0.55, BLINK_ANG = [0, 2.25, -2.25], BLINK_LEAD = 50;
+const blinkTimes = (hits) => [VG_T.rapidHits[1] - BLINK_LEAD, VG_T.rapidHits[2] - BLINK_LEAD].slice(0, Math.max(0, hits - 1));
+function blinkSpots(from, to) {
+  const base = Math.atan2(from.y - to.y, from.x - to.x);
+  return BLINK_ANG.map((a) => ({ x: to.x + Math.cos(base + a) * BLINK_R, y: to.y + Math.sin(base + a) * BLINK_R }));
+}
+// ตำแหน่งหมากเวอจิล (พิกัดหมาก) ตามเวลา — null = ไม่ได้อยู่ในช่วงวาร์ป
+function blinkSpot(e, t, home) {
+  const hits = Math.max(0, Math.min(3, e.hits | 0));
+  const spots = blinkSpots(home, e.to);
+  if (t < VG_T.rapidDash) { const k = easeOut3(t / VG_T.rapidDash); return { x: home.x + (spots[0].x - home.x) * k, y: home.y + (spots[0].y - home.y) * k }; }
+  if (t >= VG_T.rapidBack) return null; // วาร์ปกลับช่องตัวเอง
+  let i = 0;
+  for (const bt of blinkTimes(hits)) if (t >= bt) i++;
+  return spots[i];
+}
+// แสงแวบตอนหาย/โผล่: รอยแยกแนวตั้ง + วงแสง + ร่างจางค้างที่จุดเดิม
+function blinkFlash(g, x, y, z, q, ghost) {
+  if (q < 0 || q >= 1) return;
+  const [bx, by, s] = P(x, y, z), [tx, ty] = P(x, y, z + 1.1 * (1 - q));
+  g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
+  g.strokeStyle = `rgba(${WHITE},${0.95 * (1 - q)})`; g.lineWidth = Math.max(1.5, s * 0.05 * (1 - q));
+  g.beginPath(); g.moveTo(bx, by + s * 0.1); g.lineTo(tx, ty); g.stroke();
+  glow(g, (bx + tx) / 2, (by + ty) / 2, s * (0.3 + 0.4 * q), CYAN, 0.55 * (1 - q));
+  g.restore();
+  ring(g, x, y, 0.15 + 0.45 * easeOut3(q), 0.8 * (1 - q), ICE, 2, z);
+  if (ghost) phantom(g, x, y, 0.8 * (1 - q), CYAN);
+}
+
+function rapidFx(g, e, t, lowQ, view) {
   const n = Math.max(1, e.size | 0), from = ctr(e.from, n), to = ctr(e.to, Math.max(1, e.tsize | 0));
   const z = e.air ? VG_AIR_Z + 0.45 : 0.5;
-  if (t < VG_T.rapidDash + 60) afterimages(g, from, to, clamp01(t / VG_T.rapidDash) * 0.75, CYAN, lowQ ? 2 : 5);
   const hits = Math.max(0, Math.min(3, e.hits | 0));
+  const spots = blinkSpots(from, to);
+  if (t < VG_T.rapidDash + 80) afterimages(g, from, spots[0], clamp01(t / VG_T.rapidDash) * 0.85, CYAN, lowQ ? 3 : 8);
+  // วาร์ป: จุดเดิมทิ้งร่างจาง + แสงแวบ · จุดใหม่แสงแวบ · สุดท้ายวาร์ปกลับช่องตัวเอง
+  const bz = e.vair || e.air ? VG_AIR_Z : 0;
+  const bts = blinkTimes(hits);
+  bts.forEach((bt, i) => {
+    const q = (t - bt) / 200;
+    blinkFlash(g, spots[i].x, spots[i].y, bz, q, !lowQ);
+    blinkFlash(g, spots[i + 1].x, spots[i + 1].y, bz, (t - bt) / 160, false);
+    if (!lowQ && q >= 0 && q < 0.5) afterimages(g, spots[i], spots[i + 1], clamp01(q * 3), ICE, 4);
+  });
+  if (hits) {
+    const last = spots[Math.min(bts.length, 2)];
+    blinkFlash(g, last.x, last.y, bz, (t - VG_T.rapidBack) / 200, !lowQ);
+    blinkFlash(g, from.x, from.y, bz, (t - VG_T.rapidBack) / 160, false);
+  }
   VG_T.rapidHits.forEach((h, i) => {
     if (i >= hits) return;
     const q = (t - h) / 260;
     if (q < 0 || q >= 1) return;
-    const ang = [-0.6, 0.75, 0.05][i] + (hash01(e.seed + i) - 0.5) * 0.3, big = i === hits - 1 ? 1.35 : 1;
-    crescent(g, to.x, to.y, z, ang, 1.5 * big, q, 1, CYAN, big, e.seed + i);
+    const ang = [-0.6, 0.75, 0.05][i] + (hash01(e.seed + i) - 0.5) * 0.3, last = i === hits - 1, big = last ? 1.6 : 1.15;
+    crescent(g, to.x, to.y, z, ang, 1.9 * big, q, 1, CYAN, big, e.seed + i);
+    if (last) crescent(g, to.x, to.y, z, ang + 1.4, 1.5 * big, clamp01(q - 0.05), 0.8, ICE, 0.9, e.seed + 40);
     hitFlash(g, to.x, to.y, z, q * 2.2, big);
-    if (!lowQ) sparks(g, to.x, to.y, z, q, 10, e.seed * 7 + i * 13, ICE, 1.1 * big);
+    if (!lowQ) sparks(g, to.x, to.y, z, q, last ? 22 : 12, e.seed * 7 + i * 13, ICE, 1.3 * big);
+    if (last) {
+      if (!lowQ) speedLines(g, to.x, to.y, z, q, 18, e.seed * 3 + 1, WHITE, 2.4);
+      if (q < 0.2) screenTint(g, view, "200,235,255", 0.22 * (1 - q / 0.2));
+      shockwave(g, to.x, to.y, q, 0.7);
+    }
   });
 }
-function upperFx(g, e, t, lowQ) {
+function upperFx(g, e, t, lowQ, view) {
   const n = Math.max(1, e.size | 0), from = ctr(e.from, n), to = ctr(e.to, Math.max(1, e.tsize | 0));
   if (t < VG_T.upperDash + 60) afterimages(g, from, to, clamp01(t / VG_T.upperDash) * 0.7, CYAN, lowQ ? 2 : 4);
   const q = (t - VG_T.upperHit) / (VG_T.upper - VG_T.upperHit);
   if (q < 0 || q >= 1) return;
   // รอยฟันแนวตั้งพุ่งจากพื้นขึ้นฟ้า
-  const [bx, by, s] = P(to.x, to.y, 0), [tx, ty] = P(to.x, to.y, 0.2 + 2.6 * easeOut3(clamp01(q * 1.6)));
+  const [bx, by, s] = P(to.x, to.y, 0), [tx, ty] = P(to.x, to.y, 0.2 + 4.2 * easeOut3(clamp01(q * 1.6)));
   g.save(); g.globalCompositeOperation = "lighter"; g.lineCap = "round";
   const fade = 1 - clamp01((q - 0.3) / 0.7);
-  for (const [lw, al, col] of [[18, 0.25, DEEP], [9, 0.6, CYAN], [3.5, 1, WHITE]]) {
+  for (const [lw, al, col] of [[30, 0.22, DEEP], [14, 0.6, CYAN], [5, 1, WHITE]]) {
     g.strokeStyle = `rgba(${col},${al * fade})`; g.lineWidth = lw * s / 60;
     g.beginPath(); g.moveTo(bx - s * 0.18, by + s * 0.05); g.quadraticCurveTo(bx + s * 0.22, (by + ty) / 2, tx, ty); g.stroke();
   }
   glow(g, bx, by, s * 0.7, CYAN, 0.45 * fade);
   g.restore();
-  crescent(g, to.x, to.y, 0.8, -1.35, 1.3, q, 0.8, ICE, 1, e.seed);
-  hitFlash(g, to.x, to.y, 0.6, q * 2);
-  if (!lowQ) sparks(g, to.x, to.y, 0.5, q, 12, e.seed * 5 + 7, ICE, 1.2);
+  crescent(g, to.x, to.y, 0.8, -1.35, 1.8, q, 0.9, ICE, 1.2, e.seed);
+  hitFlash(g, to.x, to.y, 0.6, q * 2, 1.2);
+  if (!e.air) { cracks(g, to.x, to.y, q, e.seed * 5 + 3, 1.2); shockwave(g, to.x, to.y, q, 0.6); }
+  if (!lowQ) sparks(g, to.x, to.y, 0.5, q, 18, e.seed * 5 + 7, ICE, 1.5);
+  if (q < 0.15) screenTint(g, view, "180,230,255", 0.16 * (1 - q / 0.15));
 }
 function shadowFx(g, e, t, lowQ) {
   const to = ctr(e.to, Math.max(1, e.tsize | 0)), from = okT(e.from) ? ctr(e.from, Math.max(1, e.size | 0)) : to;
   const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy) || 1;
   const gx = to.x + (dx / d) * 0.7, gy = to.y + (dy / d) * 0.7; // อีกฝั่งของเป้า
   const appear = clamp01(t / 120), gone = 1 - clamp01((t - 380) / 140);
+  if (t < 160) afterimages(g, { x: gx + (dx / d) * 1.2, y: gy + (dy / d) * 1.2 }, { x: gx, y: gy }, clamp01(t / 120), VIOLET, lowQ ? 2 : 5);
   phantom(g, gx, gy, appear * gone, VIOLET, -Math.sign(dx));
   const q = (t - VG_T.shadowHit) / 300;
   if (q >= 0 && q < 1) {
-    crescent(g, to.x, to.y, 0.55, 0.9, 1.4, q, 1, VIOLET, 1.1, e.seed + 5);
-    crescent(g, to.x, to.y, 0.55, -0.7, 1.4, clamp01(q - 0.08), 0.9, VIOLET_HI, 0.9, e.seed + 9);
+    crescent(g, to.x, to.y, 0.55, 0.9, 1.9, q, 1, VIOLET, 1.3, e.seed + 5);
+    crescent(g, to.x, to.y, 0.55, -0.7, 1.9, clamp01(q - 0.08), 0.95, VIOLET_HI, 1.1, e.seed + 9);
+    if (!lowQ) speedLines(g, to.x, to.y, 0.55, q, 12, e.seed * 9, VIOLET_HI, 1.8);
     if (!lowQ) sparks(g, to.x, to.y, 0.5, q, 8, e.seed * 11, VIOLET_HI, 1);
   }
 }
@@ -187,7 +310,7 @@ function whiffFx(g, e, t) {
   if (q >= 0 && q < 1) crescent(g, to.x + 0.25, to.y - 0.2, 0.55, -0.3, 1.2, q, 0.55, CYAN, 0.8, e.seed);
 }
 // ดิ่งลงจากฟ้า: รอยฟันแนวดิ่งจากบนลงเป้า → ตบลงพื้น วงกระแทก 2 ชั้น + ประกาย
-function landFx(g, e, t, lowQ) {
+function landFx(g, e, t, lowQ, view) {
   const to = ctr(e.to, Math.max(1, e.tsize | 0));
   const dive = clamp01(t / VG_T.landHit);
   if (t < VG_T.landHit + 80) {
@@ -202,14 +325,19 @@ function landFx(g, e, t, lowQ) {
   }
   const q = (t - VG_T.landHit) / (VG_T.land - VG_T.landHit);
   if (q >= 0 && q < 1) {
-    hitFlash(g, to.x, to.y, 0.1, q * 1.6, 1.3);
-    ring(g, to.x, to.y, 0.3 + 1.3 * easeOut3(q), 0.95 * (1 - q), ICE, 4 * (1 - q) + 0.5);
-    if (!lowQ) ring(g, to.x, to.y, 0.2 + 0.8 * easeOut3(q), 0.75 * (1 - q), DEEP, 7 * (1 - q) + 0.5);
-    if (!lowQ) sparks(g, to.x, to.y, 0.05, q, 16, e.seed * 3 + 99, CYAN, 1.5);
+    hitFlash(g, to.x, to.y, 0.1, q * 1.6, 1.6);
+    cracks(g, to.x, to.y, q, e.seed * 3 + 7, 1.7);
+    shockwave(g, to.x, to.y, q, 1.1);
+    if (!lowQ) ring(g, to.x, to.y, 0.2 + 0.8 * easeOut3(q), 0.75 * (1 - q), DEEP, 9 * (1 - q) + 0.5);
+    if (!lowQ) sparks(g, to.x, to.y, 0.05, q, 24, e.seed * 3 + 99, CYAN, 1.9);
+    if (!lowQ) speedLines(g, to.x, to.y, 0.1, q, 16, e.seed * 5, ICE, 2.2);
+    if (q < 0.18) screenTint(g, view, "220,240,255", 0.3 * (1 - q / 0.18));
   }
 }
-function doppelFx(g, e, t, lowQ) {
+function doppelFx(g, e, t, lowQ, view) {
   const at = ctr(e.at, Math.max(1, e.size | 0)), q = t / VG_T.doppel;
+  spotlight(g, view, at.x, at.y, 0.55 * Math.sin(Math.PI * clamp01(q)));
+  if (q < 0.12) screenTint(g, view, "150,100,255", 0.25 * (1 - q / 0.12));
   const [bx, by, s] = P(at.x, at.y, 0.5);
   g.save(); g.globalCompositeOperation = "lighter";
   glow(g, bx, by, s * (0.6 + 1.4 * easeOut3(q)), VIOLET, 0.7 * (1 - q));
@@ -260,9 +388,13 @@ function spectralSword(g, fx, fy, fz, tx, ty, tz, q, a = 1) {
   g.restore();
 }
 // ท่าคอมโบ: ฉากตาม route (rising/helm/flow/lunar/stinger/swords/jcut/starfall)
-function routeFx(g, e, t, lowQ) {
+function routeFx(g, e, t, lowQ, view) {
   const n = Math.max(1, e.size | 0), me = ctr(e.from, n), to = ctr(e.to, Math.max(1, e.tsize | 0));
   const q = t / VG_T.route, fade = 1 - clamp01((q - 0.7) / 0.3);
+  // ทุกท่าคอมโบ: ฉากรอบตัวมืดลง (spotlight ที่เป้า) · แสงวาบทั้งจอตอนปะทะแรง (BIG_AT)
+  spotlight(g, view, to.x, to.y, 0.6 * clamp01(t / 120) * fade);
+  const bigAt = { rising: 60, helm: 230, stinger: 160, swords: 400, jcut: 300, starfall: 270 }[e.route];
+  if (bigAt != null && t >= bigAt && t < bigAt + 140) screenTint(g, view, "215,240,255", 0.35 * (1 - (t - bigAt) / 140));
   const hitAt = (ms, i, big = 1, rgb = CYAN) => {
     const k = (t - ms) / 280;
     if (k < 0 || k >= 1) return;
@@ -280,11 +412,15 @@ function routeFx(g, e, t, lowQ) {
       }
       g.restore();
       ring(g, to.x, to.y, 0.3 + 1.1 * easeOut3(q), 0.9 * fade, ICE, 3 * fade + 0.5);
-      hitAt(60, 0, 1.3, ICE);
+      cracks(g, to.x, to.y, q, e.seed + 21, 1.5);
+      shockwave(g, to.x, to.y, q, 1);
+      hitAt(60, 0, 1.6, ICE);
+      if (!lowQ) speedLines(g, to.x, to.y, 1.2, clamp01(q * 1.5), 20, e.seed + 5, WHITE, 2.6);
       break;
     }
     case "helm": { // ดิ่งฟันจากฟ้า (ใช้ฉากตบลงพื้น)
-      landFx(g, { ...e, to: e.to }, Math.min(t * (VG_T.land / VG_T.route), VG_T.land - 1), lowQ);
+      landFx(g, { ...e, to: e.to }, Math.min(t * (VG_T.land / VG_T.route), VG_T.land - 1), lowQ, view);
+      if (t > 230) crescent(g, to.x, to.y, 0.4, 0.1, 2.4, clamp01((t - 230) / 320), 1, WHITE, 1.4, e.seed + 77); // แนวฟันแยกพื้น
       break;
     }
     case "flow": case "lunar": { // ประกายดาบหมุนรอบตัว (flow ฟ้า · lunar จันทร์เสี้ยวม่วง)
@@ -306,7 +442,9 @@ function routeFx(g, e, t, lowQ) {
         g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
       }
       g.restore();
-      for (let i = 0; i < Math.min(2, e.hits | 0); i++) hitAt(VG_T.routeHits[i], i, i ? 1.3 : 1);
+      for (let i = 0; i < Math.min(2, e.hits | 0); i++) hitAt(VG_T.routeHits[i], i, i ? 1.6 : 1.2);
+      if (!lowQ) speedLines(g, to.x, to.y, 0.5, clamp01((t - 120) / 400), 22, e.seed + 9, WHITE, 2.8);
+      shockwave(g, to.x, to.y, clamp01((t - 260) / 420), 0.8);
       break;
     }
     case "swords": { // ดาบเทพ 3 เล่มลอยเหนือเวอจิลแล้วพุ่งใส่เป้าทีละเล่ม
@@ -315,8 +453,11 @@ function routeFx(g, e, t, lowQ) {
         const appear = clamp01(t / 90);
         if (t < launch) { spectralSword(g, sx, sy, 1.4, sx, sy, 1.55, 0.99, appear); continue; }
         spectralSword(g, sx, sy, 1.5, to.x, to.y, 0.55, (t - launch) / 110, 1);
-        if (i < (e.hits | 0)) hitAt(VG_T.routeHits[i], i, 0.9, ICE);
+        if (i < (e.hits | 0)) hitAt(VG_T.routeHits[i], i, 1.1, ICE);
       }
+      // ดาบเล่มสุดท้าย: ระเบิดแสง + คลื่น
+      shockwave(g, to.x, to.y, clamp01((t - 400) / 340), 0.9);
+      if (!lowQ) speedLines(g, to.x, to.y, 0.55, clamp01((t - 400) / 300), 16, e.seed + 3, ICE, 2.2);
       break;
     }
     case "jcut": { // ฟันมิติเป็นทรงกลมคลุมกรอบ 3×3 รอบเป้า
@@ -332,11 +473,28 @@ function routeFx(g, e, t, lowQ) {
         crescent(g, to.x + Math.cos(an) * r, to.y + Math.sin(an) * r, 0.3 + hash01(i) * 1.1, hash01(i * 5) * TAU, 1.2 + hash01(i * 9) * 0.8, kk, fade, i % 3 ? CYAN : WHITE, 0.8, e.seed + i);
       }
       ring(g, to.x, to.y, 1.5 * easeOut3(k), 0.85 * fade, ICE, 3 * fade + 0.5);
-      if (!lowQ) sparks(g, to.x, to.y, 0.5, k, 18, e.seed * 13, ICE, 1.6);
+      // โดมฟันมิติ: วงแนวตั้งหมุน 3 วงรอบเป้า
+      for (let r = 0; r < 3; r++) {
+        const [dx, dy, ds] = P(to.x, to.y, 0.9);
+        g.save(); g.globalCompositeOperation = "lighter";
+        g.strokeStyle = `rgba(${r ? CYAN : WHITE},${0.7 * fade * clamp01(k * 2)})`; g.lineWidth = Math.max(1, ds * 0.03);
+        g.beginPath(); g.ellipse(dx, dy, ds * 1.5 * easeOut3(k), ds * 1.5 * easeOut3(k) * Math.abs(Math.cos(t / 220 + r * 1.05)), r * 1.05, 0, TAU); g.stroke();
+        g.restore();
+      }
+      cracks(g, to.x, to.y, clamp01((t - 250) / 450), e.seed + 33, 2);
+      shockwave(g, to.x, to.y, clamp01((t - 300) / 440), 1.4);
+      if (!lowQ) sparks(g, to.x, to.y, 0.5, k, 28, e.seed * 13, ICE, 2.2);
       break;
     }
     case "starfall": { // ดิ่งจากฟ้าพร้อมดาวตก + ดาวหมุนเหนือหัวเป้า (สตั้น)
-      landFx(g, e, Math.min(t * (VG_T.land / VG_T.route) * 1.2, VG_T.land - 1), lowQ);
+      landFx(g, e, Math.min(t * (VG_T.land / VG_T.route) * 1.2, VG_T.land - 1), lowQ, view);
+      // ดาวตกพุ่งลงรอบเป้า
+      if (!lowQ) for (let i = 0; i < 6; i++) {
+        const k2 = clamp01((t - i * 30) / 260);
+        if (k2 <= 0 || k2 >= 1) continue;
+        const ox = (hash01(e.seed + i) - 0.5) * 1.6, oy = (hash01(e.seed + i * 3) - 0.5) * 1.6;
+        spectralSword(g, to.x + ox + 0.6, to.y + oy - 0.6, 3.2, to.x + ox * 0.3, to.y + oy * 0.3, 0.05, k2, 0.8);
+      }
       if (q > 0.35) for (let i = 0; i < 5; i++) {
         const an = (t / 300) + (i * TAU) / 5;
         const [x, y, s] = P(to.x + Math.cos(an) * 0.3, to.y + Math.sin(an) * 0.3, 1.25);
@@ -348,20 +506,20 @@ function routeFx(g, e, t, lowQ) {
   }
 }
 
-export function vergilFx(g, e, now, lowQ) {
+export function vergilFx(g, e, now, lowQ, view) {
   const t = e.holdT != null ? e.holdT : now - e.t0;
   if (t < 0) return;
   g.save();
   switch (e.kind) {
-    case "vgRapid": if (okT(e.from) && okT(e.to)) rapidFx(g, e, t, lowQ); break;
-    case "vgUpper": if (okT(e.from) && okT(e.to)) upperFx(g, e, t, lowQ); break;
+    case "vgRapid": if (okT(e.from) && okT(e.to)) rapidFx(g, e, t, lowQ, view); break;
+    case "vgUpper": if (okT(e.from) && okT(e.to)) upperFx(g, e, t, lowQ, view); break;
     case "vgShadow": if (okT(e.to)) shadowFx(g, e, t, lowQ); break;
     case "vgWhiff": if (okT(e.to)) whiffFx(g, e, t); break;
-    case "vgDoppel": if (okT(e.at)) doppelFx(g, e, t, lowQ); break;
+    case "vgDoppel": if (okT(e.at)) doppelFx(g, e, t, lowQ, view); break;
     case "vgSheathe": if (okT(e.at)) sheatheFx(g, e, t); break;
     case "vgBreak": if (okT(e.at)) breakFx(g, e, t, lowQ); break;
-    case "vgLand": if (okT(e.to)) landFx(g, e, t, lowQ); break;
-    case "vgRoute": if (okT(e.from) && okT(e.to)) routeFx(g, e, t, lowQ); break;
+    case "vgLand": if (okT(e.to)) landFx(g, e, t, lowQ, view); break;
+    case "vgRoute": if (okT(e.from) && okT(e.to)) routeFx(g, e, t, lowQ, view); break;
     default:
   }
   g.restore();
@@ -373,7 +531,7 @@ export function vergilFx(g, e, now, lowQ) {
 export function vergilPose(list, u, now) {
   if (!u || u.id == null || !Array.isArray(list)) return null;
   for (const e of list) {
-    if (!e || (e.kind !== "vgRapid" && e.kind !== "vgUpper" && e.kind !== "vgWhiff" && e.kind !== "vgLand")) continue;
+    if (!e || (e.kind !== "vgRapid" && e.kind !== "vgUpper" && e.kind !== "vgWhiff" && e.kind !== "vgLand" && e.kind !== "vgRoute")) continue;
     const t = e.holdT != null ? e.holdT : now - e.t0;
     if (t < 0 || t >= (VG_FX_DUR[e.kind] || 0)) continue;
     if (!okT(e.from) || !okT(e.to)) continue;
@@ -387,6 +545,7 @@ const airAfter = (e) => !!(e.vair || e.air || (e.kind === "vgUpper" && e.hits));
 function attackerPose(e, t, u) {
   const home = { x: Number.isFinite(u.rx) ? u.rx : e.from.x, y: Number.isFinite(u.ry) ? u.ry : e.from.y };
   const dx = e.to.x - home.x, dy = e.to.y - home.y, d = Math.hypot(dx, dy) || 1;
+  if (e.kind === "vgRoute") return routeAttackerPose(e, t, home, dx, dy, d);
   if (e.kind === "vgLand") {
     // ดิ่งลงไปข้างเป้าแล้วถอยกลับช่องตัวเอง
     const stop = Math.max(0, d - 0.42);
@@ -401,8 +560,10 @@ function attackerPose(e, t, u) {
   else if (t < back) k = 1;
   else k = 1 - easeIn2(clamp01((t - back) / (end - back)));
   let x = home.x + (ex - home.x) * k, y = home.y + (ey - home.y) * k;
-  if (!REDUCED && e.kind === "vgRapid" && t >= dash && t < back) {
-    const j = Math.sin(t * 0.09) * 0.05; x += (dy / d) * j; y += (-dx / d) * j;
+  // ฟันโหมกระหน่ำ: วาร์ปแวบไปรอบเป้า ฟันจากคนละมุมทุกครั้ง แล้ววาร์ปกลับช่องตัวเอง (ผู้ใช้สั่ง 2026-11-21 "แวปไปแวปมาเหมือนในคลิป")
+  if (e.kind === "vgRapid" && (e.hits | 0) > 0) {
+    const bp = blinkSpot(e, t, home);
+    if (bp) { x = bp.x; y = bp.y; }
   }
   const h0 = e.vair ? VG_AIR_Z : 0, h1 = airAfter(e) ? VG_AIR_Z : 0;
   let hz;
@@ -415,9 +576,52 @@ function attackerPose(e, t, u) {
   if (!REDUCED && hz > 0.3) hz += 0.05 * Math.sin(t * 0.03); // กลางอากาศ: ขยับขึ้นลงเบาๆ ระหว่างฟันรัว
   return { x, y, hz, sq: 0 };
 }
+// ท่าคอมโบ: Deep Stinger พุ่งทะลุไปอีกฝั่งแล้วกลับ · Rising Sun กระโดดสูงแล้วค้างกลางอากาศ ·
+//  Helm Breaker / Starfall ขึ้นสูงแล้วดิ่ง · Judgment Cut ถอยครึ่งก้าวเก็บดาบ · ที่เหลือกระโดดเบาๆ
+function routeAttackerPose(e, t, home, dx, dy, d) {
+  const T = VG_T.route, ux = dx / d, uy = dy / d, base = e.vair ? VG_AIR_Z : 0;
+  const at = (k) => ({ x: home.x + ux * k, y: home.y + uy * k });
+  switch (e.route) {
+    case "stinger": {
+      const far = d + 1.0;
+      const k = t < 160 ? easeOut3(t / 160) * far : t < T - 220 ? far : far * (1 - easeIn2(clamp01((t - (T - 220)) / 220)));
+      return { ...at(k), hz: base, sq: 0 };
+    }
+    case "rising": {
+      const up = t < 260 ? easeOut3(t / 260) * 1.9 : 1.9 - (1.9 - VG_AIR_Z) * easeIn2(clamp01((t - 260) / (T - 260)));
+      return { ...at(Math.max(0, d - 0.4) * Math.min(1, t / 90)), hz: up, sq: 0 };
+    }
+    case "helm": case "starfall": {
+      const hit = e.route === "helm" ? 230 : 270;
+      let hz;
+      if (t < hit * 0.55) hz = base + (2.2 - base) * easeOut3(t / (hit * 0.55));
+      else if (t < hit) hz = 2.2 * (1 - easeIn2((t - hit * 0.55) / (hit * 0.45)));
+      else hz = 0;
+      const k = Math.max(0, d - 0.4) * (t < hit ? easeOut3(t / hit) : 1 - easeIn2(clamp01((t - hit - 150) / (T - hit - 150))));
+      return { ...at(k), hz, sq: 0 };
+    }
+    case "jcut": {
+      const k = -0.25 * Math.sin(Math.PI * clamp01(t / T));
+      return { ...at(k), hz: base, sq: 0 };
+    }
+    default:
+      return { ...at(0), hz: base + 0.3 * Math.sin(Math.PI * clamp01(t / (T * 0.6))), sq: 0 };
+  }
+}
 function targetPose(e, t, u) {
   const x0 = Number.isFinite(u.rx) ? u.rx : e.to.x, y0 = Number.isFinite(u.ry) ? u.ry : e.to.y;
   const dx = e.to.x - e.from.x, dy = e.to.y - e.from.y, d = Math.hypot(dx, dy) || 1;
+  if (e.kind === "vgRoute") {
+    // สะท้านตามจังหวะปะทะ · Rising Sun ลอยสูงแล้วค้าง · Helm Breaker/Starfall ถูกตบลงพื้น
+    let shake = 0;
+    for (const h of [...VG_T.routeHits, 230, 300]) { const q = (t - h) / 120; if (q >= 0 && q < 1) shake = Math.max(shake, 1 - q); }
+    const push = REDUCED ? 0 : shake * 0.12;
+    let hz = 0;
+    if (e.route === "rising") hz = VG_AIR_Z + 0.9 * Math.sin(Math.PI * clamp01((t - 60) / 520)) * (t > 60 ? 1 : 0);
+    else if (e.route === "helm" || e.route === "starfall") hz = t < 230 ? (e.air ? VG_AIR_Z : 0) : 0;
+    else if (e.air) hz = VG_AIR_Z + shake * 0.15;
+    return { x: x0 + (dx / d) * push, y: y0 + (dy / d) * push, hz, sq: 0 };
+  }
   if (e.kind === "vgLand") {
     let hz = VG_AIR_Z;
     if (t >= VG_T.landHit + 100) hz = t < VG_T.landHit + 260 ? 0.12 * Math.sin(Math.PI * (t - VG_T.landHit - 100) / 160) : 0;

@@ -395,7 +395,9 @@ module.exports = {
   skillLocks(engine, p) {
     if (!isMe(p)) return undefined;
     const on = doppelOn(engine, p);
-    return { ultimate: { cd: 0, locked: on } };
+    // free = ไม่ติดโควตาสกิลของเทิร์น (client ไม่ปิดปุ่มหลังกดท่าไม้ตาย — บัคผู้ใช้เจอ 2026-11-21)
+    const free = passiveOn(p);
+    return { basic: { cd: 0, locked: false, free }, secondary: { cd: 0, locked: false, free }, ultimate: { cd: 0, locked: on } };
   },
 
   // ---------- ตีปกติโดน = +1 HIT (คอมโบไม่หลุด) ----------

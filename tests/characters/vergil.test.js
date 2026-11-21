@@ -291,3 +291,14 @@ test('เพดาน 4 + Judgment Cut End 6 = เป้าเสียรวม
   assert.equal(P.V.vergil.combo, 0);
   assert.equal(P.D.hp, 10);
 });
+
+test('กด Doppelganger แล้วยังฟันต่อได้ · ปุ่ม 2 ท่าไม่ติดโควตา (skillLocks free)', () => {
+  const P = vergilVs();
+  engine.useSkill('V', 'ultimate', []);
+  assert.ok(P.V.skillUsedRound);
+  engine.useSkill('V', 'basic', ['D']);
+  assert.ok(P.V.vergil.combo > 0);
+  const locks = vg.skillLocks(engine, P.V);
+  assert.equal(locks.basic.free, true);
+  assert.equal(locks.secondary.free, true);
+});

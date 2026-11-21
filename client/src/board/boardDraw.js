@@ -564,7 +564,7 @@ export function drawFrame(g, st, now) {
     else if (isGyroFx(e.kind)) gyroFx(g, e, now, lowQ, view);
     else if (isDiegoFx(e.kind)) diegoFx(g, e, now, lowQ, view);
     else if (isDioFx(e.kind)) dioFx(g, e, now, lowQ, view);
-    else if (isVergilFx(e.kind)) vergilFx(g, e, now, lowQ); // เวอจิล (vergilFx.js)
+    else if (isVergilFx(e.kind)) vergilFx(g, e, now, lowQ, view); // เวอจิล (vergilFx.js)
     else if (isFaizFx(e.kind)) faizFx(g, e, now, lowQ);
     else if (isZectFx(e.kind)) zectFx(g, e, now, lowQ); // ไรเดอร์ ZECT (zectFx.js)
     else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
