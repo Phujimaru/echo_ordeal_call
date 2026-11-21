@@ -1205,3 +1205,23 @@ test("ประชาชน: โห่/ปาดันความน่าเ�
   const ia = c.list.findIndex((x) => x.kind === "lie" && x.k && x.k.skill === "ฟัน");
   if (ia >= 0) { Court.act("A", { type: "present", idx: ia, evId: w.id }); drive("cross"); assert.equal(c.cred.D, 1); }
 });
+test("ชนะคดีแบบครบยก (ไม่ได้ยื่นหลักฐานชี้ขาด) = คลิปฉากจบก่อนคำตัดสิน เงียบเพลง · เล่นครั้งเดียว", () => {
+  const { A, B } = setup();
+  const c = openCourt(A, B, [{ kind: "lie", text: "a" }, { kind: "truth", text: "b" }, { kind: "truth", text: "c" }]);
+  c.cred.D = 3; c.cred.L = 5;
+  for (let i = 0; i < Court.RULES.rounds - 1; i++) { Court.act("A", { type: "end" }); drive("cross"); }
+  Court.act("A", { type: "end" });
+  let sawClip = false;
+  for (let i = 0; i < 60 && match.court && match.court.phase !== "verdict"; i++) {
+    const steps = (match.court.beat && match.court.beat.steps) || [];
+    if (steps.some((x) => x.k === "clip" && x.src === Court.FINALE.src)) {
+      sawClip = true;
+      assert.equal(N.skillMusic(engine, A), null, "เงียบเพลงระหว่างคลิป");
+    }
+    if (!engine.releaseBeat()) break;
+  }
+  assert.ok(sawClip, "มีคลิปฉากจบ");
+  assert.equal(match.court.verdict.w, "guilty");
+  assert.ok(!match.court.beat.steps.some((x) => x.k === "clip"), "คำตัดสินไม่เล่นคลิปซ้ำ");
+  drive("none");
+});

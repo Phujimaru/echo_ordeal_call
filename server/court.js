@@ -1050,6 +1050,14 @@ function toVerdict(c) {
   else if (c.cred.L <= 0) w = "free";
   else if (c.cred.D < c.cred.L) w = "guilty";
   else if (c.cred.L < c.cred.D) w = "free";
+  // ชนะคดีทุกทาง (ครบยก/รับสารภาพ/ผู้ช่วยพลาด) = คลิป "ผมขอคัดค้าน" ก่อนคำตัดสิน ถ้ายังไม่ได้เล่นตอนยื่นหลักฐาน (ผู้ใช้ 2026-11-21)
+  //  เงียบเพลงศาลระหว่างคลิป (silent + phase beat) แล้วกลับมาตัดสินใหม่
+  if (w === "guilty" && !c.finaleUsed) {
+    c.finaleUsed = true;
+    c.silent = true;
+    beat(c, [cam("defense"), { k: "clip", src: FINALE.src, ms: FINALE.ms }], toVerdict);
+    return;
+  }
   const winSide = w === "guilty" ? "L" : w === "free" ? "D" : null;
   const rewards = [];
   if (winSide) {
