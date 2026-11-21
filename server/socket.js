@@ -455,6 +455,7 @@ io.on('connection', (socket) => {
   }), 12);
   // QTE กลาง — กดปุ่มทีละตัว · limit สูงกว่าปกติเผื่อกดรัวตอนตื่นเต้น
   onPlayerEvent(socket, 'clockMash', combatOnly((id) => ClockUp.mash(Duo.controlledId(id))), 40, 1000); // Clock Up ชนกัน: กดรัว
+  onPlayerEvent(socket, 'armMash', combatOnly((id) => CHAR_HOOKS.armstrong.mash(engine, id, Duo.controlledId(id))), 40, 1000); // อาร์มสตรอง: กดรัว (Space/คลิก)
   onPlayerEvent(socket, 'qteKey', combatOnly((id, { key } = {}) => qteSystem.qteKey(id, key)), 40);
   onPlayerEvent(socket, 'qteTimeout', (id) => qteSystem.qteTimeout(id), 10);
   onPlayerEvent(socket, 'backToLobby', () => { if (match.gameState === 'GAMEOVER') lobby.backToLobby(); }, 2);

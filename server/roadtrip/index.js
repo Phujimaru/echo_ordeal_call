@@ -259,6 +259,7 @@ function cancelCombatFlow() {
     p.qte = null;
     p.rtRoof = false; p.rtTurretAt = null; // หลังคา/ป้อมปืน (สู้บนรถตู้) จบไปพร้อมการต่อสู้
     if (p.freddy) p.freddy.door = null;
+    if (p.armstrong) require("../../characters/index").armstrong.cancelFlow(p); // อาร์มสตรอง: ดาเมจที่พักไว้/สวนกลับ/กดรัว
     if (p.dio) Object.assign(p.dio, { duel: null, duelPending: false, duelFoe: null, stopping: false, pending: 0 });
     p.locked = true;
   }

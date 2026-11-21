@@ -29,6 +29,7 @@ import { MagnaHeat } from "./hud/MagnaHud";
 import NaruhodoHud, { TradePanel } from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
+import ArmstrongMash from "./hud/ArmstrongMash";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import CampPanel from "../roadtrip/CampPanel"; // Road Trip: หน้าแคมป์ (กองไฟ — ทำอาหาร/กิจกรรมกลางคืน)
@@ -302,6 +303,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     lastGold.current = goldNow; lastBag.current = bagNow;
   }, [goldNow, bagNow]);
   const mashClock = useCallback(() => socket.emit("clockMash"), []); // Clock Up ชนกัน: กดรัว
+  const mashArm = useCallback(() => socket.emit("armMash"), []); // อาร์มสตรอง: กดรัว
   // เอมิลิโกะเดินต่อหลังจบตา: ได้แค่เดิน/ย้อน/รอ (+ กระจกเงา)
   const canto = myTurn && !!state.action.canto;
   // ปุ่มสกิลที่กดได้ระหว่างเดินต่อ (ตรงกับฮุค cantoSkill ฝั่ง server): พื้นฐาน · เอมิลิโกะ สลับอาวุธ (ตีแจกันแล้วถือไม้ถูพื้นไถลชนต่อ)
@@ -1276,6 +1278,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {state.court && CourtOverlay && createPortal(<Suspense fallback={null}><CourtOverlay state={state} me={state.youId} emit={(e, p) => socket.emit(e, p)} /></Suspense>, document.body)}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
+      {/* อาร์มสตรอง: กดรัวซ้อนบนคลิป (state.armQte — characters/armstrong.js) */}
+      <ArmstrongMash qte={state.armQte || null} players={state.players} myIds={[state.youId, state.controlId].filter(Boolean)} onMash={mashArm} />
       {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}
       <YukiBoom boom={state.yukiBoom || null} phase={phase} lowQ={lowQ} />
       {/* อรชุน: ฉาก Mahapralaya 17.4 วิ (state.arjunaUlt) · server พักตาเดินให้จนจบฉาก */}

@@ -228,6 +228,7 @@ function buildStateInner(viewerId) {
     dioDuel: CHAR_HOOKS.dio_brando.duelView(engine, [viewerId, controlId].filter(Boolean)), // Last Stand ของดิโอ (การ์ดอีกฝ่ายคว่ำจนเปิดพร้อมกัน)
     court: require("./court").view(viewerId, controlId), // ศาลของนารุโฮโดะ (server/court.js) — กรองต่อผู้ชม (คำให้การจริง/หลักฐาน/สิ่งที่เห็น)
     holdIt: require("./court").holdView(viewerId, controlId), // รอเดี๋ยว!!! ที่กำลังแทรกตา
+    armQte: CHAR_HOOKS.armstrong.qteView(engine), // อาร์มสตรอง: หน้าต่างกดรัว (ยืนวัดกันบลูกผู้ชาย / ไปคุยกับรากมะม่วง)
     freddyDoor: CHAR_HOOKS.freddy_fazbear.doorView(engine, [viewerId, controlId].filter(Boolean)), // มินิเกมประตูของเฟรดดี้ (ประตูอีกฝ่ายซ่อนจนผลออก)
     freddyNear: CHAR_HOOKS.freddy_fazbear.nearView(engine, [controlId || viewerId].filter(Boolean)), // เพลงเฟรดดี้: ผู้ชมอยู่ใกล้ (กลางวัน)
     turnOrder: masked ? [] : match.turnOrder,
@@ -434,6 +435,7 @@ function buildStateInner(viewerId) {
         midoriya: hook && hook.midoriyaState ? hook.midoriyaState(engine, p) : undefined, // มิโดริยะ: Full Cowl (เทิร์นที่เหลือ/คูลดาวน์) · คูลดาวน์ Smash แต่ละแบบ — GRID_PLAN §7.33
         naruhodo: hook && hook.naruhodoState ? hook.naruhodoState(engine, p, mine) : undefined, // นารุโฮโดะ: แฟ้มหลักฐาน · รอเดี๋ยว!!! · สืบสวน (เจ้าตัวเห็นเต็ม · คนอื่นเห็น holdReady)
         courtAlibi: mine && (p.courtAlibi || 0) > 0 ? p.courtAlibi : undefined, // ข้อแก้ตัวของศาลนารุโฮโดะ (เจ้าตัว)
+        armstrong: hook && hook.armstrongState ? hook.armstrongState(engine, p) : undefined, // อาร์มสตรอง: นาโน / ท่าสวนที่ค้าง / คูลดาวน์บุหรี่ — GRID_PLAN §7.39
         magna: hook && hook.magnaState ? hook.magnaState(engine, p) : undefined, // แม็กน่า: OverHeat · บอลไฟ · Fire Knuckle/Boost · โซ่ — GRID_PLAN §7.35
         celine: hook && hook.celineState ? hook.celineState(engine, p) : undefined, // เซลิน: อาวุธ / ความอ่อนโยนที่เหลือ / คูลดาวน์คฑา / ราชาดอกไม้ — GRID_PLAN §7.15
         ryougi: hook && hook.ryougiState ? hook.ryougiState(engine, p) : undefined, // เรียวกิ: คูลดาวน์หยินหยาง/ท่าไม้ตาย · เนตรมณะ/รากฐานจิต/ซากุระ (เทิร์นที่เหลือ) — GRID_PLAN §7.17
@@ -518,6 +520,7 @@ function unseenPub(o, p) {
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
     midoriya: undefined, // มิโดริยะ: มองไม่เห็น = ไม่รู้ Full Cowl/คูลดาวน์
     dino: undefined, // ดิเอโก้ อสูรกายดึกดำบรรพ์: มองไม่เห็น = ไม่รู้ร่าง/ความบ้าคลั่ง
+    armstrong: undefined, // อาร์มสตรอง: มองไม่เห็น = ไม่รู้นาโน/ท่าสวน
     magna: undefined, // แม็กน่า: มองไม่เห็น = ไม่รู้ OverHeat/บอลไฟ
     shinra: o.shinra ? { ember: null, max: null, hero: 0, warm: 0, smolder: 0, latomCd: null } : undefined,
     actions: undefined,

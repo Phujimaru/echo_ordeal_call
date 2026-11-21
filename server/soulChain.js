@@ -156,6 +156,7 @@ const MOVES = {
   diego_alt: { ultimate: (p) => !!(p.diego && p.diego.stopping) },
   diego_dino: { basic: (p) => !!(p.dino && p.dino.form === "dino"), secondary: (p) => !!(p.dino && p.dino.form === "dino"), ultimate: (p) => !!(p.dino && p.dino.form === "dino") }, // ร่างไดโนเสาร์: พุ่ง/กระโดด/กระโดดลง
   dio_brando: { ultimate: (p) => !!(p.dio && p.dio.stopping) },
+  armstrong: { basic: () => true }, // อาร์มสตรอง: ขอสักหมัดเถอะ (พุ่งไปต่อยผู้โจมตี)
   foxy: { basic: () => true }, // ฟ็อกซี่: ขอสักทีนะ ที่หน้า (พุ่งแนวตรง 7)
   giorno_giovanna: { ultimate: (p) => !!(p.giorno && p.giorno.requiem) },
   kate: { secondary: (p, o) => o.form === "whip" || o.form === "wings" },

@@ -108,6 +108,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'magna', // แม็กน่า สวิง: ไฟทุกการกระทำ — tests/characters/magna.test.js
     'diego_dino', // ดิเอโก้ อสูรกายดึกดำบรรพ์: ตีปกติพิษ (ลบสกิลติดตัว = ปกติ) · ร่างไดโนเสาร์ทุกสกิล + ฉันจะฆ่าแก พิษ — tests/characters/diego_dino.test.js
     'foxy', // ฟ็อกซี่: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
+    'armstrong', // อาร์มสตรอง: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
     'midoriya_izuku',
     'naruhodo_ryuichi']); // นารุโฮโดะ: ปกติทุกการกระทำ (สัญญา naruhodo-contract.md) // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);

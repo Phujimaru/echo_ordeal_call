@@ -443,6 +443,8 @@ const FILES = {
   gil_strange_fake: "/characters/gilgamesh_fake/gil_strange_fake.mp3",
   // รองโกมิเนียต: เพลงระหว่างชาร์จ 2 เทิร์น — contro ครั้งเดียว → standBy วน (MUSIC_SEQUENCES) · เพลงเด่น (FEATURED_MUSIC)
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
+  // อาร์มสตรอง: เพลงระหว่างเปิด Nanomachines (state.skillMusic · ไฟล์ผู้ใช้ theme.mp3 loudnorm -14 LUFS)
+  armstrong_nano: "/characters/armstrong/theme.mp3",
   // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
   fern_zoltraak: "/characters/fern/sfx/fern_zoltraak_full.mp3", // ตีปกติ Zoltraak — ไฟล์ผู้ใช้ "ZOLTRAAK FIre.mp3" ทั้งคลิป (ร่าย/ชาร์จ แล้วระเบิดที่ 1.50 วิ = FERN_SFX_LEAD)
   fern_zoltraak_max: "/characters/fern/sfx/fern_zoltraak_full_max.mp3", // Zoltraak ครั้งที่ 6 (ทะลุเกราะ) — คลิปเดียวกัน + ชั้นเสียงต่ำตอนระเบิด

@@ -1,0 +1,21 @@
+/* อาร์มสตรอง: หน้าต่างกดรัว (ArmstrongMash.jsx) — ซ้อนบนคัตซีน · transform/opacity เท่านั้น */
+.arm-mash { position: fixed; inset: 0; z-index: 160; pointer-events: none; }
+.arm-mash.me { pointer-events: auto; cursor: pointer; user-select: none; }
+.arm-mash.done { opacity: .5; }
+.arm-mash-who { position: absolute; left: 24px; top: 22px; display: flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border-radius: 999px; background: rgba(8, 10, 16, .72); border: 2px solid #d8b04a; }
+.arm-mash.ult .arm-mash-who { border-color: #ff5a3c; }
+.arm-mash-who img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: top; }
+.arm-mash-who span { font-size: 18px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px #000; }
+.arm-mash-core { position: absolute; right: 7%; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.arm-mash-ring { width: 170px; height: 170px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, rgba(255, 214, 90, .35) 0%, rgba(20, 14, 6, .82) 66%); border: 4px solid #ffd35a; box-shadow: 0 0 28px rgba(255, 190, 60, .8); animation: armPop .14s ease-out both; will-change: transform; }
+.arm-mash.ult .arm-mash-ring { border-color: #ff6a46; box-shadow: 0 0 28px rgba(255, 80, 50, .85); background: radial-gradient(circle, rgba(255, 110, 70, .35) 0%, rgba(24, 6, 4, .85) 66%); }
+.arm-mash-taps { font-size: 64px; font-weight: 900; color: #fff; text-shadow: 0 4px 12px #000; }
+.arm-mash-dmg { font-size: 40px; font-weight: 900; color: #ffe38a; text-shadow: 0 3px 8px #000; }
+.arm-mash.ult .arm-mash-dmg { color: #ffb19a; }
+.arm-mash-dmg small { font-size: 22px; opacity: .75; margin-left: 2px; }
+.arm-mash-keys { display: flex; gap: 10px; align-items: center; font-size: 26px; }
+.arm-mash-keys kbd { min-width: 96px; padding: 4px 10px; border-radius: 8px; border: 2px solid #fff; background: rgba(0, 0, 0, .55); color: #fff; font-size: 24px; text-align: center; }
+.arm-mash-bar { position: absolute; left: 50%; bottom: 7%; width: 44vw; height: 12px; margin-left: -22vw; border-radius: 6px; background: rgba(255, 255, 255, .18); overflow: hidden; }
+.arm-mash-bar i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #ffcf4a, #ff7a2e); transform-origin: left center; will-change: transform; }
+@keyframes armPop { from { transform: scale(1.12); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .arm-mash-ring { animation: none; } }

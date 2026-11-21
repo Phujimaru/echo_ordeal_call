@@ -214,6 +214,15 @@ export default function useCharSocketFx(ctx) {
       else if (kind === "magnaBatHit" && !lowQ) setShake((n) => n + 1);
     };
     socket.on("magnaFx", onMagna);
+    // อาร์มสตรอง (characters/armstrong.js): ไปคุยกับรากมะม่วง — ระเบิดปิดจบหลังคลิปปิดท้าย (คลิปจบแล้ว = เสียงไม่ซ้อนวีดีโอ)
+    const onArm = (ev) => {
+      if (!ev || ev.kind !== "boom" || !okT(ev.at)) return;
+      pushFx([{ kind: "soraBoom", x: ev.at.x, y: ev.at.y, size: Math.max(1, ev.size | 0), fire: true }]);
+      look(ev.at);
+      playSfx("diego_explode");
+      if (!lowQ) for (const d of [0, 140, 320, 560]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d));
+    };
+    socket.on("armFx", onArm);
     // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ไวรัส / เกราะแตก / ควบคุมร่าง / ฝูงไดโนเสาร์ / พุ่ง / กระโดด / ดูดแต้ม / กระทืบ / กลายพันธุ์
     //  เสียงฝั่ง client เฉพาะจังหวะที่ไม่มีคลิป: ไวรัสติด · ดูดแต้ม · หลุดการควบคุม (ท่าที่มีคลิปไม่เล่นเสียงซ้อน)
     const DINO_KIND = { virus: "dinoVirus", scorn: "dinoScorn", possess: "dinoPossess", release: "dinoRelease", swarm: "dinoSwarm", pin: "dinoPin", charge: "dinoCharge", leap: "dinoLeap", drain: "dinoDrain", stomp: "dinoStomp", stompHit: "dinoStompHit", transform: "dinoTransform", revert: "dinoRevert" };
@@ -284,7 +293,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

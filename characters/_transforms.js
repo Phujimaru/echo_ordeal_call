@@ -27,6 +27,7 @@ const gio = require("./giorno_giovanna"); // โจรุโน่: คลิป
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
 const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
+const arm = require("./armstrong"); // อาร์มสตรอง: ทุกคลิปเล่นทุกครั้ง ยกเว้นเปิดนาโน (ครั้งแรกของเกม — triggerCutscene) · ผู้ใช้ 2026-11-21
 const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
 const dino = require("./diego_dino"); // ดิเอโก้ อสูรกายดึกดำบรรพ์: ทุกคลิปทุกครั้ง (GRID_PLAN §7.36)
 const magna = require("./magna"); // แม็กน่า สวิง: Deathmatch (โซ่ติด) / Finisher (ทำงาน) ทุกครั้ง
@@ -237,6 +238,19 @@ module.exports = function buildTransforms() {
     [dino.CUT.stomp]: { img: dino.IMG.stomp, video: dino.VIDEO.stomp, title: "ย่ำกระหม่อม", label: "ปล่อยท่าไม้ตาย", seconds: 3, music: null, afterReveal: false, noIntro: true },
     [magna.CUT.deathmatch]: { img: magna.IMG.deathmatch, video: magna.VIDEO.deathmatch, title: magna.NAME.deathmatch, label: "ปล่อยท่าไม้ตาย", seconds: magna.CLIP_SEC.deathmatch, music: null, afterReveal: false },
     [magna.CUT.finisher]: { img: magna.IMG.finisher, video: magna.VIDEO.finisher, title: magna.NAME.finisher, label: "ปล่อยท่าไม้ตาย", seconds: magna.CLIP_SEC.finisher, music: null, afterReveal: false },
+    // อาร์มสตรอง (GRID_PLAN §7.39) — ความยาวจริง counter 9.77 · nano 11.5 · smoke 4.07 · ult 3.0/11.93/7.5 · guard 7.0/5.43/4.9/7.37 วิ
+    ...Object.fromEntries([
+      ["counter", arm.IMG.basic, "", "", true], // ไม่ขึ้นชื่อ: พุ่งไปต่อย · บุหรี่ · ฉากป้องกันทั้งชุด (ผู้ใช้ 2026-11-21)
+      ["nano", arm.IMG.nano, arm.NAME.nano, arm.NAME.secondary, false],
+      ["smoke", arm.IMG.smoke, "", "", true],
+      ["ultStart", arm.IMG.ult, arm.NAME.ult, "ปล่อยท่าไม้ตาย", false],
+      ["ultMash", arm.IMG.ult, arm.NAME.ult, "ปล่อยท่าไม้ตาย", true],
+      ["ultEnd", arm.IMG.ult, arm.NAME.ult, "ปล่อยท่าไม้ตาย", true],
+      ["guardStart", arm.IMG.nano, "", "", true],
+      ["guardMash", arm.IMG.nano, "", "", true],
+      ["guardHit", arm.IMG.nano, "", "", true],
+      ["guardBlock", arm.IMG.nano, "", "", true],
+    ].map(([k, img, title, label, noIntro]) => [arm.CUT[k], { img, video: arm.VIDEO[k], title, label, seconds: arm.CLIP_SEC[k], music: null, afterReveal: false, ...(noIntro ? { noIntro: true } : {}) }])),
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

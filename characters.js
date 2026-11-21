@@ -1963,6 +1963,57 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- อาร์มสตรอง — กลาง — ดู characters/armstrong.js (GRID_PLAN §7.39) ----------
+    //  HP 10 / เกราะ 5 = ค่าฐานกลาง 7+3 / 3+2 (combat.STAT_BONUS)
+    id: "armstrong",
+    gender: "m",
+    name: "อาร์มสตรอง",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/armstrong/armstrong.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Nanomachines",
+      desc: "ทำงานเมื่อเปิด NanoMachine ไง ไอ้ลูกชาย · เกราะ +2 ทุกต้นเทิร์น · เกราะลด 1 หน่วย (ทุกทาง) = ฟื้นพลังชีวิต 1 · เกราะสูงสุด +5 · ปิด = เกราะที่เกินหายไป",
+    },
+    passive2: {
+      name: "ยืนวัดกันบลูกผู้ชาย",
+      desc: "Nanomachines ทำงาน + เกราะ 5 ขึ้นไป: ผู้เล่นที่ทำให้อาร์มสตรองเสียหาย (ทุกการโจมตี) ได้กดรัว 5 วิ (Space/คลิก) · 10 ครั้ง = ความเสียหาย +1 (สูงสุดเท่าเกราะที่มี) · ยูนิต AI ไม่มีการกดรัว",
+    },
+    passive3: {
+      name: "ขอทำลายปอดแปบ",
+      desc: "ปุ่มพิเศษ: แต้มสกิล +2 ทันที (ไม่นับเป็นการใช้สกิล · คูลดาวน์ 2 เทิร์น)",
+    },
+    basic: {
+      name: "ขอสักหมัดเถอะ",
+      desc: "เลือก 1 แบบ · คงอยู่ 2 เทิร์น ทำงาน 1 ครั้ง (ค้างอยู่ = กดซ้ำไม่ได้) · สวนกลับ: ถูกผู้อื่นทำให้เสียหาย = ยังรับความเสียหาย แล้วพุ่งไปต่อยผู้โจมตี 3 (หลบได้ · ลดเกราะก่อน) ผลักออก 5 ช่อง · สวนกลับช่วยเหลือ: ผู้เล่นอื่นในระยะ 4 ถูกโจมตี = กันการโจมตีนั้นทั้งหมด แล้วพุ่งไปต่อยผู้โจมตีแบบเดียวกัน (ไม่นับผลด่าน/สถานะผิดปกติ)",
+      area: { kind: "self" },
+      cost: 3,
+      img: "/characters/armstrong/skill1.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "NanoMachine ไง ไอ้ลูกชาย",
+      desc: "เปิด/ปิด Nanomachines (1 ครั้งต่อเทิร์น · ไม่นับเป็นการใช้สกิล) · เปิดอยู่: พลังโจมตี +1 · ต้นเทิร์นใช้แต้มสกิล 1 (ไม่พอ = ปิดเอง)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/armstrong/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "ไปคุยกับรากมะม่วง",
+      desc: "ศัตรู 1 คนติดตัว (หลบได้): นั่งค่อมแล้วรัวหมัด กดรัว 10 วิ (Space/คลิก) · 10 ครั้ง = ความเสียหาย 1 (สูงสุด 10 · ลดเกราะก่อน) (คูลดาวน์ 3 เทิร์น)",
+      area: { kind: "target", range: 1, hostile: true },
+      cost: 6,
+      img: "/characters/armstrong/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
