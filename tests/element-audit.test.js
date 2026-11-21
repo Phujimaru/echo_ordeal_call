@@ -109,7 +109,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'diego_dino', // ดิเอโก้ อสูรกายดึกดำบรรพ์: ตีปกติพิษ (ลบสกิลติดตัว = ปกติ) · ร่างไดโนเสาร์ทุกสกิล + ฉันจะฆ่าแก พิษ — tests/characters/diego_dino.test.js
     'foxy', // ฟ็อกซี่: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
     'armstrong', // อาร์มสตรอง: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
-    'vergil', // เวอจิล: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
+    'vergil', // เวอจิล: ตีปกติ + ทุกสกิลลม · Judgment Cut End ไฟฟ้า — tests/characters/vergil.test.js
     'midoriya_izuku',
     'naruhodo_ryuichi']); // นารุโฮโดะ: ปกติทุกการกระทำ (สัญญา naruhodo-contract.md) // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);

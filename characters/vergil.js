@@ -24,7 +24,7 @@
 //    โดนศัตรูทำให้เสียหายแล้วคอมโบไม่หลุด · ต้นเทิร์นแต้มสกิล +2 และเกราะ +1 · ทำงานครั้งแรกของแมตช์ = คลิป passive2 (ไฟล์ผู้ใช้ · ไม่มีชื่อบนคลิป)
 //
 //  การตัดสินของ Claude (ผู้ใช้ไม่ได้ระบุ):
-//    ทุกท่าธาตุปกติ · ฟันโหมกระหน่ำ 3 ครั้งทอยหลบครั้งเดียว (ครั้งแรก) — ถูกหลบ = ไม่โดนทั้งชุด · เงาถูกหลบไม่ทำให้คอมโบหลุด
+//    ธาตุ: ตีปกติ + ทุกสกิลลม · Judgment Cut End ไฟฟ้า (ผู้ใช้สั่ง 2026-11-21) · ฟันโหมกระหน่ำ 3 ครั้งทอยหลบครั้งเดียว (ครั้งแรก) — ถูกหลบ = ไม่โดนทั้งชุด · เงาถูกหลบไม่ทำให้คอมโบหลุด
 //    ถึงเพดาน 3 แล้วยังฟันได้และยังนับ HIT/ได้แต้มคืน (ดาเมจ 0) · ตีปกติโดน +1 HIT (จบตาเดินตามปกติ · คอมโบไม่หลุด)
 //    ใช้ท่าเดิมครั้งที่ 3 ติดกัน = ท่านั้นยังฟัน แต่ไม่นับ HIT / ไม่ได้แต้มคืน แล้วคอมโบหลุด
 //    "ลอย" = สถานะ rooted ของกลาง 1 เทิร์น + ธง vergilAir ของเวอจิล · ลบสกิลติดตัว = ไม่นับคอมโบ/ไม่มีหน้าต่างเวลา/ไม่มี JCE (ฟันได้ตามโควตาปกติ)
@@ -386,8 +386,8 @@ function judgmentCutEnd(engine, p, t) {
   engine.queueCutscene(p, CUT.dash);
   engine.queueCutscene(p, CUT.jce);
   engine.deferAfterCutscene(() => {
-    // เฉพาะเป้าที่กำลังคอมโบ (หลบได้ · เกราะก่อน · ไม่ติดเพดาน)
-    if (t && foe(engine, p, t)) slash(engine, p, t, NAME.jce, JCE.dmg, { noCap: true });
+    // เฉพาะเป้าที่กำลังคอมโบ (หลบได้ · เกราะก่อน · ไม่ติดเพดาน) · ธาตุไฟฟ้า (ผู้ใช้สั่ง 2026-11-21 — ท่าอื่นทั้งหมดลม)
+    if (t && foe(engine, p, t)) engine.withElement("bolt", () => slash(engine, p, t, NAME.jce, JCE.dmg, { noCap: true }));
     if (!s.stormShown && p.alive) { s.stormShown = true; engine.queueCutscene(p, CUT.storm); }
   });
 }
@@ -410,6 +410,9 @@ module.exports = {
     return foe(engine, p, t);
   },
   // ฟันโหมกระหน่ำ/ฟันขึ้น: ไม่กินโควตา + กดได้แม้ใช้โควตาแล้ว (ลบสกิลติดตัว = โควตาปกติ)
+  // ธาตุ (ผู้ใช้สั่ง 2026-11-21): ตีปกติ + ทุกสกิล (ฟันโหมกระหน่ำ/ฟันขึ้น/เงา/ท่าคอมโบ/พุ่ง) = ลม · Judgment Cut End = ไฟฟ้า (withElement ในฉากหลังคลิป)
+  attackElement(engine, p) { return isMe(p) ? "wind" : null; },
+  skillElement(engine, p) { return isMe(p) ? "wind" : null; },
   ownsAreaHit(p, tier) { return isMe(p) && tier === "ultimate"; },
   skipsTurnQuota(p, tier) { return isMe(p) && tier !== "ultimate" && passiveOn(p); },
   ignoresTurnQuota(p, tier) { return isMe(p) && tier !== "ultimate" && passiveOn(p); },

@@ -369,3 +369,12 @@ test('ท่าไม้ตาย: พุ่งแนว 4×1 หยุดหน
   engine.useSkill('V', 'secondary', ['D']);
   assert.ok(P.V.vergil.combo > 4);
 });
+
+test('ธาตุ: ตีปกติ + ทุกสกิลลม · Judgment Cut End ไฟฟ้า', () => {
+  const Element = require('../../server/element.js');
+  const P = vergilVs();
+  assert.equal(Element.attackElementOf(P.V), 'wind');
+  for (const tier of ['basic', 'secondary', 'ultimate']) assert.equal(Element.skillElementOf(P.V, tier, {}), 'wind');
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../characters/vergil.js'), 'utf8');
+  assert.match(src, /withElement\("bolt", \(\) => slash\(engine, p, t, NAME\.jce/);
+});
