@@ -340,3 +340,14 @@ test('Doppelganger: หมดเวลาต่อคอมโบ = เงาร
   assert.equal(P.V.vergil.guard, 2);
   assert.ok(P.V.vergil.max > 0);
 });
+
+test('ฟันโดนมีโอกาส 20% ไม่ได้แต้มคืน', () => {
+  const P = vergilVs();
+  Math.random = () => 0.1; // < 20% → ไม่คืน (และเกินอ่านทางออก 0% ตอน 0 HIT)
+  engine.useSkill('V', 'basic', ['D']);
+  assert.equal(P.V.vergil.combo, 3);
+  assert.equal(P.V.skillPoints, 7);
+  Math.random = () => 0.5;
+  engine.useSkill('V', 'secondary', ['D']);
+  assert.equal(P.V.skillPoints, 7); // จ่าย 1 ได้คืน 1
+});

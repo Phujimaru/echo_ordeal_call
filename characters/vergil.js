@@ -181,8 +181,12 @@ function addHits(engine, p, n) {
     if (healed > 0) engine.log(`💚 ${p.name} ${Math.floor(s.combo / HEAL_EVERY) * HEAL_EVERY} HIT — ฟื้นพลังชีวิต +${healed}`);
   }
 }
+// ฟันโดน = แต้มคืน 1 · โอกาส 20% ไม่ได้คืน (ผู้ใช้สั่ง 2026-11-21)
+const REFUND_MISS = 20;
 function refund(engine, p) {
+  if (Math.random() * 100 < REFUND_MISS) { engine.log(`⚔️ ${p.name} ไม่ได้แต้มคืน`); return false; }
   engine.addSkill(p, 1, "vergil");
+  return true;
 }
 
 // ---------- ฟันโหมกระหน่ำ / ฟันขึ้น ----------
@@ -360,7 +364,7 @@ function judgmentCutEnd(engine, p) {
 module.exports = {
   id: ID,
   IMG, VIDEO, CUT, CLIP_SEC, FX, FX_MS, MUSIC, NAME, RAPID, UPPER, DOPPEL, JCE, CAP,
-  isVergil: isMe, duelOn, STORM, ROUTES, windowMs, readPct,
+  isVergil: isMe, duelOn, STORM, ROUTES, REFUND_MISS, windowMs, readPct,
 
   resetCombat(p) {
     if (p.vergil) stopWindow(p);
