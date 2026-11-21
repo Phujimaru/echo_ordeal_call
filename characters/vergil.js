@@ -6,6 +6,7 @@
 //  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 1 (+2 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้) · เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
 //    กลางอากาศ (ผู้ใช้สั่ง 2026-11-21): ฟันโหมกระหน่ำ/ฟันขึ้นใส่เป้าลอย = เป้าลอยค้าง ฟันต่อได้ไม่หยุด · จบตาเดิน = ดิ่งตบเป้าลงพื้น
 //  ท่าไม้ตาย Doppelganger (4 แต้ม · ใช้กับตัวเอง): 2 เทิร์น — ทุกครั้งที่ฟันโหมกระหน่ำ/ฟันขึ้นโดน เงาฟันตามอีก 1 ครั้ง (ดาเมจ 1 · +1 HIT)
+//    + เงากันหลุด 3 ครั้ง (ผู้ใช้เลือก 2026-11-21): คอมโบที่จะหลุดเพราะถูกหลบ/หมดเวลา/โดนตี = เงารับแทน ไม่หลุด ไม่จบตา
 //  สกิลติดตัว คอมโบ A+:
 //    ฟันโหมกระหน่ำ/ฟันขึ้นไม่กินโควตาสกิลของเทิร์น (กดได้ไม่จำกัดในตาเดิน) · โดน = แต้มสกิลคืน 1 (ผู้ใช้เลือก 2026-11-21)
 //    ตัวนับคอมโบค้างข้ามเทิร์น · หลังฟันแต่ละครั้งต้องกดท่าถัดไปให้ทัน (0–9 HIT 3 วิ · 10–19 2 วิ · 20+ 1.2 วิ) —
@@ -47,7 +48,7 @@ const NAME = { basic: "ฟันโหมกระหน่ำ", secondary: "ฟ
 
 const RAPID = { hits: 3, dmg: 1 };
 const UPPER = { dmg: 1, air: 1, hits: 2 }; // ฟันขึ้นโดน = +2 HIT (ผ่อน 2026-11-21)
-const DOPPEL = { turns: 2, dmg: 1 };
+const DOPPEL = { turns: 2, dmg: 1, guard: 3 }; // guard = เงากันคอมโบหลุดได้กี่ครั้ง
 const JCE = { at: 30, dmg: 6 };
 const STORM = { sp: 2, armor: 1 }; // พายุไม่หยุด: ต้นเทิร์น
 const CAP = 3; // ศัตรู 1 คนเสียจากเวอจิลได้ไม่เกิน 3 ต่อเทิร์น (ไม่นับ JCE ที่ระเบิดเพิ่มอีก 6 — ผู้ใช้สั่ง 2026-11-21: 6 → 4 → 3)
@@ -91,6 +92,16 @@ function windowMs(combo) { return combo >= 20 ? 1200 : combo >= 10 ? 2000 : 3000
 // ผ่อนแล้ว (ผู้ใช้เลือก 2026-11-21 — เดิม 5/15/30/45% ถึง 30 HIT ในตาเดียวได้แค่ราว 5%)
 function readPct(combo) { return combo >= 26 ? 15 : combo >= 20 ? 10 : combo >= 10 ? 6 : combo >= 1 ? 3 : 0; }
 const doppelOn = (engine, p) => st(p).doppelUntil >= engine.roundNumber;
+// เงากันหลุด (บัฟ Doppelganger — ผู้ใช้เลือก 2026-11-21): ระหว่าง Doppelganger คอมโบที่จะหลุด (ถูกหลบ/หมดเวลา/โดนตี) = เงารับแทน 3 ครั้ง
+//  คอมโบไม่หลุด ไม่จบตา · แต้มที่กดไปแล้วไม่คืน · หมดอายุพร้อม Doppelganger
+function guarded(engine, p, why) {
+  const s = st(p);
+  if (!passiveOn(p) || !doppelOn(engine, p) || (s.guard || 0) <= 0 || s.combo <= 0) return false;
+  s.guard--;
+  engine.log(`👥 ${p.name} เงารับแทน (${why}) — คอมโบไม่หลุด · เหลือ ${s.guard}`);
+  if (p.pos) engine.boardFx(FX, { kind: "doppel", id: p.id, at: { ...p.pos }, small: true });
+  return true;
+}
 
 // ---------- หน้าต่างเวลา (นับเฉพาะตอนอยู่ในตาเดินของตัวเอง) ----------
 const ticking = new Map(); // playerId → interval
@@ -111,6 +122,7 @@ function openWindow(engine, p) {
     s.left -= TICK_MS;
     if (s.left > 0) return;
     stopWindow(p);
+    if (guarded(engine, p, "หมดเวลา")) { openWindow(engine, p); engine.broadcastState(); return; }
     breakCombo(engine, p, "หมดเวลา");
     engine.finishActor();
   }, TICK_MS);
@@ -193,7 +205,10 @@ function comboSlash(engine, p, tier, t) {
   if (readDodge(engine, p, t)) {
     fx({ kind: "whiff" });
     beat(FX_MS.whiff);
-    if (passive) { breakCombo(engine, p, "ถูกหลบ"); s.endNow = true; }
+    if (passive) {
+      if (guarded(engine, p, "ถูกหลบ")) openWindow(engine, p);
+      else { breakCombo(engine, p, "ถูกหลบ"); s.endNow = true; }
+    }
     return;
   }
   let hits = 0;
@@ -237,7 +252,10 @@ function comboSlash(engine, p, tier, t) {
     beat(!hits ? FX_MS.whiff : tier === "basic" ? FX_MS.rapid : FX_MS.upper);
   }
   if (!hits) {
-    if (passive) { breakCombo(engine, p, "ถูกหลบ"); s.endNow = true; }
+    if (passive) {
+      if (guarded(engine, p, "ถูกหลบ")) openWindow(engine, p);
+      else { breakCombo(engine, p, "ถูกหลบ"); s.endNow = true; }
+    }
     return;
   }
   if (!passive) return;
@@ -369,6 +387,7 @@ module.exports = {
     const s = st(p);
     if (tier === "ultimate") {
       s.doppelUntil = engine.roundNumber + DOPPEL.turns - 1;
+      s.guard = DOPPEL.guard;
       s.doppelAt = engine.severStamp();
       engine.log(`👥 ${p.name} ${NAME.ult} (${DOPPEL.turns} เทิร์น)`);
       if (p.pos) engine.boardFx(FX, { kind: "doppel", id: p.id, at: { ...p.pos } });
@@ -416,6 +435,7 @@ module.exports = {
     if (duelOn(engine, p)) return; // พายุไม่หยุด: โดนตีแล้วคอมโบไม่หลุด
     const src = engine.effectSourceId ? engine.players[engine.effectSourceId] : null;
     if (!src || src.id === p.id || engine.sameTeam(src, p)) return;
+    if (guarded(engine, p, "โดนโจมตี")) return;
     breakCombo(engine, p, "โดนโจมตี");
   },
 
@@ -489,6 +509,6 @@ module.exports = {
   vergilState(engine, p) {
     if (!isMe(p)) return undefined;
     const s = st(p);
-    return { combo: s.combo, left: Math.max(0, s.left), max: s.max, doppel: doppelOn(engine, p), at: JCE.at, target: s.target, storm: duelOn(engine, p), air: !!s.air, seq: s.seq || "", route: s.route, routeAt: s.routeAt || 0, routes: ROUTES.map((r) => ({ key: r.key, seq: r.seq, name: r.name, desc: r.desc })) };
+    return { combo: s.combo, left: Math.max(0, s.left), max: s.max, doppel: doppelOn(engine, p), guard: doppelOn(engine, p) ? s.guard || 0 : 0, at: JCE.at, target: s.target, storm: duelOn(engine, p), air: !!s.air, seq: s.seq || "", route: s.route, routeAt: s.routeAt || 0, routes: ROUTES.map((r) => ({ key: r.key, seq: r.seq, name: r.name, desc: r.desc })) };
   },
 };

@@ -123,7 +123,7 @@ export default function VergilCombo({ v, live }) {
         <div className="vgc-card">
           <div className="vgc-head">
             <span className="vgc-title">Combo</span>
-            {v.doppel && <span className="vgc-doppel">👥</span>}
+            {v.doppel && <span className="vgc-doppel">👥{v.guard > 0 ? ` ${v.guard}` : ""}</span>}
             <button type="button" className="vgc-book" onClick={() => setManual(true)} aria-label="คู่มือคอมโบ"><BookIcon /></button>
           </div>
           {v.combo > 0 ? (

@@ -304,3 +304,39 @@ test('กด Doppelganger แล้วยังฟันต่อได้ · �
   assert.equal(locks.basic.free, true);
   assert.equal(locks.secondary.free, true);
 });
+
+test('Doppelganger: เงากันคอมโบหลุด 3 ครั้ง (ถูกหลบ/โดนตี) — คอมโบไม่หลุด ไม่จบตา · ครั้งที่ 4 หลุดตามปกติ', () => {
+  const P = setup([['V', 'vergil', 5, 7], ['D', 'dummy', 6, 7], ['E', 'dummy', 9, 7]]);
+  P.V.skillPoints = 8;
+  engine.setActor('V');
+  engine.useSkill('V', 'ultimate', []);
+  engine.useSkill('V', 'basic', ['D']);
+  const c0 = P.V.vergil.combo;
+  Math.random = () => 0.01; // ถูกอ่านทางออก
+  engine.useSkill('V', 'secondary', ['D']);
+  assert.equal(P.V.vergil.combo, c0);
+  assert.equal(engine.actorId, 'V');
+  assert.equal(P.V.vergil.guard, 2);
+  engine.useSkill('V', 'basic', ['D']);
+  assert.equal(P.V.vergil.guard, 1);
+  Math.random = () => 0.99;
+  engine.withEffectSource(P.D, () => engine.dealMixed(P.V, 1, false)); // โดนตี
+  assert.equal(P.V.vergil.combo, c0);
+  assert.equal(P.V.vergil.guard, 0);
+  Math.random = () => 0.01;
+  engine.useSkill('V', 'secondary', ['D']);
+  assert.equal(P.V.vergil.combo, 0);
+  assert.notEqual(engine.actorId, 'V');
+});
+
+test('Doppelganger: หมดเวลาต่อคอมโบ = เงารับแทน เปิดหน้าต่างใหม่ ไม่จบตา', async () => {
+  const P = vergilVs();
+  engine.useSkill('V', 'ultimate', []);
+  P.V.vergil.combo = 21; // 20+ = 1.2 วิ
+  engine.useSkill('V', 'basic', ['D']);
+  await new Promise((r) => setTimeout(r, 1500));
+  assert.ok(P.V.vergil.combo >= 24);
+  assert.equal(engine.actorId, 'V');
+  assert.equal(P.V.vergil.guard, 2);
+  assert.ok(P.V.vergil.max > 0);
+});
