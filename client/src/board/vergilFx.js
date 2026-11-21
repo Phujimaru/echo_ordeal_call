@@ -361,7 +361,7 @@ export function vergilEventFx(ev, ctx = {}) {
       const hits = Math.max(0, Math.min(3, ev.hits | 0));
       out.fx.push({ ...base, kind: "vgRapid", from: pt(ev.from), to: pt(ev.to), hits, air: !!ev.air, vair: !!ev.vair, dur: VG_T.rapid });
       out.busy.push({ id: ev.id, ms: VG_T.rapid });
-      VG_T.rapidHits.slice(0, hits).forEach((ms, i) => { out.shake.push(ms); snd(ms - 20, VG_SFX.rapid[i % 3]); });
+      VG_T.rapidHits.slice(0, hits).forEach((ms, i) => { out.shake.push(ms); snd(ms - 55, i === hits - 1 ? VG_SFX.rapid[2] : VG_SFX.rapid[i % 2]); }); // จุดปะทะในไฟล์ ~55 ms
       if (hits) out.defer.push({ id: ev.targetId, ms: VG_T.rapidHits[hits - 1] });
       break;
     }
@@ -370,7 +370,7 @@ export function vergilEventFx(ev, ctx = {}) {
       out.fx.push({ ...base, kind: "vgUpper", from: pt(ev.from), to: pt(ev.to), hits: ev.hits ? 1 : 0, air: !!ev.air, vair: !!ev.vair, dur: VG_T.upper });
       out.busy.push({ id: ev.id, ms: VG_T.upper });
       out.shake.push(VG_T.upperHit);
-      snd(VG_T.upperHit - 40, VG_SFX.upper);
+      snd(VG_T.upperHit - 100, VG_SFX.upper);
       if (ev.hits) out.defer.push({ id: ev.targetId, ms: VG_T.upperHit });
       break;
     case "shadow":
@@ -378,13 +378,13 @@ export function vergilEventFx(ev, ctx = {}) {
       // ช้ากว่าดาบจริง (ev.delay ms) — playOut ไม่เล่นชุดที่ fx ว่าง จึงใส่ประกายเล็กไว้ทันที แล้วร่างเงาตามมาทีหลัง
       out.later.push([ev.delay || 0, [{ ...base, kind: "vgShadow", from: okT(ev.from) ? pt(ev.from) : null, to: pt(ev.to), dur: VG_T.shadow }]]);
       out.fx.push({ ...base, kind: "vgSheathe", at: pt(ev.to), dur: 1 });
-      snd(VG_T.shadowHit + (ev.delay || 0), VG_SFX.shadow);
+      snd(Math.max(0, VG_T.shadowHit + (ev.delay || 0) - 260), VG_SFX.shadow);
       break;
     case "whiff":
       if (!okT(ev.from) || !okT(ev.to)) break;
       out.fx.push({ ...base, kind: "vgWhiff", from: pt(ev.from), to: pt(ev.to), air: !!ev.air, vair: !!ev.vair, dur: VG_T.whiff });
       out.busy.push({ id: ev.id, ms: VG_T.whiff });
-      snd(VG_T.whiffHit - 30, VG_SFX.whiff);
+      snd(VG_T.whiffHit - 150, VG_SFX.whiff);
       break;
     case "doppel":
       if (!okT(ev.at)) break;
@@ -402,7 +402,7 @@ export function vergilEventFx(ev, ctx = {}) {
       out.fx.push({ ...base, kind: "vgLand", from: pt(ev.from), to: pt(ev.to), dur: VG_T.land });
       out.busy.push({ id: ev.id, ms: VG_T.land });
       out.shake.push(VG_T.landHit, VG_T.landHit + 120);
-      snd(VG_T.landHit - 30, VG_SFX.slam);
+      snd(VG_T.landHit - 35, VG_SFX.slam);
       if (ev.targetId) out.defer.push({ id: ev.targetId, ms: VG_T.landHit });
       break;
     case "break":

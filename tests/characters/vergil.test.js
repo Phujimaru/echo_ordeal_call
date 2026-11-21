@@ -79,7 +79,7 @@ test('ฟันโหมกระหน่ำ: 3 ครั้ง ครั้ง
   assert.equal(engine.actorId, 'V');
 });
 
-test('ฟันรัวได้หลายครั้งในตาเดียว (ไม่กินโควตา) · ฟันขึ้น = ลอย + ฟันโหมกระหน่ำใส่เป้าลอย ครั้งละ 2', () => {
+test('ฟันรัวได้หลายครั้งในตาเดียว (ไม่กินโควตา) · ฟันขึ้น (+2 HIT) = ลอย + ฟันโหมกระหน่ำใส่เป้าลอย ครั้งละ 2', () => {
   const P = vergilVs();
   engine.useSkill('V', 'secondary', ['D']);
   assert.equal(vit(P.D), 13);
@@ -87,7 +87,7 @@ test('ฟันรัวได้หลายครั้งในตาเด�
   assert.ok(P.D.vergilAir);
   engine.useSkill('V', 'basic', ['D']);
   assert.equal(vit(P.D), 9); // เพดาน 6 ต่อเทิร์น: 2 + (2+2+2) → ตัดเหลือ 6
-  assert.equal(P.V.vergil.combo, 4);
+  assert.equal(P.V.vergil.combo, 5); // ฟันขึ้น +2 · ฟันโหมกระหน่ำ +3
   assert.ok(P.D.vergilAir); // ฟันกลางอากาศ = ยังลอยค้าง
   assert.ok(P.V.vergil.air);
   vg.charAction(engine, P.V, 'sheathe'); // จบตา = ดิ่งตบลงพื้น
@@ -100,22 +100,25 @@ test('เพดาน 6 ต่อเป้าต่อเทิร์น · ย�
   const P = vergilVs();
   for (let i = 0; i < 4; i++) engine.useSkill('V', i % 2 ? 'secondary' : 'basic', ['D']);
   assert.equal(vit(P.D), 15 - 6);
-  assert.equal(P.V.vergil.combo, 8);
+  assert.equal(P.V.vergil.combo, 10);
   assert.equal(P.V.skillPoints, 8);
   engine.setRoundNumber(2);
   engine.setActor('V');
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(vit(P.D), 15 - 6 - 6); // เทิร์นใหม่ เพดานรีเซ็ต · เป้ายังลอยจากฟันขึ้นครั้งล่าสุด = ครั้งละ 2
+  assert.equal(vit(P.D), 15 - 6 - 6); // เทิร์นใหม่ เพดานรีเซ็ต · เป้ายังลอย (ครั้งละ 2) + 10 HIT (+1) = 3×3 ตัดที่ 6
 });
 
-test('ท่าเดิม 3 ครั้งติด = คอมโบหลุด + จบตาเดิน', () => {
+test('ท่าเดิม 3 ครั้งติด = ไม่นับ HIT แต่คอมโบไม่หลุด · ยังได้แต้มคืน', () => {
   const P = vergilVs();
   engine.useSkill('V', 'basic', ['D']);
   engine.useSkill('V', 'basic', ['D']);
   assert.equal(P.V.vergil.combo, 6);
   engine.useSkill('V', 'basic', ['D']);
-  assert.equal(P.V.vergil.combo, 0);
-  assert.notEqual(engine.actorId, 'V');
+  assert.equal(P.V.vergil.combo, 6);
+  assert.equal(P.V.skillPoints, 8);
+  assert.equal(engine.actorId, 'V');
+  engine.useSkill('V', 'secondary', ['D']);
+  assert.equal(P.V.vergil.combo, 8); // สลับท่า = นับใหม่ (+2)
 });
 
 test('ศัตรูอ่านทางออก = คอมโบหลุด + จบตาเดิน · ไม่โดน', () => {
@@ -170,7 +173,7 @@ test('Doppelganger: เงาฟันตาม +1 HIT ความเสีย�
   engine.useSkill('V', 'ultimate', []);
   assert.equal(P.V.skillPoints, 4);
   engine.useSkill('V', 'secondary', ['D']);
-  assert.equal(P.V.vergil.combo, 2);
+  assert.equal(P.V.vergil.combo, 3); // ฟันขึ้น +2 · เงา +1
   assert.equal(vit(P.D), 15 - 3);
   const sev = vg.severables(engine, P.V);
   assert.equal(sev.length, 1);

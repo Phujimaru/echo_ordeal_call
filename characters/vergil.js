@@ -3,15 +3,15 @@
 //
 //  ค่าพื้นฐาน: HP 10 / เกราะ 5 / พลังโจมตี 1 (ค่าตั้งต้น) · เดิน 4 · ตีประชิด [1, 1]
 //  สกิลพื้นฐาน ฟันโหมกระหน่ำ (1 แต้ม · ประชิด): ฟันรัว 3 ครั้ง ครั้งละ 1 (+3 HIT) · เป้าลอย = ครั้งละ 2 แล้วตบลงพื้น (หายลอย)
-//  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 2 (+1 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้) · เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
+//  สกิลรอง ฟันขึ้น (1 แต้ม · ประชิด): ดาเมจ 2 (+2 HIT) · เป้าติดสถานะ "ลอย" 1 เทิร์น (เดินไม่ได้) · เวอจิลลอยตามขึ้นไปฟันต่อกลางอากาศ
 //    กลางอากาศ (ผู้ใช้สั่ง 2026-11-21): ฟันโหมกระหน่ำ/ฟันขึ้นใส่เป้าลอย = เป้าลอยค้าง ฟันต่อได้ไม่หยุด · จบตาเดิน = ดิ่งตบเป้าลงพื้น
 //  ท่าไม้ตาย Doppelganger (4 แต้ม · ใช้กับตัวเอง): 2 เทิร์น — ทุกครั้งที่ฟันโหมกระหน่ำ/ฟันขึ้นโดน เงาฟันตามอีก 1 ครั้ง (ดาเมจ 1 · +1 HIT)
 //  สกิลติดตัว คอมโบ A+:
 //    ฟันโหมกระหน่ำ/ฟันขึ้นไม่กินโควตาสกิลของเทิร์น (กดได้ไม่จำกัดในตาเดิน) · โดน = แต้มสกิลคืน 1 (ผู้ใช้เลือก 2026-11-21)
 //    ตัวนับคอมโบค้างข้ามเทิร์น · หลังฟันแต่ละครั้งต้องกดท่าถัดไปให้ทัน (0–9 HIT 3 วิ · 10–19 2 วิ · 20+ 1.2 วิ) —
 //      เวลานับเฉพาะตอนเกมอยู่ในตาเดิน (คลิป/ฉากไม่กิน) · หมดเวลา = คอมโบหลุด + จบตาเดิน
-//    ศัตรูอ่านทางออก: ก่อนฟันทุกครั้งทอยหลบเพิ่ม 5% / 15% / 30% / 45% (1–5 / 6–15 / 16–25 / 26+ HIT) · แม่นยำเจาะได้
-//    คอมโบหลุด (กลับเป็น 0 และจบตาเดิน): หมดเวลา · ถูกหลบ · ใช้ท่าเดิม 3 ครั้งติดกัน — โดนศัตรูทำให้เสียหาย = หลุด (ไม่ต้องจบตา)
+//    ศัตรูอ่านทางออก: ก่อนฟันทุกครั้งทอยหลบเพิ่ม 3% / 6% / 10% / 15% (1–9 / 10–19 / 20–25 / 26+ HIT) · แม่นยำเจาะได้
+//    คอมโบหลุด (กลับเป็น 0 และจบตาเดิน): หมดเวลา · ถูกหลบ — โดนศัตรูทำให้เสียหาย = หลุด (ไม่ต้องจบตา) · ท่าเดิม 3 ครั้งติด = ไม่นับ HIT (ผ่อน 2026-11-21)
 //    ปุ่ม HUD "เก็บดาบ" = จบตาเดินโดยคอมโบไม่หลุด
 //    10 HIT: ดาเมจทุกครั้ง +1 · 20 HIT: +2 · ศัตรู 1 คนเสียจากเวอจิลได้ไม่เกิน 6 ต่อเทิร์น (ผู้ใช้สั่ง)
 //    30 HIT: Judgment Cut End ทำงานเองทันที (ไม่เสียแต้ม) — ศัตรูทุกตัวที่มองเห็น ดาเมจ 6 (เกราะก่อน · หลบได้ · ไม่ติดเพดาน 6)
@@ -44,7 +44,7 @@ const MUSIC = "vergil_theme"; // กล่องเพลง (ปุ่ม HUD �
 const NAME = { basic: "ฟันโหมกระหน่ำ", secondary: "ฟันขึ้น", ult: "Doppelganger", shadow: "เงาฟัน", jce: "Judgment Cut End", sheathe: "เก็บดาบ", music: "กล่องเพลง" };
 
 const RAPID = { hits: 3, dmg: 1, air: 2 };
-const UPPER = { dmg: 2, air: 1 };
+const UPPER = { dmg: 2, air: 1, hits: 2 }; // ฟันขึ้นโดน = +2 HIT (ผ่อน 2026-11-21)
 const DOPPEL = { turns: 2, dmg: 1 };
 const JCE = { at: 30, dmg: 6 };
 const STORM = { sp: 2, armor: 1 }; // พายุไม่หยุด: ต้นเทิร์น
@@ -70,7 +70,8 @@ function duelOn(engine, p) {
 
 // ---------- ตัวเลขตามคอมโบ ----------
 function windowMs(combo) { return combo >= 20 ? 1200 : combo >= 10 ? 2000 : 3000; }
-function readPct(combo) { return combo >= 26 ? 45 : combo >= 16 ? 30 : combo >= 6 ? 15 : combo >= 1 ? 5 : 0; }
+// ผ่อนแล้ว (ผู้ใช้เลือก 2026-11-21 — เดิม 5/15/30/45% ถึง 30 HIT ในตาเดียวได้แค่ราว 5%)
+function readPct(combo) { return combo >= 26 ? 15 : combo >= 20 ? 10 : combo >= 10 ? 6 : combo >= 1 ? 3 : 0; }
 function comboBonus(combo) { return combo >= 20 ? 2 : combo >= 10 ? 1 : 0; }
 const doppelOn = (engine, p) => st(p).doppelUntil >= engine.roundNumber;
 
@@ -154,9 +155,9 @@ function comboSlash(engine, p, tier, t) {
   s.endNow = false;
   s.clipNow = false;
   const passive = passiveOn(p);
-  // ท่าเดิมครั้งที่ 3 ติดกัน = ฟันได้ แต่คอมโบหลุดหลังผล
+  // ท่าเดิมครั้งที่ 3 ติดกันขึ้นไป = ฟันได้ (ได้แต้มคืน) แต่ไม่นับ HIT — คอมโบไม่หลุด (ผ่อน 2026-11-21)
   const repeat = s.last === tier ? s.repeat + 1 : 1;
-  const broken = passive && repeat >= 3;
+  const stale = passive && repeat >= 3;
   if (!t || !foe(engine, p, t)) return;
   stopWindow(p);
   const from = { ...p.pos }, to = { ...t.pos };
@@ -198,7 +199,8 @@ function comboSlash(engine, p, tier, t) {
     const res = slash(engine, p, t, NAME.shadow, DOPPEL.dmg + bonus);
     if (!res.dodge && !res.blocked) shadow = 1;
   }
-  const jce = passive && !broken && hits > 0 && s.combo + hits + shadow >= JCE.at;
+  const gain = stale || !hits ? 0 : (tier === "basic" ? hits : hits * UPPER.hits) + shadow; // HIT ที่ได้จากท่านี้
+  const jce = passive && gain > 0 && s.combo + gain >= JCE.at;
   if (!jce) {
     if (!hits) fx({ kind: "whiff" });
     else fx({ kind: tier === "basic" ? "rapid" : "upper", hits, air });
@@ -210,14 +212,10 @@ function comboSlash(engine, p, tier, t) {
     return;
   }
   if (!passive) return;
-  if (broken) {
-    breakCombo(engine, p, "ใช้ท่าเดิม 3 ครั้ง");
-    s.endNow = true;
-    return;
-  }
+  if (stale) engine.log(`💤 ${p.name} ท่าเดิมซ้ำ — ไม่นับ HIT`);
   s.last = tier; s.repeat = repeat;
   s.target = t.id;
-  addHits(engine, p, hits + shadow);
+  addHits(engine, p, gain);
   refund(engine, p);
   engine.log(`⚔️ ${p.name} ${s.combo} HIT`);
   if (jce) { judgmentCutEnd(engine, p); return; }

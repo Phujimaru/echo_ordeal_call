@@ -447,16 +447,16 @@ const FILES = {
   armstrong_nano: "/characters/armstrong/theme.mp3",
   // เวอจิล: กล่องเพลง (ปุ่ม HUD เปิด/ปิด · ไฟล์ผู้ใช้ theme_music_box.m4a loudnorm -14 LUFS · state.skillMusic)
   vergil_theme: "/characters/vergil/theme.m4a",
-  // เวอจิล (vergilFx.js VG_SFX): เสียงฟันใช้ไฟล์ของตัวละครอื่นในเครื่อง (ไม่ได้ดาวน์โหลดใหม่) · เก็บดาบ/Doppelganger สังเคราะห์ ffmpeg
-  vergil_slash1: "/characters/ryougi/sfx/ryougi_slash.mp3",
-  vergil_slash2: "/characters/arjuna/sfx/arj_slash.mp3",
-  vergil_slash3: "/characters/kate_emiliko/sfx/ke_hit_sword.mp3",
-  vergil_slam: "/characters/giorno_giovanna/sfx/gio_punch2.mp3",
-  vergil_upper: "/characters/ryougi/sfx/ryougi_leap.mp3",
-  vergil_shadow: "/characters/kate_emiliko/sfx/ke_sword.mp3",
-  vergil_whiff: "/characters/kate_emiliko/sfx/ke_w_sword.mp3",
-  vergil_doppel: "/characters/vergil/sfx/doppel.mp3",
-  vergil_sheathe: "/characters/vergil/sfx/sheathe.mp3",
+  // เวอจิล (vergilFx.js VG_SFX): ผสมจากเสียง Mixkit (Free License — ผู้ใช้สั่งหาเสียงภายนอก 2026-11-21) ซ้อน 2–3 ชั้น + เสียงก้องสั้น · จุดปะทะอยู่ราว 50–110 ms (ต้นไฟล์)
+  vergil_slash1: "/characters/vergil/sfx/slash1.mp3",   // Fast sword whoosh + Sword gore slash hit
+  vergil_slash2: "/characters/vergil/sfx/slash2.mp3",   // Sword blade swish + Heavy sword hit
+  vergil_slash3: "/characters/vergil/sfx/slash3.mp3",   // Quick magic sword slice + Samurai sword impact + Fast impact blow (ครั้งสุดท้ายของชุด)
+  vergil_slam: "/characters/vergil/sfx/slam.mp3",       // Fast impact blow + Big cinematic impact + Heavy sword hit (ดิ่งตบลงพื้น)
+  vergil_upper: "/characters/vergil/sfx/upper.mp3",     // Fast air sweep + Swift sword strike + Fantasy sword slide
+  vergil_shadow: "/characters/vergil/sfx/shadow.mp3",   // Magic spell mystery whoosh + Sword cutting flesh (เสียงต่ำลง — เงา)
+  vergil_whiff: "/characters/vergil/sfx/whiff.mp3",     // Dagger woosh
+  vergil_doppel: "/characters/vergil/sfx/doppel.mp3",   // Cinematic whoosh magic gust + Ghostly whoosh (เสียงต่ำลง)
+  vergil_sheathe: "/characters/vergil/sfx/sheathe.mp3", // Fantasy sword slide + คลิกปิดฝัก
   // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
   fern_zoltraak: "/characters/fern/sfx/fern_zoltraak_full.mp3", // ตีปกติ Zoltraak — ไฟล์ผู้ใช้ "ZOLTRAAK FIre.mp3" ทั้งคลิป (ร่าย/ชาร์จ แล้วระเบิดที่ 1.50 วิ = FERN_SFX_LEAD)
   fern_zoltraak_max: "/characters/fern/sfx/fern_zoltraak_full_max.mp3", // Zoltraak ครั้งที่ 6 (ทะลุเกราะ) — คลิปเดียวกัน + ชั้นเสียงต่ำตอนระเบิด
