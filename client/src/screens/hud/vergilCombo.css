@@ -1,17 +1,143 @@
-/* เวอจิล: แรงค์สไตล์เด้งเข้าเมื่อเปลี่ยน (transform/opacity เท่านั้น) */
-.vg-rank-pop { animation: vg-rank-in 260ms cubic-bezier(.2,1.6,.4,1) both; will-change: transform, opacity; transform-origin: 70% 60%; }
+/* ============================================================
+   เวอจิล — แผงคอมโบ (VergilCombo.jsx) · ฝั่งซ้ายของจอ (ผู้ใช้สั่ง 2026-11-21: ขวาบังกระดาน)
+   โทนเดียวกับ HUD ของเกม (กระดาษขาวอมฟ้า + ลายตาข่าย + หมึกน้ำเงิน) · โหมดมืดทับด้วย :root[data-ui="dark"]
+   ขยับด้วย transform/opacity เท่านั้น · เคารพ prefers-reduced-motion
+   ============================================================ */
+.vgc {
+  --vgc-paper: linear-gradient(115deg, #ffffff, #f7fafd 45%, #dce7f3);
+  --vgc-lattice: repeating-linear-gradient(60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(61,139,217,.09) 0 1px, transparent 1px 14px);
+  --vgc-ink: #1c3f6e;
+  --vgc-mute: #46668f;
+  --vgc-line: rgba(127,184,230,.75);
+  --vgc-accent: #2a78c0;
+  --vgc-hot: #0ea5e9;
+  --vgc-head: linear-gradient(90deg, #1c3f6e, #2a78c0 70%, #3d8bd9);
+  --vgc-b: #2a78c0;   /* ปุ่ม 1 ฟันโหมกระหน่ำ */
+  --vgc-s: #7b4fc0;   /* ปุ่ม 2 ฟันขึ้น */
+  --vgc-shadow: 0 6px 18px rgba(28,63,110,.18);
+  position: fixed; left: 58px; top: 86px; z-index: 60;
+  width: 214px; pointer-events: none;
+  display: flex; flex-direction: column; gap: 6px;
+  font-family: "Chakra Petch", Kanit, sans-serif; color: var(--vgc-ink);
+}
+:root[data-ui="dark"] .vgc {
+  --vgc-paper: linear-gradient(115deg, #18325c, #10254a 40%, #0a1834);
+  --vgc-lattice: repeating-linear-gradient(60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px), repeating-linear-gradient(-60deg, rgba(127,184,230,.1) 0 1px, transparent 1px 14px);
+  --vgc-ink: #e8f0fa;
+  --vgc-mute: #a9c2e2;
+  --vgc-line: rgba(127,184,230,.5);
+  --vgc-accent: #8cc4f0;
+  --vgc-hot: #7dd3fc;
+  --vgc-head: linear-gradient(90deg, #0b1a35, #17305a 60%, #2a5a95);
+  --vgc-b: #5aa7e8;
+  --vgc-s: #a77ee6;
+  --vgc-shadow: 0 6px 18px rgba(0,0,0,.45);
+}
+
+/* กล่องกระจก/กระดาษ มุมตัดแบบ HUD */
+.vgc-card {
+  background: var(--vgc-lattice), var(--vgc-paper);
+  border: 1px solid var(--vgc-line);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  box-shadow: var(--vgc-shadow);
+}
+
+/* หัวแผง: แถบน้ำเงินเฉียง + ชื่อ + ปุ่มคู่มือ */
+.vgc-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  background: var(--vgc-head); color: #fff; padding: 4px 6px 4px 12px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%);
+  pointer-events: auto;
+}
+.vgc-title { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; opacity: .95; }
+.vgc-book {
+  pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,255,255,.55); background: rgba(255,255,255,.14);
+  color: #fff; font-size: 13px; line-height: 1; padding: 3px 6px; border-radius: 4px; display: inline-flex; align-items: center;
+  transition: transform .12s, background .12s;
+}
+.vgc-book:hover { background: rgba(255,255,255,.3); transform: translateY(-1px); }
+
+/* แรงค์ + HIT */
+.vgc-style { padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 5px; }
+.vgc-row { display: flex; align-items: center; gap: 8px; }
+/* แรงค์ตั้งบนแผ่นน้ำเงินเข้มเฉียง (รูปแรงค์ออกแบบมาบนพื้นมืด — บนกระดาษขาวตัวเงินจะจม) */
+.vgc-plate {
+  flex: 0 0 auto; width: 92px; height: 74px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 40% 45%, #1d3b68, #0b1a35 70%);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: inset 0 0 0 1px rgba(127,184,230,.5);
+}
+.vgc-rank { max-height: 66px; max-width: 84px; width: auto; filter: drop-shadow(0 0 6px rgba(125,211,252,.35)); }
+.vgc-hits { display: flex; flex-direction: column; line-height: 1; margin-left: auto; text-align: right; }
+.vgc-hitnum { font-size: 42px; font-weight: 800; font-style: italic; color: var(--vgc-ink); font-variant-numeric: tabular-nums; }
+.vgc-hitlbl { font-size: 11px; font-weight: 700; letter-spacing: .3em; color: var(--vgc-accent); }
+.vgc-empty { font-size: 13px; color: var(--vgc-mute); letter-spacing: .2em; margin-left: auto; }
+.vgc-doppel { font-size: 18px; filter: drop-shadow(0 0 4px #8b5cf6); }
+
+/* แถบ: ความคืบหน้าไป 30 (แบ่ง 3 ช่วง) · เวลาต่อคอมโบ */
+.vgc-meter { position: relative; height: 7px; background: rgba(61,139,217,.15); border: 1px solid var(--vgc-line); overflow: hidden; }
+.vgc-meter > i { position: absolute; inset: 0; transform-origin: left center; background: linear-gradient(90deg, #3d8bd9, #0ea5e9 60%, #7dd3fc); will-change: transform; }
+.vgc-meter > b { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--vgc-line); }
+.vgc-timer { height: 5px; background: rgba(61,139,217,.12); overflow: hidden; }
+.vgc-timer > i { display: block; height: 100%; transform-origin: left center; background: var(--vgc-hot); will-change: transform; }
+.vgc-timer[data-low="true"] > i { background: #e5484d; }
+
+/* ชื่อท่าคอมโบที่เพิ่งออก */
+.vgc-pop {
+  align-self: flex-start; padding: 4px 14px 4px 10px; color: #fff; font-size: 17px; font-weight: 800; font-style: italic; letter-spacing: .04em;
+  background: var(--vgc-head); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: var(--vgc-shadow);
+  animation: vgc-pop 1500ms ease-out both; will-change: transform, opacity;
+}
+@keyframes vgc-pop {
+  0% { transform: translateX(-24px) skewX(-12deg); opacity: 0; }
+  12% { transform: translateX(0) skewX(-6deg); opacity: 1; }
+  78% { opacity: 1; }
+  100% { transform: translateX(8px) skewX(-6deg); opacity: 0; }
+}
+
+/* รายการท่าที่กดต่อได้ */
+.vgc-list { padding: 5px 6px; display: flex; flex-direction: column; gap: 3px; }
+.vgc-item { display: flex; align-items: center; gap: 6px; padding: 2px 4px; }
+.vgc-item[data-near="true"] { background: rgba(14,165,233,.12); }
+.vgc-name { flex: 1 1 auto; font-size: 12px; font-weight: 700; color: var(--vgc-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ปุ่มในลำดับ: เลขปุ่มลัดบนป้ายสี (1 ฟ้า · 2 ม่วง) */
+.vgc-keys { display: flex; gap: 3px; flex: 0 0 auto; }
+.vgc-key {
+  --k: var(--vgc-b);
+  width: 19px; height: 19px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800; line-height: 1; border-radius: 3px;
+  border: 1.5px solid var(--k); color: var(--k); background: transparent; opacity: .45;
+}
+.vgc-key[data-k="s"] { --k: var(--vgc-s); }
+.vgc-key[data-st="done"] { background: var(--k); color: #fff; opacity: 1; }
+.vgc-key[data-st="next"] { background: #fff; opacity: 1; box-shadow: 0 0 0 2px color-mix(in srgb, var(--k) 35%, transparent); animation: vgc-next 900ms ease-in-out infinite; }
+@keyframes vgc-next { 50% { transform: scale(1.14); } }
+.vgc-key[data-big="true"] { width: 26px; height: 26px; font-size: 15px; opacity: 1; background: var(--k); color: #fff; }
+
+/* คู่มือ */
+.vgc-manual-bg { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; background: rgba(12,28,58,.35); }
+:root[data-ui="dark"] .vgc-manual-bg { background: rgba(2,6,16,.6); }
+.vgc-manual { width: min(620px, 92vw); max-height: 86vh; overflow-y: auto; pointer-events: auto; }
+.vgc-manual .vgc-head { padding: 8px 10px 8px 16px; }
+.vgc-manual .vgc-title { font-size: 15px; }
+.vgc-mrow { display: grid; grid-template-columns: 128px 1fr; gap: 4px 14px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--vgc-line); }
+.vgc-mrow:first-of-type { border-top: 0; }
+.vgc-mname { font-weight: 800; font-size: 15px; color: var(--vgc-accent); }
+.vgc-mdesc { font-family: Kanit, sans-serif; font-size: 13.5px; color: var(--vgc-ink); }
+.vgc-legend { display: flex; gap: 14px; padding: 8px 16px 12px; font-family: Kanit, sans-serif; font-size: 13px; color: var(--vgc-mute); align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vgc-pop, .vgc-key[data-st="next"] { animation: none; }
+  .vg-rank-pop { animation: none; }
+}
+/* แรงค์เด้งเข้าเมื่อเปลี่ยน */
+.vg-rank-pop { animation: vg-rank-in 260ms cubic-bezier(.2,1.6,.4,1) both; will-change: transform, opacity; transform-origin: 30% 60%; }
 @keyframes vg-rank-in {
   0% { transform: scale(2.1) rotate(-8deg); opacity: 0; }
   60% { transform: scale(0.92) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); opacity: 1; }
 }
-@media (prefers-reduced-motion: reduce) { .vg-rank-pop { animation: none; } }
-/* ชื่อท่าคอมโบเด้งเข้าแล้วจาง */
-.vg-route-pop { animation: vg-route-in 1500ms ease-out both; will-change: transform, opacity; }
-@keyframes vg-route-in {
-  0% { transform: translateX(40px) scale(1.4); opacity: 0; }
-  12% { transform: translateX(0) scale(1); opacity: 1; }
-  75% { opacity: 1; }
-  100% { transform: translateX(-10px); opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) { .vg-route-pop { animation: none; } }
+.vgc-book svg { width: 15px; height: 15px; display: block; }
+.vgc-mini { padding: 4px 10px 6px; display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
