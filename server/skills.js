@@ -163,6 +163,8 @@ function runSkill(id, tier, targets, opts = {}) {
     ? Element.withElement(skillEl, () => hook.applyInstantSkill(engine, p, tier, targets, opts))
     : hook.applyInstantSkill(engine, p, tier, targets, opts)) || "";
   Voice.play(p, tier); // เสียงพากย์ตามช่องสกิล (server/voice.js — ไจโร: skill1/2 · ท่าไม้ตายสุ่ม 2 ไฟล์)
+  // ฮุค endsTurnAfter = ผลที่ลงไปตัดสินว่าต้องจบตาเดิน (เวอจิล: คอมโบหลุด / Judgment Cut End) — ต่อจาก endsTurn ที่ถามก่อนหักแต้ม
+  const endsNow = endsTurn || !!(hook && hook.endsTurnAfter && hook.endsTurnAfter(engine, p, tier, opts));
   const deferred = match.afterCutscene.splice(0);
   // การมองเห็น (server/visibility.js): ใช้สกิลใส่คนอื่นจากในพุ่มหญ้า = โผล่จนจบเทิร์น
   //  สกิลโจมตีแบบพื้นที่ (area.hostile) โดนคนล่องหน = ปรากฏตัว — หลังผลลง (หลังคลิปจบ)
@@ -184,14 +186,14 @@ function runSkill(id, tier, targets, opts = {}) {
   if (!silent) match.roundSkills.push({ playerId: id, tier, name: flashName, img: flashImg, status: st });
 
   // คัตซีนที่สกิลคิวไว้ (เช่นท่าไม้ตายของมุยมิ) — เล่นทันที แล้วกลับมาตาเดินต่อด้วยเวลาที่เหลือ (ผลที่รอลงหลังคลิป)
-  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined, { endTurn: endsTurn }); return; }
+  if (match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(deferred.length ? runDeferred : undefined, { endTurn: endsNow }); return; }
   runDeferred();
   // ผลขอฉากต่อ (engine.skillBeat / คลิปที่คิวระหว่างผล) = พักตาเดินเล่นให้จบ แล้วกลับมาด้วยเวลาที่เหลือ
-  if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(undefined, { endTurn: endsTurn }); return; }
+  if (match.skillBeats.length || match.cutsceneQueue.length) { cutscene.pausePlayingForCutscene(undefined, { endTurn: endsNow }); return; }
   // สกิลพักเกมเล่นฉากเองแล้ว (Echo ก่อกำเนิดใหม่ — engine.journeyRebirth ตั้ง CUTSCENE + ตัวจับเวลาไว้) = แค่บรอดแคสต์
   if (match.gameState === "CUTSCENE") { view.broadcastState(); return; }
   if (endTurnPhase.gameOver()) return; // สกิลฆ่าศัตรูคนสุดท้าย = จบเกมทันที
-  if (endsTurn) { action.finishActor(); return; }
+  if (endsNow) { action.finishActor(); return; }
   view.broadcastState();
 }
 

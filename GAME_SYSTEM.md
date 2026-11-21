@@ -218,6 +218,7 @@ endTurn()              phases/endTurn.js ลดเทิร์นสถานะ
    `hook.skipsTurnQuota(p, tier)` = กดแล้วไม่กินโควตา (มุยมิ "เสบียงฉุกเฉิน" ใช้ทั้งคู่ · โอเบรอน "นกจาบยามเช้า" ใช้แค่ skips)
 5. ท่าไม้ตายที่ `effect` เป็นสถานะ: กดซ้ำไม่ได้ระหว่างสถานะยังอยู่
    · `hook.endsTurn(engine, p, tier, opts)` = ใช้แล้วจบตาเดินทันทีหลังผลลงครบ (รวมผลหลังคลิป/`skillBeat`) — `finishActor` แทนการกลับเข้าตา (มุยมิ: ท่าไม้ตาย)
+   · `hook.endsTurnAfter(engine, p, tier, opts)` = ถามหลัง `applyInstantSkill` — ผลที่ลงไปตัดสินว่าต้องจบตา (เวอจิล: คอมโบหลุด / Judgment Cut End)
 6. หักแต้ม → `tickCurseOnSkill` (คำสาป) → `numbFizzles` (เหน็บชา 30% ไม่ทำงาน — แต้ม/โควตาเสียแล้ว) →
    `Journey.skillMisses` (ป่าไม้ต้องสาป กลางวัน: คืนแต้ม แต่โควตาเสีย) → `Journey.skillRefund` (ทะเลทราย กลางคืน)
 7. `hook.applyInstantSkill(engine, p, tier, targets)` ลงผล — คืนข้อความต่อท้ายป้ายเด้ง · แล้ว `applyEffect(skill.effect)` (ตัวละครปัจจุบัน `effect: null` ทั้งหมด)
@@ -1478,3 +1479,12 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **กันการโจมตีใส่คนอื่นแล้วสวน**: ฮุค broadcast `shieldsFrom` ถูกเรียกหลายครั้งต่อการโจมตี (ฉากตี + ท่อดาเมจ) → จด `{ seq: cmdSeq, by, ally }` ให้กันต่อทั้งก้อนแต่ยิงครั้งเดียว
 - **กดรัวซ้อนบนคลิป**: state ระดับบน `armQte` (`qteView` — `left` ms ที่เหลือ ไม่ส่งนาฬิกา server) · socket `armMash` (`combatOnly` · 40 ครั้ง/วิ · รับ id ผู้เล่นหรือยูนิตที่คุม) · client `ArmstrongMash.jsx` z 160 เหนือคัตซีน (150) · Space ตรวจ `e.code` (คีย์บอร์ดไทย) + คลิก · เวลาตัดสินที่ server (`until`) · คลิปช่วงกดใช้ `noIntro`
 - ผู้โจมตีที่เป็นยูนิต (`p.summon` — มอน/บอส/ร่างแยก) = ไม่พัก ไม่มีกดรัว · หยุดเวลา/Clock Up = ไม่พัก · Road Trip จบกลางคัน = `cancelFlow(p)` ใน `RT.cancelCombatFlow`
+
+## 64. สกิลกดรัวในตาเดียว / หน้าต่างเวลาคอมโบ / จบตาตามผล (เวอจิล `characters/vergil.js` · GRID_PLAN §7.40)
+
+- กดได้ไม่จำกัด = `skipsTurnQuota` + `ignoresTurnQuota` · แต้มคืนเมื่อโดน (`engine.addSkill(p, 1, "vergil")`)
+- หน้าต่างเวลา: `setInterval` ระดับโมดูล (ไม่เก็บใน `p` — สำเนาสถานะ/ย้อนเวลาไม่พัง) นับเฉพาะตอน `gameState === "ACTION"` และเป็นตาตัวเอง → หมด = `engine.finishActor()` · ส่ง `left`/`max` (ms) ให้ client นับเอง
+- จบตาตามผลที่เพิ่งลง: ฮุคใหม่ `endsTurnAfter` (server/skills.js) — `endsTurn` ถามก่อนหักแต้ม จึงรู้ผลทอยไม่ได้
+- เพดานดาเมจต่อเป้าต่อเทิร์น: ตั้ง `capNow` ชั่วคราวระหว่าง `skillStrike` แล้วคืนผ่านฮุค `damageCap`
+- ฉากบนกระดาน: socket `vergilFx` + `engine.skillBeat` พักสั้นๆ ต่อการฟัน (ระหว่างพักหน้าต่างเวลาหยุด) · เสียงเล่นที่ client ตามจังหวะปะทะ (`out.sfx`)
+- ยกหมากค้าง: state `players[].vgAir` → BoardStage `vg.air` → BoardCanvas `hz += VG_AIR_Z`

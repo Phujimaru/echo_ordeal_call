@@ -2014,6 +2014,53 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- เวอจิล (Devil May Cry) — พิเศษ (ไม่ unique) — ดู characters/vergil.js (GRID_PLAN §7.40) ----------
+    //  HP 10 / เกราะ 5 = ค่าฐานกลาง 7+3 / 3+2 (combat.STAT_BONUS) · พลังโจมตี 1
+    id: "vergil",
+    gender: "m",
+    name: "เวอจิล",
+    avatar: 0,
+    difficulty: "special",
+    img: "/characters/vergil/vergil.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "คอมโบ A+",
+      desc: "ฟันโหมกระหน่ำ/ฟันขึ้นกดได้ไม่จำกัดในตาเดิน (ไม่นับเป็นการใช้สกิล) · โดน = แต้มสกิลคืน 1 · นับ HIT ค้างข้ามเทิร์น · ต้องกดท่าถัดไปภายใน 3 วิ (10 HIT: 2 วิ · 20 HIT: 1.2 วิ) · ศัตรูหลบเพิ่ม 5/15/30/45% (1/6/16/26 HIT) · หมดเวลา/ถูกหลบ/ท่าเดิม 3 ครั้งติด = คอมโบหลุด + จบตาเดิน · โดนศัตรูทำให้เสียหาย = คอมโบหลุด · เก็บดาบ = จบตาเดิน คอมโบไม่หลุด · 10 HIT ความเสียหาย +1 · 20 HIT +2 · ศัตรู 1 คนเสียจากเวอจิลได้ไม่เกิน 6 ต่อเทิร์น · 30 HIT: Judgment Cut End ศัตรูทุกตัวที่มองเห็น ความเสียหาย 6 (หลบได้ · ไม่ติดเพดาน) แล้วคอมโบเป็น 0 + จบตาเดิน",
+    },
+    passive2: {
+      name: "พายุไม่หยุด",
+      desc: "เหลือผู้เล่นแค่เวอจิลกับอีก 1 คน: โดนศัตรูทำให้เสียหายแล้วคอมโบไม่หลุด · ต้นเทิร์นแต้มสกิล +2 และเกราะ +1",
+    },
+    basic: {
+      name: "ฟันโหมกระหน่ำ",
+      desc: "ศัตรู 1 คนติดตัว: ฟัน 3 ครั้ง ครั้งละ 1 (หลบได้ · +3 HIT) · เป้าลอย = ครั้งละ 2 แล้วตบลงพื้น",
+      area: { kind: "target", range: 1, hostile: true },
+      cost: 1,
+      img: "/characters/vergil/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/vergil.js
+    },
+    secondary: {
+      name: "ฟันขึ้น",
+      desc: "ศัตรู 1 คนติดตัว: ความเสียหาย 2 (หลบได้ · +1 HIT) · เป้าลอย 1 เทิร์น (เดินไม่ได้)",
+      area: { kind: "target", range: 1, hostile: true },
+      cost: 1,
+      img: "/characters/vergil/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "Doppelganger",
+      desc: "2 เทิร์น: ฟันโหมกระหน่ำ/ฟันขึ้นโดน = เงาฟันตามอีก 1 ครั้ง ความเสียหาย 1 (หลบได้ · +1 HIT)",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/vergil/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

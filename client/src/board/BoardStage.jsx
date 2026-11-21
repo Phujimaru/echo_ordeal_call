@@ -915,6 +915,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       possessed: !mk && !!p.possessedBy,
       master: !mk && p.master ? { phase: p.master.phase || 1, down: !!p.master.down, summon: p.master.summon || null } : null, // Master (masterFx.js): ออร่า/ท่าทาง
       // โจรุโน่: ลอยบนต้นไม้ (ใครก็ได้) · ต้นตอแห่งชีวิต · Muda · ร่าง Requiem (เปลวทอง) · รอผลธนู (แสงทอง) · วนตาย (ใครก็ติดได้) — giornoFx.js
+      vg: !mk && (p.vgAir || (p.vergil && p.vergil.doppel)) ? { air: !!p.vgAir, doppel: !!(p.vergil && p.vergil.doppel) } : null, // เวอจิล (vergilFx.js): ลอยจากฟันขึ้น (ใครก็ได้) · ออร่า Doppelganger
       dio: !mk && p.dio && (p.dio.stopping || p.dio.blood >= 6) ? { stop: !!p.dio.stopping, blood: p.dio.blood } : null, // ดิโอ: ออร่าใต้หมาก (dioFx.js)
       elem: !mk ? auraOf(p) : null, // คราบธาตุ (elementFx.js · GRID_PLAN §8.7)
       // คุเรไน โอโตยะ (otoyaFx.js): ร่าง Dark Kiva / หลุมพราง / Wake Up 2 / กำลังสีไวโอลิน · เป้าดนตรีในหัวใจ (ใครก็ได้)

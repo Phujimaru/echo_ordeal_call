@@ -34,7 +34,7 @@ const DIFFICULTY_GROUPS = [
   { key: "medium", label: "กลาง", color: "#E5B33B", order: ["oberon_summer", "raido_hikaru", "gray", "fern", "old_truck", "giorno_giovanna", "dio_brando", "inui_takumi", "emiya_kiritsugu", "midoriya_izuku", "armstrong"] },
   { key: "hard", label: "ยาก", color: "#C0392B", order: ["ice_spike", "kate", "gyro_zeppeli", "diego_alt", "emiya_shirou", "kensaki_kazuma", "roland", "kurenai_otoya", "kusakabe_shinra", "magna"] },
   { key: "fun", label: "เอาฮา", color: "#9B4F96", order: ["yuki_makoto", "freddy_fazbear", "foxy"] },
-  { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo", "yuna", "funny_valentine", "celine", "trafalgar_law", "arjuna", "naruhodo_ryuichi"] },
+  { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo", "yuna", "funny_valentine", "celine", "trafalgar_law", "arjuna", "naruhodo_ryuichi", "vergil"] },
   { key: "calamity", label: "มหันตภัย", color: "#7A0010", order: ["ryougi", "gilgamesh_fake"] },
   { key: "boss", label: "Boss", color: "#3F6E1E", order: ["master"] },
 ];

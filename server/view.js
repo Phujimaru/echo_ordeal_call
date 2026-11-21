@@ -420,6 +420,8 @@ function buildStateInner(viewerId) {
         giorno: CHAR_HOOKS.giorno_giovanna.unitMark(engine, p), // โจรุโน่: ต้นไม้ (ใครก็ได้) / ต้นตอแห่งชีวิต / Muda / นับชีวิตทดแทน + คูลดาวน์ (เจ้าตัว)
         allyStrike: hook && hook.strikesAllies ? !!hook.strikesAllies(p) : undefined, // ตีปกติใส่เพื่อนร่วมทีมได้ (โจรุโน่: ฟื้นพลังชีวิต — action.strikeAlly)
         freddy: hook && hook.freddyState ? hook.freddyState(engine, p) : undefined,
+        vgAir: p.vergilAir && p.statuses && p.statuses.rooted > 0 ? true : undefined, // ลอยจากฟันขึ้นของเวอจิล (vergilFx.js ยกหมาก)
+        vergil: hook && hook.vergilState ? hook.vergilState(engine, p) : undefined, // เวอจิล: คอมโบ HIT / เวลาต่อคอมโบ (ms) / Doppelganger
         foxy: hook && hook.foxyState ? hook.foxyState(engine, p) : undefined, // ฟ็อกซี่: ภาพตัวบนกระดาน · กลางคืน · แต้มสมอง
         master: hook && hook.masterState ? hook.masterState(engine, p) : undefined, // Master / ตัวอัญเชิญ: ภาพตัวเต็ม · เฟส (masterFx.js) // เฟรดดี้: ภาพตัวบนกระดาน · กลางคืน
         oldTruck: hook && hook.oldTruckState ? hook.oldTruckState(engine, p) : undefined, // รถบรรทุกเก่า: ร่าง / ผู้พิทักษ์ / นับเทิร์นร่างรถ / คริ

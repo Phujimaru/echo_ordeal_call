@@ -445,6 +445,18 @@ const FILES = {
   gray_ult: "/characters/gray/gray_skill3_contro.m4a",
   // อาร์มสตรอง: เพลงระหว่างเปิด Nanomachines (state.skillMusic · ไฟล์ผู้ใช้ theme.mp3 loudnorm -14 LUFS)
   armstrong_nano: "/characters/armstrong/theme.mp3",
+  // เวอจิล: กล่องเพลง (ปุ่ม HUD เปิด/ปิด · ไฟล์ผู้ใช้ theme_music_box.m4a loudnorm -14 LUFS · state.skillMusic)
+  vergil_theme: "/characters/vergil/theme.m4a",
+  // เวอจิล (vergilFx.js VG_SFX): เสียงฟันใช้ไฟล์ของตัวละครอื่นในเครื่อง (ไม่ได้ดาวน์โหลดใหม่) · เก็บดาบ/Doppelganger สังเคราะห์ ffmpeg
+  vergil_slash1: "/characters/ryougi/sfx/ryougi_slash.mp3",
+  vergil_slash2: "/characters/arjuna/sfx/arj_slash.mp3",
+  vergil_slash3: "/characters/kate_emiliko/sfx/ke_hit_sword.mp3",
+  vergil_slam: "/characters/giorno_giovanna/sfx/gio_punch2.mp3",
+  vergil_upper: "/characters/ryougi/sfx/ryougi_leap.mp3",
+  vergil_shadow: "/characters/kate_emiliko/sfx/ke_sword.mp3",
+  vergil_whiff: "/characters/kate_emiliko/sfx/ke_w_sword.mp3",
+  vergil_doppel: "/characters/vergil/sfx/doppel.mp3",
+  vergil_sheathe: "/characters/vergil/sfx/sheathe.mp3",
   // เฟิร์น (GRID_PLAN §7.14) — สังเคราะห์ ffmpeg ล้วน (ไม่มีไฟล์ต้นฉบับ) · ~-14 LUFS (ซ่อนเร้น/เผยตัว -17 · cannon -11)
   fern_zoltraak: "/characters/fern/sfx/fern_zoltraak_full.mp3", // ตีปกติ Zoltraak — ไฟล์ผู้ใช้ "ZOLTRAAK FIre.mp3" ทั้งคลิป (ร่าย/ชาร์จ แล้วระเบิดที่ 1.50 วิ = FERN_SFX_LEAD)
   fern_zoltraak_max: "/characters/fern/sfx/fern_zoltraak_full_max.mp3", // Zoltraak ครั้งที่ 6 (ทะลุเกราะ) — คลิปเดียวกัน + ชั้นเสียงต่ำตอนระเบิด

@@ -95,6 +95,7 @@ import { shadowPose } from "./shadowFx";
 import { GYRO_RIDE_Z, gyroPose } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoPose } from "./diegoFx";
 import { dioPose } from "./dioFx";
+import { vergilPose, VG_AIR_Z } from "./vergilFx";
 import { OT_RIDE_Z, otRides } from "./optimusFx";
 import { GIO_TREE_Z, gioLifted, gioPose } from "./giornoFx";
 import { valentineMod, valentinePose } from "./valentineFx";
@@ -828,6 +829,10 @@ export default function BoardCanvas(props) {
         // Return to Zero ของโจรุโน่: ผู้โจมตีถูกดึงถอยหลังจากจุดที่ยืนกลับช่องต้นตา
         const gio = sp || gp || dp || vp || cpo || rpo || u.corpse ? null : gioPose(st.fxActive, u, now);
         if (gio) { rx = gio.x; ry = gio.y; ox = 0; oy = 0; hz = gio.hz; sq = 0; }
+        // เวอจิล: ลอยจากฟันขึ้น (ค้างกลางอากาศจนลง) · ฉากพุ่งฟัน/ฟันขึ้น/ตบลงพื้น ย้ายหมากเอง (vergilFx.js)
+        if (u.vg && u.vg.air && !u.corpse) hz += VG_AIR_Z + (reducedMotion() ? 0 : 0.06 * Math.sin(now / 300));
+        const vgp = sp || gp || dp || vp || cpo || rpo || gio || u.corpse ? null : vergilPose(st.fxActive, { id: u.id, rx, ry }, now);
+        if (vgp) { rx = vgp.x; ry = vgp.y; ox = 0; oy = 0; hz = vgp.hz || 0; sq = 0; }
         // สนาม Colony: ถูกดูด/โคโลนีหมุน (ขยับตามฉาก) · กำลังลอยผ่านแกน/ลิฟต์ (ฉาก 3D วาดแทน)
         if (st.cv3) {
           if (st.cv3.hidden(u.id, now)) continue;
@@ -852,7 +857,7 @@ export default function BoardCanvas(props) {
           ...(p.rts && us <= 1 ? { k: EOS_PIECE_K } : {}), // สนาม Eos: หมากใหญ่พอๆ กับโชโกโบะ (ผู้ใช้สั่ง 2026-11-09)
           id: u.id, rx, ry, ox, oy, hz, sq, inCar: !!u.inCar, color: normColor(u.color), img: u.img, name: u.name, // inCar = นั่งในรถ (สนาม Eos) — ไม่มีฐาน/เสา รูปอยู่ในรถ
           hp: u.hp, maxHp: u.maxHp, armor: u.armor, maxArmor: u.maxArmor,
-          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, standee: u.standee || null, master: u.master || null, giorno: u.giorno || null, otoya: u.otoya || null, elem: u.elem || null, dio: u.dio || null, arjuna: u.arjuna || null, dstat: u.dstat || null, magna: u.magna || null, chain: u.chain || null, dino: u.dino || null, dvirus: u.dvirus || 0, possessed: !!u.possessed, naru: u.naru || null, lowQ,
+          isMe: !!u.isMe, ally: !!u.ally && !u.isMe, isActor: !!u.isActor, tag: u.masked ? null : u.tag, reticle, alpha, cloak: !!u.cloak && !lowQ, aura: u.aura || null, faizTrail: u.faizTrail || false, yuki: u.yuki || null, rider: u.rider || null, gyro: u.gyro || null, diego: dgo, truck: u.truck || null, standee: u.standee || null, master: u.master || null, giorno: u.giorno || null, otoya: u.otoya || null, elem: u.elem || null, dio: u.dio || null, vg: u.vg || null, arjuna: u.arjuna || null, dstat: u.dstat || null, magna: u.magna || null, chain: u.chain || null, dino: u.dino || null, dvirus: u.dvirus || 0, possessed: !!u.possessed, naru: u.naru || null, lowQ,
           masked: !!u.masked, corpse: !!u.corpse, ryougiSlain: !!u.ryougiSlain, // มืดบอด = ขาวล้วน · ร่างของตัวที่ล้ม (ระบบคู่) · ถูกเรียวกิสังหาร = กองเลือด
           hitT: st.hitT.get(u.id) || 0,
           size: us, art: u.art || null, face: u.face || null,

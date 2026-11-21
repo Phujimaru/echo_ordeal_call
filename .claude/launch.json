@@ -1294,6 +1294,40 @@
       "env": {
         "ECHO_SERVER_PORT": "3013"
       }
+    },
+    {
+      "name": "server-vergil",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3067,
+      "env": {
+        "PORT": "3067",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0"
+      }
+    },
+    {
+      "name": "client-vergil",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5267",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5267,
+      "env": {
+        "ECHO_SERVER_PORT": "3067"
+      }
     }
   ]
 }

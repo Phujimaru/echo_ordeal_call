@@ -14,6 +14,7 @@ import { shadowEventFx } from "../shadowFx";
 import { gyroEventFx } from "../gyroFx";
 import { diegoEventFx } from "../diegoFx";
 import { dioEventFx } from "../dioFx";
+import { vergilEventFx } from "../vergilFx";
 import { ZECT_FX_DUR } from "../zectFx";
 import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
@@ -112,6 +113,12 @@ export default function useCharSocketFx(ctx) {
     };
     const onDiego = (ev) => playOut(diegoEventFx(ev, { posOf, sizeOf, idAt }));
     const onDio = (ev) => playOut(dioEventFx(ev, { posOf, sizeOf, idAt })); // ดิโอ บรันโด (dioFx.js) — ใช้ตัวรับเดียวกัน
+    // เวอจิล (vergilFx.js): พุ่งฟัน/ฟันขึ้น/เงา Doppelganger — เสียงฟันเล่นตรงจังหวะปะทะของแต่ละครั้ง (ทุกคนได้ยิน)
+    const onVergil = (ev) => {
+      const out = vergilEventFx(ev, { posOf, sizeOf, idAt });
+      playOut(out);
+      for (const [ms, name] of out.sfx) { if (ms > 0) timers.current.push(setTimeout(() => playSfx(name), ms)); else playSfx(name); }
+    };
     // ไรเดอร์ ZECT: ท่าไม้ตายที่เป็นสกิล (หลังคลิปจบ — zectFx.js)
     const onZect = (ev) => {
       if (!ev || !ev.from || !ev.to || !(ev.kind in ZECT_FX_DUR)) return;
@@ -144,6 +151,7 @@ export default function useCharSocketFx(ctx) {
     socket.on("clockWalk", onClockWalk);
     socket.on("diegoFx", onDiego);
     socket.on("dioFx", onDio);
+    socket.on("vergilFx", onVergil);
     socket.on("zectFx", onZect);
     // เอมิยะ คริซุงุ (kiriFx.js): โยนของ / กับดักระเบิด / Thompson Contender
     const KIRI_KIND = { throw: "kiriThrow", boom: "kiriBoom", shot: "kiriShot" };
@@ -293,7 +301,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("vergilFx", onVergil); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

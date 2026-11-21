@@ -8,6 +8,7 @@ import { OT_RIDE_Z, otRides, otTruck, otUnitBack } from "./optimusFx";
 import { drawStandee, hasStandee } from "./freddyFx";
 import { drawMasterUnit } from "./masterFx";
 import { dioUnitBack } from "./dioFx";
+import { vergilUnitBack } from "./vergilFx";
 import { gioUnitBack, gioUnitFront } from "./giornoFx";
 import { arjUnitBack } from "./arjunaBoardFx";
 import { drawRider } from "./yunaFx";
@@ -322,6 +323,7 @@ function drawUnit(g, u, now, boxes) {
   if (u.elem) elemUnitBack(g, u, now, wx, wy); // คราบธาตุ (elementFx.js · GRID_PLAN §8.7): วงแสงใต้ฐาน + อนุภาคตามธาตุ
   if (u.otoya) otoUnitBack(g, u, now, wx, wy); // คุเรไน (otoyaFx.js): ออร่า Dark Kiva · ตรา Kiva (หลุมพราง) · โซ่แดง (Wake Up 2) · วงทอง (เป้าดนตรี)
   if (u.dio) dioUnitBack(g, u, now, wx, wy); // ดิโอ (dioFx.js): ออร่าทองตอนหยุดเวลา · ออร่าแดงตอน BloodStack 6 ขึ้นไป
+  if (u.vg) vergilUnitBack(g, u, now, wx, wy); // เวอจิล (vergilFx.js): วงแสงใต้ตัวตอนลอย · ออร่าม่วง Doppelganger
   if (u.arjuna) arjUnitBack(g, u, now, wx, wy); // อรชุน (arjunaBoardFx.js): จุติ = ตะเกียงข้างหมาก · ขจัด = ดาวเคราะห์โคจร
   // อินุอิ Exceed Charge: วงแดง Photon Blood รอบฐาน · Start Up: ภาพค้างไล่ตามตอนเคลื่อนไหว
   if (u.aura === "faizExceed") {

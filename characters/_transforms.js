@@ -29,6 +29,7 @@ const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุ
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
 const arm = require("./armstrong"); // อาร์มสตรอง: ทุกคลิปเล่นทุกครั้ง ยกเว้นเปิดนาโน (ครั้งแรกของเกม — triggerCutscene) · ผู้ใช้ 2026-11-21
 const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
+const vergil = require("./vergil"); // เวอจิล: Judgment Cut End (ท่อนพุ่งพื้นใส → เต็มจอ) ทุกครั้ง · I am the storm ครั้งแรกของแมตช์
 const dino = require("./diego_dino"); // ดิเอโก้ อสูรกายดึกดำบรรพ์: ทุกคลิปทุกครั้ง (GRID_PLAN §7.36)
 const magna = require("./magna"); // แม็กน่า สวิง: Deathmatch (โซ่ติด) / Finisher (ทำงาน) ทุกครั้ง
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
@@ -252,6 +253,10 @@ module.exports = function buildTransforms() {
       ["guardBlock", arm.IMG.nano, "", "", true],
       ["counterRun", arm.IMG.basic, "", "", true],
     ].map(([k, img, title, label, noIntro]) => [arm.CUT[k], { img, video: arm.VIDEO[k], title, label, seconds: arm.CLIP_SEC[k], music: null, afterReveal: false, ...(noIntro ? { noIntro: true } : {}), ...(k === "counterRun" ? { clear: true } : {}) }])), // ท่อนวิ่งพื้นใส (webm alpha) ซ้อนบนกระดาน
+    [vergil.CUT.dash]: { img: vergil.IMG.card, video: vergil.VIDEO.dash, title: "", label: "", seconds: vergil.CLIP_SEC.dash, music: null, afterReveal: false, noIntro: true, clear: true },
+    [vergil.CUT.jce]: { img: vergil.IMG.card, video: vergil.VIDEO.jce, title: "", label: "", seconds: vergil.CLIP_SEC.jce, music: null, afterReveal: false, noIntro: true },
+    [vergil.CUT.storm]: { img: vergil.IMG.card, video: vergil.VIDEO.storm, title: "", label: "", seconds: vergil.CLIP_SEC.storm, music: null, afterReveal: false, noIntro: true },
+    [vergil.CUT.duel]: { img: vergil.IMG.card, video: vergil.VIDEO.duel, title: "", label: "", seconds: vergil.CLIP_SEC.duel, music: null, afterReveal: false, noIntro: true }, // พายุไม่หยุด (ครั้งแรกของแมตช์ · ไม่มีชื่อ — ผู้ใช้สั่ง)
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

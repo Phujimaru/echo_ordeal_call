@@ -30,6 +30,7 @@ import NaruhodoHud, { TradePanel } from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
 import { ClockUpButton, ClockDuel } from "./hud/ZectHud";
 import ArmstrongMash from "./hud/ArmstrongMash";
+import VergilCombo, { vergilQuickTarget } from "./hud/VergilCombo";
 import { SelfHud, HudPanel, HudStatusDrawer, HudTopBar } from "./hud/SelfHud";
 import { DrawDock, HudCommand, BagButton, PhaseCall } from "./hud/HudPhases";
 import CampPanel from "../roadtrip/CampPanel"; // Road Trip: หน้าแคมป์ (กองไฟ — ทำอาหาร/กิจกรรมกลางคืน)
@@ -566,6 +567,11 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     if (me?.inui?.opened && tier === "basic" && vp.w >= 768) { clickSound(); setPhoneOpen(true); return; }
     // เคนซากิ คาซุมะ: เปิดแผงการ์ด Blay Rouzer — เสียงเปิดแผงทุกครั้ง (เฉพาะคนกด · ผู้ใช้สั่ง 2026-10-25)
     if (me?.kazuma && tier === "secondary" && vp.w >= 768) { playSfx("kazuma_open"); setKzOpen(true); return; }
+    // เวอจิล: ฟันรัว — ฟันเป้าเดิม/ศัตรูคนเดียวที่ติดตัวทันที ไม่ยืนยัน ไม่เลือกเป้า (หน้าต่างเวลาคอมโบสั้น)
+    if (me?.vergil && (tier === "basic" || tier === "secondary") && vp.w >= 768) {
+      const tid = vergilQuickTarget(me, state.players);
+      if (tid) { clickSound(); socket.emit("useSkill", { tier, targets: [tid] }); return; }
+    }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า
@@ -1278,6 +1284,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {state.court && CourtOverlay && createPortal(<Suspense fallback={null}><CourtOverlay state={state} me={state.youId} emit={(e, p) => socket.emit(e, p)} /></Suspense>, document.body)}
       {/* คัตซีนวีดีโอ: ทับกระดานทั้งจอ (กระดานยัง mount อยู่ข้างใต้ — จบคัตซีนแล้วไม่ต้องสร้างฉากใหม่) */}
       {cutsceneEl && <div style={{ position: "fixed", inset: 0, zIndex: 150 }}>{cutsceneEl}</div>}
+      {/* เวอจิล: ตัวนับ HIT + แถบเวลาต่อคอมโบ (me.vergil — characters/vergil.js) */}
+      {vp.w >= 768 && <VergilCombo v={rtTravel ? null : me?.vergil || null} live={myTurn && phase === "ACTION"} />}
       {/* อาร์มสตรอง: กดรัวซ้อนบนคลิป (state.armQte — characters/armstrong.js) */}
       <ArmstrongMash qte={state.armQte || null} players={state.players} myIds={[state.youId, state.controlId].filter(Boolean)} onMash={mashArm} />
       {/* ยูกิ: ฉากระเบิดเกิดใหม่เป็นประตู 14 วิ (state.yukiBoom) — บนสุดเหนือ HUD/คัตซีน เล่นจนจบแม้เข้า GAMEOVER แล้ว */}

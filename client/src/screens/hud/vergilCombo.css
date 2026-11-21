@@ -1,0 +1,8 @@
+/* เวอจิล: แรงค์สไตล์เด้งเข้าเมื่อเปลี่ยน (transform/opacity เท่านั้น) */
+.vg-rank-pop { animation: vg-rank-in 260ms cubic-bezier(.2,1.6,.4,1) both; will-change: transform, opacity; transform-origin: 70% 60%; }
+@keyframes vg-rank-in {
+  0% { transform: scale(2.1) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(0.92) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .vg-rank-pop { animation: none; } }
