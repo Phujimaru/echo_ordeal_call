@@ -95,12 +95,12 @@ test("ค่าพื้นฐาน: HP 10 / เกราะ 5 · เดิน 
   assert.equal(engine.baseMovOf(p), 4);
 });
 
-test("Nanomachines: เปิด/ปิดได้ 1 ครั้งต่อเทิร์น · ไม่กินโควตา · เกราะสูงสุด +5 · พลังโจมตี +1 · คลิปครั้งแรก", () => {
+test("Nanomachines: เปิด/ปิดได้ 1 ครั้งต่อเทิร์น · ไม่กินโควตา · เกราะสูงสุด +3 · พลังโจมตี +1 · คลิปครั้งแรก", () => {
   const { p, t } = setup();
   nano(p);
   assert.ok(clips.includes(arm.CUT.nano));
   assert.equal(p.skillUsedRound, false);
-  assert.equal(engine.maxArmorOf(p), 10);
+  assert.equal(engine.maxArmorOf(p), 8);
   assert.equal(arm.damageBonus(engine, p, t), 1);
   engine.useSkill("a", "secondary", []); // กดซ้ำเทิร์นเดียวกันไม่ได้
   assert.equal(st(p).nano, true);
@@ -185,7 +185,7 @@ test("ขอสักหมัดเถอะ (ช่วยเหลือ): น
   assert.equal(st(p).stance, null);
 });
 
-test("ยืนวัดกันบลูกผู้ชาย: พักดาเมจ → ผู้โจมตีกดรัว → 10 ครั้ง +1 (เพดานเท่าเกราะ) → คลิปเข้า/ไม่เข้า", () => {
+test("ยืนวัดกันบลูกผู้ชาย: พักดาเมจ → ผู้โจมตีกดรัว → 10 ครั้ง +1 (สูงสุด 3 · ไม่เกินเกราะ) → คลิปเข้า/ไม่เข้า", () => {
   const { p } = setup();
   nano(p);
   p.armor = 8;
@@ -230,7 +230,7 @@ test("ยืนวัดกันบลูกผู้ชาย: ทะลุเ
   assert.equal(p.armor, 7);
 });
 
-test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 25 ครั้ง = 1 (สูงสุด 5) · คูลดาวน์ 3", () => {
+test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 20 ครั้ง = 1 (สูงสุด 5) · คูลดาวน์ 3", () => {
   const { p, t } = setup();
   engine.useSkill("a", "ultimate", ["b"]); // ห่าง 3 = นอกระยะ
   assert.equal(p.skillPoints, 8);
@@ -238,7 +238,7 @@ test("ไปคุยกับรากมะม่วง: ประชิด ·
   t.armor = 2;
   engine.useSkill("a", "ultimate", ["b"]);
   assert.equal(p.skillPoints, 2);
-  if (st(p).qte) for (let i = 0; i < 57; i++) arm.mash(engine, "a"); // 25 ครั้ง = 1 → 2 // useSkill รันผลหลังคลิปแรกทันที (คลิปถูก stub)
+  if (st(p).qte) for (let i = 0; i < 57; i++) arm.mash(engine, "a"); // 20 ครั้ง = 1 → 2 // useSkill รันผลหลังคลิปแรกทันที (คลิปถูก stub)
   runFlow(() => { const w = st(p).qte; if (w && w.count === 0) { for (let i = 0; i < 57; i++) arm.mash(engine, "a"); } });
   // 57 ครั้ง = 2 (25 ครั้งต่อ 1)
   assert.deepEqual(clips.filter((k) => k.startsWith("armUlt")), [arm.CUT.ultStart, arm.CUT.ultMash, arm.CUT.ultEnd]);
@@ -302,4 +302,13 @@ test("ขอสักหมัดเถอะ: ท่าเดียวมีท
   hitBy("b", p, 1);
   runFlow();
   assert.equal(t.hp, 47);
+});
+
+test("ยืนวัดกันบลูกผู้ชาย: โบนัสกดรัวสูงสุด 3 แม้เกราะมากกว่า", () => {
+  const { p } = setup();
+  nano(p);
+  p.armor = 8; p.hp = 10;
+  hitBy("b", p, 1);
+  runFlow(() => { const w = st(p).qte; if (w && w.count === 0) { assert.equal(w.cap, 3); for (let i = 0; i < 100; i++) arm.mash(engine, "b"); } });
+  assert.equal(p.armor, 4); // 1 + 3
 });
