@@ -26,7 +26,11 @@ test.after(() => {
   cut.pausePlayingForCutscene = realPause; engine.pausePlayingForCutscene = realEnginePause;
   engine.queueCutscene = realQueue; engine.triggerCutscene = realTrigger; engine.skillFlash = realFlash; Math.random = realRandom;
 });
+// คลิปถูก stub (ไม่เข้าคิวจริง) → useSkill จะจบตาทันทีก่อนฉากเล่น · ปิดจบตาในเทสต์ (ทดสอบฮุคตรงๆ แยก)
+const realEndsTurn = arm.endsTurn;
+test.beforeEach(() => { arm.endsTurn = () => false; });
 test.afterEach(() => {
+  arm.endsTurn = realEndsTurn;
   engine.clearPhaseTimer(); Math.random = realRandom; engine.setGameMode("ffa");
   match.cutsceneQueue.length = 0; match.afterCutscene = []; match.skillBeats = []; match.flowWanted = false;
   clips.length = 0;
@@ -230,7 +234,7 @@ test("ยืนวัดกันบลูกผู้ชาย: ทะลุเ
   assert.equal(p.armor, 7);
 });
 
-test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 20 ครั้ง = 1 (สูงสุด 5) · คูลดาวน์ 3", () => {
+test("ไปคุยกับรากมะม่วง: ประชิด · กดรัว 10 วิ · 20 ครั้ง = 1 (สูงสุด 6) · คูลดาวน์ 3", () => {
   const { p, t } = setup();
   engine.useSkill("a", "ultimate", ["b"]); // ห่าง 3 = นอกระยะ
   assert.equal(p.skillPoints, 8);
@@ -281,13 +285,13 @@ test("ตัดผลสกิล (severables): ท่าสวน + นาโ�
   assert.equal(st(p).nano, false);
 });
 
-test("ไปคุยกับรากมะม่วง: กด 200 ครั้ง ได้สูงสุด 5", () => {
+test("ไปคุยกับรากมะม่วง: กด 200 ครั้ง ได้สูงสุด 6", () => {
   const { p, t } = setup();
   t.pos = { x: 3, y: 6 };
   engine.useSkill("a", "ultimate", ["b"]);
   if (st(p).qte) for (let i = 0; i < 200; i++) arm.mash(engine, "a");
   runFlow();
-  assert.equal(t.hp, 45);
+  assert.equal(t.hp, 44);
   assert.equal(arm.qteView(engine), null);
 });
 
@@ -311,4 +315,19 @@ test("ยืนวัดกันบลูกผู้ชาย: โบนัส
   hitBy("b", p, 1);
   runFlow(() => { const w = st(p).qte; if (w && w.count === 0) { assert.equal(w.cap, 3); for (let i = 0; i < 100; i++) arm.mash(engine, "b"); } });
   assert.equal(p.armor, 4); // 1 + 3
+});
+
+test("ไปคุยกับรากมะม่วง: โดน = ตรึง 1 · ลบบัฟล่าสุด 1 · ผุพัง 3 · ใช้แล้วจบตาเดิน", () => {
+  const { p, t } = setup();
+  t.pos = { x: 3, y: 6 };
+  engine.applyBuff(t, "fortune", null, 2);
+  engine.applyBuff(t, "mend", null, 3); // ล่าสุด
+  assert.equal(realEndsTurn(engine, p, "ultimate"), true);
+  assert.equal(realEndsTurn(engine, p, "basic"), false);
+  engine.useSkill("a", "ultimate", ["b"]);
+  runFlow();
+  assert.ok((t.statuses.rooted || 0) >= 1, "ถูกตรึง");
+  assert.equal(t.statuses.decay, 3);
+  assert.ok(!t.statuses.mend, "ลบบัฟล่าสุด");
+  assert.ok(t.statuses.fortune, "บัฟเก่ายังอยู่");
 });
