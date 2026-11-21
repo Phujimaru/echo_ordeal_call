@@ -2,19 +2,19 @@
 //  อาร์มสตรอง — id "armstrong" · กลาง · กติกาที่ผู้ใช้ตัดสิน GRID_PLAN §7.39 (2026-11-21)
 //
 //  ค่าพื้นฐาน: HP 10 / เกราะ 5 (ค่าฐานกลาง 7+3 / 3+2) · เดิน 4 · ตีประชิด [1, 1]
-//  สกิลพื้นฐาน ขอสักหมัดเถอะ (3 แต้ม · เลือก 1 แบบ · คงอยู่ 2 เทิร์น · ทำงาน 1 ครั้ง · ค้างอยู่ = กดซ้ำไม่ได้):
+//  สกิลพื้นฐาน ขอสักหมัดเถอะ (3 แต้ม · ทั้งสองแบบพร้อมกัน ไม่ต้องเลือก (ผู้ใช้ 2026-11-21) · คงอยู่ 2 เทิร์น · ทำงาน 1 ครั้ง (อันไหนเกิดก่อน) · ค้างอยู่ = กดซ้ำไม่ได้):
 //    สวนกลับ: ถูกคนอื่นทำให้เสียหาย (ไม่นับผลด่าน/สถานะผิดปกติ) → รับดาเมจตามปกติ แล้วพุ่งไปต่อยผู้โจมตี 3 (หลบได้ · เกราะก่อน) + ผลัก 5 ช่อง
 //    สวนกลับช่วยเหลือ: ผู้เล่นคนอื่นในระยะ 4 (ระยะเดิน) ถูกโจมตี → กันการโจมตีนั้นทั้งก้อน แล้วพุ่งไปต่อย+ผลักแบบเดียวกัน
 //      โหมดทีม = เพื่อนร่วมทีม · ตัวต่อตัว = ใครก็ได้ (แบบบัฟวงของโอเบรอน)
 //    พุ่ง = ไปช่องว่างติดผู้โจมตีที่ใกล้อาร์มสตรองสุดแล้วยืนต่อ (ไม่มีช่อง = ต่อยจากที่เดิม) · ผลักชนของ = หยุดเฉยๆ
 //  สกิลรอง NanoMachine ไง ไอ้ลูกชาย (0 แต้ม · เปิด/ปิด 1 ครั้งต่อเทิร์น · ไม่กินโควตา): เปิด = สกิลติดตัว Nanomachines
 //    ต้นเทิร์นเสียแต้ม 1 (ไม่พอ = ปิดเอง) · พลังโจมตี +1 (ผู้ใช้ 2026-11-21) · เพลง theme · รูปร่างนาโน · คลิปครั้งแรกของเกม
-//  ติดตัว Nanomachines (ระหว่างเปิด): เกราะ +2 ทุกต้นเทิร์น · เกราะเสีย 1 = ฟื้นพลังชีวิต 1 (ทุกทาง) · เกราะสูงสุด +5 · ปิด = ตัดเกราะเกินลง
+//  ติดตัว Nanomachines (ระหว่างเปิด): เกราะ +1 ทุกต้นเทิร์น · เกราะเสีย 1 = ฟื้นพลังชีวิต 1 (ทุกทาง) · เกราะสูงสุด +5 · ปิด = ตัดเกราะเกินลง
 //  ติดตัว 2 ยืนวัดกันบลูกผู้ชาย: นาโนเปิด + เกราะ ≥ 5 + ผู้เล่น (ไม่ใช่ยูนิต AI) ทำให้เสียหาย →
 //    ดาเมจทั้งการกระทำถูกพักไว้ → คลิปเริ่มต่อย → ผู้โจมตีกดรัว 5 วิ (Space/คลิก) ระหว่างคลิปกำลังต่อย ·
 //    10 ครั้ง = +1 (เพดาน = เกราะตอนนั้น) → ดาเมจลง → คลิป "ต่อยเข้า" (ทะลุเข้าพลังชีวิต) / "ต่อยไม่เข้า"
 //  ติดตัว 3 ขอทำลายปอดแปบ: ปุ่ม HUD (แบบ Orca Echo) แต้มสกิล +2 ทันที (คูลดาวน์ 2 เทิร์น) · คลิปทุกครั้ง
-//  ท่าไม้ตาย ไปคุยกับรากมะม่วง (6 แต้ม · คูลดาวน์ 3 · ประชิด · หลบได้): คลิปนั่งค่อม → กดรัว 10 วิ → 10 ครั้ง = 1 (สูงสุด 10) → คลิปปิดท้าย → ดาเมจ (เกราะก่อน)
+//  ท่าไม้ตาย ไปคุยกับรากมะม่วง (6 แต้ม · คูลดาวน์ 3 · ประชิด · หลบได้): คลิปนั่งค่อม → กดรัว 10 วิ → 25 ครั้ง = 1 (สูงสุด 5) → คลิปปิดท้าย → ดาเมจ (เกราะก่อน)
 //
 //  ฉากต่อเนื่องทั้งหมดผ่าน engine.deferAfterCutscene + wantFlow (ต้นแบบ Finisher ของแม็กน่า) · คลิปไม่มี SFX ซ้อน (กฎผู้ใช้ 2026-11-03)
 // ============================================================
@@ -58,9 +58,9 @@ const NAME = {
   smoke: "ขอทำลายปอดแปบ", ult: "ไปคุยกับรากมะม่วง",
 };
 const COUNTER = { cost: 3, dmg: 3, push: 5, turns: 2, reach: 4 };
-const NANO = { upkeep: 1, armorRegen: 2, armorMax: 5, atk: 1 };
+const NANO = { upkeep: 1, armorRegen: 1, armorMax: 5, atk: 1 }; // เกราะ +1/เทิร์น (ผู้ใช้ 2026-11-21 · เดิม +2)
 const GUARD = { minArmor: 5, per: 10, ms: 5000 };
-const ULT = { cost: 6, cd: 3, per: 10, max: 10, ms: 10000 };
+const ULT = { cost: 6, cd: 3, per: 25, max: 5, ms: 10000 }; // 25 ครั้ง = 1 · สูงสุด 5 (125 ครั้ง — ผู้ใช้ 2026-11-21 · เดิม 10/10)
 const SMOKE = { sp: 2, cd: 2 };
 const DASH_PAUSE = 0.45;
 
@@ -269,10 +269,6 @@ function setNano(engine, p, on, why) {
   engine.log(`🧬 ${p.name} ${NAME.nano} — ปิด${why ? ` (${why})` : ""}`);
 }
 
-const BASIC_CHOICES = [
-  { key: "self", name: NAME.self, desc: `2 เทิร์น · ทำงาน 1 ครั้ง · ถูกผู้อื่นทำให้เสียหาย (ไม่นับผลด่าน/สถานะผิดปกติ) = ยังรับความเสียหาย แล้วพุ่งไปต่อยผู้โจมตี ${COUNTER.dmg} (หลบได้ · ลดเกราะก่อน) ผลักออก ${COUNTER.push} ช่อง` },
-  { key: "ally", name: NAME.ally, desc: `2 เทิร์น · ทำงาน 1 ครั้ง · ผู้เล่นอื่นในระยะ ${COUNTER.reach} ถูกโจมตี = กันการโจมตีนั้นทั้งหมด แล้วพุ่งไปต่อยผู้โจมตี ${COUNTER.dmg} (หลบได้ · ลดเกราะก่อน) ผลักออก ${COUNTER.push} ช่อง` },
-];
 
 module.exports = {
   id: ID,
@@ -316,7 +312,7 @@ module.exports = {
     if (s.landing) return n;
     const src = hostileSrc(engine, p);
     if (!src) return n;
-    if (s.stance && s.stance.mode === "self" && !s.counterQ) {
+    if (s.stance && !s.counterQ) {
       s.counterQ = { by: src.id, mode: "self" };
       s.stance = null;
       queueFlow(engine, p);
@@ -338,15 +334,15 @@ module.exports = {
       if (!isMe(q)) continue;
       const s = st(q);
       if (s.guardCmd && s.guardCmd.seq === engine.cmdSeq && s.guardCmd.by === attacker.id && s.guardCmd.ally === u.id) {
-        return { name: NAME.ally, img: IMG.basic };
+        return { name: NAME.basic, img: IMG.basic };
       }
-      if (!s.stance || s.stance.mode !== "ally" || !protects(engine, q, u, attacker)) continue;
+      if (!s.stance || s.counterQ || !protects(engine, q, u, attacker)) continue;
       s.stance = null;
       s.guardCmd = { seq: engine.cmdSeq, by: attacker.id, ally: u.id };
       s.counterQ = { by: attacker.id, mode: "ally", ally: u.id };
       queueFlow(engine, q);
       engine.log(`👊 ${q.name} ${NAME.ally} — ขวางการโจมตีของ ${attacker.name} ที่มีต่อ ${u.name}`);
-      return { name: NAME.ally, img: IMG.basic };
+      return { name: NAME.basic, img: IMG.basic };
     }
     return null;
   },
@@ -396,9 +392,6 @@ module.exports = {
   skillPub(p, tier) {
     if (!isMe(p)) return null;
     const s = st(p);
-    if (tier === "basic") {
-      return { choices: BASIC_CHOICES.map((c) => ({ ...c, img: IMG.basic, cost: COUNTER.cost, area: { kind: "self" }, locked: !!s.stance })) };
-    }
     if (tier === "secondary") return s.nano ? { img: IMG.nano, active: true } : null;
     return null;
   },
@@ -416,7 +409,7 @@ module.exports = {
   canUseSkill(engine, p, tier, targets, opts = {}) {
     if (!isMe(p)) return true;
     const s = st(p), r = engine.roundNumber;
-    if (tier === "basic") return !s.stance && (opts.form === "self" || opts.form === "ally");
+    if (tier === "basic") return !s.stance;
     if (tier === "secondary") return s.toggleRound !== r;
     if (tier === "ultimate") {
       if (cdLeft(s.ultReady, r) > 0) return false;
@@ -429,10 +422,10 @@ module.exports = {
     if (!isMe(p)) return "";
     const s = st(p), r = engine.roundNumber;
     if (tier === "basic") {
-      const mode = opts.form === "ally" ? "ally" : "self";
-      s.stance = { mode, until: r + COUNTER.turns, at: engine.severStamp() };
-      engine.log(`👊 ${p.name} ${NAME.basic} — ${mode === "ally" ? NAME.ally : NAME.self} (${COUNTER.turns} เทิร์น)`);
-      return ` — ${mode === "ally" ? NAME.ally : NAME.self}`;
+      // ทั้งสวนกลับ + สวนกลับช่วยเหลือในท่าเดียว ไม่ต้องเลือก (ผู้ใช้ 2026-11-21) · อันไหนเกิดก่อนทำงาน แล้วท่าหายทั้งก้อน
+      s.stance = { until: r + COUNTER.turns, at: engine.severStamp() };
+      engine.log(`👊 ${p.name} ${NAME.basic} (${COUNTER.turns} เทิร์น)`);
+      return "";
     }
     if (tier === "secondary") {
       s.toggleRound = r;
@@ -479,7 +472,7 @@ module.exports = {
     const s = st(p), r = engine.roundNumber;
     return {
       nano: s.nano,
-      stance: s.stance ? { mode: s.stance.mode, left: Math.max(1, s.stance.until - r) } : null,
+      stance: s.stance ? { left: Math.max(1, s.stance.until - r) } : null,
       smoke: cdLeft(s.smokeReady, r),
     };
   },
