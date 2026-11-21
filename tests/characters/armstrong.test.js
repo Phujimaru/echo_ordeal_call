@@ -145,7 +145,7 @@ test("ขอสักหมัดเถอะ (สวนกลับ): ยัง
   hitBy("b", p, 2);
   assert.equal(p.armor, 3);
   runFlow();
-  assert.ok(clips.includes(arm.CUT.counter));
+  assert.deepEqual(clips.filter((k) => k.startsWith("armCounter")), [arm.CUT.counterRun, arm.CUT.counter]);
   assert.equal(t.hp, 47);
   assert.deepEqual(p.pos, { x: 4, y: 6 }); // ช่องติดผู้โจมตีฝั่งที่ใกล้สุด
   assert.deepEqual(t.pos, { x: 10, y: 6 }); // ผลัก 5

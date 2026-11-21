@@ -250,7 +250,8 @@ module.exports = function buildTransforms() {
       ["guardMash", arm.IMG.nano, "", "", true],
       ["guardHit", arm.IMG.nano, "", "", true],
       ["guardBlock", arm.IMG.nano, "", "", true],
-    ].map(([k, img, title, label, noIntro]) => [arm.CUT[k], { img, video: arm.VIDEO[k], title, label, seconds: arm.CLIP_SEC[k], music: null, afterReveal: false, ...(noIntro ? { noIntro: true } : {}) }])),
+      ["counterRun", arm.IMG.basic, "", "", true],
+    ].map(([k, img, title, label, noIntro]) => [arm.CUT[k], { img, video: arm.VIDEO[k], title, label, seconds: arm.CLIP_SEC[k], music: null, afterReveal: false, ...(noIntro ? { noIntro: true } : {}), ...(k === "counterRun" ? { clear: true } : {}) }])), // ท่อนวิ่งพื้นใส (webm alpha) ซ้อนบนกระดาน
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

@@ -34,18 +34,18 @@ const IMG = {
   smoke: `${DIR}/smoke.webp`,
 };
 const VIDEO = {
-  counter: `${DIR}/counter.mp4`, nano: `${DIR}/nano.mp4`, smoke: `${DIR}/smoke.mp4`,
+  counterRun: `${DIR}/counter_run.webm`, counter: `${DIR}/counter.mp4`, nano: `${DIR}/nano.mp4`, smoke: `${DIR}/smoke.mp4`,
   ultStart: `${DIR}/ult_start.mp4`, ultMash: `${DIR}/ult_mash.mp4`, ultEnd: `${DIR}/ult_end.mp4`,
   guardStart: `${DIR}/guard_start.mp4`, guardMash: `${DIR}/guard_mash.mp4`, guardHit: `${DIR}/guard_hit.mp4`, guardBlock: `${DIR}/guard_block.mp4`,
 };
 const CUT = {
-  counter: "armCounter", nano: "armNano", smoke: "armSmoke",
+  counterRun: "armCounterRun", counter: "armCounter", nano: "armNano", smoke: "armSmoke",
   ultStart: "armUltStart", ultMash: "armUltMash", ultEnd: "armUltEnd",
   guardStart: "armGuardStart", guardMash: "armGuardMash", guardHit: "armGuardHit", guardBlock: "armGuardBlock",
 };
 // วินาทีของฉาก (คลิปที่มีการ์ดเปิดตัว +1 · noIntro = ความยาวคลิป) · พุ่งไปต่อย/บุหรี่/ฉากป้องกัน = ไม่ขึ้นชื่อ ไม่มีการ์ดเปิดตัว (ผู้ใช้ 2026-11-21)
 const CLIP_SEC = {
-  counter: 10.0, nano: 12.5, smoke: 4.3,
+  counterRun: 1.15, counter: 8.9, nano: 12.5, smoke: 4.3,
   ultStart: 4.0, ultMash: 12.0, ultEnd: 7.6,
   guardStart: 7.2, guardMash: 5.5, guardHit: 5.0, guardBlock: 7.5,
 };
@@ -165,6 +165,8 @@ function startCounter(engine, p) {
   s.counterQ = null;
   const t = c && engine.players[c.by];
   if (!p.alive || !p.pos || !t || !t.alive || !t.pos) { settle(engine, p); return; }
+  // ท่อนวิ่ง (พื้นฟ้าตัดออก — webm alpha ซ้อนบนกระดาน · ผู้ใช้ 2026-11-21) → ท่อนต่อยเต็มจอ
+  engine.queueCutscene(p, CUT.counterRun);
   engine.queueCutscene(p, CUT.counter);
   engine.deferAfterCutscene(() => engine.withEffectSource(p, () => landCounter(engine, p, t)));
 }
