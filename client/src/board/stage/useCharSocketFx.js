@@ -19,7 +19,7 @@ import { ZECT_FX_DUR } from "../zectFx";
 import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
-import { JOSHUA_FX_DUR, JOSHUA_T } from "../joshuaFx";
+import { HELL_T, JOSHUA_FX_DUR, JOSHUA_T } from "../joshuaFx";
 import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
 import { MASTER_T, masterPose } from "../masterFx";
 import { DINO_T } from "../dinoFx";
@@ -216,6 +216,10 @@ export default function useCharSocketFx(ctx) {
       pushFx([{ kind, id: ev.id, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, cols: ev.cols, rows: ev.rows, minRow: ev.minRow, hits: Array.isArray(ev.hits) ? ev.hits : null, dur: JOSHUA_FX_DUR[kind] }]);
       if (kind === "joshuaCone" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), JOSHUA_T.cone + 120));
       if (kind === "joshuaPhoenix" && !lowQ) setShake((n) => n + 1);
+      if (kind === "joshuaHellsong") { // เสียงตามจังหวะฉาก: พุ่งดิ่ง → ระเบิดเบสหนักตอนชน
+        timers.current.push(setTimeout(() => playSfx("joshua_fire"), HELL_T.dive));
+        timers.current.push(setTimeout(() => playSfx("joshua_hell_boom"), HELL_T.impact - 60));
+      }
       if (kind === "joshuaHellsong" && !lowQ) for (const d of [2150, 2250, 2400, 2600, 2850, 3150]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // นกพุ่งชนกลางสนาม → คลื่นเพลิง
       if (kind === "joshuaIgnite" && !lowQ) for (const d of [700, 1000, 1300, 1600, 1850, 2050]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // ระเบิดเพลิงโหมหนักขึ้น
       if (kind === "joshuaSinge") playSfx("joshua_singe"); // ลุกไหม้สวนกลับ: เสียงพร้อมภาพ (มาตรงจังหวะปะทะผ่าน hitFx)

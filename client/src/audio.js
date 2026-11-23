@@ -457,6 +457,8 @@ const FILES = {
   joshua_singe: "/characters/joshua_rosfield/sfx/joshua_singe.mp3", // ลุกไหม้สวนกลับ: Mixkit "Fire woosh" #1348 (ตัด 1.6 วิ)
   joshua_fire_loop: "/characters/joshua_rosfield/sfx/joshua_fire_loop.mp3", // ร่างนกเพลิง: ไฟลุกวนเป็นพื้นหลัง (-22 LUFS)
   // ร่างนกฟีนิกซ์: ไฟลุก (Mixkit #1330) + ปีกกระพือ (Pixabay "Dragon flapping wings" 364476 · Pixabay Content License) ผสมเป็นลูป 16.2 วิ
+  // เพลิงนรก: ระเบิดเบสหนักตอนนกพุ่งชนกลางสนาม — Mixkit "Masive explosion in battle" #2777 + "Movie trailer epic impact" #2908 ผสม + bass +7 dB @80 Hz (-11 LUFS)
+  joshua_hell_boom: "/characters/joshua_rosfield/sfx/joshua_hell_boom.mp3",
   joshua_bird_loop: "/characters/joshua_rosfield/sfx/joshua_bird_loop.mp3",
   joshua_phoenix_theme: "/characters/joshua_rosfield/joshua_phoenix_theme.m4a", // เพลงนกไฟ (ไฟล์ผู้ใช้ · ปรับเป็น -11 LUFS ตามที่ผู้ใช้ขอให้ดังขึ้น)
   vergil_slash1: "/characters/vergil/sfx/slash1.mp3",   // Fast sword whoosh + Sword gore slash hit
@@ -1216,7 +1218,7 @@ export function playSfx(name, opts) {
   return playSfxNow(name, opts);
 }
 // เสียงที่ต้องเด่นคนเดียว (ผู้ใช้สั่ง 2026-11-09 — Enuma Elish ของกิลกาเมช): ระหว่างเล่น เพลงหยุด · เสียงอื่นเบาลงเหลือ FOCUS_OTHER · ลูปเสียงพัก
-const FOCUS_SFX = { gil_enuma_fire: 10900, foxy_board: 9800 }; // ฟ็อกซี่ กล่องเพลง: เด่นคนเดียว (ผู้ใช้: อย่าให้เบา)
+const FOCUS_SFX = { gil_enuma_fire: 10900, foxy_board: 9800, joshua_hell_boom: 3500 }; // โจชัว เพลิงนรก: ระเบิดเบสหนักเด่น // ฟ็อกซี่ กล่องเพลง: เด่นคนเดียว (ผู้ใช้: อย่าให้เบา)
 const FOCUS_OTHER = 0.12;
 let focusUntil = 0, focusName = null;
 function beginFocus(name, ms) {

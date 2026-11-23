@@ -242,7 +242,7 @@ function castHellSong(engine, p) {
 function landHellSong(engine, p) {
   if (!p.alive) return;
   const victims = Object.values(engine.players).filter((t) => t.id !== p.id && t.alive && t.pos && !(t.summon && t.summon.noStatus));
-  engine.sfx(SFX.phoenix);
+  // เสียง: client เล่นตามจังหวะฉาก (ไฟพุ่งดิ่ง joshua_fire → ระเบิดเบสหนัก joshua_hell_boom ตอนชนกลางสนาม)
   // ฉากบนกระดาน (client joshuaHellsong): ทั้งกระดาน — ส่งขนาดกระดาน + ตำแหน่งคนที่โดน
   const map = engine.boardMap();
   fx(engine, p, "hellsong", { cols: map.cols, rows: map.rows, minRow: map.minRow | 0, hits: victims.map((t) => ({ id: t.id, x: t.pos.x, y: t.pos.y, size: engine.sizeOf(t) })) });

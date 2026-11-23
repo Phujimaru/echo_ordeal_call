@@ -3,7 +3,7 @@
 //  คอนโซล: window.__joshuaFx(kind) = เล่นชุดเดียวกับปุ่ม (slash / cone / conePhoenix / heal / phoenix / singe / aura)
 import { useEffect, useRef, useState } from "react";
 import * as Rules from "./boardRules";
-import { JOSHUA_FX_DUR, JOSHUA_HIT_P, JOSHUA_MS, JOSHUA_T } from "./joshuaFx";
+import { HELL_T, JOSHUA_FX_DUR, JOSHUA_HIT_P, JOSHUA_MS, JOSHUA_T } from "./joshuaFx";
 import { playSfx, startLoopSfx, stopLoopSfx, playMusic, stopMusic } from "../audio";
 
 const CUR = { units: [] };
@@ -74,7 +74,8 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
       after.current = () => {
         const a = me(), others = CUR.units.filter((x) => x.id !== "me").map((x) => ({ id: x.id, x: x.x, y: x.y, size: x.size || 1 }));
         pushFx([{ kind: "joshuaHellsong", id: "me", x: a.x, y: a.y, size: 3, cols: (map && map.cols) || 14, rows: (map && map.rows) || 14, minRow: (map && map.minRow) || 0, hits: others, dur: JOSHUA_FX_DUR.joshuaHellsong }]);
-        playSfx("joshua_phoenix");
+        setTimeout(() => playSfx("joshua_fire"), HELL_T.dive);
+        setTimeout(() => playSfx("joshua_hell_boom"), HELL_T.impact - 60);
         for (const d of [2150, 2250, 2400, 2600, 2850, 3150]) setTimeout(() => setShake && setShake((n) => n + 1), d);
       };
       setClip("/characters/joshua_rosfield/joshua_hellsong.mp4");
