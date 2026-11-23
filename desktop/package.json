@@ -1,9 +1,9 @@
 {
   "name": "echo-desktop",
   "productName": "ECHO",
-  "version": "6.5.8",
+  "version": "6.5.9",
   "private": true,
-  "description": "ECHO — โปรแกรมสำหรับเปิดห้อง/เข้าร่วมผ่าน Radmin VPN",
+  "description": "ECHO â€” à¹‚à¸›à¸£à¹à¸à¸£à¸¡à¸ªà¸³à¸«à¸£à¸±à¸šà¹€à¸›à¸´à¸”à¸«à¹‰à¸­à¸‡/à¹€à¸‚à¹‰à¸²à¸£à¹ˆà¸§à¸¡à¸œà¹ˆà¸²à¸™ Radmin VPN",
   "main": "main.js",
   "scripts": {
     "start": "node start.js",
