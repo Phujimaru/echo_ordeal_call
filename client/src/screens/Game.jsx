@@ -1285,8 +1285,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {me?.shinra && !hudAway && !rtTravel && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
       {/* โรลันด์: แถบ EGO Page — Emotion + บัฟที่เลือกแล้ว (×ซ้อน) */}
       {me?.roland && !hudAway && !rtTravel && <RolandEgo roland={me.roland} lowQ={lowQ} />}
-      {/* ยูกิ มุโต้: การ์ดบนมือ + เด็ค (เจ้าตัวเห็นเท่านั้น — server ส่ง hand ให้เจ้าตัว) */}
-      {me?.yugi?.hand && !hudAway && !rtTravel && (
+      {/* ยูกิ มุโต้: การ์ดบนมือ + เด็ค (เจ้าตัวเห็นเท่านั้น — server ส่ง hand ให้เจ้าตัว)
+          แสดงเฉพาะช่วงตาเดิน (ACTION) — ช่วงจั่วไพ่ปกติ/ลำดับเดิน/จบเกม ห้ามโผล่ทับ (ผู้ใช้ 2026-11-24) */}
+      {me?.yugi?.hand && phase === "ACTION" && !hudAway && !rtTravel && (
         <YugiHand
           yugi={me.yugi}
           basic={ch?.basic}
