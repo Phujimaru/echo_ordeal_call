@@ -256,7 +256,7 @@ export default function useStateDiffFx(ctx) {
       if (beam) later(ZOOM_IN, () => pushFx([{ kind: "beam", x: fromPos.x, y: fromPos.y, to: tPos, len: a.byBeam, hitId: a.targetId, tone: a.byBeamTone || null }]));
       // มีดโซระ (byHitFx "mythSlash"): พุ่งชนแบบเดิม · เสียงเริ่มก่อนปะทะ (ฟันแรกในเสียงตรงจังหวะปะทะ) · ฟันฟ้า 2 ครั้งแทนแสงแตก
       //  ดาบ BeamSaber ของบานาจ (byHitFx "saberRed"): ฟันไขว้แบบเดียวกันแต่สีแดง · เสียงตีตรงจังหวะปะทะ
-      const saber = a.byHitFx === "saberRed";
+      const saber = a.byHitFx === "saberRed" || a.byHitFx === "saberGold"; // saberGold = ดาบของโจชัว รอสฟิลด์ (ฟันไขว้ทอง)
       const myth = a.byHitFx === "mythSlash" || saber;
       if (myth && !saber && tPos) later(Math.max(0, HIT - SORA_T.lead), () => playSfx(a.byAttackSound || "attack"));
       // โจรุโน่: หมัดหนักปะทะ = จอสั่น · หมัดรัว = สั่นตอนหมัดสุดท้าย (giornoFx.js RUSH_END + 0.08)
@@ -318,7 +318,7 @@ export default function useStateDiffFx(ctx) {
             // คาซุมะ: ฉากปะทะอยู่ใน kazumaFx แล้ว (รอยฟัน/หมัด/สายฟ้า) — ไม่ซ้อนแสงแตกเดิม
             ...(kz && !a.dodge ? [] : [hk && !a.dodge
               ? { kind: "hkHit", x: tPos.x, y: tPos.y, size: sizeOfP(byId[a.targetId]), tone: HK_TONE[style], hitIds: [a.targetId, ...extras.filter((e) => !e.dodge).map((e) => e.targetId)] }
-              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]), tone: saber ? "red" : null }]),
+              : { kind: a.dodge ? "slash" : myth ? "mythSlash" : "burst", x: tPos.x, y: tPos.y, color: a.byColor, size: sizeOfP(byId[a.targetId]), tone: saber ? (a.byHitFx === "saberGold" ? "gold" : "red") : null }]),
             ...extras.flatMap((e) => [
               ...(e.dodge ? [{ kind: "slash", x: e.at.x, y: e.at.y, color: a.byColor }] : hk ? [{ kind: "hkHit", x: e.at.x, y: e.at.y, size: sizeOfP(byId[e.targetId]), tone: HK_TONE[style] }] : kz ? [] : [{ kind: "burst", x: e.at.x, y: e.at.y, color: a.byColor }]),
               { kind: "float", x: e.at.x, y: e.at.y, text: e.dodge ? "หลบ" : `-${e.dmg}`, color: e.crit && !e.dodge ? "#ffd84a" : undefined, size: 28, z: lowQ ? 2.4 : 1.5 },
@@ -370,7 +370,7 @@ export default function useStateDiffFx(ctx) {
           if (a.push.collide) pushFx([{ kind: "float", x: a.push.from.x, y: a.push.from.y, text: "ชน -1", color: "#ffc56b", size: 22 }]);
         });
       }
-      const slashTail = myth || (a.counter && (a.counter.byHitFx === "mythSlash" || a.counter.byHitFx === "saberRed")) ? SORA_T.slash2 : 0;
+      const slashTail = myth || (a.counter && (a.counter.byHitFx === "mythSlash" || a.counter.byHitFx === "saberRed" || a.counter.byHitFx === "saberGold")) ? SORA_T.slash2 : 0;
       if (!lowQ) later(t + slashTail + (a.push ? 900 : 1000), () => setCinema(null));
     }
     // หนามน้ำแข็งลด Lv/หายนอกฉากตีและนอกเหตุการณ์ iceFx (สกิลพื้นที่ตีโดน / หมดเวลา) = แตกทันที

@@ -51,6 +51,7 @@ const naruhodo_ryuichi = require("./naruhodo_ryuichi"); // นารุโฮโ
 const diego_dino = require("./diego_dino"); // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์) — ยาก · โหมดของ diego_alt ในหน้าเลือกตัว (ไวรัสบรรพกาล / ร่างไดโนเสาร์ / ควบคุมร่าง server/possess.js)
 const vergil = require("./vergil"); // เวอจิล — พิเศษ (ฟันรัวคอมโบ A+ · Doppelganger · Judgment Cut End ที่ 30 HIT — GRID_PLAN §7.40)
 const armstrong = require("./armstrong"); // อาร์มสตรอง — กลาง (ขอสักหมัดเถอะ สวนกลับ/ช่วยเหลือ · Nanomachines เปิดปิด · QTE กดรัว ยืนวัดกันบลูกผู้ชาย/ไปคุยกับรากมะม่วง — GRID_PLAN §7.39)
+const joshua_rosfield = require("./joshua_rosfield"); // โจชัว รอสฟิลด์ — Boss (เทพไฟ FFXVI · กรวยไฟ/พรของนกเพลิง/สวมร่างนกเพลิง · ลุกไหม้ = ฟื้น — GRID_PLAN §7.41)
 const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
@@ -99,6 +100,7 @@ const CHARACTER_MODULES = [
   naruhodo_ryuichi,
   armstrong,
   vergil,
+  joshua_rosfield,
 ];
 
 const CHAR_HOOKS = {};

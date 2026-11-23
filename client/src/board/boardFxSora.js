@@ -41,8 +41,10 @@ function crescent(g, cx, cy, R, rot, span, u0, u1, W, fill) {
 }
 // tone "red" = ดาบ BeamSaber ของบานาจ (แกนขาว + เรืองแดง)
 const SABER = { SKY: "255,70,90", SKY_HI: "255,190,200", DEEP: "220,20,40", ICE: "255,228,232" };
+// tone "gold" = ดาบของโจชัว รอสฟิลด์ (แกนขาว + เรืองทองอมแดงเพลิง)
+const GOLD = { SKY: "255,190,90", SKY_HI: "255,236,180", DEEP: "200,60,30", ICE: "255,246,224" };
 export function mythSlashFx(g, e, now, lowQ) {
-  const { SKY, SKY_HI, DEEP, ICE } = e.tone === "red" ? SABER : SORA_PAL;
+  const { SKY, SKY_HI, DEEP, ICE } = e.tone === "red" ? SABER : e.tone === "gold" ? GOLD : SORA_PAL;
   const t = now - e.t0, n = Math.max(1, e.size | 0), still = lowQ || REDUCED;
   const [cx, cy, s0] = P(e.x + n / 2, e.y + n / 2, 0.85 + (n - 1) * 0.4);
   const S = s0 * 1.2 * (1 + (n - 1) * 0.5), R = S * 0.62, span = 2.0;

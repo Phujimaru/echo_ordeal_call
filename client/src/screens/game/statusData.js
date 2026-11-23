@@ -16,6 +16,7 @@ const STATUS_INFO = {
   elLight:   { icon: "✨", label: "คราบแสง", cls: "bg-yellow-100 text-gray-900", desc: "" },
   elDark:    { icon: "🌑", label: "คราบมืด", cls: "bg-violet-700 text-white", desc: "" },
   stirred:   { icon: "🧬", label: "กระตุ้น", cls: "bg-lime-300 text-gray-900", desc: "" },
+  joshuaPhoenix: { icon: "🐦‍🔥", label: "ร่างนกเพลิง", cls: "bg-orange-500 text-gray-900", desc: "" }, // โจชัว รอสฟิลด์ (GRID_PLAN §7.41)
   frostbite: { icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900", desc: "" },
   hbleed:    { icon: "🩸", label: "เลือดไหล", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1 และระหว่างนี้ฟื้นพลังชีวิตได้แค่ครึ่งเดียว" },
   hburn:     { icon: "🔥", label: "ลุกไหม้", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1" },

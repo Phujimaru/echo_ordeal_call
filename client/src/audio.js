@@ -448,6 +448,13 @@ const FILES = {
   // เวอจิล: กล่องเพลง (ปุ่ม HUD เปิด/ปิด · ไฟล์ผู้ใช้ theme_music_box.m4a loudnorm -14 LUFS · state.skillMusic)
   vergil_theme: "/characters/vergil/theme.m4a",
   // เวอจิล (vergilFx.js VG_SFX): ผสมจากเสียง Mixkit (Free License — ผู้ใช้สั่งหาเสียงภายนอก 2026-11-21) ซ้อน 2–3 ชั้น + เสียงก้องสั้น · จุดปะทะอยู่ราว 50–110 ms (ต้นไฟล์)
+  // โจชัว รอสฟิลด์ (GRID_PLAN §7.41): ฟันดาบ = สำเนา vergil slash2 (Mixkit) · เสียงไฟจริงจาก Mixkit (ผู้ใช้สั่งโหลด 2026-11-23 · Mixkit Free License):
+  //  กรวยไฟ = "Fire swoosh burning" #1328 · พร = "Soft woosh fire" #1346 · สวมร่าง = "Big fire flame burning" #1331 (ตัด 4.5 วิ) · พื้นหลัง = "Campfire crackles" #1330 (ครอสเฟดเป็นลูป 22 วิ)
+  joshua_slash: "/characters/joshua_rosfield/sfx/joshua_slash.mp3",
+  joshua_fire: "/characters/joshua_rosfield/sfx/joshua_fire.mp3",
+  joshua_heal: "/characters/joshua_rosfield/sfx/joshua_heal.mp3",
+  joshua_phoenix: "/characters/joshua_rosfield/sfx/joshua_phoenix.mp3",
+  joshua_fire_loop: "/characters/joshua_rosfield/sfx/joshua_fire_loop.mp3", // ร่างนกเพลิง: ไฟลุกวนเป็นพื้นหลัง (-22 LUFS)
   vergil_slash1: "/characters/vergil/sfx/slash1.mp3",   // Fast sword whoosh + Sword gore slash hit
   vergil_slash2: "/characters/vergil/sfx/slash2.mp3",   // Sword blade swish + Heavy sword hit
   vergil_slash3: "/characters/vergil/sfx/slash3.mp3",   // Quick magic sword slice + Samurai sword impact + Fast impact blow (ครั้งสุดท้ายของชุด)

@@ -36,7 +36,7 @@ const DIFFICULTY_GROUPS = [
   { key: "fun", label: "เอาฮา", color: "#9B4F96", order: ["yuki_makoto", "freddy_fazbear", "foxy"] },
   { key: "special", label: "พิเศษ", color: "#0e7490", order: ["echo", "yuna", "funny_valentine", "celine", "trafalgar_law", "arjuna", "naruhodo_ryuichi", "vergil"] },
   { key: "calamity", label: "มหันตภัย", color: "#7A0010", order: ["ryougi", "gilgamesh_fake"] },
-  { key: "boss", label: "Boss", color: "#3F6E1E", order: ["master"] },
+  { key: "boss", label: "Boss", color: "#3F6E1E", order: ["master", "joshua_rosfield"] },
 ];
 // ตัวที่ความยากไม่ตรงหมวดไหนเลย (ข้อมูลใหม่ที่ยังไม่ได้จัดหมวด) — รวมไว้วงสุดท้าย
 const OTHER_GROUP = { key: "_other", label: "อื่นๆ", color: "#8BA3C2", order: [] };

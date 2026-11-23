@@ -1353,6 +1353,7 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **client**: `data/elements.js` (ธาตุ/ตารางปฏิกิริยา/`auraOf`) · `board/elementFx.js` (`u.elem` วงแสง+อนุภาค+ป้ายมุมหมาก · เหตุการณ์ socket `elemAura` / `elemReact` / `elemBomb`) · `board/ReactionPanel.jsx` · ฉากปฏิกิริยา `board/elementReactFx.js` / ระเบิดธาตุ `board/elementBombFx.js` (อิงขนาดช่องจริง · ปฏิกิริยาวง = กรอบ 3×3)
   · เสียง `elem_<ปฏิกิริยา>` / `elem_bomb_<ธาตุ>` สังเคราะห์ `.claude/plans/element-sfx.py` → `client/public/effect_sound/element/` (track ใน git)
 - **มุมขวาบนใหม่** (แบบร่าง `.claude/plans/element-ui.html`): `.bs-tools` = กลุ่มกล้อง + กลุ่มข้อมูลกระดาน แถวเดียวกับ `.ocv` (VolumeControl ตั้ง `--ocv-w`) · ทรงโค้ง + โทเคน `--bs-ui-*` สว่าง/มืด (`:root[data-ui="dark"]`) · BoardStage ตั้ง `:root[data-board]` → ปุ่ม `.ocv` โค้งตาม · คิวลำดับเดินเริ่ม 74px
+- **ฮุคปฏิกิริยา (broadcast · 2026-11-23 โจชัว รอสฟิลด์)**: `onReactionHit(engine, เป้า, { a, b, key, source })` = หลังดาเมจของปฏิกิริยา ก่อนตัดสินตาย (ปฏิกิริยาทั่วไปเท่านั้น) · `afterReaction(engine, เป้า, { ...ผล, source })` = หลังปฏิกิริยาจบ (รวมลูกโซ่ทีละคน + ปฏิกิริยา special) คราบของเป้าถูกใช้ไปแล้ว → ติดคราบใหม่ได้ด้วย `engine.elementApply`
 - เทสต์ `tests/element.test.js`
 
 ## 55. พลังงานที่สอง / เดินต่อหลังใช้สกิล-ไอเทม / พื้นที่สี่เหลี่ยมรอบตัว (คุซาคาเบะ ชินระ — `characters/kusakabe_shinra.js` · GRID_PLAN §7.32)
@@ -1488,3 +1489,11 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - เพดานดาเมจต่อเป้าต่อเทิร์น: ตั้ง `capNow` ชั่วคราวระหว่าง `skillStrike` แล้วคืนผ่านฮุค `damageCap`
 - ฉากบนกระดาน: socket `vergilFx` + `engine.skillBeat` พักสั้นๆ ต่อการฟัน (ระหว่างพักหน้าต่างเวลาหยุด) · เสียงเล่นที่ client ตามจังหวะปะทะ (`out.sfx`)
 - ยกหมากค้าง: state `players[].vgAir` → BoardStage `vg.air` → BoardCanvas `hz += VG_AIR_Z`
+
+## 65. ฮุคปฏิกิริยาธาตุ / ร่างที่ติดคราบต่อหลังปฏิกิริยา / ลูปเสียงพื้นหลังระหว่างร่าง (โจชัว รอสฟิลด์ `characters/joshua_rosfield.js` · GRID_PLAN §7.41)
+- ฮุค broadcast `onReactionHit` / `afterReaction` ใน `server/element.js` (ดู §54) — ร่างนกเพลิงติดคราบไฟต่อ · ลูกชายคนเล็กฟื้น 2 จากปฏิกิริยาไฟบนตัวเอง
+- ลุกไหม้ฟื้นแทนเสียหาย = ฮุคเดิม `hburnHeals` (`_universal_status.tickBurn`)
+- ร่างเก็บเป็นสถานะ `joshuaPhoenix` (ลดที่ endTurn · ป้าย `statusData.js`) · ถูกโจมตี = ผู้โจมตีลุกไหม้ (`onAttacked` + คีย์ต่อการโจมตีแบบเฟิร์น)
+- ฉากตีปกติฟันไขว้ทอง `attackHitFx` → `"saberGold"` (`mythSlashFx` tone `gold`)
+- ลูปเสียงพื้นหลังระหว่างร่าง: `Game.jsx` เช็ค `players[].joshua.phoenix` → `startLoopSfx("joshua_fire_loop")` · คลิปเล่น = พัก · ลูปอินุอิ/คริซุงุมาก่อน · เพลงเฟรดดี้หลีก
+- ออร่าหาง `units[].aura "joshuaPhoenix"` → `joshuaAuraBack/Front` (ริบบิ้นวาดทึบ source-over ให้เห็นบนพื้นสว่าง)

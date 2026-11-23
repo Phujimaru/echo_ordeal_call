@@ -434,6 +434,7 @@ function buildStateInner(viewerId) {
         valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
         fern: hook && hook.fernState ? hook.fernState(engine, p, viewer) : undefined, // เฟิร์น: ซ่อนเร้นมานา / นับ Zoltraak สู่ครั้งเสริมพลัง / เพิ่มระยะ / คูลดาวน์ทุกช่อง — GRID_PLAN §7.14
         shinra: hook && hook.shinraState ? hook.shinraState(engine, p, viewer) : undefined, // คุซาคาเบะ ชินระ: เปลวเพลง / ฮีโร่ / อุ่นเครื่อง / มอดไหม้จากภายใน / คูลดาวน์ลาทัม — GRID_PLAN §7.32
+        joshua: hook && hook.joshuaState ? hook.joshuaState(engine, p) : undefined, // โจชัว: ร่างนกเพลิง (เทิร์นที่เหลือ) · คูลดาวน์ — GRID_PLAN §7.41
         midoriya: hook && hook.midoriyaState ? hook.midoriyaState(engine, p) : undefined, // มิโดริยะ: Full Cowl (เทิร์นที่เหลือ/คูลดาวน์) · คูลดาวน์ Smash แต่ละแบบ — GRID_PLAN §7.33
         naruhodo: hook && hook.naruhodoState ? hook.naruhodoState(engine, p, mine) : undefined, // นารุโฮโดะ: แฟ้มหลักฐาน · รอเดี๋ยว!!! · สืบสวน (เจ้าตัวเห็นเต็ม · คนอื่นเห็น holdReady)
         courtAlibi: mine && (p.courtAlibi || 0) > 0 ? p.courtAlibi : undefined, // ข้อแก้ตัวของศาลนารุโฮโดะ (เจ้าตัว)
@@ -520,6 +521,7 @@ function unseenPub(o, p) {
     gil: o.gil ? { ea: false, wealth: null, wealthMax: o.gil.wealthMax, ammo: null, storm: o.gil.storm, warns: o.gil.warns, weapons: o.gil.weapons, charge: o.gil.charge ? { ...o.gil.charge } : null } : undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)
     fern: o.fern ? { conceal: false, count: null, need: null, empowered: false, boost: false, shieldCd: null, basicCd: null, boostCd: null, concealCd: null } : undefined,
+    joshua: undefined, // โจชัว: มองไม่เห็น = ไม่รู้ร่างนกเพลิง/คูลดาวน์
     midoriya: undefined, // มิโดริยะ: มองไม่เห็น = ไม่รู้ Full Cowl/คูลดาวน์
     dino: undefined, // ดิเอโก้ อสูรกายดึกดำบรรพ์: มองไม่เห็น = ไม่รู้ร่าง/ความบ้าคลั่ง
     armstrong: undefined, // อาร์มสตรอง: มองไม่เห็น = ไม่รู้นาโน/ท่าสวน

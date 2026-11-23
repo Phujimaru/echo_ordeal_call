@@ -171,7 +171,7 @@ function withChainBlock(ids, fn) {
 function react(t, a, b, source, chain = null) {
   const r = b === "wind" && a === "poison" ? REACTIONS.poisonWind : REACTIONS[pairKey(a, b)];
   if (!r) return null;
-  if (r.special) return reactSpecial(t, a, b, r, source);
+  if (r.special) { const o = reactSpecial(t, a, b, r, source); afterReaction(t, o || { key: r.key, name: r.name, a, b, id: t.id }, source); return o; }
   const C = combat();
   const at = t.pos ? { ...t.pos } : null;
   const ring = r.ring || r.push ? ringOf(t, source) : [];
@@ -200,6 +200,8 @@ function react(t, a, b, source, chain = null) {
       lines.push(`${u.name} -${Math.max(0, before - hpArm(u))}`);
     }
     if (r.push && at) pushRing(at, t, ring, r.push);
+    // ฮุค broadcast onReactionHit(engine, เป้า, { a, b, key, source }) — หลังดาเมจของปฏิกิริยา ก่อนตัดสินตาย (โจชัว: ไฟหล่อเลี้ยง ฟื้น 2)
+    C.broadcastHook("onReactionHit", engine(), t, { a, b, key: r.key, source });
     for (const u of [t, ...ring]) killCheck(u, t);
   }));
   match.lastLog.push(`${chain ? "⛓️ " : ""}${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}${chain ? " (ลูกโซ่)" : "!"} ${lines.join(" · ")}`.trim());
@@ -230,7 +232,14 @@ function react(t, a, b, source, chain = null) {
     for (const u of hit) if (!u.alive) u.pos = null;
     if (hit.length) out.chain = hit.length;
   }
+  afterReaction(t, out, source);
   return out;
+}
+// ฮุค broadcast afterReaction(engine, เป้า, { ...ปฏิกิริยา, source }) — หลังปฏิกิริยาจบ (รวมลูกโซ่) · คราบของเป้าถูกใช้ไปแล้ว
+//  โจชัว ร่างนกเพลิง: ติดคราบไฟต่อทันที (GRID_PLAN §7.41)
+function afterReaction(t, info, source) {
+  if (!t) return;
+  combat().broadcastHook("afterReaction", engine(), t, { ...info, source: source || null });
 }
 const hpArm = (u) => (u.hp || 0) + (u.armor || 0) + (u.shield || 0);
 function killCheck(u, main) {

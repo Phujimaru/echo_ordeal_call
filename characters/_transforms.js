@@ -28,6 +28,7 @@ const ot = require("./old_truck"); // รถบรรทุกเก่า / อ
 const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุงุ: Time Alter ทุกครั้ง · Thompson ยิง/โดน ทุกครั้ง
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
 const arm = require("./armstrong"); // อาร์มสตรอง: ทุกคลิปเล่นทุกครั้ง ยกเว้นเปิดนาโน (ครั้งแรกของเกม — triggerCutscene) · ผู้ใช้ 2026-11-21
+const joshua = require("./joshua_rosfield"); // โจชัว รอสฟิลด์: สวมร่างนกเพลิง ทุกครั้งที่กด (ผู้ใช้ 2026-11-23)
 const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
 const vergil = require("./vergil"); // เวอจิล: Judgment Cut End (ท่อนพุ่งพื้นใส → เต็มจอ) ทุกครั้ง · I am the storm ครั้งแรกของแมตช์
 const dino = require("./diego_dino"); // ดิเอโก้ อสูรกายดึกดำบรรพ์: ทุกคลิปทุกครั้ง (GRID_PLAN §7.36)
@@ -225,6 +226,7 @@ module.exports = function buildTransforms() {
     // คุซาคาเบะ ชินระ (GRID_PLAN §7.32) — ความยาวจริง 9.1 / 15.5 วิ
     [shinra.CUT.warm]: { img: shinra.IMG.warm, video: shinra.VIDEO.warm, title: "อุ่นเครื่องพอแล้ว", label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
     [shinra.CUT.latom]: { img: shinra.IMG.latom, video: shinra.VIDEO.latom, title: "ลาทัม", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
+    [joshua.CUT.ultimate]: { img: joshua.IMG.ultimate, video: joshua.VIDEO.ultimate, title: "สวมร่างนกเพลิง", label: "ปล่อยท่าไม้ตาย", seconds: joshua.CLIP_SEC.ultimate, music: null, afterReveal: false },
     [midoriya.CUT.smash]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.smash, title: midoriya.FORMS.smash.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.smash, music: null, afterReveal: false },
     [midoriya.CUT.throw]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.throw, title: midoriya.FORMS.throw.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.throw, music: null, afterReveal: false },
     [midoriya.CUT.detroit]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.detroit, title: midoriya.FORMS.detroit.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.detroit, music: null, afterReveal: false },

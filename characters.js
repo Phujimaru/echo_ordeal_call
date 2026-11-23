@@ -2061,6 +2061,50 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- โจชัว รอสฟิลด์ (Final Fantasy XVI · เทพไฟ) — Boss — ดู characters/joshua_rosfield.js (GRID_PLAN §7.41) ----------
+    //  พลังชีวิต 6 / เกราะ 2 ตามสเปก (ไม่มีโบนัสกลาง — combat.STAT_BONUS_OF) · ตีปกติฟันดาบระยะ 1–3 เป้าเดียว ไม่มีธาตุ
+    //  สกิลติดตัว นกเพลิงอมตะ: ผู้ใช้ยังไม่ระบุ (มาเมื่อไร = passive · ลูกชายคนเล็กย้ายไป passive2)
+    id: "joshua_rosfield",
+    gender: "m",
+    name: "โจชัว รอสฟิลด์",
+    avatar: 0,
+    difficulty: "boss",
+    img: "/characters/joshua_rosfield/joshua.webp",
+    mov: 4,
+    range: [1, 3],
+    passive: {
+      name: "ลูกชายคนเล็ก รอสฟิลด์",
+      desc: "ลุกไหม้บนตัวเองฟื้นพลังชีวิต 1 แทนเสียหาย · ปฏิกิริยาที่มีไฟเกิดบนตัวเอง ยังรับความเสียหาย แล้วฟื้นพลังชีวิต 2 · ตีปกติโดน = เป้าติดลุกไหม้ 1",
+    },
+    basic: {
+      name: "เพื่อปกป้องทุกคน",
+      desc: "ธาตุไฟ · เลือกทิศ กรวย 4: ศัตรูทุกคนเสียหาย 1 (ร่างนกเพลิง 2 · หลบได้ · ลดเกราะก่อน) + ลุกไหม้ 2 (คูลดาวน์ 1 เทิร์น)",
+      area: { kind: "line", len: 4, width: 1, cone: true, hostile: true },
+      cost: 2,
+      img: "/characters/joshua_rosfield/skill1.webp",
+      instant: true,
+      effect: null,
+    },
+    secondary: {
+      name: "พรของนกเพลิง",
+      desc: "เลือก 1–3 แต้ม (ร่างนกเพลิง 1–4): ตัวเองหรือ 1 คนในระยะ 3 ฟื้นพลังชีวิตเท่าแต้มที่ใช้ (คูลดาวน์ 1 เทิร์น)",
+      area: { kind: "target", range: 3, self: true },
+      cost: 1,
+      img: "/characters/joshua_rosfield/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "สวมร่างนกเพลิง",
+      desc: "ศัตรูทุกคนในระยะเดินรอบตัว ติดลุกไหม้ 2 + คราบไฟ (หลบได้) · 3 เทิร์น: การกระทำของตัวเองที่ทำให้เกิดปฏิกิริยา ติดคราบไฟใส่ผู้โดนต่อทันที · ศัตรูโจมตีใส่ = ผู้โจมตีติดลุกไหม้ 1 · เพื่อปกป้องทุกคนเสียหาย 2 · พรของนกเพลิงใช้ได้ถึง 4 แต้ม (ใช้แล้วยังใช้สกิลอื่นได้อีก 1 ครั้ง)",
+      area: { kind: "aoe", range: "mov", hostile: true },
+      cost: 4,
+      img: "/characters/joshua_rosfield/skill3.webp",
+      instant: true,
+      effect: null,
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));

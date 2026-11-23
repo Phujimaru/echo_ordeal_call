@@ -549,9 +549,18 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     if (alterBeat) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
   }, [alterBeat, phase]);
   useEffect(() => () => { if (alterBeatRef.current) stopLoopSfx(); }, []);
+  // โจชัว รอสฟิลด์ ร่างนกเพลิง: เสียงไฟลุกวนเป็นพื้นหลัง (ทุกคนได้ยิน · ผู้ใช้ 2026-11-23) · คลิปเล่น = พัก (ห้ามซ้อนวีดีโอ) · ลูปของอินุอิ/คริซุงุมาก่อน
+  const joshuaFire = !inuiUp && !alterBeat && (state.players || []).some((p) => p.alive !== false && p.joshua?.phoenix > 0);
+  const joshuaFireRef = useRef(false);
+  useEffect(() => {
+    if (joshuaFire && !joshuaFireRef.current) { joshuaFireRef.current = true; startLoopSfx("joshua_fire_loop"); }
+    else if (!joshuaFire && joshuaFireRef.current) { joshuaFireRef.current = false; stopLoopSfx(); return; }
+    if (joshuaFire) { if (phase === "CUTSCENE") pauseLoopSfx(); else resumeLoopSfx(); }
+  }, [joshuaFire, phase]);
+  useEffect(() => () => { if (joshuaFireRef.current) stopLoopSfx(); }, []);
   // เฟรดดี้ (กลางวัน): ผู้ชมอยู่ใกล้ = เพลงวนจนออกห่าง (state.freddyNear — per-viewer) · ไม่ทับลูปของคนอื่น
   //  มินิเกมประตู / คลิป = ไม่มีเพลงนี้
-  const freddyLoop = inuiUp || alterBeat || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
+  const freddyLoop = inuiUp || alterBeat || joshuaFire || phase === "CUTSCENE" || state.freddyDoor ? null : state.freddyNear ? "freddy_music" : null;
   const freddyLoopRef = useRef(null);
   useEffect(() => {
     if (freddyLoopRef.current === freddyLoop) return;

@@ -19,6 +19,7 @@ import { ZECT_FX_DUR } from "../zectFx";
 import { KIRI_FX_DUR } from "../kiriFx";
 import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx";
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
+import { JOSHUA_FX_DUR, JOSHUA_T } from "../joshuaFx";
 import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
 import { MASTER_T, masterPose } from "../masterFx";
 import { DINO_T } from "../dinoFx";
@@ -204,6 +205,19 @@ export default function useCharSocketFx(ctx) {
       }
     };
     socket.on("midoriyaFx", onMidoriya);
+    // โจชัว รอสฟิลด์ (joshuaFx.js): กรวยไฟ / พรของนกเพลิง / สวมร่างนกเพลิง / ลุกไหม้สวนกลับ
+    const JOSHUA_KIND = { cone: "joshuaCone", heal: "joshuaHeal", phoenix: "joshuaPhoenix", singe: "joshuaSinge" };
+    const onJoshua = (ev) => {
+      const at = ev && ev.at;
+      if (!ev || !at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
+      const kind = JOSHUA_KIND[ev.kind];
+      if (!kind) return;
+      const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
+      pushFx([{ kind, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, dur: JOSHUA_FX_DUR[kind] }]);
+      if (kind === "joshuaCone" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), JOSHUA_T.cone + 120));
+      if (kind === "joshuaPhoenix" && !lowQ) setShake((n) => n + 1);
+    };
+    socket.on("joshuaFx", onJoshua);
     // แม็กน่า สวิง (magnaFx.js): บอลไฟ / ตีบอล / ปาบอลโซ่ / โซ่ติด-ขาด / Finisher (โซ่ฟ้า → ดึง → ระเบิด) / Knuckle / Boost
     //  เสียงฝั่ง client เฉพาะจังหวะที่ไม่มีคลิป: ปาพลาด (โดน = คลิป Deathmatch ตามมา) · ดึง/ระเบิด/โซ่ขาด (หลังคลิป Finisher จบแล้ว)
     const MAGNA_KIND = { ball: "magnaBall", bat: "magnaBat", batHit: "magnaBatHit", throw: "magnaThrow", link: "magnaLink", unlink: "magnaUnlink", arm: "magnaArm", pull: "magnaPull", finHit: "magnaFinHit", knuckle: "magnaKnuckleOn", boost: "magnaBoost", heat: "magnaHeat" };
@@ -301,7 +315,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("vergilFx", onVergil); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("vergilFx", onVergil); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("joshuaFx", onJoshua); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

@@ -43,6 +43,7 @@ const STAT_BONUS_OF = {
   kate: { hp: 2, armor: 2 }, emiliko: { hp: 2, armor: 2 },
   dio_brando: { hp: 5, armor: 0 },
   gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 }, diego_dino: { hp: 3, armor: 0 },
+  joshua_rosfield: { hp: 0, armor: 0 }, // โจชัว: พลังชีวิต 6 / เกราะ 2 ตามสเปก (ฮุค maxHp/maxArmor · GRID_PLAN §7.41)
   master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 25 (patch 1 · ฮุค maxHp) · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
 };
 const statBonusOf = (p) => (p && STAT_BONUS_OF[statId(p)]) || STAT_BONUS;

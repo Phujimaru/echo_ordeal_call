@@ -20,6 +20,7 @@ import { faizGhosts, faizTrailClear } from "./faizFx";
 import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
+import { joshuaAuraBack, joshuaAuraFront } from "./joshuaFx";
 import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
 import { naruUnitFront } from "./naruhodoFx";
 import { dinoAuraBack, dinoAuraFront, drawDinoStandee, isDinoStandee } from "./dinoFx";
@@ -297,6 +298,7 @@ function drawUnit(g, u, now, boxes) {
   // คุซาคาเบะ ชินระ (shinraFx.js): ไอพ่นใต้เท้า (ฮีโร่) / เพลิงท่วมตัว (อุ่นเครื่องพอแล้ว)
   if (u.magna) magnaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: OverHeat/Fire Boost
   if (u.dino) dinoAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.dino); // ดิเอโก้ อสูรกายดึกดำบรรพ์: เงาหาง/ไอรอบเท้า
+  if (u.aura === "joshuaPhoenix") joshuaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // โจชัว ร่างนกเพลิง
   if (u.aura === "midoriyaCowl") midoriyaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // มิโดริยะ Full Cowl
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
@@ -451,6 +453,7 @@ function drawUnit(g, u, now, boxes) {
   if (auraAt) kiraAuraFront(g, auraAt[0], auraAt[1], now, u.lowQ, auraAt[2]);
   if (u.magna) magnaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: บอลไฟวนรอบตัว / Fire Knuckle
   if (u.dino || u.dvirus || u.possessed) dinoAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u); // ไอหายใจ / สปอร์ไวรัส / ถูกควบคุมร่าง (ใครก็ติดได้)
+  if (u.aura === "joshuaPhoenix") joshuaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (u.aura === "midoriyaCowl") midoriyaAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");
   if (u.aura === "kazumaKing") kazumaKingAuraFront(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha);

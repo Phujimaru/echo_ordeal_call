@@ -21,6 +21,7 @@
 //   ?naruhodo=1 = นารุโฮโดะ ริวอิจิ · ปุ่มเล่นเอานี่ไปดู! / สืบสวน / เริ่มการไต่สวน / รอเดี๋ยว!!! + HUD จำลอง (NaruhodoFxDev.jsx)
 //   ?magna=1 = แม็กน่า สวิง · ปุ่มเล่นบอลไฟ / ไม้เบสบอล / โซ่ Deathmatch / Finisher (MagnaFxDev.jsx)
 //   ?dino=1 = ดิเอโก้ อสูรกายดึกดำบรรพ์ · ปุ่มเล่นทุกท่า + คลิป + ร่างคน/ไดโนเสาร์/ม้า (DinoFxDev.jsx)
+//   ?joshua=1 = โจชัว รอสฟิลด์ · ปุ่มเล่นกรวยไฟ / พรของนกเพลิง / สวมร่างนกเพลิง / ออร่าหางนกเพลิง (JoshuaFxDev.jsx)
 //   ?midoriya=1 = มิโดริยะ อิซึคุ · ปุ่มเล่น Smash ทุกแบบ / Full Cowl / ออร่า (MidoriyaFxDev.jsx)
 //   ?sora=1 = โซระ · ปุ่มเล่นวงล้อ/ระเบิด Mouse Separade ร่างปกติและ Fire Frame (SoraFxDev.jsx)
 //   ?emiya=1 = เอมิยะ ชิโร่ · ปุ่มเล่นตีปกติ 5 อาวุธ + ทุกเหตุการณ์ของ socket "emiyaFx" + อาวุธที่ถือ/โลก UBW (EmiyaFxDev.jsx)
@@ -55,6 +56,7 @@ import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่�
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
+import JoshuaFxDev from "./JoshuaFxDev";
 import NaruhodoFxDev from "./NaruhodoFxDev"; // ?naruhodo=1 = ปุ่มเล่นเอฟเฟกต์ของนารุโฮโดะ ริวอิจิ
 import MagnaFxDev from "./MagnaFxDev"; // ?magna=1 = ปุ่มเล่นเอฟเฟกต์ของแม็กน่า สวิง
 import DinoFxDev from "./DinoFxDev"; // ?dino=1 = ปุ่มเล่นเอฟเฟกต์ของดิเอโก้ อสูรกายดึกดำบรรพ์
@@ -158,6 +160,7 @@ const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
+const JOSHUA_DEV = Q.get("joshua") === "1";
 const MAGNA_DEV = Q.get("magna") === "1";
 const NARU_DEV = Q.get("naruhodo") === "1";
 const DINO_DEV = Q.get("dino") === "1";
@@ -604,6 +607,7 @@ export default function BoardPreview() {
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} setShell={setSoraShell} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {JOSHUA_DEV && <JoshuaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {NARU_DEV && <NaruhodoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MAGNA_DEV && <MagnaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
