@@ -77,6 +77,43 @@ function naruPatch(state) {
   return { ...state, players, holdIt: hold };
 }
 
+// ?yugi=1 = ตัวเราเป็นยูกิ มุโต้ (มือการ์ด YugiHand · กดดรอว์/ทิ้ง/เปิดใช้ได้จริงในหน้านี้ — จำลองเด็คในเครื่อง) — ทดสอบ HUD + อนิเมชัน
+const YG = "/characters/yugi_muto";
+const YG_NAMES = { exodia_head: "เอ็กโซเดีย", exodia_arm_r: "แขนขวาเอ็กโซเดีย", exodia_arm_l: "แขนซ้ายเอ็กโซเดีย", exodia_leg_r: "ขาขวาเอ็กโซเดีย", exodia_leg_l: "ขาซ้ายเอ็กโซเดีย", greed: "ไหจอมละโมบ" };
+const ygCard = (k) => ({ key: k, name: YG_NAMES[k], img: `${YG}/${k}.webp` });
+const ygMock = { hand: ["greed", "exodia_head", "greed", "exodia_arm_r", "greed"], deck: ["exodia_leg_l", "greed", "exodia_arm_l", "greed", "greed", "exodia_leg_r", ...Array(28).fill("greed")], fx: null, seq: 0, guard: false };
+// จำลอง useSkill ของยูกิ (ตามกติกา characters/yugi_muto.js) → true = จัดการแล้ว
+function ygEmit(ev, payload) {
+  if (NARU_Q.get("yugi") !== "1" || ev !== "useSkill" || !payload) return false;
+  const m = ygMock, f = String(payload.form || "");
+  if (f === "draw" && m.hand.length < 7) { m.hand.push(m.deck.shift()); m.fx = { seq: ++m.seq, kind: "draw", drew: 1 }; return true; }
+  const mm = /^(drop|play):(\d+)$/.exec(f);
+  if (!mm) return false;
+  const i = Number(mm[2]), [c] = m.hand.splice(i, 1);
+  m.deck.splice(Math.floor(Math.random() * m.deck.length), 0, c);
+  if (mm[1] === "drop") { m.fx = { seq: ++m.seq, kind: "drop", i, card: c }; return true; }
+  let drew = 0;
+  if (c === "greed") for (; drew < 2 && m.hand.length < 7; drew++) m.hand.push(m.deck.shift());
+  else m.guard = true;
+  m.fx = { seq: ++m.seq, kind: "play", i, card: c, drew };
+  return true;
+}
+function yugiPatch(state) {
+  if (NARU_Q.get("yugi") !== "1" || !state || !state.players) return state;
+  const meId = state.youId, m = ygMock;
+  const self = { kind: "self" };
+  const full = m.hand.length >= 7;
+  const basic = { name: "ดรอว์ / ทิ้งการ์ดบนมือ", cost: 1, img: `${YG}/skill1.webp`, desc: "", area: self,
+    choices: [{ key: "draw", name: "ดรอว์", img: `${YG}/skill1.webp`, cost: 1, area: self, desc: "ดรอว์", locked: full },
+      ...m.hand.map((k, i) => ({ key: `drop:${i}`, name: YG_NAMES[k], img: `${YG}/${k}.webp`, cost: 1, area: self, desc: YG_NAMES[k] }))] };
+  const secondary = { name: "ขอเปิดใช้งาน", cost: 2, img: `${YG}/skill2.webp`, desc: "", area: self,
+    choices: m.hand.map((k, i) => ({ key: `play:${i}`, name: YG_NAMES[k], img: `${YG}/${k}.webp`, cost: 2, area: self, desc: YG_NAMES[k],
+      locked: k === "greed" ? m.hand.length > 6 : m.guard })) };
+  const players = state.players.map((p) => (p.id === meId ? { ...p, skillPoints: 8, skillUsed: false, character: { ...(p.character || {}), name: "ยูกิ มุโต้", img: `${YG}/yugi.webp`, basic, secondary, ultimate: null },
+    yugi: { count: m.hand.length, deck: m.deck.length, max: 7, hand: m.hand.map(ygCard), fx: m.fx } } : p));
+  return { ...state, players };
+}
+
 export default function GamePreview() {
   const showBar = new URLSearchParams(location.search).get("bar") !== "0";
   const [opts, setOpts] = useState(readOpts);
@@ -102,6 +139,7 @@ export default function GamePreview() {
     const orig = socket.emit;
     socket.emit = function previewEmit(ev, payload) {
       console.info("[GamePreview] socket.emit", ev, payload);
+      if (ygEmit(ev, payload)) { setState((prev) => ({ ...prev })); return socket; }
       setState((prev) => {
         const r = simulateEmit(prev, ev, payload);
         return r ? r.state : prev;
@@ -139,7 +177,7 @@ export default function GamePreview() {
 
   return (
     <>
-      <Game key={remount} state={naruPatch(state)} lowQ={opts.lowQ} skillConfirmOn />
+      <Game key={remount} state={yugiPatch(naruPatch(state))} lowQ={opts.lowQ} skillConfirmOn />
       {showBar && (
         <div style={BAR}>
           <button type="button" style={HEAD} onClick={() => setOpen((v) => !v)}>

@@ -450,6 +450,12 @@ const FILES = {
   // เวอจิล (vergilFx.js VG_SFX): ผสมจากเสียง Mixkit (Free License — ผู้ใช้สั่งหาเสียงภายนอก 2026-11-21) ซ้อน 2–3 ชั้น + เสียงก้องสั้น · จุดปะทะอยู่ราว 50–110 ms (ต้นไฟล์)
   // โจชัว รอสฟิลด์ (GRID_PLAN §7.41): ฟันดาบ = สำเนา vergil slash2 (Mixkit) · เสียงไฟจริงจาก Mixkit (ผู้ใช้สั่งโหลด 2026-11-23 · Mixkit Free License):
   //  กรวยไฟ = "Fire swoosh burning" #1328 · พร = "Soft woosh fire" #1346 · สวมร่าง = "Big fire flame burning" #1331 (ตัด 4.5 วิ) · พื้นหลัง = "Campfire crackles" #1330 (ครอสเฟดเป็นลูป 22 วิ)
+  // ยูกิ มุโต้: เสียงการ์ด (สังเคราะห์ 2026-11-23 · ยังไม่ผ่านหูผู้ใช้) — ดรอว์ / ทิ้ง / ไหจอมละโมบ / ชิ้นส่วนป้องกัน · ชนะ = คลิป exodia_boost (เสียงในคลิป)
+  yugi_draw: "/characters/yugi_muto/sfx/yugi_draw.mp3",
+  yugi_drop: "/characters/yugi_muto/sfx/yugi_drop.mp3",
+  yugi_greed: "/characters/yugi_muto/sfx/yugi_greed.mp3",
+  yugi_guard: "/characters/yugi_muto/sfx/yugi_guard.mp3",
+  yugi_destiny: "/characters/yugi_muto/destiny.m4a", // เพลงเมื่อชิ้นส่วนเอ็กโซเดียบนมือ 4 ชิ้นขึ้นไป (state.skillMusic — ไฟล์ผู้ใช้)
   joshua_slash: "/characters/joshua_rosfield/sfx/joshua_slash.mp3",
   joshua_fire: "/characters/joshua_rosfield/sfx/joshua_fire.mp3",
   joshua_heal: "/characters/joshua_rosfield/sfx/joshua_heal.mp3",
@@ -790,6 +796,7 @@ const LOUDNESS_GAIN = {
   "/theme_song/main_home_4.0.mp3": 0.69,
   "/theme_song/main5.0.mp3": 0.85, // Epic of Remnant (ผู้ใช้เปลี่ยน 2026-11-14) -12.6 LUFS
   "/theme_song/lobby5.0.mp3": 1, // Board Games (ผู้ใช้เปลี่ยน 2026-11-14) ต้นฉบับ -17.2 → ดันที่ไฟล์ loudnorm -14 LUFS
+  "/characters/yugi_muto/destiny.m4a": 0.75, // ยูกิ มุโต้ destiny -11.5 LUFS (60 วิแรก) → ~-14
   "/characters/echo/echo_queen_theme.mp3": 0.65, // -10.2 LUFS (ffmpeg ebur128 ช่วง 20 วิแรก)
   // ยูนะ (ffmpeg ebur128 ช่วง 60 วิแรก) — Smile for You -14.8 / skill3.mp4 -13.9 อยู่ที่เป้าแล้ว
   "/characters/yuna/yuna_delete.mp3": 0.58, // -9.2 LUFS

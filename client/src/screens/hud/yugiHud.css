@@ -1,0 +1,97 @@
+/* มือการ์ดของยูกิ มุโต้ — YugiHud.jsx · โทนทองเครื่องรางพันปี + ม่วงเข้ม · เคลื่อนไหวด้วย transform/opacity/filter เท่านั้น */
+.yg-hand { position: fixed; inset: 0; z-index: 34; pointer-events: none; }
+.yg-fan { position: absolute; width: 0; height: 0; } /* left/bottom จาก YugiHud.jsx (วัดช่องว่างระหว่างแผงโปรไฟล์กับคอลัมน์ปุ่ม) */
+
+/* ---------- ช่องการ์ด (ตำแหน่งในพัด) ---------- */
+.yg-slot { position: absolute; left: 0; bottom: 0; width: var(--cw); height: calc(var(--cw) * 1.46);
+  transform: translateX(calc(var(--x) - var(--cw) / 2)) translateY(var(--y)) rotate(var(--rot)); transform-origin: 50% 130%;
+  transition: transform .38s cubic-bezier(.2, .8, .25, 1); }
+.yg-slot:hover, .yg-slot.picked { z-index: 50 !important; }
+.yg-slot.ghost { pointer-events: none; }
+
+.yg-card { position: relative; display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto;
+  transform-style: preserve-3d; transform-origin: 50% 100%; transition: transform .2s cubic-bezier(.2, .8, .3, 1.2), filter .2s ease; will-change: transform; }
+.yg-face { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .55), 0 6px 14px rgba(0, 0, 0, .55); background: #120b04; }
+.yg-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.yg-face.back { transform: rotateY(180deg); }
+.yg-slot:hover .yg-card { transform: translateY(-26px) rotate(calc(var(--rot) * -1)) scale(1.22); }
+.yg-slot.picked .yg-card { transform: translateY(-40px) rotate(calc(var(--rot) * -1)) scale(1.3); }
+.yg-slot.dim .yg-card { filter: brightness(.55) saturate(.8); }
+.yg-slot.dim:hover .yg-card { filter: none; }
+
+/* ชิ้นส่วนเอ็กโซเดีย = กรอบทองเรือง · ไห = ขอบเขียวจาง */
+.yg-card.exo .front { box-shadow: 0 0 0 2px #ffd76a, 0 0 14px rgba(255, 190, 60, .75), 0 6px 14px rgba(0, 0, 0, .55); }
+.yg-card.exo .front::after { content: ""; position: absolute; inset: 0; border-radius: 6px; box-shadow: inset 0 0 18px rgba(255, 210, 90, .55); animation: ygExoGlow 2.4s ease-in-out infinite; }
+.yg-card.greed .front { box-shadow: 0 0 0 1px rgba(120, 230, 170, .55), 0 6px 14px rgba(0, 0, 0, .55); }
+.yg-slot.picked .yg-card .front { box-shadow: 0 0 0 3px #fff4c6, 0 0 22px rgba(255, 220, 120, .95), 0 10px 22px rgba(0, 0, 0, .6); }
+.yg-sheen { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 250, 225, .65) 50%, transparent 65%); transform: translateX(-120%); }
+.yg-slot:hover .yg-sheen { opacity: 1; animation: ygSheen .7s ease-out both; }
+
+/* ---------- ดรอว์: บินจากเด็ค พลิกหน้า ---------- */
+.yg-card.enter { animation: ygDraw .7s cubic-bezier(.22, .75, .25, 1) var(--delay) both; pointer-events: none; }
+@keyframes ygDraw {
+  0% { transform: translate(var(--from), var(--fromY)) rotate(calc(var(--rot) * -1)) rotateY(180deg) scale(.85); opacity: 0; }
+  20% { opacity: 1; }
+  45% { transform: translate(calc(var(--from) * .4), calc(var(--fromY) * .4 - 70px)) rotate(calc(var(--rot) * -1)) rotateY(90deg) scale(1.2); }
+  75% { transform: translate(0, -24px) rotateY(0deg) scale(1.08); }
+  100% { transform: none; }
+}
+/* ---------- ทิ้ง: พลิกคว่ำ บินกลับเด็ค ---------- */
+.yg-card.out-drop { animation: ygDrop .65s cubic-bezier(.5, 0, .3, 1) both; }
+@keyframes ygDrop {
+  0% { transform: none; opacity: 1; }
+  35% { transform: translateY(-44px) rotate(calc(var(--rot) * -1)) rotateY(180deg) scale(1.08); opacity: 1; }
+  100% { transform: translate(var(--to), var(--toY)) rotate(calc(var(--rot) * -1)) rotateY(180deg) scale(.82); opacity: 0; }
+}
+/* ---------- เปิดใช้: ลอยขึ้นกลาง เรืองแสง สลาย ---------- */
+.yg-card.out-play { animation: ygPlay .95s cubic-bezier(.2, .7, .3, 1) both; }
+@keyframes ygPlay {
+  0% { transform: none; filter: none; opacity: 1; }
+  35% { transform: translate(calc(var(--x) * -1), -150px) rotate(calc(var(--rot) * -1)) scale(1.55); filter: brightness(1.15); opacity: 1; }
+  62% { transform: translate(calc(var(--x) * -1), -160px) rotate(calc(var(--rot) * -1)) scale(1.62); filter: brightness(2.2) saturate(1.4); opacity: 1; }
+  100% { transform: translate(calc(var(--x) * -1), -190px) rotate(calc(var(--rot) * -1)) scale(1.9); filter: brightness(3) blur(3px); opacity: 0; }
+}
+.yg-burst { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 240, 180, .95) 0%, rgba(255, 190, 60, .55) 30%, rgba(255, 160, 40, 0) 65%);
+  animation: ygBurst .95s ease-out both; transform: translateZ(1px); }
+.out-play.greed .yg-burst { background: radial-gradient(circle, rgba(220, 255, 220, .95) 0%, rgba(90, 220, 140, .55) 30%, rgba(60, 200, 120, 0) 65%); }
+@keyframes ygBurst { 0%, 40% { opacity: 0; transform: scale(.2); } 62% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.8); } }
+
+/* ---------- ปุ่ม เปิดใช้ / ทิ้ง (ตั้งตรงเหนือการ์ดที่เลือก) ---------- */
+.yg-acts { position: absolute; left: 50%; bottom: calc(100% + 60px); display: flex; flex-direction: column; gap: 6px; pointer-events: auto;
+  transform: translateX(-50%) rotate(calc(var(--rot) * -1)); animation: ygPop .22s cubic-bezier(.2, .9, .3, 1.3) both; }
+.yg-act { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 112px; padding: 6px 10px; border-radius: 8px; border: 0; cursor: pointer;
+  font-size: 14px; font-weight: 900; letter-spacing: .02em; color: #2a1600; white-space: nowrap;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .25) inset, 0 6px 14px rgba(0, 0, 0, .5); transition: transform .12s ease, filter .12s ease; }
+.yg-act i { font-style: normal; font-size: 13px; font-weight: 900; padding: 1px 6px; border-radius: 999px; background: rgba(10, 20, 60, .82); color: #bfe2ff; }
+.yg-act.play { background: linear-gradient(180deg, #ffe9a8, #f2b53a 55%, #c98412); }
+.yg-act.drop { background: linear-gradient(180deg, #e8e1ff, #a99ad8 55%, #6f5fa8); color: #160c33; }
+.yg-act:not(:disabled):hover { transform: translateY(-2px) scale(1.04); filter: brightness(1.08); }
+.yg-act:disabled { filter: grayscale(.9) brightness(.55); cursor: not-allowed; }
+
+/* ---------- กองเด็ค ---------- */
+.yg-deck { position: absolute; width: var(--dw); height: calc(var(--dw) * 1.46); padding: 0; border: 0; background: none; pointer-events: auto; cursor: default; }
+.yg-deck-stack { position: absolute; inset: 0; animation: ygDeckBump .35s ease-out both; transition: transform .18s ease; }
+.yg-deck-stack img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 5px;
+  transform: translate(calc(var(--k) * 2px), calc(var(--k) * -2.4px)); box-shadow: 0 0 0 1px rgba(0, 0, 0, .7), 0 4px 10px rgba(0, 0, 0, .5); }
+.yg-deck.live { cursor: pointer; }
+.yg-deck.live .yg-deck-stack { animation: ygDeckBump .35s ease-out both, ygDeckLive 1.8s ease-in-out infinite; }
+.yg-deck.live:hover .yg-deck-stack { transform: translateY(-10px) scale(1.04); }
+.yg-deck:disabled .yg-deck-stack { filter: brightness(.6) saturate(.7); }
+.yg-deck-n { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-width: 30px; padding: 1px 6px; border-radius: 999px; text-align: center;
+  font-size: 12px; font-weight: 900; color: #fff3cf; background: rgba(20, 10, 2, .85); box-shadow: 0 0 0 1px rgba(255, 170, 70, .75); font-variant-numeric: tabular-nums; }
+.yg-cost { position: absolute; right: -8px; top: -12px; font-style: normal; font-size: 12px; font-weight: 900; padding: 2px 7px; border-radius: 999px; background: rgba(10, 20, 60, .92); color: #bfe2ff; box-shadow: 0 0 0 1px rgba(150, 200, 255, .6); }
+@keyframes ygDeckBump { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-6px) scale(1.04); } 100% { transform: none; } }
+@keyframes ygDeckLive { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 150, 50, .55)); } 50% { filter: drop-shadow(0 0 15px rgba(255, 170, 70, 1)); } }
+
+@keyframes ygExoGlow { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes ygSheen { to { transform: translateX(120%); } }
+@keyframes ygPop { from { opacity: 0; transform: translateX(-50%) rotate(calc(var(--rot) * -1)) translateY(10px) scale(.85); } to { opacity: 1; transform: translateX(-50%) rotate(calc(var(--rot) * -1)); } }
+
+.yg-hand[data-low="true"] .yg-card.exo .front::after, .yg-hand[data-low="true"] .yg-deck.live .yg-deck-stack { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .yg-card.exo .front::after, .yg-deck.live .yg-deck-stack, .yg-sheen { animation: none; }
+  .yg-card.enter, .yg-card.out-drop, .yg-card.out-play { animation-duration: .01s; }
+}

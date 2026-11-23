@@ -357,6 +357,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | มองเห็นคนที่ซ่อนอยู่ชั่วคราว (เห็นคนเดียว) | ฮุคของผู้มอง `trueSight(engine, viewer)` → true (โซระ: Orca Echo) | `visibility.hiddenFromOne` |
 | ว่ายบนพื้นเปียก ไม่ไถล | ฮุค `swims(p)` → true (Board opts.swim · client `players[].swim` — โซระ Orca Frame) | `action.planWalk` / `moveTo` · `Ice.resolveEntry` |
 | พักดาเมจที่ได้รับไว้ลงหลังฉาก (QTE ของผู้โจมตี) / สวนกลับแทนเพื่อน / กดรัวซ้อนบนคลิป | ฮุคเป้า `adjustIncomingDamage` คืน 0 + จดก้อนตาม `cmdSeq` → `deferAfterCutscene` + `wantFlow` → ลงด้วย `withEffectSource(ผู้ลงมือ)` ใต้ธงปล่อยผ่าน · `shieldsFrom` ยิงครั้งเดียวต่อ `cmdSeq` · state `armQte` + socket `armMash` + `hud/ArmstrongMash.jsx` (อาร์มสตรอง — GAME_SYSTEM §63) | `characters/armstrong.js` |
+| ตัวเลือกปุ่มหลายตัวเลือกที่คนอื่นห้ามเห็น (การ์ดบนมือ) | ฮุค `privateChoices(p)` → true = ไม่ส่ง `choices` ให้คนอื่น · state เฉพาะตัวรับ `mine` (`yugiState(engine, p, mine)` — ยูกิ มุโต้ GAME_SYSTEM §66) | `view.buildStateFor` |
 | เล็ง/ตีข้ามม่านแดง | ใช้ `Visibility.hiddenFromUnit(ตัวที่ลงมือ, เป้า)` ไม่ใช่ `hiddenFrom` (ฝ่ายคู่เห็นแผนที่รวมกัน แต่เล็งได้ตามตาตัวเอง) | `server/visibility.js` |
 
 **จุดที่ server เรียกตัวละครตรงๆ** — ถ้าตัวใหม่ต้องการ ให้แปะบรรทัดเรียกของตัวเองข้างๆ ตัวที่มีอยู่ (grep ชื่อในคอลัมน์ขวา):

@@ -22,6 +22,7 @@ const law = require("./trafalgar_law"); // ทราฟาก้า ลอว์
 const foxy = require("./foxy"); // ฟ็อกซี่: ตีปกติ (พื้นใส) / สมองเต็ม / เข้ากลางคืน
 const freddy = require("./freddy_fazbear"); // เฟรดดี้ ฟาซแบร์: จัมป์สแกร์ (ชนะมินิเกมประตู)
 const yuki = require("./yuki_makoto"); // ยูกิ มาโคโตะ: เกิดใหม่เป็นประตู (ตอนครบเวลานับถอยหลัง ก่อนฉากระเบิด)
+const yugi = require("./yugi_muto"); // ยูกิ มุโต้: เอ็กโซเดียครบ 5 ชิ้น (คลิปจบ = ชนะเกม)
 const oto = require("./kurenai_otoya"); // คุเรไน โอโตยะ: Wake Up 1/2 + ตีลง Wake Up 2 ทุกครั้ง · ที่เหลือครั้งเดียว (ผู้ใช้)
 const gio = require("./giorno_giovanna"); // โจรุโน่: คลิปท่าไม้ตาย/คริเล่นทุกครั้ง · ต้นไม้/เศษเดนมนุษย์ครั้งเดียว
 const ot = require("./old_truck"); // รถบรรทุกเก่า / ออพติมัส ไพร์ม: คลิปผู้ใช้ 4 ตัว เล่นครั้งแรกต่อเกมเท่านั้น (ผู้ใช้สั่ง)
@@ -123,6 +124,7 @@ module.exports = function buildTransforms() {
     lawMess:  { img: law.IMG.mess,  video: law.VIDEO.mess,  title: "Mess",          label: "ปล่อยท่าไม้ตาย", seconds: 6.8, music: null, afterReveal: false },
     // ยูกิ มาโคโตะ — เกิดใหม่เป็นประตู ตอนครบเวลา (ก่อนฉากระเบิด) · ความยาวจริง 17.70 วิ ปัดขึ้น (เสียงในคลิป)
     yukiUlt: { img: yuki.IMG.skill3, video: yuki.VIDEO.skill3, title: "เกิดใหม่เป็นประตู", label: "ปล่อยท่าไม้ตาย", seconds: 18, music: null, afterReveal: false },
+    yugiExodia: { img: yugi.IMG.win, video: yugi.VIDEO.win, title: "เอ็กโซเดีย", label: "เครื่องรางพันปี", seconds: 18, music: null, afterReveal: false },
     rolandFurioso: { img: roland.IMG.furioso, video: roland.VIDEO.furioso, title: "Furioso", label: "ปล่อยท่าไม้ตาย", seconds: 9.9, music: null, afterReveal: false },
     lawShock: { img: law.IMG.base,  video: law.VIDEO.shock, title: "Counter Shock", label: "ทราฟาก้า ลอว์",   seconds: 3.1, music: null, afterReveal: false, noIntro: true },
     kazumaSonic: { img: kazuma.IMG.ult("sonic"), video: kazuma.VIDEO.combo("sonic"), title: "Lightning Sonic", label: "ปล่อยท่าไม้ตาย", seconds: 20.6, music: null, afterReveal: false },

@@ -25,6 +25,7 @@ import { SkillSlot } from "./hud/SkillSlot";
 import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
 import { RolandEgo } from "./hud/RolandHud";
+import { YugiHand } from "./hud/YugiHud";
 import { MagnaHeat } from "./hud/MagnaHud";
 import NaruhodoHud, { TradePanel } from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
@@ -1146,10 +1147,11 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
             <HudCommand
               skills={
                 <>
-                  {ch?.basic && !ch.basic.book && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
+                  {/* ยูกิ มุโต้: ช่องพื้นฐาน/รองย้ายไปอยู่ในมือการ์ด (YugiHand — กองเด็ค = ดรอว์ · การ์ด = เปิดใช้/ทิ้ง) */}
+                  {ch?.basic && !ch.basic.book && !me.yugi?.hand && <SkillSlot variant="hud" label="พื้นฐาน" tier="basic" skill={ch?.basic} points={me.skillPoints} rangeLabel={areaText(ch?.basic?.area)} disabled={slotOff("basic")} onUse={requestSkillUse} cooldown={giftCd("basic")} ammo={isMuimi ? me.muimiEmergencyUses : me.inui?.opened ? me.inui.ammo : undefined} />}
                   {me.kazuma
                     ? <BladeRouzerSlot kazuma={me.kazuma} skill={ch?.secondary} disabled={slotOff("secondary")} onOpen={() => requestSkillUse("secondary", ch?.secondary, "รอง", ch?.secondary?.cost)} />
-                    : ch?.secondary && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
+                    : ch?.secondary && !me.yugi?.hand && <SkillSlot variant="hud" label="รอง" tier="secondary" skill={ch?.secondary} points={me.skillPoints} rangeLabel={areaText(ch?.secondary?.area)} disabled={slotOff("secondary")} onUse={requestSkillUse} cooldown={giftCd("secondary")} ammo={me.sliver?.form === "banagher" && !me.sliver.unicornLeft ? me.sliver.ammo : undefined} />}
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
@@ -1283,6 +1285,19 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       {me?.shinra && !hudAway && !rtTravel && <ShinraEmber shinra={me.shinra} lowQ={lowQ} />}
       {/* โรลันด์: แถบ EGO Page — Emotion + บัฟที่เลือกแล้ว (×ซ้อน) */}
       {me?.roland && !hudAway && !rtTravel && <RolandEgo roland={me.roland} lowQ={lowQ} />}
+      {/* ยูกิ มุโต้: การ์ดบนมือ + เด็ค (เจ้าตัวเห็นเท่านั้น — server ส่ง hand ให้เจ้าตัว) */}
+      {me?.yugi?.hand && !hudAway && !rtTravel && (
+        <YugiHand
+          yugi={me.yugi}
+          basic={ch?.basic}
+          secondary={ch?.secondary}
+          isOk={choiceOk}
+          canBasic={hudMode === "turn" && !slotOff("basic")}
+          canSecondary={hudMode === "turn" && !slotOff("secondary")}
+          onUse={pickChoice}
+          lowQ={lowQ}
+        />
+      )}
       {/* แม็กน่า สวิง: แถบ OverHeat */}
       {me?.magna && !hudAway && !rtTravel && <MagnaHeat magna={me.magna} lowQ={lowQ} />}
       {/* นารุโฮโดะ ริวอิจิ: แฟ้มหลักฐาน · ปุ่ม รอเดี๋ยว!!! · ตาแทรก · ข้อแก้ตัว 📍 (hud/NaruhodoHud.jsx) */}

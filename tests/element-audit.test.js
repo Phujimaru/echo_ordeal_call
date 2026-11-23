@@ -110,6 +110,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'foxy', // ฟ็อกซี่: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
     'armstrong', // อาร์มสตรอง: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
     'vergil', // เวอจิล: ตีปกติ + ทุกสกิลลม · Judgment Cut End ไฟฟ้า — tests/characters/vergil.test.js
+    'yugi_muto', // ยูกิ มุโต้: ปกติทั้งตัว (สเปกไม่ระบุธาตุ)
     'joshua_rosfield', // โจชัว รอสฟิลด์: ตีปกติฟันดาบไม่มีธาตุ · เพื่อปกป้องทุกคน ไฟ · ร่างนกเพลิงติดคราบไฟต่อหลังปฏิกิริยา — tests/characters/joshua_rosfield.test.js
     'midoriya_izuku',
     'naruhodo_ryuichi']); // นารุโฮโดะ: ปกติทุกการกระทำ (สัญญา naruhodo-contract.md) // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js

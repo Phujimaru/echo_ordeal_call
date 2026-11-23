@@ -1499,3 +1499,12 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - ออร่าหาง `units[].aura "joshuaPhoenix"` → `joshuaAuraBack/Front` (ริบบิ้นวาดทึบ source-over ให้เห็นบนพื้นสว่าง)
 - **ร่างนกฟีนิกซ์ (2026-11-23)**: ฮุคใหม่ `strikeCone(p)` → ความยาว = ตีปกติเป็นกรวยทางทิศของเป้า (`Board.coneToward` · `action.strikeCone` · client `players[].strikeCone`) · `groundImmune(p)` = ไม่โดนผลพื้นตอนจบตา (`action.endUnitTile`) · ตัวบิน 3×3 ใช้ `flies` + `boardSize` ตรงๆ (ซ้อนช่องได้ ไม่ผลักใคร) · client `units[].jbird` → `joshuaFx.drawPhoenixBird` (mesh warp กระพือปีก · depth +1e6 = วาดทับของบนกระดาน)
 - ฮุค `orderFirst(p)` → true = เดินลำดับแรกเสมอในเทิร์นนั้น (`action.turnOrderOf` — มาก่อน `orderLast`) · โจชัว นกฟีนิกซ์: เทิร์นที่ฟื้นจากกันตาย
+
+## 66. ตัวเลือกที่เป็นความลับของเจ้าตัว / เด็คการ์ดเฉพาะตัว (ยูกิ มุโต้ `characters/yugi_muto.js` · GRID_PLAN §7.42)
+- ฮุค `privateChoices(p)` → true = `view.buildStateFor` ลบ `choices` ของทุกช่องสกิลออกจาก state ที่ส่งให้คนอื่น (เจ้าตัว/ตัวคู่ยังได้ — `mine`)
+- ข้อมูลเฉพาะตัวที่ต้องซ่อนรายคน: `yugiState(engine, p, mine)` → เจ้าตัว `{ hand, deck, max, guard }` · คนอื่น `{ count }` → `players[].yugi` → `YugiHand` (HUD จอคอม)
+- เด็ค/มือเก็บที่ `p.yugi` (สร้างใหม่ใน `resetCombat` — Echo สวมร่างได้เด็คใหม่) · ตัวเลือก `form` = `draw` / `drop:<i>` / `play:<i>` (i = ตำแหน่งบนมือ)
+- ชนะทันทีกลางตาเดินแบบมีคลิป: `engine.queueCutscene(p, key)` + `engine.deferAfterCutscene(() => engine.declareWinner(p))` ใน `applyInstantSkill` → `useSkill` พักเล่นคลิป → ผลหลังคลิป → `pausePlayingForCutscene.resume` เรียก `gameOver()` ตัดจบ · ป้าย/เสียงสกิลต้องเงียบ (`silentFlash` + `skillSound` null)
+- หลบแน่นอนจากผลของตัวเอง: ฮุคเดิม `grantedDodge` / `dodgeSure` (§41)
+- อนิเมชันมือการ์ดฝั่ง client: server ใส่ `fx = { seq, kind: draw|drop|play, i, card, drew }` ทุกครั้งที่มือเปลี่ยน → `YugiHand` เทียบ seq แล้วสร้างการ์ดบิน/ผี (ไม่ตรงกับมือจริง = จัดใหม่เงียบๆ) · หน้าทดสอบ `?hud=1&game=1&yugi=1&scn=my` (จำลองเด็คในเครื่อง)
+- เสียงต่อการกระทำ: `applyInstantSkill` จด `p.yugi.sound` → ฮุค `skillSound` คืนแล้วล้าง · ชนะ = `engine.skillFlash({ …, sound })` ของตัวเอง + `silentFlash` กันป้ายซ้อน

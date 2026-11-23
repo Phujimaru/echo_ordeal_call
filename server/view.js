@@ -311,6 +311,10 @@ function buildStateInner(viewerId) {
           if (s && Array.isArray(s.choices)) s.choices = s.choices.map((c) => (c && require("./soulChain").skillBlocked(p, tierName, { form: c.key }) ? { ...c, locked: true } : c));
         }
       }
+      // ตัวเลือกเป็นความลับของเจ้าตัว (ยูกิ มุโต้: การ์ดบนมือ) — คนอื่นไม่ได้รับ choices
+      if (!mine && hook && hook.privateChoices && hook.privateChoices(p)) {
+        for (const s of [basicPub, secondaryPub, ultimatePub]) if (s) delete s.choices;
+      }
       if (basicPub) basicPub.cost = showCost(basicPub, "basic");
       if (secondaryPub) secondaryPub.cost = showCost(secondaryPub, "secondary");
       if (ultimatePub) ultimatePub.cost = showCost(ultimatePub, "ultimate");
@@ -448,6 +452,7 @@ function buildStateInner(viewerId) {
         kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
+        yugi: hook && hook.yugiState ? hook.yugiState(engine, p, mine) || undefined : undefined, // ยูกิ มุโต้: มือ/เด็ค/ป้องกัน (เจ้าตัวเห็นการ์ด · คนอื่นเห็นจำนวน) — GRID_PLAN §7.42
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
         gil: hook && hook.gilState ? hook.gilState(engine, p) : undefined, // กิลกาเมช: EA / ความมั่งคั่ง / กระสุน / พายุ (ช่องที่เล็ง) / อาวุธที่ปักค้าง / ชาร์จ Enuma Elish — GRID_PLAN §7.30

@@ -2015,7 +2015,7 @@ const CHARACTERS = [
     },
   },
   {
-    // ---------- เวอจิล (Devil May Cry) — พิเศษ (ไม่ unique) — ดู characters/vergil.js (GRID_PLAN §7.40) ----------
+    // ---------- เวอจิล (Devil May Cry) — พิเศษ (ไม่ unique) — ดู characters/vergil.js (GRID_PLAN §7.42) ----------
     //  HP 10 / เกราะ 5 = ค่าฐานกลาง 7+3 / 3+2 (combat.STAT_BONUS) · พลังโจมตี 1
     id: "vergil",
     gender: "m",
@@ -2108,6 +2108,41 @@ const CHARACTERS = [
       instant: true,
       effect: null,
     },
+  },
+  {
+    // ---------- ยูกิ มุโต้ — เอาฮา — ดู characters/yugi_muto.js (GRID_PLAN §7.42) ----------
+    //  สเปกไม่ระบุค่าพลัง → HP 10 / เกราะ 5 / โจมตี 1 (ค่าฐานกลาง) · ไม่มีท่าไม้ตาย
+    id: "yugi_muto",
+    gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
+    name: "ยูกิ มุโต้",
+    avatar: 0,
+    difficulty: "fun",
+    img: "/characters/yugi_muto/yugi.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "เครื่องรางพันปี",
+      desc: "มีเด็ค 40 ใบ: ชิ้นส่วนเอ็กโซเดีย 5 ใบ (หัว แขนขวา แขนซ้าย ขาขวา ขาซ้าย) + ไหจอมละโมบ 35 ใบ · เริ่มเกมสุ่มขึ้นมือ 5 ใบ · บนมือได้สูงสุด 7 ใบ · ชิ้นส่วนเอ็กโซเดียครบ 5 ชิ้นบนมือ = ชนะเกมทันที",
+    },
+    basic: {
+      name: "ดรอว์ / ทิ้งการ์ดบนมือ",
+      desc: "เลือก 1 แบบ · ดรอว์: สุ่มการ์ดจากเด็คขึ้นมือ 1 ใบ (มือเต็ม 7 ใบ = ดรอว์ไม่ได้) · ทิ้ง: เลือกการ์ดบนมือ 1 ใบกลับเข้าเด็ค",
+      area: { kind: "self" },
+      cost: 1,
+      img: "/characters/yugi_muto/skill1.webp",
+      instant: true,
+      effect: null, // จัดการใน characters/yugi_muto.js
+    },
+    secondary: {
+      name: "ขอเปิดใช้งาน",
+      desc: "เลือกการ์ดบนมือ 1 ใบ · ไหจอมละโมบ: ดรอว์ 2 ใบ (บนมือไม่เกิน 6 ใบ) · ชิ้นส่วนเอ็กโซเดีย: หลบการโจมตีแน่นอน 1 ครั้ง ภายใน 1 เทิร์น · การ์ดที่ใช้กลับเข้าเด็ค",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/yugi_muto/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: null,
   },
 ];
 
