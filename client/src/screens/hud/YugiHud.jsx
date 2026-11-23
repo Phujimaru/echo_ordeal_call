@@ -4,6 +4,7 @@
 //   แทนช่องสกิลพื้นฐาน/รองบนแถบล่างทั้งหมด (ผู้ใช้สั่ง 2026-11-24 — Game.jsx ซ่อนช่องเมื่อมี yugi.hand) · ไม่มีช่องเอ็กโซเดีย (ผู้ใช้: ไม่จำเป็น)
 //   ตำแหน่ง (ผู้ใช้ 2026-11-24): กองเด็ควางบนแผงโปรไฟล์ (.hud-prof — ชิดขวา พ้นป้ายเหรียญ) · มือการ์ดอยู่กลางช่องว่างระหว่างแผงโปรไฟล์กับคอลัมน์ปุ่มขวา
 //     วัดตำแหน่งจริงทุก 0.5 วิ + ตอนย่อขยายจอ · ช่องแคบ = การ์ดซ้อนกันมากขึ้น (STEP ลด) ไม่ล้นไปทับปุ่มโจมตี
+//   จุด 5 จุดบนกองเด็ค = สกิลการ์ดที่ยังใช้ได้ในเทิร์นนี้ (yugi.uses / usesMax — ผู้ใช้: 5 ครั้งต่อเทิร์น)
 //   อนิเมชันตามเหตุการณ์จาก server (yugi.fx): ดรอว์ = บินจากเด็คแล้วพลิกหน้า · ทิ้ง = พลิกคว่ำบินกลับเด็ค · เปิดใช้ = ลอยขึ้นเรืองแสงแล้วสลาย
 //   เสียงการ์ดมาจากป้ายสกิลของ server (skillSound) — ทุกคนได้ยิน · ที่นี่มีแค่เสียงคลิก
 //  จอคอม/แท็บเล็ตเท่านั้น · ไม่มีข้อความอธิบาย (ชื่อ + ตัวเลข + ไอคอน)
@@ -167,6 +168,11 @@ export function YugiHand({ yugi, basic, secondary, isOk, canBasic, canSecondary,
           {[4, 3, 2, 1, 0].map((k) => <img key={k} src={BACK} alt="" draggable={false} style={{ "--k": k }} />)}
         </span>
         <b className="yg-deck-n">{yugi.deck}</b>
+        {yugi.usesMax > 0 && (
+          <span className="yg-uses" aria-label={`${yugi.uses}/${yugi.usesMax}`}>
+            {Array.from({ length: yugi.usesMax }, (_, k) => <i key={k} data-on={k < yugi.uses ? "true" : "false"} />)}
+          </span>
+        )}
         {drawChoice && <i className="yg-cost">◆{drawChoice.cost}</i>}
       </button>
 

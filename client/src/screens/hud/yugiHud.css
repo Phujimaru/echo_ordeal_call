@@ -83,6 +83,9 @@
 .yg-deck-n { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); min-width: 30px; padding: 1px 6px; border-radius: 999px; text-align: center;
   font-size: 12px; font-weight: 900; color: #fff3cf; background: rgba(20, 10, 2, .85); box-shadow: 0 0 0 1px rgba(255, 170, 70, .75); font-variant-numeric: tabular-nums; }
 .yg-cost { position: absolute; right: -8px; top: -12px; font-style: normal; font-size: 12px; font-weight: 900; padding: 2px 7px; border-radius: 999px; background: rgba(10, 20, 60, .92); color: #bfe2ff; box-shadow: 0 0 0 1px rgba(150, 200, 255, .6); }
+.yg-uses { position: absolute; left: -13px; top: 10px; display: flex; flex-direction: column; gap: 4px; padding: 5px 3px; border-radius: 999px; background: rgba(12, 6, 2, .88); box-shadow: 0 0 0 1px rgba(255, 170, 70, .55); }
+.yg-uses i { display: block; width: 7px; height: 7px; transform: rotate(45deg); background: #3a2616; transition: background .25s ease, box-shadow .25s ease; }
+.yg-uses i[data-on="true"] { background: #ffc35a; box-shadow: 0 0 5px rgba(255, 180, 60, .9); }
 @keyframes ygDeckBump { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-6px) scale(1.04); } 100% { transform: none; } }
 @keyframes ygDeckLive { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 150, 50, .55)); } 50% { filter: drop-shadow(0 0 15px rgba(255, 170, 70, 1)); } }
 

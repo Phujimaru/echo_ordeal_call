@@ -110,7 +110,7 @@ function yugiPatch(state) {
     choices: m.hand.map((k, i) => ({ key: `play:${i}`, name: YG_NAMES[k], img: `${YG}/${k}.webp`, cost: 2, area: self, desc: YG_NAMES[k],
       locked: k === "greed" ? m.hand.length > 6 : m.guard })) };
   const players = state.players.map((p) => (p.id === meId ? { ...p, skillPoints: 8, skillUsed: false, character: { ...(p.character || {}), name: "ยูกิ มุโต้", img: `${YG}/yugi.webp`, basic, secondary, ultimate: null },
-    yugi: { count: m.hand.length, deck: m.deck.length, max: 7, hand: m.hand.map(ygCard), fx: m.fx } } : p));
+    yugi: { count: m.hand.length, deck: m.deck.length, max: 7, hand: m.hand.map(ygCard), fx: m.fx, uses: Math.max(0, 5 - m.seq), usesMax: 5 } } : p));
   return { ...state, players };
 }
 

@@ -255,3 +255,26 @@ test('เสียงการ์ด + เหตุการณ์อนิเ�
   assert.equal(yugi.silentFlash(Y), true);
   assert.deepEqual(clips, ['yugiExodia']);
 });
+
+test('สกิลการ์ด 5 ครั้งต่อเทิร์น (รวมทุกแบบ) · ไม่กิน/ไม่ติดโควตาสกิลปกติ · เทิร์นใหม่ได้ครบ', () => {
+  const { Y } = setup([['Y', 'yugi_muto', 4, 7], ['A', 'dummy', 8, 7]]);
+  engine.setActor('Y');
+  Y.skillPoints = 8; Y.skillUsedRound = true; // ใช้สกิลอื่นกินโควตาไปแล้วก็ยังใช้การ์ดได้
+  Y.yugi.hand = ['greed']; Y.yugi.deck = Array(20).fill('greed');
+  for (let k = 0; k < 4; k++) engine.useSkill('Y', 'basic', [], { form: 'draw' });
+  engine.useSkill('Y', 'basic', [], { form: 'drop:0' });
+  assert.equal(Y.yugi.hand.length, 4);
+  assert.equal(Y.skillPoints, 3);
+  assert.equal(view('Y', 'Y').yugi.uses, 0);
+  engine.useSkill('Y', 'basic', [], { form: 'draw' });
+  engine.useSkill('Y', 'secondary', [], { form: 'play:0' });
+  assert.equal(Y.yugi.hand.length, 4, 'ครั้งที่ 6 ใช้ไม่ได้');
+  assert.equal(Y.skillPoints, 3, 'ไม่เสียแต้ม');
+  const pub = view('Y', 'Y');
+  assert.ok(pub.character.basic.choices.every((c) => c.locked && c.free));
+  engine.setRoundNumber(engine.roundNumber + 1);
+  engine.setActor('Y');
+  engine.useSkill('Y', 'basic', [], { form: 'draw' });
+  assert.equal(Y.yugi.hand.length, 5, 'เทิร์นใหม่ใช้ได้อีก');
+  assert.equal(view('Y', 'Y').yugi.uses, 4);
+});

@@ -8,7 +8,7 @@
 //    มือเต็ม 7 = ดรอว์ไม่ได้ ต้องเลือกทิ้งก่อน (ผู้ใช้สั่ง — เลือกเอง ไม่ทิ้งสุ่ม)
 //  สกิลรอง ขอเปิดใช้งาน (2 แต้ม · ปุ่มหลายตัวเลือก): เลือกการ์ดบนมือ 1 ใบ
 //    ไหจอมละโมบ = ดรอว์ 2 ใบ · ชิ้นส่วนเอ็กโซเดีย = ป้องกันตัว หลบการโจมตีแน่นอน 1 ครั้ง (ภายใน 1 เทิร์น — ฮุค grantedDodge)
-//    การ์ดที่ใช้แล้ววนกลับเข้าเด็ค (ผู้ใช้สั่ง)
+//    การ์ดที่ใช้แล้ววนกลับเข้าเด็ค (ผู้ใช้สั่ง) · สกิลการ์ดรวมกัน 5 ครั้งต่อเทิร์น ไม่กินโควตาสกิลปกติ (ผู้ใช้ 2026-11-24)
 //  ไม่มีท่าไม้ตาย
 //
 //  Claude ตัดสินเอง (บอกผู้ใช้แล้ว):
@@ -26,6 +26,7 @@ const HAND_MAX = 7;
 const HAND_START = 5;
 const GREED_COUNT = 35;
 const GREED_DRAW = 2;
+const USES_PER_TURN = 5; // สกิลการ์ด (ดรอว์/ทิ้ง/เปิดใช้ รวมกัน) ต่อเทิร์น — ไม่กินโควตาสกิลปกติ (ผู้ใช้ 2026-11-24)
 
 const PIECES = ["exodia_head", "exodia_arm_r", "exodia_arm_l", "exodia_leg_r", "exodia_leg_l"];
 const CARDS = {
@@ -117,6 +118,18 @@ function markFx(p, fx) {
   s.fx = { seq: ++s.fxSeq, ...fx };
 }
 
+// สกิลการ์ดที่ยังใช้ได้ในเทิร์นนี้ (นับต่อเทิร์น — engine.roundNumber)
+function usesLeft(engine, p) {
+  const u = st(p).uses;
+  return u && u.round === engine.roundNumber ? Math.max(0, USES_PER_TURN - u.n) : USES_PER_TURN;
+}
+function spendUse(engine, p) {
+  const s = st(p);
+  if (!s.uses || s.uses.round !== engine.roundNumber) s.uses = { round: engine.roundNumber, n: 0 };
+  s.uses.n++;
+}
+const lazyEngine = () => require("../server/engine").engine; // skillPub ไม่ได้รับ engine
+
 function canPlay(p, card) {
   const s = st(p);
   if (card === "greed") return s.hand.length <= HAND_MAX - (GREED_DRAW - 1) && s.deck.length > 0;
@@ -125,7 +138,7 @@ function canPlay(p, card) {
 
 module.exports = {
   id: ID,
-  IMG, VIDEO, CUT, MUSIC, MUSIC_AT, CARDS, PIECES, HAND_MAX, HAND_START, GREED_COUNT, GREED_DRAW,
+  IMG, VIDEO, CUT, MUSIC, MUSIC_AT, USES_PER_TURN, CARDS, PIECES, HAND_MAX, HAND_START, GREED_COUNT, GREED_DRAW,
   isYugi, hasExodia,
 
   resetCombat(p) { if (isYugi(p)) p.yugi = fresh(); },
@@ -134,13 +147,14 @@ module.exports = {
   skillPub(p, tier) {
     if (!isYugi(p)) return null;
     const s = st(p);
+    const out = usesLeft(lazyEngine(), p) <= 0;
     if (tier === "basic") {
       const full = s.hand.length >= HAND_MAX;
       return {
         choices: [
-          { key: "draw", name: "ดรอว์", img: IMG.skill1, desc: `ดรอว์การ์ด 1 ใบจากเด็ค (เด็คเหลือ ${s.deck.length} ใบ · บนมือได้สูงสุด ${HAND_MAX} ใบ)`, area: { kind: "self" }, cost: 1, locked: full || !s.deck.length },
+          { key: "draw", name: "ดรอว์", img: IMG.skill1, desc: `ดรอว์การ์ด 1 ใบจากเด็ค (เด็คเหลือ ${s.deck.length} ใบ · บนมือได้สูงสุด ${HAND_MAX} ใบ)`, area: { kind: "self" }, cost: 1, locked: out || full || !s.deck.length, free: true },
           ...s.hand.map((c, i) => ({
-            key: `drop:${i}`, name: CARDS[c].name, img: CARDS[c].img, desc: `ทิ้ง ${CARDS[c].name} กลับเข้าเด็ค`, area: { kind: "self" }, cost: 1, locked: false,
+            key: `drop:${i}`, name: CARDS[c].name, img: CARDS[c].img, desc: `ทิ้ง ${CARDS[c].name} กลับเข้าเด็ค`, area: { kind: "self" }, cost: 1, locked: out, free: true,
           })),
         ],
       };
@@ -152,12 +166,16 @@ module.exports = {
           desc: c === "greed"
             ? `ไหจอมละโมบ: ดรอว์ ${GREED_DRAW} ใบ (ใช้ได้เมื่อบนมือไม่เกิน ${HAND_MAX - 1} ใบ) · การ์ดกลับเข้าเด็ค`
             : `${CARDS[c].name}: ป้องกันตัว หลบการโจมตีแน่นอน 1 ครั้ง ภายใน 1 เทิร์น · การ์ดกลับเข้าเด็ค`,
-          locked: !canPlay(p, c),
+          locked: out || !canPlay(p, c), free: true,
         })),
       };
     }
     return null;
   },
+  // สกิลการ์ดไม่กิน/ไม่ติดโควตา 1 สกิลต่อเทิร์น — มีโควตาของตัวเอง 5 ครั้งต่อเทิร์น (usesLeft · ผู้ใช้ 2026-11-24)
+  //  ยังล็อกการเดินเหมือนสกิลอื่น (useSkill lockMove)
+  skipsTurnQuota(p, tier) { return isYugi(p) && (tier === "basic" || tier === "secondary"); },
+  ignoresTurnQuota(p, tier) { return isYugi(p) && (tier === "basic" || tier === "secondary"); },
   // มือเป็นความลับ — คนอื่นไม่เห็นตัวเลือก (server/view.js)
   privateChoices(p) { return isYugi(p); },
 
@@ -165,7 +183,7 @@ module.exports = {
     if (!isYugi(p)) return true;
     const s = st(p);
     const f = parseForm(opts.form);
-    if (!f) return false;
+    if (!f || usesLeft(engine, p) <= 0) return false;
     if (tier === "basic") {
       if (f.kind === "draw") return s.hand.length < HAND_MAX && s.deck.length > 0;
       return f.kind === "drop" && f.i < s.hand.length;
@@ -179,6 +197,7 @@ module.exports = {
     const s = st(p);
     const f = parseForm(opts.form);
     if (!f) return "";
+    spendUse(engine, p);
     if (tier === "basic" && f.kind === "draw") {
       const got = drawCards(engine, p, 1);
       s.sound = SFX.draw;
@@ -270,6 +289,8 @@ module.exports = {
       max: HAND_MAX,
       hand: s.hand.map((c) => ({ key: c, name: CARDS[c].name, img: CARDS[c].img })),
       fx: s.fx,
+      uses: usesLeft(engine, p),
+      usesMax: USES_PER_TURN,
     };
   },
 };
