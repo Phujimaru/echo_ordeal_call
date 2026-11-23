@@ -317,7 +317,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     const area = !foe.isCorpse && !!me.strikeArea;
     const hits0 = (n) => ring ? inZone(n.x, n.y) && cheb1(n) : inZone(n.x, n.y) && (laneOn ?!!Rules.laneOf(map, n.x, n.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face") : Rules.inRange(range, Rules.dist({ x: n.x, y: n.y, size: sizeOfP(me) }, boxOfP(foe))));
     // ตีเป็นกรอบ (me.strikeRect): เป้าต้องอยู่ในกรอบจากช่องที่ยืน (server canStrike คัดแบบเดียวกัน)
-    const rectOk = (n) => laneOn || ring || foe.isCorpse || !Array.isArray(me.strikeRect) || !!Rules.rectToward(map, n.x, n.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]);
+    const coneOk = (n) => laneOn || ring || foe.isCorpse || !me.strikeCone || !!Rules.coneToward(map, n.x, n.y, sizeOfP(me), boxOfP(foe), me.strikeCone); // ตีกรวย (โจชัว นกฟีนิกซ์)
+    const rectOk = (n) => coneOk(n) && (laneOn || ring || foe.isCorpse || !Array.isArray(me.strikeRect) || !!Rules.rectToward(map, n.x, n.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]));
     const hits = (n) => domeOk(n) && hits0(n) && rectOk(n);
     // ตีถึงจากช่องที่ยืนอยู่แล้ว = ตีจากตรงนี้ (เดินมาแล้วก็ไม่ต้องเดินใหม่)
     let best = hits(me.pos) ? { x: me.pos.x, y: me.pos.y, here: true } : null;
@@ -331,7 +332,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
     const stand = { x: best.x, y: best.y };
     // ตีแนวตรง: ทุกคนในแนวเดียวกับเป้าโดนด้วย (ไฮไลต์ทั้งแนว)
     // ตีเป็นกรอบ (me.strikeRect [ลึก, กว้าง] — ชิโร่ Nine Lives Blade Works): ทุกคนในกรอบทางทิศของเป้าโดนด้วย
-    const rect = !laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null;
+    const coneLane = !laneOn && !foe.isCorpse && me.strikeCone ? Rules.coneToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeCone) : null;
+    const rect = coneLane || (!laneOn && !foe.isCorpse && Array.isArray(me.strikeRect) ? Rules.rectToward(map, stand.x, stand.y, sizeOfP(me), boxOfP(foe), me.strikeRect[0], me.strikeRect[1]) : null);
     const ringLane = ring ? { tiles: (() => { const out = [], sz = sizeOfP(me); for (let y = stand.y - 1; y <= stand.y + sz; y++) for (let x = stand.x - 1; x <= stand.x + sz; x++) { if (x >= stand.x && x < stand.x + sz && y >= stand.y && y < stand.y + sz) continue; if (x >= 0 && y >= 0 && x < (map.cols || 14) && y < (map.rows || 14)) out.push({ x, y }); } return out; })() } : null;
     const areaLane = area && !ring ? { tiles: Rules.tilesInRange(map, stand.x, stand.y, range, sizeOfP(me)) } : null;
     const lane = ringLane || areaLane || (laneOn ? Rules.laneOf(map, stand.x, stand.y, sizeOfP(me), range, boxOfP(foe), me.lane === "face", me.laneLen || 0) : rect); // laneLen: เรียวกิ เล็งประชิด ฟันยาว 2 ช่อง
@@ -900,7 +902,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
-      standee: !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
+      jbird: !mk && p.joshua && p.joshua.bird ? { down: !!p.joshua.down } : null, // โจชัว ร่างนกฟีนิกซ์: นกเพลิงกระพือปีก 3×3 (joshuaFx.drawPhoenixBird)
+      standee: !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,

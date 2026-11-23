@@ -20,7 +20,7 @@ import { faizGhosts, faizTrailClear } from "./faizFx";
 import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
-import { joshuaAuraBack, joshuaAuraFront } from "./joshuaFx";
+import { joshuaAuraBack, joshuaAuraFront, drawPhoenixBird } from "./joshuaFx";
 import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
 import { naruUnitFront } from "./naruhodoFx";
 import { dinoAuraBack, dinoAuraFront, drawDinoStandee, isDinoStandee } from "./dinoFx";
@@ -374,7 +374,7 @@ function drawUnit(g, u, now, boxes) {
   let hy = (UNIT_FRAME.uiPiece && pitchOf() >= 80 ? by : u.inCar ? by - s * 0.5 * K : by - s * 0.86 * K) + (u.isActor ? Math.sin(now / 280) * s * 0.04 : 0) - (u.hz || 0) * s * 0.85;
   // ร่างรถ (รถบรรทุกเก่า / รถบรรทุก): รถทั้งคัน ไม่มีคนขี่ — ไม่มีเสา/หกเหลี่ยม เหลือหลอดพลังเหนือรถ · กล่องคลิกเท่ารูปรถ
   //  เฟรดดี้ ฟาซแบร์ (freddyFx.js): ภาพตัวเต็มแทนหมาก — ไม่มีเสา/หกเหลี่ยม เหมือนร่างรถ
-  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? (u.master ? drawMasterUnit(g, u, now, wx, wy, u.hz || 0) : isDinoStandee(u) ? drawDinoStandee(g, u, now, wx, wy, u.hz || 0) : drawStandee(g, u, now, wx, wy, u.hz || 0)) : null;
+  const tb = otRides(u) ? otTruck(g, u, now, wx, wy, (u.hz || 0) - OT_RIDE_Z) : hasStandee(u) ? (u.jbird ? drawPhoenixBird(g, u, now, wx, wy, u.hz || 0) : u.master ? drawMasterUnit(g, u, now, wx, wy, u.hz || 0) : isDinoStandee(u) ? drawDinoStandee(g, u, now, wx, wy, u.hz || 0) : drawStandee(g, u, now, wx, wy, u.hz || 0)) : null;
   if (tb) hy = tb.top - vitalHeight(u, UNIT_FRAME.uiK) - 4 * UNIT_FRAME.uiK - hexR * 0.87 - 4 * UNIT_FRAME.uiK;
   const bm = g.createLinearGradient(0, hy, 0, P1[1]);
   bm.addColorStop(0, hexA(u.color, 0.2)); bm.addColorStop(1, hexA(u.color, 0.9));

@@ -76,7 +76,7 @@ test("ค่าพื้นฐาน: HP 6 / เกราะ 2 · เดิน 4
   assert.equal(engine.maxHpOf(p), 6);
   assert.deepEqual(engine.rangeOf(p), [1, 3]);
   assert.equal(engine.baseMovOf(p), 4);
-  assert.equal(jo.attackElement, undefined);
+  assert.equal(jo.attackElement(engine, p), null, "ตีปกติร่างคนไม่มีธาตุ");
   assert.equal(jo.skillElement(engine, p, "basic"), "fire");
   assert.equal(jo.skillElement(engine, p, "secondary"), null);
 });
@@ -241,4 +241,94 @@ test("ตัดผลสกิล (severables): ร่างนกเพลิ�
   sv[0].cancel();
   assert.ok(!jo.phoenixOn(p));
   assert.deepEqual(jo.severables(engine, p), []);
+});
+
+// ---------- นกเพลิงอมตะ: ร่างนกฟีนิกซ์ ----------
+const kill = (u) => { u.hp = 0; u.armor = 0; engine.instantDeath(u); };
+
+test("นกเพลิงอมตะ: ตาย = เกิดใหม่เป็นนก 20/0 · 3×3 · ล้างสถานะ · เดิน 5 · ไม่ถือไพ่ · ใช้ไอเทมไม่ได้ · ไม่มีท่าไม้ตาย · พื้นไฟ", () => {
+  const { p } = setup();
+  p.statuses.joshuaPhoenix = 2; p.statuses.hburn = 3;
+  kill(p);
+  runAfter();
+  assert.ok(p.alive);
+  assert.ok(jo.birdOn(p));
+  assert.equal(p.hp, 20);
+  assert.equal(p.armor, 0);
+  assert.equal(engine.maxArmorOf(p), 0);
+  assert.equal(engine.sizeOf(p), 3);
+  assert.deepEqual(p.statuses, {});
+  assert.equal(engine.baseMovOf(p), 5);
+  assert.ok(jo.noCards(p) && jo.noItems(p) && jo.flies(p) && jo.groundImmune(p));
+  assert.ok(jo.skillHidden(p, "ultimate"));
+  assert.ok(queued.includes("joshuaRebirth"));
+  assert.ok(Object.keys(match.board.flame || {}).length > 0, "เผาสนาม");
+});
+
+test("นกเพลิงอมตะ: ตายตอนติดคราบน้ำแข็ง/น้ำ = ตายเลย", () => {
+  const { p } = setup();
+  aura(p, "water");
+  kill(p);
+  assert.ok(!p.alive);
+});
+
+test("ร่างนก: กันตาย 3 ครั้ง (พลังชีวิต 1 + สตั้น · ตายไม่ได้จนเทิร์นถัดไป) แล้วตายจริง", () => {
+  const { p } = setup();
+  kill(p); runAfter();
+  for (let i = 0; i < 3; i++) {
+    kill(p);
+    assert.ok(p.alive, `กันครั้งที่ ${i + 1}`);
+    assert.equal(p.hp, 1);
+    kill(p);
+    assert.ok(p.alive, "ระหว่างล้มตายไม่ได้");
+    nextRound();
+    jo.onRoundStartTick(engine, p);
+  }
+  kill(p);
+  assert.ok(!p.alive, "ครบ 3 ครั้งแล้วตายจริง");
+});
+
+test("ร่างนก: ตีปกติกรวย 3 ไฟ 2 + ลุกไหม้ 2 โดนทุกศัตรูในกรวย", () => {
+  const { p, t, u } = setup();
+  kill(p); runAfter();
+  p.pos = { x: 4, y: 5 }; // ตัว 3×3 ครอบ x4–6 y5–7 · กลาง (5,6)
+  t.pos = { x: 7, y: 6 };
+  u.pos = { x: 8, y: 7 }; // แถว 2 ของกรวย
+  t.statuses = {}; u.statuses = {};
+  engine.setActor("a");
+  assert.ok(action.canStrike(p, t));
+  engine.attackTarget("a", "b");
+  engine.clearPhaseTimer();
+  assert.equal(t.hp, 48);
+  assert.equal(u.hp, 48);
+  assert.equal(t.statuses.hburn, 2);
+  assert.equal(u.statuses.hburn, 2);
+});
+
+test("ร่างนก: เพลงแห่งชีวิต 1–4 แต้มฟื้นตัวเอง · เพลงเพลิง ทุกคนรวมเพื่อน 3 + ลุกไหม้ 3 คูลดาวน์ 3", () => {
+  const { p, t, u } = setup({ mode: "duo" });
+  p.teamId = "x"; u.teamId = "x"; t.teamId = "y";
+  kill(p); runAfter();
+  engine.setActor("a");
+  p.skillPoints = 8; p.hp = 10;
+  engine.useSkill("a", "basic", [], { form: "4" });
+  assert.equal(p.hp, 14);
+  assert.equal(p.skillPoints, 4);
+  nextRound();
+  p.skillPoints = 8;
+  t.statuses = {}; u.statuses = {};
+  engine.useSkill("a", "secondary", []);
+  assert.ok(queued.includes("joshuaHellSong"));
+  runAfter();
+  assert.equal(p.skillPoints, 4);
+  assert.equal(t.hp, 47, "ศัตรู 3");
+  assert.equal(u.hp, 47, "เพื่อนโดนด้วย 3");
+  assert.equal(t.statuses.hburn, 3);
+  assert.equal(u.statuses.hburn, 3);
+  assert.equal(p.hp, 14, "ตัวเองไม่โดน");
+  assert.ok(!jo.canUseSkill(engine, p, "secondary", []));
+  nextRound(); nextRound();
+  assert.ok(!jo.canUseSkill(engine, p, "secondary", []));
+  nextRound();
+  assert.ok(jo.canUseSkill(engine, p, "secondary", []), "เทิร์น N+3");
 });

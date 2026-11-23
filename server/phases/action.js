@@ -8,7 +8,7 @@ Object.assign(module.exports, {
   placeOnBoard, expireChasm, boardMap, boardUnits, boardBlocked, movOf, baseMovOf, rangeOf, turnOrderOf,
   beginOrder, nextActor, canAct, lockMove, lockStrike, rebaseMove, moveTo, undoMove, attackTarget, waitAction, finishActor,
   removeFromOrder, joinOrder, hasActed, areaRange, resolveArea, areaTiles, tileArea, counters, tileEndEffect,
-  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, canStrike, laneVictims,
+  sizeOf, boxOf, resizeUnit, breakObstacles, addChasm, smashes, tileFree, chargeTiles, lanes, laneLen, strikeRect, strikeCone, canStrike, laneVictims,
   actionTimeUp, clockOf, freshMove, hopTiles, stuck, nearFreeTile, resumeAction, runExtras, resumeFrom,
   walkUndoPatch, startMap, flowerWalk, swims, flies, walksThrough, walkUnits, leashOf, tauntOf, tauntAllows,
 });
@@ -347,6 +347,12 @@ function strikeRect(p) {
   const r = hook && hook.strikeRect ? hook.strikeRect(p) : null;
   return Array.isArray(r) && r[0] > 0 && r[1] > 0 ? r : null;
 }
+// ตีปกติเป็นกรวยทางทิศของเป้า (ฮุค strikeCone(p) → ความยาว — โจชัว ร่างนกฟีนิกซ์ 3) · 0 = ไม่ใช่ · ใช้แทน strikeRect
+function strikeCone(p) {
+  const hook = CHAR_HOOKS[p.characterId];
+  const n = hook && hook.strikeCone ? Number(hook.strikeCone(p)) : 0;
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 // เป้าอยู่ในระยะตีปกติจากช่องที่ยืนไหม (แนวตรง = ต้องอยู่ในแนว · ปกติ = ระยะแมนฮัตตัน)
 function canStrike(p, target) {
   if (!p || !p.pos || !target || !target.pos) return false;
@@ -358,6 +364,8 @@ function canStrike(p, target) {
   if (Fodlan.shields(p, target)) return false; // สนาม Eos: โดมกำแพงเวท (server/fodlan/stage6.js)
   if (lanes(p)) return !!Board.laneOf(boardMap(), p.pos.x, p.pos.y, sizeOf(p), rangeOf(p), boxOf(target), lanes(p) === "face");
   // ตีเป็นกรอบ: เป้าต้องอยู่ในกรอบ (Master กว้าง 4 ลึก 1 — เป้าห่าง 2 ช่องตรงหน้า = กรอบไม่ครอบ จะโดนคนเดียว · ผู้ใช้ 2026-11-16 "ต้องโดนทุกคนในแนว")
+  const cone = strikeCone(p);
+  if (cone && !Board.coneToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), cone)) return false;
   const rect = strikeRect(p);
   if (rect && !Board.rectToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), rect[0], rect[1])) return false;
   return Board.inRange(rangeOf(p), Board.dist(boxOf(p), boxOf(target)));
@@ -385,6 +393,15 @@ function laneVictimsRaw(p, target) {
     const ids = Board.unitsOnTiles(boardUnits(), tiles).map((u) => u.id)
       .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
     return { ids, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+  }
+  // ตีเป็นกรวย (ฮุค strikeCone): ศัตรูทุกคนในกรวยทางทิศของเป้า
+  const coneLen = !lanes(p) && strikeCone(p);
+  if (coneLen) {
+    const cone = Board.coneToward(boardMap(), p.pos.x, p.pos.y, sizeOf(p), boxOf(target), coneLen);
+    if (!cone) return null;
+    const ids = Board.unitsOnTiles(boardUnits(), cone.tiles).map((u) => u.id)
+      .filter((id) => id !== p.id && id !== target.id && !combat.sameTeam(p, match.players[id]));
+    return { ids, tiles: cone.tiles };
   }
   const rect = !lanes(p) && strikeRect(p);
   if (!lanes(p) && !rect) return null;
@@ -1419,6 +1436,13 @@ function startCanto(p) {
 // ผลของช่องที่ยืนตอนจบตาของตัวนี้ (จุดฟื้นฟู / ช่องพิเศษ)
 function endUnitTile(p) {
   const map = boardMap();
+  // ฮุค groundImmune(p) → true = ไม่โดนผลของพื้นตอนจบตา (จุดฟื้นฟู/ลาวา/หนาม/พื้นไฟ/น้ำวน/คราบธาตุจากพื้น — โจชัว ร่างนกฟีนิกซ์บินอยู่)
+  const gh = p && CHAR_HOOKS[p.characterId];
+  if (gh && gh.groundImmune && gh.groundImmune(p)) {
+    if (p.alive && p.pos) RT.onUnitEnd(p);
+    if (p.alive && p.pos) Fodlan.onUnitEnd(p);
+    return;
+  }
   // ตัวใหญ่: ช่องไหนของตัวทับจุดฟื้นฟูก็ได้ (ฟื้นครั้งเดียว)
   if (p && p.alive && p.pos && Board.footprint(p.pos.x, p.pos.y, sizeOf(p)).some((t) => Board.isHeal(map, t.x, t.y)) && combat.healHp(p, 1) > 0) {
     const heal = Board.TERRAIN_INFO[map.healKind || "heal"];

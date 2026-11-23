@@ -2171,6 +2171,19 @@ function rectToward(map, x, y, size, target, depth, width) {
   if (!tiles.some((t) => covers(target, t.x, t.y))) return null;
   return { dir, tiles };
 }
+// ตีปกติเป็นกรวย (ฮุค strikeCone — โจชัว ร่างนกฟีนิกซ์: กรวย 3) ทางทิศของเป้า — ทิศเลือกแบบ rectToward · ช่องแบบ lineTiles cone
+//  คืน { dir, tiles } · เป้าไม่อยู่ในกรวย = null
+function coneToward(map, x, y, size, target, len) {
+  syncWrap(map);
+  if (!target) return null;
+  const n = Math.max(1, size | 0), tn = Math.max(1, (target.size | 0) || 1);
+  const dx = wdx(x + (n - 1) / 2, target.x + (tn - 1) / 2), dy = (target.y + (tn - 1) / 2) - (y + (n - 1) / 2);
+  if (!dx && !dy) return null;
+  const dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up");
+  const tiles = lineTiles(map, x, y, dir, len, 1, n, 0, true);
+  if (!tiles.some((t) => covers(target, t.x, t.y))) return null;
+  return { dir, tiles: tiles.map((t) => ({ x: t.x, y: t.y })) };
+}
 // ผู้เล่นที่ยังอยู่ซึ่งยืนในชุดช่องที่ให้มา (ตัวใหญ่ = ช่องไหนของตัวโดนก็นับ)
 function unitsOnTiles(units, tiles) {
   const set = new Set(tiles.map((t) => tk(t.x, t.y)));
@@ -2323,7 +2336,7 @@ export {
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,
   specialAt, moveCost, stepCost, terrainEvade, terrainAtk, tileInfo, freeTile, bushPatchOf, isIce, slickFor, slideLine,
   reachable, reachableBig, reachableGhost, pathTo, trailCost, stepPath, patchMap,
-  tilesInRange, aoeTiles, bandTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, unitsOnTiles, attackTargets,
+  tilesInRange, aoeTiles, bandTiles, lineTiles, laneSets, laneTiles, laneOf, rectToward, coneToward, unitsOnTiles, attackTargets,
   canCounter, pushback, threatZone, endTurnTile,
   assignSpawns, pickShopSpot, nearShop,
   normalizeMap,

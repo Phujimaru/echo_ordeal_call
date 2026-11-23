@@ -227,6 +227,8 @@ module.exports = function buildTransforms() {
     [shinra.CUT.warm]: { img: shinra.IMG.warm, video: shinra.VIDEO.warm, title: "อุ่นเครื่องพอแล้ว", label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
     [shinra.CUT.latom]: { img: shinra.IMG.latom, video: shinra.VIDEO.latom, title: "ลาทัม", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
     [joshua.CUT.ultimate]: { img: joshua.IMG.ultimate, video: joshua.VIDEO.ultimate, title: "สวมร่างนกเพลิง", label: "ปล่อยท่าไม้ตาย", seconds: joshua.CLIP_SEC.ultimate, music: null, afterReveal: false },
+    [joshua.CUT.rebirth]: { img: joshua.IMG.phoenix, video: joshua.VIDEO.rebirth, title: "นกเพลิงอมตะ", label: "เกิดใหม่", seconds: joshua.CLIP_SEC.rebirth, music: null, afterReveal: false },
+    [joshua.CUT.hellsong]: { img: joshua.IMG.phoenix, video: joshua.VIDEO.hellsong, title: "เพลงเพลิง", label: "ปล่อยสกิล", seconds: joshua.CLIP_SEC.hellsong, music: null, afterReveal: false },
     [midoriya.CUT.smash]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.smash, title: midoriya.FORMS.smash.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.smash, music: null, afterReveal: false },
     [midoriya.CUT.throw]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.throw, title: midoriya.FORMS.throw.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.throw, music: null, afterReveal: false },
     [midoriya.CUT.detroit]: { img: midoriya.IMG.smash, video: midoriya.VIDEO.detroit, title: midoriya.FORMS.detroit.name, label: "ปล่อยสกิล", seconds: midoriya.CLIP_SEC.detroit, music: null, afterReveal: false },

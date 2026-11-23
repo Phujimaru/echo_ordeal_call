@@ -456,6 +456,9 @@ const FILES = {
   joshua_phoenix: "/characters/joshua_rosfield/sfx/joshua_phoenix.mp3",
   joshua_singe: "/characters/joshua_rosfield/sfx/joshua_singe.mp3", // ลุกไหม้สวนกลับ: Mixkit "Fire woosh" #1348 (ตัด 1.6 วิ)
   joshua_fire_loop: "/characters/joshua_rosfield/sfx/joshua_fire_loop.mp3", // ร่างนกเพลิง: ไฟลุกวนเป็นพื้นหลัง (-22 LUFS)
+  // ร่างนกฟีนิกซ์: ไฟลุก (Mixkit #1330) + ปีกกระพือ (Pixabay "Dragon flapping wings" 364476 · Pixabay Content License) ผสมเป็นลูป 16.2 วิ
+  joshua_bird_loop: "/characters/joshua_rosfield/sfx/joshua_bird_loop.mp3",
+  joshua_phoenix_theme: "/characters/joshua_rosfield/joshua_phoenix_theme.m4a", // เพลงนกไฟ (ไฟล์ผู้ใช้ · ปรับเป็น -11 LUFS ตามที่ผู้ใช้ขอให้ดังขึ้น)
   vergil_slash1: "/characters/vergil/sfx/slash1.mp3",   // Fast sword whoosh + Sword gore slash hit
   vergil_slash2: "/characters/vergil/sfx/slash2.mp3",   // Sword blade swish + Heavy sword hit
   vergil_slash3: "/characters/vergil/sfx/slash3.mp3",   // Quick magic sword slice + Samurai sword impact + Fast impact blow (ครั้งสุดท้ายของชุด)

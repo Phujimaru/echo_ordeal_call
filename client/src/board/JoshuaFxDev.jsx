@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as Rules from "./boardRules";
 import { JOSHUA_FX_DUR, JOSHUA_T } from "./joshuaFx";
-import { playSfx, startLoopSfx, stopLoopSfx } from "../audio";
+import { playSfx, startLoopSfx, stopLoopSfx, playMusic, stopMusic } from "../audio";
 
 const CUR = { units: [] };
 const btn = { font: "500 13px Kanit, sans-serif", color: "#fff", cursor: "pointer", padding: "4px 9px", border: "1px solid #ff8a5c", background: "rgba(120,20,30,.95)" };
@@ -51,13 +51,24 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
       if (on) startLoopSfx("joshua_fire_loop"); else stopLoopSfx();
       return { ...u, aura: on ? "joshuaPhoenix" : null };
     })),
+    // ร่างนกฟีนิกซ์: เหมือนเกมจริง — คลิปกำเนิดนกไฟ → นก 3×3 กระพือปีก + เสียงไฟ+ปีก + เพลงนกไฟ
+    bird: (withClip = true) => {
+      const on = !CUR.units.find((x) => x.id === "me")?.jbird;
+      if (!on) { setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, jbird: null, standee: null, size: 1 } : u))); stopLoopSfx(); stopMusic(); return; }
+      if (withClip) { after.current = () => play.bird(false); setClip("/characters/joshua_rosfield/joshua_rebirth.mp4"); return; }
+      setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, aura: null, jbird: { down: false }, standee: "/characters/joshua_rosfield/phoenix.webp", size: 3 } : u)));
+      startLoopSfx("joshua_bird_loop");
+      playMusic("joshua_phoenix_theme");
+      setFocus(me());
+    },
+    hellsong: () => { after.current = () => { playSfx("joshua_phoenix"); setShake && setShake((n) => n + 1); }; setClip("/characters/joshua_rosfield/joshua_hellsong.mp4"); },
   };
   useEffect(() => {
     window.__joshuaFx = (k) => play[k] && play[k]();
     return () => { delete window.__joshuaFx; };
   });
   useEffect(() => () => stopLoopSfx(), []);
-  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"]];
+  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"], ["bird", "นกฟีนิกซ์"], ["hellsong", "เพลงเพลิง"]];
   return (
     <>
     {clip && (

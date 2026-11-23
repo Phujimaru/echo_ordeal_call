@@ -1497,3 +1497,4 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - ฉากตีปกติฟันไขว้ทอง `attackHitFx` → `"saberGold"` (`mythSlashFx` tone `gold`)
 - ลูปเสียงพื้นหลังระหว่างร่าง: `Game.jsx` เช็ค `players[].joshua.phoenix` → `startLoopSfx("joshua_fire_loop")` · คลิปเล่น = พัก · ลูปอินุอิ/คริซุงุมาก่อน · เพลงเฟรดดี้หลีก
 - ออร่าหาง `units[].aura "joshuaPhoenix"` → `joshuaAuraBack/Front` (ริบบิ้นวาดทึบ source-over ให้เห็นบนพื้นสว่าง)
+- **ร่างนกฟีนิกซ์ (2026-11-23)**: ฮุคใหม่ `strikeCone(p)` → ความยาว = ตีปกติเป็นกรวยทางทิศของเป้า (`Board.coneToward` · `action.strikeCone` · client `players[].strikeCone`) · `groundImmune(p)` = ไม่โดนผลพื้นตอนจบตา (`action.endUnitTile`) · ตัวบิน 3×3 ใช้ `flies` + `boardSize` ตรงๆ (ซ้อนช่องได้ ไม่ผลักใคร) · client `units[].jbird` → `joshuaFx.drawPhoenixBird` (mesh warp กระพือปีก · depth +1e6 = วาดทับของบนกระดาน)

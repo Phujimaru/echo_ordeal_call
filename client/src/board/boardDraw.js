@@ -393,7 +393,7 @@ export function drawFrame(g, st, now) {
   };
   // ลอว์: ตัวที่ถูกมาร์ก = ร่างถูกตัดเป็นชิ้นลอยแยก (lawSliced อัปเดต/อบชิ้นส่วน · หมากวาดแบบ lawCut)
   const lCut = law || lFx ? lawSliced(law, units, fx, now, g, (c, uu) => drawAnyUnit(c, uu, now, null)) : null;
-  units.forEach((u0, i) => { const u = lCut && lCut.has(u0.id) ? { ...u0, lawCut: true } : u0; const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); });
+  units.forEach((u0, i) => { const u = lCut && lCut.has(u0.id) ? { ...u0, lawCut: true } : u0; const h = Math.max(1, u.size | 0) / 2, ax = u.rx + h + (u.ox || 0), ay = u.ry + h + (u.oy || 0); items.push({ d: (u.jbird ? 1e6 : 0) + uv[i][1] + (u.isActor ? 0.001 : 0), f: onWall(ax, ay, unitDraw(u, ax, ay), true) }); }); // โจชัว ร่างนกฟีนิกซ์: บินสูง = วาดทับทุกอย่างบนกระดาน
   // กรงจักรหนู (โซระ): ครึ่งหลังวาดก่อนตัวที่อยู่ข้างใน · ครึ่งหน้าวาดทับ
   for (const e of fx) {
     if (e.kind !== "soraWheel") continue;
@@ -459,7 +459,7 @@ export function drawFrame(g, st, now) {
     if (sc.key === skey) {
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(sc.cv, 0, 0); g.restore(); L();
       // ตัวละครที่มีของนิ่งอยู่ข้างหน้าและทับกัน → วาดของนิ่งชิ้นนั้นซ้ำหลังตัวละคร (เรียงตามความลึก)
-      const ub = units.filter((u) => !u.corpse).map((u) => {
+      const ub = units.filter((u) => !u.corpse && !u.jbird).map((u) => {
         const h = Math.max(1, u.size | 0) / 2, ax = (u.rx != null ? u.rx : u.x) + h + (u.ox || 0), ay = (u.ry != null ? u.ry : u.y) + h + (u.oy || 0);
         const [sx, sy, s] = P(ax, ay);
         return { d: depthOf(ax, ay), x0: sx - s * h * 1.5, x1: sx + s * h * 1.5, y0: sy - s * 1.9 * h * 2, y1: sy + s * 0.3 };

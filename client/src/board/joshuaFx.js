@@ -362,3 +362,93 @@ export function joshuaAuraFront(g, x, y, now, lowQ, alpha = 1) {
   embers(g, bx, by, s * 0.5, 8, now, 0.85 * alpha, 9.1);
   g.restore();
 }
+
+// ---------- ร่างนกฟีนิกซ์ (นกเพลิงอมตะ): ภาพนกเพลิงกระพือปีก ลอยเหนือกระดาน 3×3 ----------
+//  ภาพ phoenix.webp (ภาพนกเพลิงที่ผู้ใช้ส่ง ลบพื้นหลังแล้ว) วาดเป็นตาราง 36×12 ช่อง แล้วดัดแต่ละช่อง (mesh warp)
+//   ปีก = หมุนรอบไหล่ (ช่องที่ห่างลำตัวยกขึ้น/ลงมากกว่า) · ปีกยุบเข้าหาลำตัวตอนยก (มุมมอง) · หาง/ขนห้อยด้านล่างขวาขยับน้อย
+//   จังหวะกระพือ: ตีลงเร็ว ยกขึ้นช้า (แบบนกใหญ่) รอบละ ~1.1 วิ — ตรงกับเสียงปีก joshua_bird_loop (~1 ครั้ง/วิ)
+//  ลอยสูงจากพื้น (บินสูงกว่าหมาก) + เงาบนพื้น + แสงเรือง + สะเก็ดไฟ
+const BIRD_IMG = "/characters/joshua_rosfield/phoenix.webp";
+const birdImgs = {};
+function birdImg() {
+  if (!birdImgs.img && typeof Image === "function") { const im = new Image(); im.decoding = "async"; im.src = BIRD_IMG; birdImgs.img = im; }
+  const im = birdImgs.img;
+  return im && im.complete && im.naturalWidth > 0 ? im : null;
+}
+export const preloadPhoenixBird = () => { birdImg(); };
+// จุดหมุน (สัดส่วนของภาพ) — ลำตัว/ไหล่ของนกในภาพ
+const BODY = { x: 0.56, y: 0.36 };
+const FLAP_MS = 1100;
+// มุมกระพือ: −1 (ปีกยกสูงสุด) … 1 (ตีลงสุด) · ตีลงใช้ 38% ของรอบ
+function flapAt(t) {
+  const q = ((t % FLAP_MS) + FLAP_MS) % FLAP_MS / FLAP_MS;
+  return q < 0.38 ? -1 + 2 * easeOut(q / 0.38) : 1 - 2 * (0.5 - 0.5 * Math.cos(Math.PI * (q - 0.38) / 0.62));
+}
+// น้ำหนักการขยับของจุด (fx, fy) ในภาพ: ฝั่งซ้าย = ปีกใหญ่ทั้งแผง · ฝั่งขวาบน = ปีกขวา · ขวาล่าง = หาง (ขยับน้อย)
+function wingWeight(fx, fy) {
+  const dx = fx - BODY.x;
+  const near = Math.min(1, Math.abs(dx) / 0.07); // ใกล้ลำตัวนิ่ง
+  if (dx < 0) return near;
+  const tail = Math.min(1, Math.max(0, (fy - 0.42) / 0.18));
+  return near * (1 - 0.85 * tail);
+}
+// วาดนก: กลางตัว (bx, by) บนจอ · W = ความกว้างภาพ (px) · flap −1..1
+//  แถบแนวตั้งแถบเดียวต่อคอลัมน์ ชิดกันพอดี (ขอบปัดเป็นพิกเซลเต็ม · ไม่ซ้อนกัน) — แบบตาราง 36×12 เดิมเห็นเป็นเส้นตาราง
+//  เพราะขอบที่ซ้อนกันของพิกเซลโปร่งแสงเข้มขึ้น (ผู้ใช้แจ้ง 2026-11-23)
+//  แต่ละแถบ: บนสุดยก/กดตามมุมปีก · ล่างสุดอยู่ที่เดิม (ขนปีก/หางห้อยลง) = ยืดแนวตั้งเชิงเส้น 1 ครั้ง
+function drawWarped(g, im, bx, by, W, flap) {
+  const iw = im.naturalWidth, ih = im.naturalHeight, H = W * ih / iw;
+  const C = Math.max(24, Math.min(140, Math.round(W / 4)));
+  // กลางภาพ (ไม่ใช่ลำตัว) ตรงกลางกล่อง 3×3 — ปีกซ้ายในภาพใหญ่กว่า ใช้ลำตัวเป็นจุดวางแล้วตัวนกเลยกล่องไปทางขวา (ผู้ใช้แจ้ง)
+  const ox = bx - W * 0.5, oy = by - H * 0.5;
+  const lift = -flap; // บวก = ปีกยกขึ้น
+  // ตำแหน่ง x บนจอของขอบคอลัมน์ (เรียงตามเดิมเสมอ) — ปีกหดเข้าหาลำตัวเล็กน้อยตอนยก/ตีลงสุด
+  const xs = [];
+  for (let i = 0; i <= C; i++) {
+    const fx = i / C, dx = fx - BODY.x, w = wingWeight(fx, 0.2);
+    const span = 1 - 0.14 * Math.abs(flap) * w;
+    xs.push(Math.round(ox + (BODY.x + dx * span) * W));
+  }
+  for (let i = 0; i < C; i++) {
+    const x0 = xs[i], x1 = xs[i + 1];
+    if (x1 <= x0) continue;
+    const fx = (i + 0.5) / C, dx = Math.abs(fx - BODY.x);
+    const w = wingWeight(fx, 0.25); // แผงบนของคอลัมน์ (ปีก) — หางด้านล่างอยู่กับที่เพราะขอบล่างไม่ขยับ
+    const L = lift * 0.55 * w * dx * 1.6 * H; // บวก = ขอบบนยกขึ้น
+    g.drawImage(im, (i / C) * iw, 0, iw / C, ih, x0, Math.round(oy - L), x1 - x0, Math.round(H + L));
+  }
+  return { left: ox, right: ox + W, top: oy - W * 0.1, bottom: oy + H };
+}
+// u = หน่วยจาก drawUnit (u.size = 3) · wx, wy = กลางช่องมุมบนซ้าย · liftZ = ลอยเพิ่ม (กระโดด/เดิน)
+export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {
+  const im = birdImg();
+  if (!im) return undefined;
+  const n = Math.max(1, u.size | 0);
+  wx += (n - 1) / 2; wy += (n - 1) / 2;
+  const t = REDUCED ? 0 : now;
+  const flap = REDUCED ? 0 : flapAt(t + (u.id ? (u.id.length * 97) % FLAP_MS : 0));
+  const down = !!(u.jbird && u.jbird.down);
+  // ลอยสูงจากพื้นชัดเจน (ผู้ใช้: ตัวใหญ่ ลอยอยู่ ไม่ติดพื้น) · โคลงขึ้นลงช้าๆ · ตีปีกลง = ตัวยกขึ้นนิดๆ
+  const hover = (down ? 0.6 : 3.4) + Math.max(0, liftZ) + (REDUCED ? 0 : -flap * 0.12 + Math.sin(t / 900) * 0.18);
+  const [gx, gy, s] = P(wx, wy);
+  const [bx, by] = P(wx, wy, hover);
+  const W = s * n * 2.5;
+  g.save();
+  // เงาบนพื้น (เล็กลงเมื่อยกสูง) + วงไฟใต้ตัว
+  g.globalAlpha = 0.28; g.fillStyle = "#1a0306";
+  g.beginPath(); g.ellipse(gx, gy, s * n * 0.42, s * n * 0.17, 0, 0, TAU); g.fill();
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = "lighter";
+  glow(g, gx, gy, s * n * 0.5, CRIMSON, 0.35, FLAME);
+  glow(g, bx, by, W * 0.42, CRIMSON, down ? 0.25 : 0.42, GOLD);
+  g.globalCompositeOperation = "source-over";
+  if (u.isActor) { g.shadowColor = "rgba(255,190,120,.85)"; g.shadowBlur = 18; }
+  if (down) g.globalAlpha = 0.7;
+  const box = drawWarped(g, im, bx, by, W, flap);
+  g.shadowBlur = 0; g.globalAlpha = 1;
+  // สะเก็ดไฟร่วงจากปีก/หาง
+  g.globalCompositeOperation = "lighter";
+  if (!u.lowQ) embers(g, bx, by + W * 0.25, W * 0.45, 16, t, 0.9, 3.7, -0.6);
+  g.restore();
+  return { cx: bx, top: box.top, bottom: gy, left: box.left, right: box.right };
+}

@@ -476,6 +476,7 @@ function buildStateInner(viewerId) {
         //  ระยะเดินเทิร์นนี้หักไพ่แตก −1 → ส่งค่าจริงเฉพาะคนที่เห็นแต้มอยู่แล้ว ไม่งั้นค่า mov บอกใบ้ว่าไพ่แตกตั้งแต่ช่วงจั่ว
         mov: (show || promoShow || teamReveal) ? action.movOf(p) : action.baseMovOf(p),
         baseMov: action.baseMovOf(p), range: action.rangeOf(p),
+        strikeCone: action.strikeCone(p) || undefined, // ตีปกติเป็นกรวยทางทิศของเป้า (โจชัว ร่างนกฟีนิกซ์ 3)
         strikeRect: action.strikeRect(p) || undefined, // ตีปกติเป็นกรอบ [ลึก, กว้าง] ทางทิศของเป้า (ชิโร่ Nine Lives Blade Works [2, 3])
         laneLen: action.laneLen(p) || undefined, // ความยาวแนวที่ฟันจริง (เรียวกิ 2 — เล็งประชิด โดนคนด้านหลังเป้าด้วย)
         lane: action.lanes(p), // ตีปกติแบบแนวตรง (ไรโด ฮิคารุ): true = แนวยาวตามระยะ (แบล็คคิง) · "face" = ทั้งด้านของตัว (กิงกะ)
