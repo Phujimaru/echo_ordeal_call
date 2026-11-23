@@ -352,3 +352,10 @@ test("ร่างนก: ฟื้นจากกันตายเทิร์
   nextRound();
   assert.ok(!jo.orderFirst(p), "เทิร์นถัดไปไม่ได้สิทธิ์แล้ว");
 });
+
+test("ร่างนก: จบเทิร์นแต้มสกิล +2 (ร่างคน +1)", () => {
+  const { p } = setup();
+  assert.equal(jo.skillRegen(p), 1);
+  kill(p); runAfter();
+  assert.equal(jo.skillRegen(p), 2);
+});

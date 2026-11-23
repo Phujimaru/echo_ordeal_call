@@ -15,7 +15,7 @@
 //    · คลิป กำเนิดนกไฟ → พลังชีวิต 20 · เกราะ 0 (สูงสุด 0) · ล้างสถานะ/ผลเดิมทั้งหมด · ตัว 3×3 บิน (ข้ามสิ่งกีดขวาง · ซ้อนช่อง · ไม่โดนผลพื้น · ผลักไม่ได้ — ตัวใหญ่)
 //    · เผาสนาม: พื้นไฟ 40% ของช่องโล่ง 5 เทิร์น (แบบนกหวีด Judgment Bolt) · เปลี่ยนแผนที่ = เผาใหม่ (onBoardPlaced) · ทีมตัวเองไม่โดน
 //    · เดิน 5 · ตีปกติ กรวย 3 (ระยะ 1–3 · ฮุค strikeCone) ไฟ ความเสียหาย 2 (พลังโจมตี +1 · บัฟพลังโจมตีบวกได้ · ลดเกราะก่อน) + ลุกไหม้ 2
-//    · ไม่ถือไพ่ (แต้มการ์ด 0 — noCards) · ใช้ไอเทมไม่ได้ (noItems) · ไม่มีท่าไม้ตาย
+//    · ไม่ถือไพ่ (แต้มการ์ด 0 — noCards) · ใช้ไอเทมไม่ได้ (noItems) · ไม่มีท่าไม้ตาย · จบเทิร์นแต้มสกิล +2 (skillRegen)
 //    · พื้นฐาน เพลิงแห่งชีวิต (1–4 แต้ม · ไม่มีคูลดาวน์): ฟื้นตัวเองเท่าแต้ม · รอง เพลิงนรก (4 แต้ม · คูลดาวน์ 3): ทุกคนบนแผนที่ (รวมเพื่อน · ไม่รวมตัวเอง · หลบได้)
 //      ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · คลิป ฟีนิกสกิลเฉพาะตัว ทุกครั้ง · ร่างนี้ฮีลเพื่อนไม่ได้ (เพลิงแห่งชีวิตใช้กับตัวเองเท่านั้น)
 //    · กันตาย 3 ครั้ง: ดาเมจถึงตาย = พลังชีวิต 1 + สตั้น ตายไม่ได้จนต้นเทิร์นถัดไป (แบบ Master) · ครบ 3 = ตายจริง
@@ -46,7 +46,7 @@ const VIDEO = { ultimate: `${DIR}/joshua_skill3.mp4`, rebirth: `${DIR}/joshua_re
 const CUT = { ultimate: "joshuaPhoenix", rebirth: "joshuaRebirth", hellsong: "joshuaHellSong" };
 const CLIP_SEC = { ultimate: 15, rebirth: 7, hellsong: 18 }; // 14.93 · 6.97 · 17.93 วิ
 const MUSIC = "joshua_phoenix_theme"; // เพลงนกไฟ (ไฟล์ผู้ใช้ · -11 LUFS)
-const BIRD = { hp: 20, size: 3, mov: 5, guards: 3, atk: 1, coneLen: 3, burn: 2, songMax: 4, hell: { cost: 4, dmg: 3, burn: 3, cd: 3 }, flameShare: 0.4, flameTurns: 5 };
+const BIRD = { regen: 2, hp: 20, size: 3, mov: 5, guards: 3, atk: 1, coneLen: 3, burn: 2, songMax: 4, hell: { cost: 4, dmg: 3, burn: 3, cd: 3 }, flameShare: 0.4, flameTurns: 5 };
 // เสียง (client/src/audio.js): ฟันดาบ = สำเนา vergil slash2 · เสียงไฟ = Mixkit (ผู้ใช้สั่งโหลด 2026-11-23)
 const SFX = { slash: "joshua_slash", fire: "joshua_fire", heal: "joshua_heal", phoenix: "joshua_phoenix", loop: "joshua_fire_loop", singe: "joshua_singe" };
 const HP = 6;
@@ -292,6 +292,8 @@ module.exports = {
   groundImmune(p) { return birdOn(p); },
   noCards(p) { return birdOn(p); },
   noItems(p) { return birdOn(p); },
+  // ร่างนก: จบเทิร์นแต้มสกิล +2 (ปกติ +1 · ผู้ใช้ 2026-11-23 — endTurn ฮุค skillRegen)
+  skillRegen(p) { return birdOn(p) ? BIRD.regen : 1; },
   // ฟื้นจากกันตายเทิร์นไหน = เทิร์นนั้นเดินลำดับแรกแน่นอน
   orderFirst(p) { return birdOn(p) && p.alive && st(p).firstRound === round(); },
   strikeCone(p) { return birdOn(p) ? BIRD.coneLen : 0; },
