@@ -871,7 +871,7 @@ const MUSIC_TRACK_SCALE = {
 };
 // เพลงเด่น: ระหว่างเล่น เพลงนี้ไม่ถูกหรี่โดยลูปเสียงเฉพาะกิจ และเอฟเฟกต์/ลูปเสียงทุกตัวเบาลงเหลือค่านี้ (หยุดเพลงเมื่อไหร่กลับปกติเอง)
 //  เพลงพื้นหลังภูมิภาคไม่ซ้อนอยู่แล้ว (เล่นได้ทีละเพลง — stopMusicExcept)
-const FEATURED_MUSIC = { kiri_alter: 1, inui_axel: 1, full_force: 1, kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6 };
+const FEATURED_MUSIC = { kiri_alter: 1, inui_axel: 1, full_force: 1, kate_storm: 0.55, yuna_idol: 0.6, gray_ult: 0.6, joshua_phoenix_theme: 1 }; // โจชัว: เพลงนกไฟไม่ถูกลูปไฟ+ปีกกดเหลือ 25% (ผู้ใช้: เพลงเบาไป)
 function sfxDuck() {
   const d = currentMusic && !musicSuspensions.size ? FEATURED_MUSIC[currentMusic] : undefined;
   return d ?? 1;
