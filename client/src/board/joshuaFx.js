@@ -424,7 +424,7 @@ export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {
   const im = birdImg();
   if (!im) return undefined;
   const n = Math.max(1, u.size | 0);
-  wx += (n - 1) / 2; wy += (n - 1) / 2;
+  // วางนกเหนือฐานหมาก (วงฐานอยู่ช่องมุมของกล่อง 3×3) — กลางกล่องทำให้ตัวนกหลุดไปขวาบนของฐาน (ผู้ใช้แจ้ง 2026-11-23)
   const t = REDUCED ? 0 : now;
   const flap = REDUCED ? 0 : flapAt(t + (u.id ? (u.id.length * 97) % FLAP_MS : 0));
   const down = !!(u.jbird && u.jbird.down);
