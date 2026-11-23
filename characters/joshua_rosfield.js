@@ -243,7 +243,9 @@ function landHellSong(engine, p) {
   if (!p.alive) return;
   const victims = Object.values(engine.players).filter((t) => t.id !== p.id && t.alive && t.pos && !(t.summon && t.summon.noStatus));
   engine.sfx(SFX.phoenix);
-  fx(engine, p, "hellsong", { hit: victims.map((t) => t.id) });
+  // ฉากบนกระดาน (client joshuaHellsong): ทั้งกระดาน — ส่งขนาดกระดาน + ตำแหน่งคนที่โดน
+  const map = engine.boardMap();
+  fx(engine, p, "hellsong", { cols: map.cols, rows: map.rows, minRow: map.minRow | 0, hits: victims.map((t) => ({ id: t.id, x: t.pos.x, y: t.pos.y, size: engine.sizeOf(t) })) });
   for (const t of victims) {
     if (!t.alive || !t.pos) continue;
     if (engine.sameTeam(p, t)) {
@@ -328,6 +330,7 @@ module.exports = {
   // ---------- ตีปกติ: ฟันดาบ (ไม่มีธาตุ) ----------
   attackSound(p) { return isMe(p) ? (birdOn(p) ? SFX.fire : SFX.slash) : undefined; },
   attackHitFx(p) { return isMe(p) && !birdOn(p) ? "saberGold" : undefined; },
+  attackStyle(p) { return birdOn(p) ? "joshuaBirdStrike" : null; }, // ร่างนก: กระพือปีกส่งคลื่นเพลิงกวาดกรวย (client joshuaFx)
   onStrikeLanded(engine, attacker, target) {
     if (!isMe(attacker) || !target || !target.alive) return [];
     if (!birdOn(attacker) && !passiveOn(attacker)) return [];

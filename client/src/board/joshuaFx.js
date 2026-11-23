@@ -19,7 +19,10 @@ const CORE = "255,248,226", GOLD = "255,196,92", FLAME = "255,104,40", CRIMSON =
 
 // จังหวะ (ms) — server characters/joshua_rosfield.js T ต้องตรงกัน (วินาที)
 export const JOSHUA_T = { cone: 550, ignite: 2200 };
-export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800, joshuaIgnite: 2600, joshuaBirdRise: 5200 };
+// ท่าตีปกติร่างนก (ฮุค attackStyle → STYLE_MS/STYLE_HIT ใน boardFxBasic.js): ปีกเงื้อ → ตีลง (ปะทะที่ 42%) → คลื่นเพลิงกวาดกรวย
+export const JOSHUA_MS = { joshuaBirdStrike: 1700 };
+export const JOSHUA_HIT_P = { joshuaBirdStrike: 0.42 };
+export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800, joshuaIgnite: 2600, joshuaBirdRise: 5200, joshuaHellsong: 4200, ...JOSHUA_MS };
 export const isJoshuaFx = (kind) => typeof kind === "string" && kind in JOSHUA_FX_DUR;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
@@ -435,6 +438,177 @@ function birdRiseFx(g, e, t, dur, seed, lowQ) {
   g.globalCompositeOperation = "source-over";
 }
 
+// ---------- ตีปกติร่างนก: ปีกตีลงส่งคลื่นเพลิงกวาดกรวย 3 ----------
+//  e.x/y = มุมตัวนก (3×3) · e.to = เป้า · e.lane = ช่องในกรวย (server laneVictims) · ปะทะ = JOSHUA_HIT_P
+function birdStrikeFx(g, e, t, dur, seed, lowQ) {
+  const n = Math.max(1, e.size | 0);
+  const cx = e.x + n / 2, cy = e.y + n / 2;
+  const tiles = Array.isArray(e.lane) && e.lane.length ? e.lane : e.to ? [e.to] : [];
+  const hitT = dur * JOSHUA_HIT_P.joshuaBirdStrike;
+  const [bx, by0, s] = P(cx, cy);
+  const by = by0 - s * 2.4; // ระดับตัวนก (ลอยสูง — drawPhoenixBird)
+  if (e.to && e.by) birdFace.set(e.by, (P(e.to.x + 0.5, e.to.y + 0.5)[0] >= bx) ? 1 : -1); // หันหน้าไปทางเป้า
+  let mx = 0, my = 0;
+  for (const c of tiles) { mx += c.x + 0.5; my += c.y + 0.5; }
+  if (tiles.length) { mx /= tiles.length; my /= tiles.length; }
+  const [tx, ty] = P(mx, my);
+  const dirA = Math.atan2(ty - by, tx - bx);
+  g.globalCompositeOperation = "lighter";
+  // 1) เงื้อปีก: ไฟรวมที่อกนก + ประกายไฟหมุนเข้า
+  if (t < hitT + 120) {
+    const c = clamp01(t / hitT);
+    glow(g, bx, by, s * (0.8 + 1.4 * c), CRIMSON, 0.9 * c, GOLD);
+    if (!lowQ) for (let i = 0; i < 12; i++) {
+      const ang = hash(seed + i) * TAU + t / 140, r = s * 2 * (1 - c) + s * 0.2;
+      g.fillStyle = rgba(GOLD, 0.85 * c);
+      g.beginPath(); g.arc(bx + Math.cos(ang) * r, by + Math.sin(ang) * r * 0.7, Math.max(1, s * 0.05), 0, TAU); g.fill();
+    }
+  }
+  const wt = t - hitT;
+  if (wt < 0) { g.globalCompositeOperation = "source-over"; return; }
+  const after = dur - hitT, fade = 1 - clamp01((wt - after * 0.5) / (after * 0.5));
+  // 2) แสงวาบตอนตีลง + พัดขนนกเพลิงขนาดใหญ่กวาดไปตามทิศ
+  glow(g, bx, by, s * 3.2 * (1 - clamp01(wt / 300)), GOLD, 0.9 * (1 - clamp01(wt / 300)), CORE);
+  const reach = Math.hypot(tx - bx, ty - by) * 1.35 * easeOut(clamp01(wt / 380));
+  g.globalCompositeOperation = "source-over";
+  if (!REDUCED) {
+    const nW = lowQ ? 9 : 17, wa = (1 - clamp01((wt - 280) / 500)) * 0.95;
+    for (let i = 0; i < nW; i++) {
+      const u = i / (nW - 1) - 0.5;
+      feather(g, bx, by, dirA + u * 1.15, reach * (0.78 + 0.22 * Math.cos(u * Math.PI)), s * 0.32, u * 0.3, wa, 1 - Math.abs(u));
+    }
+  }
+  // 3) คลื่นเพลิงลุกทุกช่องในกรวย ไล่จากใกล้ไปไกล
+  tiles.forEach((c, i) => {
+    const d = Math.hypot(c.x + 0.5 - cx, c.y + 0.5 - cy);
+    const lt = wt - d * 70;
+    if (lt < 0) return;
+    const [px, py, ss] = P(c.x + 0.5, c.y + 0.5);
+    const rise = easeOut(clamp01(lt / 220));
+    g.globalCompositeOperation = "lighter";
+    glow(g, px, py, ss * 0.8 * rise, CRIMSON, 0.7 * fade, GOLD);
+    g.globalCompositeOperation = "source-over";
+    for (let k = 0; k < (lowQ ? 2 : 5); k++) {
+      const h = hash(seed + i * 7 + k * 3);
+      flame(g, px + (h - 0.5) * ss * 0.7, py + ss * 0.1, ss * (0.15 + 0.08 * h), ss * (0.8 + 0.9 * h) * rise * (0.85 + 0.15 * Math.sin(wt / 60 + k)), Math.sin(wt / 80 + h * 9) * 0.4, fade);
+    }
+    if (!lowQ) { g.globalCompositeOperation = "lighter"; embers(g, px, py - ss * 0.3, ss * 0.6, 5, lt, fade, seed + i, 1.3); }
+  });
+  g.globalCompositeOperation = "source-over";
+}
+
+// ---------- เพลิงนรก (หลังคลิป): ระเบิดเพลิงทั้งกระดาน ----------
+//  จอมืดแดง → นกเรืองจ้า → ลูกไฟร่วงจากฟ้าทั่วกระดาน → คลื่นเพลิงแผ่จากนกจนสุดกระดาน (ทุกช่องลุก) → เสาไฟพุ่งจากทุกคนที่โดน
+function hellsongFx(g, e, t, dur, seed, lowQ) {
+  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2;
+  const cols = e.cols || 14, rows = e.rows || 14, minRow = e.minRow | 0;
+  const W = g.canvas.width, H = g.canvas.height;
+  const fade = 1 - clamp01((t - (dur - 900)) / 900);
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = `rgba(30,3,4,${0.6 * easeOut(clamp01(t / 400)) * fade})`; g.fillRect(0, 0, W, H);
+  g.restore();
+  const [bx, by0, s] = P(cx, cy), by = by0 - s * 2.4;
+  g.globalCompositeOperation = "lighter";
+  glow(g, bx, by, s * (2 + 2 * Math.sin(Math.min(1, t / 700) * Math.PI)), CRIMSON, 0.9 * fade, GOLD);
+  // ลูกไฟร่วงจากฟ้า (0.15–1.4 วิ) → ระเบิดที่พื้น
+  const nM = lowQ ? 8 : 22;
+  for (let i = 0; i < nM; i++) {
+    const h1 = hash(seed + i * 2.7), h2 = hash(seed + i * 6.1), h3 = hash(seed + i * 9.3);
+    const gx = h1 * cols, gy = minRow + h2 * (rows - minRow), t0 = 150 + h3 * 1250, fall = 420;
+    const lt = t - t0;
+    if (lt < 0) continue;
+    const [px, py, ss] = P(gx, gy);
+    if (lt < fall) {
+      const q = lt / fall, sy = py - ss * 9 * (1 - q), sx = px - ss * 3 * (1 - q);
+      g.strokeStyle = rgba(FLAME, 0.7); g.lineWidth = Math.max(1, ss * 0.18);
+      g.beginPath(); g.moveTo(sx - ss * 1.2, sy - ss * 3.2); g.lineTo(sx, sy); g.stroke();
+      glow(g, sx, sy, ss * 0.5, FLAME, 0.95, CORE);
+    } else {
+      const q = clamp01((lt - fall) / 700);
+      glow(g, px, py, ss * (0.6 + 1.6 * easeOut(q)), CRIMSON, (1 - q) * 0.9 * fade, GOLD);
+    }
+  }
+  // คลื่นเพลิงแผ่จากนกจนสุดกระดาน (1.0–2.6 วิ): ทุกช่องในวงลุกเป็นไฟ
+  const wave = clamp01((t - 1000) / 1600), maxR = Math.hypot(cols, rows - minRow);
+  const R = maxR * easeOut(wave);
+  if (wave > 0) {
+    g.strokeStyle = rgba(GOLD, 0.8 * (1 - wave) * fade); g.lineWidth = Math.max(2, s * 0.35);
+    g.beginPath(); g.ellipse(bx, by0, R * s, R * s * 0.5, 0, 0, TAU); g.stroke();
+    g.globalCompositeOperation = "source-over";
+    const step = lowQ ? 2 : 1;
+    for (let y = minRow; y < rows; y += step) for (let x = 0; x < cols; x += step) {
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+      if (d > R) continue;
+      const lt = (R - d) / Math.max(1, maxR) * 1600;
+      const [px, py, ss] = P(x + 0.5, y + 0.5);
+      const h = hash(seed + x * 13.1 + y * 7.7);
+      const rise = easeOut(clamp01(lt / 260));
+      flame(g, px + (h - 0.5) * ss * 0.4, py + ss * 0.1, ss * (0.16 + 0.08 * h), ss * (0.5 + 0.8 * h) * rise * (0.85 + 0.15 * Math.sin(t / 70 + h * 20)), Math.sin(t / 100 + h * 9) * 0.4, 0.85 * fade);
+    }
+    g.globalCompositeOperation = "lighter";
+  }
+  // เสาไฟพุ่งจากทุกคนที่โดน (ตอนคลื่นมาถึง)
+  for (const hu of Array.isArray(e.hits) ? e.hits : []) {
+    const hn = Math.max(1, hu.size | 0), hx = hu.x + hn / 2, hy = hu.y + hn / 2;
+    const d = Math.hypot(hx - cx, hy - cy), at = 1000 + 1600 * Math.min(1, d / Math.max(1, maxR));
+    const lt = t - at;
+    if (lt < 0) continue;
+    const [px, py, ss] = P(hx, hy);
+    const q = clamp01(lt / 900), H2 = ss * 5 * easeOut(Math.min(1, lt / 250));
+    const gr = g.createLinearGradient(px, py, px, py - H2);
+    gr.addColorStop(0, rgba(CORE, 0.95 * (1 - q))); gr.addColorStop(0.35, rgba(GOLD, 0.8 * (1 - q))); gr.addColorStop(1, rgba(CRIMSON, 0));
+    g.fillStyle = gr; g.beginPath(); g.ellipse(px, py - H2 / 2, ss * 0.45, H2 / 2, 0, 0, TAU); g.fill();
+  }
+  // แสงวาบตอนคลื่นแผ่สุด
+  const flash = clamp01(1 - Math.abs(t - 2600) / 350);
+  if (flash > 0) {
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = `rgba(255,200,140,${0.45 * flash})`; g.fillRect(0, 0, W, H);
+    g.restore();
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+// ---------- บรรยากาศระหว่างร่างนกฟีนิกซ์ (ผู้ใช้: จอออกแดง มืดนิดหน่อย ยังมองเห็นได้ + ละอองไฟ) ----------
+//  วาดครั้งเดียวต่อเฟรม (ก่อนตัวนก — drawPhoenixBird) · เบาพอให้เห็นกระดานชัด
+let ambientFrame = -1;
+function phoenixAmbient(g, now, lowQ) {
+  if (ambientFrame === now) return;
+  ambientFrame = now;
+  const W = g.canvas.width, H = g.canvas.height;
+  const pulse = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(now / 1400);
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = "rgba(60,6,4,0.16)"; g.fillRect(0, 0, W, H);
+  const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.hypot(W, H) * 0.62);
+  vg.addColorStop(0, "rgba(160,20,10,0)");
+  vg.addColorStop(1, `rgba(190,40,12,${0.22 + 0.06 * pulse})`);
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "lighter";
+  const nE = lowQ ? 14 : 40;
+  for (let i = 0; i < nE; i++) {
+    const h1 = hash(i * 1.37 + 0.5), h2 = hash(i * 3.11 + 0.2), h3 = hash(i * 5.93 + 0.7);
+    const life = 4000 + 4000 * h3, q = ((now + h1 * life) % life) / life;
+    const x = h2 * W + Math.sin(q * 6 + i) * W * 0.02, y = H * (1.02 - q * 1.08);
+    const r = Math.max(1, H * (0.0018 + 0.003 * h1));
+    g.fillStyle = `rgba(${h1 > 0.5 ? GOLD : FLAME},${0.7 * Math.sin(Math.PI * q)})`;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  g.restore();
+}
+
+// ทิศหันของนก (1 = ขวา · −1 = ซ้าย — ภาพต้นฉบับหันขวา): ตามทิศที่บินบนจอ · ตอนตีหันไปทางเป้า (ผู้ใช้ 2026-11-23)
+const birdFace = new Map();
+const birdTrack = new Map();
+function faceOfBird(id, sx, now) {
+  let tr = birdTrack.get(id);
+  if (!tr) { if (birdTrack.size > 16) birdTrack.clear(); tr = { sx, frame: now }; birdTrack.set(id, tr); }
+  if (tr.frame !== now) {
+    if (Math.abs(sx - tr.sx) > 0.3) birdFace.set(id, sx > tr.sx ? 1 : -1);
+    tr.sx = sx; tr.frame = now;
+  }
+  return birdFace.get(id) || 1;
+}
+
 export function joshuaFx(g, e, now, lowQ) {
   const dur = e.dur || JOSHUA_FX_DUR[e.kind];
   const t = now - e.t0;
@@ -447,6 +621,8 @@ export function joshuaFx(g, e, now, lowQ) {
   else if (e.kind === "joshuaSinge") singeFx(g, e, t, dur, seed, lowQ);
   else if (e.kind === "joshuaIgnite") igniteFx(g, e, t, dur, seed, lowQ);
   else if (e.kind === "joshuaBirdRise") birdRiseFx(g, e, t, dur, seed, lowQ);
+  else if (e.kind === "joshuaBirdStrike") birdStrikeFx(g, e, t, dur, seed, lowQ);
+  else if (e.kind === "joshuaHellsong") hellsongFx(g, e, t, dur, seed, lowQ);
   g.restore();
 }
 
@@ -539,8 +715,10 @@ export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {
   const down = !!(u.jbird && u.jbird.down);
   // ลอยสูงจากพื้นชัดเจน (ผู้ใช้: ตัวใหญ่ ลอยอยู่ ไม่ติดพื้น) · โคลงขึ้นลงช้าๆ · ตีปีกลง = ตัวยกขึ้นนิดๆ
   const hover = (down ? 0.6 : 3.4) + Math.max(0, liftZ) + (REDUCED ? 0 : -flap * 0.12 + Math.sin(t / 900) * 0.18);
+  phoenixAmbient(g, now, u.lowQ);
   const [gx, gy, s] = P(wx, wy);
   const [bx, by] = P(wx, wy, hover);
+  const face = faceOfBird(u.id, gx, now);
   const W = s * n * 2.5;
   g.save();
   // เงาบนพื้น (เล็กลงเมื่อยกสูง) + วงไฟใต้ตัว
@@ -553,7 +731,9 @@ export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {
   g.globalCompositeOperation = "source-over";
   if (u.isActor) { g.shadowColor = "rgba(255,190,120,.85)"; g.shadowBlur = 18; }
   if (down) g.globalAlpha = 0.7;
+  if (face < 0) { g.translate(bx, 0); g.scale(-1, 1); g.translate(-bx, 0); } // หันซ้าย = พลิกภาพรอบกลางตัว
   const box = drawWarped(g, im, bx, by, W, flap);
+  if (face < 0) { g.translate(bx, 0); g.scale(-1, 1); g.translate(-bx, 0); }
   g.shadowBlur = 0; g.globalAlpha = 1;
   // สะเก็ดไฟร่วงจากปีก/หาง
   g.globalCompositeOperation = "lighter";

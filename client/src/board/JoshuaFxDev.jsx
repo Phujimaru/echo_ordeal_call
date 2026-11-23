@@ -3,7 +3,7 @@
 //  คอนโซล: window.__joshuaFx(kind) = เล่นชุดเดียวกับปุ่ม (slash / cone / conePhoenix / heal / phoenix / singe / aura)
 import { useEffect, useRef, useState } from "react";
 import * as Rules from "./boardRules";
-import { JOSHUA_FX_DUR, JOSHUA_T } from "./joshuaFx";
+import { JOSHUA_FX_DUR, JOSHUA_HIT_P, JOSHUA_MS, JOSHUA_T } from "./joshuaFx";
 import { playSfx, startLoopSfx, stopLoopSfx, playMusic, stopMusic } from "../audio";
 
 const CUR = { units: [] };
@@ -70,14 +70,30 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
       playMusic("joshua_phoenix_theme");
       setFocus(me());
     },
-    hellsong: () => { after.current = () => { playSfx("joshua_phoenix"); setShake && setShake((n) => n + 1); }; setClip("/characters/joshua_rosfield/joshua_hellsong.mp4"); },
+    hellsong: () => {
+      after.current = () => {
+        const a = me(), others = CUR.units.filter((x) => x.id !== "me").map((x) => ({ id: x.id, x: x.x, y: x.y, size: x.size || 1 }));
+        pushFx([{ kind: "joshuaHellsong", x: a.x, y: a.y, size: 3, cols: (map && map.cols) || 14, rows: (map && map.rows) || 14, minRow: (map && map.minRow) || 0, hits: others, dur: JOSHUA_FX_DUR.joshuaHellsong }]);
+        playSfx("joshua_phoenix");
+        for (const d of [300, 700, 1100, 1500, 1900, 2300, 2600, 2750, 2900]) setTimeout(() => setShake && setShake((n) => n + 1), d);
+      };
+      setClip("/characters/joshua_rosfield/joshua_hellsong.mp4");
+    },
+    hellNoClip: () => { const f = () => {}; after.current = f; play.hellsong(); endClip(); },
+    birdStrike: () => {
+      const a = me(), b = foe();
+      const tiles = map ? (Rules.coneToward(map, a.x, a.y, 3, { x: b.x, y: b.y, size: 1 }, 3) || { tiles: [] }).tiles : [];
+      pushFx([{ kind: "joshuaBirdStrike", x: a.x, y: a.y, size: 3, to: b, lane: tiles, by: "me", dur: JOSHUA_MS.joshuaBirdStrike }]);
+      setTimeout(() => { playSfx("joshua_fire"); setShake && setShake((n) => n + 1); }, JOSHUA_MS.joshuaBirdStrike * JOSHUA_HIT_P.joshuaBirdStrike);
+      setFocus(b);
+    },
   };
   useEffect(() => {
     window.__joshuaFx = (k) => play[k] && play[k]();
     return () => { delete window.__joshuaFx; };
   });
   useEffect(() => () => stopLoopSfx(), []);
-  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"], ["bird", "นกฟีนิกซ์"], ["hellsong", "เพลิงนรก"]];
+  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"], ["bird", "นกฟีนิกซ์"], ["birdStrike", "นกตี"], ["hellsong", "เพลิงนรก"]];
   return (
     <>
     {clip && (
