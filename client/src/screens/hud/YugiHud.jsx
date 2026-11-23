@@ -15,16 +15,16 @@ import "./yugiHud.css";
 
 const DIR = "/characters/yugi_muto";
 const BACK = `${DIR}/card_back.webp`;
-const CARD_W = 70;     // ความกว้างการ์ดบนมือ (px) — สูง ×1.46 ตามการ์ดจริง (ผู้ใช้: ลดขนาด 2026-11-24)
-const DECK_W = 58;     // กองเด็คบนแผงโปรไฟล์
-const STEP_MAX = 46;   // ระยะห่างระหว่างการ์ดเมื่อช่องกว้างพอ
-const STEP_MIN = 18;
+// ขนาดการ์ดตามความสูงจอ (ผู้ใช้: 70px เล็กเกินบนจอจริง 2026-11-24) — สูง ×1.46 ตามการ์ดจริง · กองเด็ค = 80% ของการ์ด
+const CARD_VH = 0.16, CARD_MIN = 92, CARD_MAX = 150;
+const cardWOf = (h) => Math.round(Math.max(CARD_MIN, Math.min(CARD_MAX, h * CARD_VH)));
+const STEP_RATIO = .66; // ระยะห่างระหว่างการ์ดเมื่อช่องกว้างพอ (สัดส่วนของความกว้างการ์ด)
+const STEP_MIN = 20;
 const FAN_DEG = 4;     // องศาต่อใบจากกลางพัด
 const HAND_BOTTOM = 18; // ขอบล่างของพัดเหนือขอบจอ
-const SIDE_PAD = 26;   // ระยะห่างจากแผงโปรไฟล์/คอลัมน์ปุ่ม
+const SIDE_PAD = 40;   // ระยะห่างจากแผงโปรไฟล์/คอลัมน์ปุ่ม
 const HUD_KEYS = ["F", "B", "Enter", "Z"]; // คอลัมน์ปุ่มขวาล่าง (โจมตี/กระเป๋า/จบตา/ย้อน)
 const DRAW_MS = 700, PLAY_MS = 950, DROP_MS = 650;
-const CARD_H = Math.round(CARD_W * 1.46), DECK_H = Math.round(DECK_W * 1.46);
 
 let uidSeq = 0;
 const withIds = (hand) => hand.map((c) => ({ ...c, id: ++uidSeq }));
@@ -35,10 +35,11 @@ function slotOf(i, n, step) {
   return { x: d * step, rot: d * FAN_DEG, y: d * d * 1.8 };
 }
 // ระยะห่างระหว่างการ์ด: ช่องแคบ = ซ้อนกันมากขึ้น ให้ทั้งพัดอยู่ในช่องว่างพอดี
-const stepFor = (n, avail) => (n > 1 ? Math.max(STEP_MIN, Math.min(STEP_MAX, (avail - CARD_W) / (n - 1))) : STEP_MAX);
+const stepFor = (n, avail, cw) => (n > 1 ? Math.max(STEP_MIN, Math.min(cw * STEP_RATIO, (avail - cw) / (n - 1))) : cw * STEP_RATIO);
 // วัดแผงโปรไฟล์ + คอลัมน์ปุ่มขวา → จุดวางเด็คและกลางพัด (พิกัดจอ)
 function measureLayout(root) {
   const W = window.innerWidth, H = window.innerHeight;
+  const cw = cardWOf(H), dw = Math.round(cw * 0.8);
   const prof = document.querySelector(".hud-prof");
   const pr = prof ? prof.getBoundingClientRect() : null;
   let colLeft = W, colTop = H;
@@ -51,9 +52,10 @@ function measureLayout(root) {
   const right = colLeft < W ? colLeft : W * 0.8;
   return {
     midX: Math.round((left + right) / 2),
-    avail: Math.max(CARD_W, right - left - SIDE_PAD * 2),
+    cw, dw,
+    avail: Math.max(cw, right - left - SIDE_PAD * 2 - Math.round(cw * 0.5)), // − ส่วนที่การ์ดริมพัดเอียงยื่นออก (~¼ การ์ดต่อข้าง)
     // เด็ค: บนแผงโปรไฟล์ ชิดขวา (ป้ายเหรียญ/รายการอยู่ซ้ายบนของแผง)
-    deckX: pr && pr.width > 0 ? Math.round(pr.right - DECK_W - 18) : Math.round(left - DECK_W - 18),
+    deckX: pr && pr.width > 0 ? Math.round(pr.right - dw - 18) : Math.round(left - dw - 18),
     deckBottom: pr && pr.width > 0 ? Math.round(H - pr.top + 10) : 190,
     colTop,
   };
@@ -67,7 +69,7 @@ export function YugiHand({ yugi, basic, secondary, isOk, canBasic, canSecondary,
   const [lay, setLay] = useState(null);      // ผล measureLayout
   const lastSeq = useRef(yugi?.fx?.seq || 0);
   const rootRef = useRef(null);
-  const availRef = useRef(400);              // ความกว้างช่องว่างล่าสุด (ใช้คิดตำแหน่งผีของการ์ดที่ออก)
+  const availRef = useRef({ avail: 400, cw: CARD_MIN }); // ช่องว่าง/ขนาดการ์ดล่าสุด (ใช้คิดตำแหน่งผีของการ์ดที่ออก)
 
   // ซิงก์กับมือของ server: มีเหตุการณ์ใหม่ = เล่นอนิเมชัน · ไม่ตรงกัน = จัดใหม่เงียบๆ
   useLayoutEffect(() => {
@@ -80,7 +82,7 @@ export function YugiHand({ yugi, basic, secondary, isOk, canBasic, canSecondary,
         const n0 = prev.length;
         if ((fx.kind === "drop" || fx.kind === "play") && prev[fx.i]) {
           const gone = prev[fx.i];
-          const pos = slotOf(fx.i, n0, stepFor(n0, availRef.current));
+          const pos = slotOf(fx.i, n0, stepFor(n0, availRef.current.avail, availRef.current.cw));
           setGhosts((g) => [...g, { ...gone, kind: fx.kind, pos, born: Date.now() }]);
           next = prev.filter((_, k) => k !== fx.i);
         }
@@ -116,8 +118,8 @@ export function YugiHand({ yugi, basic, secondary, isOk, canBasic, canSecondary,
   useEffect(() => {
     const measure = () => {
       const m = measureLayout(rootRef.current);
-      availRef.current = m.avail;
-      setLay((v) => (v && v.midX === m.midX && v.avail === m.avail && v.deckX === m.deckX && v.deckBottom === m.deckBottom ? v : m));
+      availRef.current = { avail: m.avail, cw: m.cw };
+      setLay((v) => (v && v.midX === m.midX && v.avail === m.avail && v.cw === m.cw && v.deckX === m.deckX && v.deckBottom === m.deckBottom ? v : m));
     };
     measure();
     const t = setInterval(measure, 500);
@@ -139,9 +141,11 @@ export function YugiHand({ yugi, basic, secondary, isOk, canBasic, canSecondary,
 
   if (!yugi || !Array.isArray(yugi.hand)) return null;
 
-  const L = lay || { midX: window.innerWidth / 2, avail: 400, deckX: 260, deckBottom: 190 };
+  const L = lay || { midX: window.innerWidth / 2, avail: 400, deckX: 260, deckBottom: 190, cw: CARD_MIN, dw: Math.round(CARD_MIN * 0.8) };
+  const CARD_W = L.cw, DECK_W = L.dw;
+  const CARD_H = Math.round(CARD_W * 1.46), DECK_H = Math.round(DECK_W * 1.46);
   const n = cards.length;
-  const step = stepFor(n, L.avail);
+  const step = stepFor(n, L.avail, CARD_W);
   const choice = (list, key) => (list || []).find((c) => c.key === key) || null;
   const selIdx = cards.findIndex((c) => c.id === sel);
   // จุดบินเข้า/ออก = กลางกองเด็ค เทียบจุดกลางล่างของพัด (y ลบ = ขึ้น)

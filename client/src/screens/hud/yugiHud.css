@@ -60,7 +60,7 @@
 @keyframes ygBurst { 0%, 40% { opacity: 0; transform: scale(.2); } 62% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.8); } }
 
 /* ---------- ปุ่ม เปิดใช้ / ทิ้ง (ตั้งตรงเหนือการ์ดที่เลือก) ---------- */
-.yg-acts { position: absolute; left: 50%; bottom: calc(100% + 60px); display: flex; flex-direction: column; gap: 6px; pointer-events: auto;
+.yg-acts { position: absolute; left: 50%; bottom: calc(100% + var(--cw) * .62); display: flex; flex-direction: column; gap: 6px; pointer-events: auto;
   transform: translateX(-50%) rotate(calc(var(--rot) * -1)); animation: ygPop .22s cubic-bezier(.2, .9, .3, 1.3) both; }
 .yg-act { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 112px; padding: 6px 10px; border-radius: 8px; border: 0; cursor: pointer;
   font-size: 14px; font-weight: 900; letter-spacing: .02em; color: #2a1600; white-space: nowrap;
