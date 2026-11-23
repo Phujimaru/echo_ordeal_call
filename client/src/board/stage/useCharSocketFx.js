@@ -216,8 +216,10 @@ export default function useCharSocketFx(ctx) {
       pushFx([{ kind, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, dur: JOSHUA_FX_DUR[kind] }]);
       if (kind === "joshuaCone" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), JOSHUA_T.cone + 120));
       if (kind === "joshuaPhoenix" && !lowQ) setShake((n) => n + 1);
+      if (kind === "joshuaSinge") playSfx("joshua_singe"); // ลุกไหม้สวนกลับ: เสียงพร้อมภาพ (มาตรงจังหวะปะทะผ่าน hitFx)
     };
     socket.on("joshuaFx", onJoshua);
+    hitFx.current.joshuaFx = onJoshua; // ลุกไหม้สวนกลับระหว่างตีปกติ: engine.boardFxAtHit — เล่นตรงจังหวะปะทะ
     // แม็กน่า สวิง (magnaFx.js): บอลไฟ / ตีบอล / ปาบอลโซ่ / โซ่ติด-ขาด / Finisher (โซ่ฟ้า → ดึง → ระเบิด) / Knuckle / Boost
     //  เสียงฝั่ง client เฉพาะจังหวะที่ไม่มีคลิป: ปาพลาด (โดน = คลิป Deathmatch ตามมา) · ดึง/ระเบิด/โซ่ขาด (หลังคลิป Finisher จบแล้ว)
     const MAGNA_KIND = { ball: "magnaBall", bat: "magnaBat", batHit: "magnaBatHit", throw: "magnaThrow", link: "magnaLink", unlink: "magnaUnlink", arm: "magnaArm", pull: "magnaPull", finHit: "magnaFinHit", knuckle: "magnaKnuckleOn", boost: "magnaBoost", heat: "magnaHeat" };

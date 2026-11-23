@@ -37,7 +37,7 @@ const VIDEO = { ultimate: `${DIR}/joshua_skill3.mp4` };
 const CUT = { ultimate: "joshuaPhoenix" };
 const CLIP_SEC = { ultimate: 15 }; // 14.93 วิ
 // เสียง (client/src/audio.js): ฟันดาบ = สำเนา vergil slash2 · เสียงไฟ = Mixkit (ผู้ใช้สั่งโหลด 2026-11-23)
-const SFX = { slash: "joshua_slash", fire: "joshua_fire", heal: "joshua_heal", phoenix: "joshua_phoenix", loop: "joshua_fire_loop" };
+const SFX = { slash: "joshua_slash", fire: "joshua_fire", heal: "joshua_heal", phoenix: "joshua_phoenix", loop: "joshua_fire_loop", singe: "joshua_singe" };
 const HP = 6;
 const ARMOR = 2;
 const CONE = { kind: "line", cone: true, len: 4, width: 1, hostile: true };
@@ -220,7 +220,8 @@ module.exports = {
     const n = engine.withEffectSource(p, () => engine.applyBurn(attacker, PHOENIX.retaliate));
     if (n > 0) {
       engine.log(`🐦‍🔥 ${attacker.name} โจมตีร่างนกเพลิง — ลุกไหม้ +${n}`);
-      if (attacker.pos) fx(engine, attacker, "singe", { by: p.id });
+      // ไฟ + เสียง (client เล่นเสียง joshua_singe พร้อมภาพ) ตรงจังหวะปะทะของการตี · นอกฉากตี = ทันที
+      if (attacker.pos) engine.boardFxAtHit(FX, { kind: "singe", id: attacker.id, at: { ...attacker.pos }, size: engine.sizeOf(attacker), by: p.id });
     }
   },
 

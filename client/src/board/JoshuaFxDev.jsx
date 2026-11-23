@@ -44,7 +44,7 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
       setFocus(a);
     },
     phoenixNoClip: () => play.phoenix(false),
-    singe: () => { const b = foe(); pushFx([{ kind: "joshuaSinge", x: b.x, y: b.y, dur: JOSHUA_FX_DUR.joshuaSinge }]); setFocus(b); },
+    singe: () => { const b = foe(); pushFx([{ kind: "joshuaSinge", x: b.x, y: b.y, dur: JOSHUA_FX_DUR.joshuaSinge }]); playSfx("joshua_singe"); setFocus(b); },
     aura: () => setUnits((us) => us.map((u) => {
       if (u.id !== "me") return u;
       const on = u.aura !== "joshuaPhoenix";

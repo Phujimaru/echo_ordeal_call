@@ -454,6 +454,7 @@ const FILES = {
   joshua_fire: "/characters/joshua_rosfield/sfx/joshua_fire.mp3",
   joshua_heal: "/characters/joshua_rosfield/sfx/joshua_heal.mp3",
   joshua_phoenix: "/characters/joshua_rosfield/sfx/joshua_phoenix.mp3",
+  joshua_singe: "/characters/joshua_rosfield/sfx/joshua_singe.mp3", // ลุกไหม้สวนกลับ: Mixkit "Fire woosh" #1348 (ตัด 1.6 วิ)
   joshua_fire_loop: "/characters/joshua_rosfield/sfx/joshua_fire_loop.mp3", // ร่างนกเพลิง: ไฟลุกวนเป็นพื้นหลัง (-22 LUFS)
   vergil_slash1: "/characters/vergil/sfx/slash1.mp3",   // Fast sword whoosh + Sword gore slash hit
   vergil_slash2: "/characters/vergil/sfx/slash2.mp3",   // Sword blade swish + Heavy sword hit
