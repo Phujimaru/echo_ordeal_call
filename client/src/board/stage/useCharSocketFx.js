@@ -213,10 +213,10 @@ export default function useCharSocketFx(ctx) {
       const kind = JOSHUA_KIND[ev.kind];
       if (!kind) return;
       const tiles = Array.isArray(ev.tiles) ? ev.tiles.filter((t) => t && Number.isFinite(t.x) && Number.isFinite(t.y)).map((t) => ({ x: t.x, y: t.y })) : null;
-      pushFx([{ kind, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, cols: ev.cols, rows: ev.rows, minRow: ev.minRow, hits: Array.isArray(ev.hits) ? ev.hits : null, dur: JOSHUA_FX_DUR[kind] }]);
+      pushFx([{ kind, id: ev.id, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, cols: ev.cols, rows: ev.rows, minRow: ev.minRow, hits: Array.isArray(ev.hits) ? ev.hits : null, dur: JOSHUA_FX_DUR[kind] }]);
       if (kind === "joshuaCone" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), JOSHUA_T.cone + 120));
       if (kind === "joshuaPhoenix" && !lowQ) setShake((n) => n + 1);
-      if (kind === "joshuaHellsong" && !lowQ) for (const d of [300, 700, 1100, 1500, 1900, 2300, 2600, 2750, 2900]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // ลูกไฟร่วง → คลื่นเพลิงแผ่สุด
+      if (kind === "joshuaHellsong" && !lowQ) for (const d of [2150, 2250, 2400, 2600, 2850, 3150]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // นกพุ่งชนกลางสนาม → คลื่นเพลิง
       if (kind === "joshuaIgnite" && !lowQ) for (const d of [700, 1000, 1300, 1600, 1850, 2050]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // ระเบิดเพลิงโหมหนักขึ้น
       if (kind === "joshuaSinge") playSfx("joshua_singe"); // ลุกไหม้สวนกลับ: เสียงพร้อมภาพ (มาตรงจังหวะปะทะผ่าน hitFx)
     };

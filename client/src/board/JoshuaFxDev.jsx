@@ -73,9 +73,9 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
     hellsong: () => {
       after.current = () => {
         const a = me(), others = CUR.units.filter((x) => x.id !== "me").map((x) => ({ id: x.id, x: x.x, y: x.y, size: x.size || 1 }));
-        pushFx([{ kind: "joshuaHellsong", x: a.x, y: a.y, size: 3, cols: (map && map.cols) || 14, rows: (map && map.rows) || 14, minRow: (map && map.minRow) || 0, hits: others, dur: JOSHUA_FX_DUR.joshuaHellsong }]);
+        pushFx([{ kind: "joshuaHellsong", id: "me", x: a.x, y: a.y, size: 3, cols: (map && map.cols) || 14, rows: (map && map.rows) || 14, minRow: (map && map.minRow) || 0, hits: others, dur: JOSHUA_FX_DUR.joshuaHellsong }]);
         playSfx("joshua_phoenix");
-        for (const d of [300, 700, 1100, 1500, 1900, 2300, 2600, 2750, 2900]) setTimeout(() => setShake && setShake((n) => n + 1), d);
+        for (const d of [2150, 2250, 2400, 2600, 2850, 3150]) setTimeout(() => setShake && setShake((n) => n + 1), d);
       };
       setClip("/characters/joshua_rosfield/joshua_hellsong.mp4");
     },

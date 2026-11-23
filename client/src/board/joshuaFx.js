@@ -22,7 +22,7 @@ export const JOSHUA_T = { cone: 550, ignite: 2200 };
 // ท่าตีปกติร่างนก (ฮุค attackStyle → STYLE_MS/STYLE_HIT ใน boardFxBasic.js): ปีกเงื้อ → ตีลง (ปะทะที่ 42%) → คลื่นเพลิงกวาดกรวย
 export const JOSHUA_MS = { joshuaBirdStrike: 1700 };
 export const JOSHUA_HIT_P = { joshuaBirdStrike: 0.42 };
-export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800, joshuaIgnite: 2600, joshuaBirdRise: 5200, joshuaHellsong: 4200, ...JOSHUA_MS };
+export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800, joshuaIgnite: 2600, joshuaBirdRise: 5200, joshuaHellsong: 5000, ...JOSHUA_MS };
 export const isJoshuaFx = (kind) => typeof kind === "string" && kind in JOSHUA_FX_DUR;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
@@ -497,75 +497,127 @@ function birdStrikeFx(g, e, t, dur, seed, lowQ) {
   g.globalCompositeOperation = "source-over";
 }
 
-// ---------- เพลิงนรก (หลังคลิป): ระเบิดเพลิงทั้งกระดาน ----------
-//  จอมืดแดง → นกเรืองจ้า → ลูกไฟร่วงจากฟ้าทั่วกระดาน → คลื่นเพลิงแผ่จากนกจนสุดกระดาน (ทุกช่องลุก) → เสาไฟพุ่งจากทุกคนที่โดน
+// ---------- เพลิงนรก (หลังคลิป · ตามคลิปผู้ใช้): นกบิดตัวบินขึ้นฟ้า → พุ่งดิ่งชนกลางสนาม → ระเบิดเพลิงทั้งกระดาน ----------
+//  0–0.95 วิ   นกตัวจริงบินบิดตัวขึ้นจนหายเหนือจอ (ตัวบนกระดานซ่อน — birdAway)
+//  0.95–1.6    ฟ้ามืดแดง ละอองไฟร่วง แสงสะสมเหนือกลางสนาม
+//  1.6–2.15    นกพุ่งดิ่งเป็นลูกไฟลงกลางสนาม (หัวชี้ลง หางไฟยาว)
+//  2.15        กระแทก: แสงวาบขาว + คลื่นกระแทก + หลุมไฟ
+//  2.15–3.8    คลื่นเพลิงแผ่จากกลางสนามจนสุดกระดาน (ทุกช่องลุก) + เสาไฟจากทุกคนที่โดน
+//  ~3.9        นกกลับมาลอยที่เดิม
+export const HELL_T = { rise: 950, dive: 1600, impact: 2150, wave: 1650, back: 3900 };
+export const birdAway = new Map(); // id → เวลาที่นกกลับมาที่เดิม (performance.now)
 function hellsongFx(g, e, t, dur, seed, lowQ) {
-  const n = Math.max(1, e.size | 0), cx = e.x + n / 2, cy = e.y + n / 2;
+  const n = Math.max(1, e.size | 0), cx0 = e.x + n / 2, cy0 = e.y + n / 2;
   const cols = e.cols || 14, rows = e.rows || 14, minRow = e.minRow | 0;
+  const mcx = cols / 2, mcy = minRow + (rows - minRow) / 2; // กลางสนาม
   const W = g.canvas.width, H = g.canvas.height;
+  if (e.id != null && !birdAway.has(e.id + ":" + e.t0)) { birdAway.set(e.id, e.t0 + HELL_T.back); birdAway.set(e.id + ":" + e.t0, 1); }
   const fade = 1 - clamp01((t - (dur - 900)) / 900);
+  // 1) ฟ้ามืดแดง (หนักสุดช่วงพุ่งดิ่ง)
+  const darkK = Math.min(0.72, 0.72 * easeOut(clamp01(t / 600))) * fade;
   g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
-  g.fillStyle = `rgba(30,3,4,${0.6 * easeOut(clamp01(t / 400)) * fade})`; g.fillRect(0, 0, W, H);
+  g.fillStyle = `rgba(26,2,4,${darkK})`; g.fillRect(0, 0, W, H);
   g.restore();
-  const [bx, by0, s] = P(cx, cy), by = by0 - s * 2.4;
+  const [bx0, by00, s] = P(cx0, cy0);
+  const [mx, my] = P(mcx, mcy);
+  const im = birdImg();
+  // 2) นกบินบิดตัวขึ้น
+  if (t < HELL_T.rise && im) {
+    const q = clamp01(t / HELL_T.rise);
+    const lift = q * q * H * 1.1;
+    const bx = bx0 + Math.sin(q * Math.PI * 2.2) * s * 1.4 * (1 - q); // บิดตัวเป็นเกลียว
+    const by = by00 - s * 2.4 - lift;
+    const Wb = s * n * 2.5 * (1 + 0.25 * q);
+    g.save();
+    g.translate(bx, by); g.rotate(Math.sin(q * Math.PI * 2.2) * 0.5 - 0.2 * q); g.translate(-bx, -by);
+    drawWarped(g, im, bx, by, Wb, REDUCED ? 0 : Math.sin(t / 60));
+    g.restore();
+    g.globalCompositeOperation = "lighter";
+    glow(g, bx, by, Wb * 0.4, CRIMSON, 0.6, GOLD);
+    if (!lowQ) embers(g, bx, by + Wb * 0.2, Wb * 0.4, 18, t, 0.9, seed, -1);
+    g.globalCompositeOperation = "source-over";
+  }
   g.globalCompositeOperation = "lighter";
-  glow(g, bx, by, s * (2 + 2 * Math.sin(Math.min(1, t / 700) * Math.PI)), CRIMSON, 0.9 * fade, GOLD);
-  // ลูกไฟร่วงจากฟ้า (0.15–1.4 วิ) → ระเบิดที่พื้น
-  const nM = lowQ ? 8 : 22;
-  for (let i = 0; i < nM; i++) {
-    const h1 = hash(seed + i * 2.7), h2 = hash(seed + i * 6.1), h3 = hash(seed + i * 9.3);
-    const gx = h1 * cols, gy = minRow + h2 * (rows - minRow), t0 = 150 + h3 * 1250, fall = 420;
-    const lt = t - t0;
-    if (lt < 0) continue;
-    const [px, py, ss] = P(gx, gy);
-    if (lt < fall) {
-      const q = lt / fall, sy = py - ss * 9 * (1 - q), sx = px - ss * 3 * (1 - q);
-      g.strokeStyle = rgba(FLAME, 0.7); g.lineWidth = Math.max(1, ss * 0.18);
-      g.beginPath(); g.moveTo(sx - ss * 1.2, sy - ss * 3.2); g.lineTo(sx, sy); g.stroke();
-      glow(g, sx, sy, ss * 0.5, FLAME, 0.95, CORE);
-    } else {
-      const q = clamp01((lt - fall) / 700);
-      glow(g, px, py, ss * (0.6 + 1.6 * easeOut(q)), CRIMSON, (1 - q) * 0.9 * fade, GOLD);
+  // 3) แสงสะสมเหนือกลางสนาม + ละอองไฟร่วง
+  if (t > HELL_T.rise * 0.6 && t < HELL_T.impact) {
+    const q = clamp01((t - HELL_T.rise * 0.6) / (HELL_T.impact - HELL_T.rise * 0.6));
+    glow(g, mx, my - s * 6, s * (1 + 4 * q), CRIMSON, 0.5 * q, GOLD);
+    if (!lowQ) for (let i = 0; i < 40; i++) {
+      const h1 = hash(seed + i * 1.9), h2 = hash(seed + i * 4.7);
+      const life = 900 + 700 * h2, qq = ((t + h1 * life) % life) / life;
+      g.fillStyle = rgba(qq < 0.5 ? GOLD : FLAME, 0.85 * Math.sin(Math.PI * qq));
+      g.beginPath(); g.arc(h1 * W, qq * H, Math.max(1, H * 0.003), 0, TAU); g.fill();
     }
   }
-  // คลื่นเพลิงแผ่จากนกจนสุดกระดาน (1.0–2.6 วิ): ทุกช่องในวงลุกเป็นไฟ
-  const wave = clamp01((t - 1000) / 1600), maxR = Math.hypot(cols, rows - minRow);
-  const R = maxR * easeOut(wave);
-  if (wave > 0) {
-    g.strokeStyle = rgba(GOLD, 0.8 * (1 - wave) * fade); g.lineWidth = Math.max(2, s * 0.35);
-    g.beginPath(); g.ellipse(bx, by0, R * s, R * s * 0.5, 0, 0, TAU); g.stroke();
+  // 4) พุ่งดิ่งเป็นลูกไฟลงกลางสนาม
+  if (t >= HELL_T.dive && t < HELL_T.impact) {
+    const q = clamp01((t - HELL_T.dive) / (HELL_T.impact - HELL_T.dive)), qe = q * q;
+    const sx = mx + s * 3 * (1 - qe), sy = my - H * 0.9 * (1 - qe);
+    // หางไฟยาว
+    const tl = H * 0.5 * (0.4 + 0.6 * q);
+    const gr = g.createLinearGradient(sx, sy, sx + s * 1.2, sy - tl);
+    gr.addColorStop(0, rgba(CORE, 0.95)); gr.addColorStop(0.25, rgba(GOLD, 0.8)); gr.addColorStop(0.6, rgba(FLAME, 0.5)); gr.addColorStop(1, rgba(CRIMSON, 0));
+    g.strokeStyle = gr; g.lineCap = "round"; g.lineWidth = s * (1.2 + 0.8 * q);
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + s * 1.2, sy - tl); g.stroke();
+    glow(g, sx, sy, s * (1.4 + 1.2 * q), FLAME, 0.95, CORE);
+    if (im) {
+      g.globalCompositeOperation = "source-over";
+      const Wb = s * n * 1.8;
+      g.save(); g.translate(sx, sy); g.rotate(Math.PI / 2 - 0.25); g.translate(-sx, -sy); // หัวชี้ลง
+      g.globalAlpha = 0.9;
+      drawWarped(g, im, sx, sy, Wb, -0.9);
+      g.restore();
+      g.globalCompositeOperation = "lighter";
+    }
+  }
+  // 5) กระแทก: แสงวาบ + คลื่นกระแทก + หลุมไฟ
+  const it = t - HELL_T.impact;
+  if (it >= 0) {
+    const fl = 1 - clamp01(it / 420);
+    if (fl > 0) {
+      g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+      g.fillStyle = `rgba(255,236,200,${0.85 * fl})`; g.fillRect(0, 0, W, H);
+      g.restore();
+    }
+    glow(g, mx, my, s * (2 + 6 * easeOut(clamp01(it / 700))), GOLD, 0.95 * (1 - clamp01(it / 1600)) * fade, CORE);
+    for (let k = 0; k < 2; k++) {
+      const rr = s * (1 + 14 * easeOut(clamp01((it - k * 120) / 900)));
+      g.strokeStyle = rgba(k ? FLAME : CORE, 0.9 * (1 - clamp01((it - k * 120) / 900)));
+      g.lineWidth = Math.max(2, s * (0.45 - 0.15 * k));
+      g.beginPath(); g.ellipse(mx, my, rr, rr * 0.5, 0, 0, TAU); g.stroke();
+    }
+    // คลื่นเพลิงแผ่จากกลางสนามจนสุดกระดาน
+    const wave = clamp01(it / HELL_T.wave), maxR = Math.hypot(cols, rows - minRow) / 2 + 1;
+    const R = maxR * easeOut(wave);
     g.globalCompositeOperation = "source-over";
     const step = lowQ ? 2 : 1;
     for (let y = minRow; y < rows; y += step) for (let x = 0; x < cols; x += step) {
-      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+      const d = Math.hypot(x + 0.5 - mcx, y + 0.5 - mcy);
       if (d > R) continue;
-      const lt = (R - d) / Math.max(1, maxR) * 1600;
+      const lt = (R - d) / Math.max(1, maxR) * HELL_T.wave;
       const [px, py, ss] = P(x + 0.5, y + 0.5);
       const h = hash(seed + x * 13.1 + y * 7.7);
       const rise = easeOut(clamp01(lt / 260));
-      flame(g, px + (h - 0.5) * ss * 0.4, py + ss * 0.1, ss * (0.16 + 0.08 * h), ss * (0.5 + 0.8 * h) * rise * (0.85 + 0.15 * Math.sin(t / 70 + h * 20)), Math.sin(t / 100 + h * 9) * 0.4, 0.85 * fade);
+      flame(g, px + (h - 0.5) * ss * 0.4, py + ss * 0.1, ss * (0.16 + 0.08 * h), ss * (0.5 + 0.9 * h) * rise * (0.85 + 0.15 * Math.sin(t / 70 + h * 20)), Math.sin(t / 100 + h * 9) * 0.4, 0.85 * fade);
     }
     g.globalCompositeOperation = "lighter";
+    // เสาไฟพุ่งจากทุกคนที่โดน (ตอนคลื่นมาถึง)
+    for (const hu of Array.isArray(e.hits) ? e.hits : []) {
+      const hn = Math.max(1, hu.size | 0), hx = hu.x + hn / 2, hy = hu.y + hn / 2;
+      const d = Math.hypot(hx - mcx, hy - mcy), at = HELL_T.wave * Math.min(1, d / Math.max(1, maxR));
+      const lt = it - at;
+      if (lt < 0) continue;
+      const [px, py, ss] = P(hx, hy);
+      const q = clamp01(lt / 900), H2 = ss * 5 * easeOut(Math.min(1, lt / 250));
+      const gr = g.createLinearGradient(px, py, px, py - H2);
+      gr.addColorStop(0, rgba(CORE, 0.95 * (1 - q))); gr.addColorStop(0.35, rgba(GOLD, 0.8 * (1 - q))); gr.addColorStop(1, rgba(CRIMSON, 0));
+      g.fillStyle = gr; g.beginPath(); g.ellipse(px, py - H2 / 2, ss * 0.45, H2 / 2, 0, 0, TAU); g.fill();
+    }
+    if (!lowQ) embers(g, mx, my, s * 6, 50, it, fade, seed, 2.2);
   }
-  // เสาไฟพุ่งจากทุกคนที่โดน (ตอนคลื่นมาถึง)
-  for (const hu of Array.isArray(e.hits) ? e.hits : []) {
-    const hn = Math.max(1, hu.size | 0), hx = hu.x + hn / 2, hy = hu.y + hn / 2;
-    const d = Math.hypot(hx - cx, hy - cy), at = 1000 + 1600 * Math.min(1, d / Math.max(1, maxR));
-    const lt = t - at;
-    if (lt < 0) continue;
-    const [px, py, ss] = P(hx, hy);
-    const q = clamp01(lt / 900), H2 = ss * 5 * easeOut(Math.min(1, lt / 250));
-    const gr = g.createLinearGradient(px, py, px, py - H2);
-    gr.addColorStop(0, rgba(CORE, 0.95 * (1 - q))); gr.addColorStop(0.35, rgba(GOLD, 0.8 * (1 - q))); gr.addColorStop(1, rgba(CRIMSON, 0));
-    g.fillStyle = gr; g.beginPath(); g.ellipse(px, py - H2 / 2, ss * 0.45, H2 / 2, 0, 0, TAU); g.fill();
-  }
-  // แสงวาบตอนคลื่นแผ่สุด
-  const flash = clamp01(1 - Math.abs(t - 2600) / 350);
-  if (flash > 0) {
-    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
-    g.fillStyle = `rgba(255,200,140,${0.45 * flash})`; g.fillRect(0, 0, W, H);
-    g.restore();
-  }
+  // 6) นกกลับมา: แสงวาบที่ตำแหน่งเดิม
+  const bt = t - (HELL_T.back - 300);
+  if (bt > 0 && bt < 700) glow(g, bx0, by00 - s * 2.4, s * 3 * easeOut(bt / 700), CRIMSON, 0.8 * (1 - bt / 700), GOLD);
   g.globalCompositeOperation = "source-over";
 }
 
@@ -716,6 +768,7 @@ export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {
   // ลอยสูงจากพื้นชัดเจน (ผู้ใช้: ตัวใหญ่ ลอยอยู่ ไม่ติดพื้น) · โคลงขึ้นลงช้าๆ · ตีปีกลง = ตัวยกขึ้นนิดๆ
   const hover = (down ? 0.6 : 3.4) + Math.max(0, liftZ) + (REDUCED ? 0 : -flap * 0.12 + Math.sin(t / 900) * 0.18);
   phoenixAmbient(g, now, u.lowQ);
+  if (birdAway.has(u.id) && now < birdAway.get(u.id)) return { cx: P(wx, wy)[0], top: P(wx, wy)[1] - 40, bottom: P(wx, wy)[1], left: P(wx, wy)[0] - 20, right: P(wx, wy)[0] + 20 }; // เพลิงนรก: นกบินออกไปแล้ว
   const [gx, gy, s] = P(wx, wy);
   const [bx, by] = P(wx, wy, hover);
   const face = faceOfBird(u.id, gx, now);
