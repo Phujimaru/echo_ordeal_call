@@ -5,7 +5,7 @@
 //   joshuaHeal     พรของนกเพลิง: เสาไฟคืนชีพอ่อนๆ บนตัวผู้รับ + ขนนกเพลิงหมุนขึ้น
 //   joshuaPhoenix  สวมร่างนกเพลิง (หลังคลิป): หางนกเพลิงสะบัดออก + วงไฟแผ่ถึงระยะเดิน
 //   joshuaSinge    ศัตรูโจมตีร่างนกเพลิง: ไฟลุกใส่ผู้โจมตี
-//  ออร่าค้าง (drawUnit — units[].aura "joshuaPhoenix"): ขนหางนกเพลิง (แกน + ขนฝอย) พลิ้วหลังหมาก (ตามคลิป joshua_skill3) + ไฟที่เท้า + สะเก็ดไฟหน้าหมาก
+//  ออร่าค้าง (drawUnit — units[].aura "joshuaPhoenix"): ขนหางนกเพลิงไม่สมมาตร (กลุ่มยาวลากไปซ้าย-หลังแล้วห้อยลง) หลังหมาก (ตามคลิป joshua_skill3) + ไฟที่เท้า + สะเก็ดไฟหน้าหมาก
 import { P } from "./boardGeo";
 
 const TAU = Math.PI * 2;
@@ -178,106 +178,119 @@ function healFx(g, e, t, dur, seed, lowQ) {
   g.globalCompositeOperation = "source-over";
 }
 
-// ---------- หางนกเพลิง (ตามคลิป joshua_skill3): ขนหางนกยาว (แกนขน + ขนฝอยละเอียดแผ่สองข้าง) สีแดงเข้ม ออกจากหลัง/เอว แผ่ไปสองข้าง ----------
-//  ผู้ใช้ 2026-11-23: แบบริบบิ้นส่ายดูเหมือนหนวดปลาหมึก → เปลี่ยนเป็นขนนกจริง พลิ้วเบาๆ ช้าๆ ปลายขนแตกเป็นฝอย + ไฟ
-//  แต่ละเส้น: [มุมบนจอ (rad · 0 = ขวา), ความยาว (×ช่อง), ครึ่งความกว้างขน (×ช่อง), เฟส]
+// ---------- หางนกเพลิง (ตามคลิป joshua_skill3 + ภาพนกเพลิงที่ผู้ใช้ส่ง) ----------
+//  ผู้ใช้ 2026-11-23: ริบบิ้น = หนวดปลาหมึก · พัดขนนกสมมาตร = ไม่สวย → ศึกษาภาพ/คลิปใหม่:
+//   หางไม่สมมาตร — ขนยาวกลุ่มหลักลากไปทางเดียว (หลัง-ซ้าย) แล้วห้อยลงแบบผ้าตามแรงโน้มถ่วง ยาวไม่เท่ากัน บางเส้นโค้งตัว S
+//   ขอบขนหยักแตกเป็นริ้ว · ปลายแตกเป็นสะเก็ดไฟชมพูส้ม · แดงเข้มอมม่วงแดง มีประกายทอง · อีกฝั่งมีแค่ขนสั้นไม่กี่เส้น
+//  แต่ละเส้น: [มุมเริ่ม (rad บนจอ · 0 = ขวา), ความยาว (×ช่อง), ครึ่งความกว้าง (×ช่อง), โค้ง (rad ตลอดเส้น · บวก = ตามเข็ม), ตัว S, เฟส]
 const TAILS = [
-  [Math.PI + 0.14, 2.0, 0.2, 0.0], [-0.14, 2.0, 0.2, 1.7],        // คู่ยาวแผ่ซ้าย/ขวา
-  [Math.PI - 0.3, 1.6, 0.17, 2.9], [0.3, 1.6, 0.17, 4.1],         // คู่เฉียงลง
-  [Math.PI + 0.55, 1.3, 0.15, 5.3], [-0.55, 1.3, 0.15, 0.8],      // คู่เฉียงขึ้น
-  [Math.PI - 0.62, 1.05, 0.13, 3.3], [0.62, 1.05, 0.13, 2.2],     // คู่สั้นล่าง
-];
-// ขนหาง 1 เส้น จาก (x0, y0) · ang/len/w ในหน่วยพิกเซล · grow 0..1 = ยาวออก · sway = มุมพลิ้ว (rad) · t = เวลา (ms)
-function plume(g, x0, y0, ang, len, w, grow, sway, t, ph, a, lowQ) {
+  // กลุ่มหลัก: แผ่เป็นพัดไปทางซ้าย-หลัง (บน → ล่าง) แล้วโค้งห้อยลง
+  [Math.PI + 0.95, 2.3, 0.11, -0.75, 0.35, 0.0],
+  [Math.PI + 0.55, 2.8, 0.12, -0.85, 0.4, 1.3],
+  [Math.PI + 0.2, 2.55, 0.12, -0.7, 0.3, 2.6],
+  [Math.PI - 0.15, 2.1, 0.11, -0.55, 0.25, 3.9],
+  [Math.PI - 0.5, 1.6, 0.1, -0.4, 0.2, 5.1],
+  // อีกฝั่ง: ขนสั้น 3 เส้น
+  [-0.75, 1.15, 0.09, 0.6, 0.25, 2.1],
+  [-0.3, 0.95, 0.085, 0.55, 0.2, 4.4],
+  [0.15, 0.75, 0.08, 0.5, 0.2, 3.2],
+]
+const MAGENTA = "232,40,96", ROSE = "255,128,150";
+// ขนหาง 1 เส้น: เส้นกลางโค้ง + ห้อยลง · ขอบหยักเป็นริ้ว · ปลายแตกเป็นสะเก็ดไฟ
+function plume(g, x0, y0, ang, len, w, curl, sCurve, grow, sway, wave, t, ph, a, lowQ) {
   if (a <= 0 || grow <= 0) return;
-  const N = lowQ ? 10 : 20, L = len * grow;
-  // แกนขน: โค้งนุ่ม (งอทางเดียว + ปลายตก) — พลิ้วทั้งเส้นด้วยมุมเล็กๆ ไม่ส่ายเป็นคลื่น
-  const bend = 0.22 + sway;
-  const pts = [];
-  for (let i = 0; i <= N; i++) {
-    const u = i / N, aa = ang + bend * u * (Math.cos(ang) < 0 ? -1 : 1);
-    const prev = pts[i - 1];
-    const step = L / N;
-    const x = prev ? prev.x + Math.cos(aa) * step : x0, y = prev ? prev.y + Math.sin(aa) * step + u * step * 0.18 : y0;
-    pts.push({ x, y });
+  const N = lowQ ? 12 : 26, L = len * grow, step = L / N;
+  const pts = [{ x: x0, y: y0 }];
+  for (let i = 1; i <= N; i++) {
+    const u = i / N;
+    // มุม: โค้งสะสม + ตัว S (กลับทิศกลางเส้น) + พลิ้วที่ปลาย
+    const aa = ang + curl * u + sCurve * Math.sin(u * Math.PI * 1.6) * (curl < 0 ? -1 : 1) + sway * u * u;
+    const p = pts[i - 1];
+    pts.push({ x: p.x + Math.cos(aa) * step, y: p.y + Math.sin(aa) * step + u * u * step * 0.55 }); // ห้อยลงแรงขึ้นที่ปลาย
+  }
+  // พลิ้วแบบคลื่นวิ่งไปตามเส้น (ผู้ใช้ชอบการพลิ้วของแบบริบบิ้นเดิม) — แรงขึ้นที่ปลาย · โคนนิ่ง
+  if (!REDUCED) {
+    const base = pts.map((q) => ({ ...q }));
+    for (let i = 1; i <= N; i++) {
+      const u = i / N;
+      const p0 = base[i - 1], p1 = base[Math.min(N, i + 1)];
+      const dx = p1.x - p0.x, dy = p1.y - p0.y, l = Math.hypot(dx, dy) || 1;
+      const off = Math.sin(u * 5.2 - wave) * w * 1.6 * u;
+      pts[i] = { x: base[i].x - (dy / l) * off, y: base[i].y + (dx / l) * off };
+    }
   }
   const tan = (i) => {
     const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(N, i + 1)];
     const dx = p1.x - p0.x, dy = p1.y - p0.y, l = Math.hypot(dx, dy) || 1;
     return [dx / l, dy / l];
   };
-  // ความกว้างขน: แคบที่โคน → กว้างสุดราว 65% → เรียวที่ปลาย
-  const hw = (u) => w * Math.sin(Math.PI * Math.min(1, u * 0.78 + 0.08)) ** 0.8 * (u < 0.12 ? u / 0.12 : 1);
-  // 1) เนื้อขน (โปร่ง) — ให้รูปทรงขนนก
+  // ความกว้าง: โคนเล็ก → พองช่วง 30–60% → เรียวยาว · ขอบหยัก (ริ้วขน) ด้วย hash สลับข้าง
+  const hw = (u) => w * Math.pow(Math.sin(Math.PI * Math.min(1, 0.06 + u * 0.92)), 0.7) * (u < 0.1 ? 0.35 + u * 6.5 : 1);
+  const jag = (i, side) => 1 + 0.55 * (hash(i * 7.3 + side * 3.1 + ph * 11) - 0.35) * (i % 2 ? 1 : -0.6);
   const lft = [], rgt = [];
   for (let i = 0; i <= N; i++) {
     const [tx, ty] = tan(i), h = hw(i / N);
-    lft.push([pts[i].x - ty * h, pts[i].y + tx * h]); rgt.push([pts[i].x + ty * h, pts[i].y - tx * h]);
+    const hl = h * jag(i, 1), hr = h * jag(i, -1);
+    lft.push([pts[i].x - ty * hl, pts[i].y + tx * hl]);
+    rgt.push([pts[i].x + ty * hr, pts[i].y - tx * hr]);
   }
   const end = pts[N];
   const gr = g.createLinearGradient(x0, y0, end.x, end.y);
-  gr.addColorStop(0, rgba(FLAME, a * 0.75));
-  gr.addColorStop(0.3, rgba(CRIMSON, a * 0.6));
-  gr.addColorStop(0.85, rgba(DEEP, a * 0.35));
-  gr.addColorStop(1, rgba(DEEP, 0));
+  gr.addColorStop(0, rgba(FLAME, a));
+  gr.addColorStop(0.12, rgba(CRIMSON, a));
+  gr.addColorStop(0.6, rgba("196,16,52", a * 0.97));
+  gr.addColorStop(0.88, rgba(MAGENTA, a * 0.7));
+  gr.addColorStop(1, rgba(ROSE, 0));
   g.fillStyle = gr;
   g.beginPath();
   lft.forEach(([x, y], k) => (k ? g.lineTo(x, y) : g.moveTo(x, y)));
   for (let k = rgt.length - 1; k >= 0; k--) g.lineTo(rgt[k][0], rgt[k][1]);
   g.closePath(); g.fill();
-  // 2) ขนฝอย: เส้นเฉียงไปทางปลายขน ทั้งสองข้างของแกน · ปลายฝอยสีอ่อน · ขนฝอยพลิ้วตามเวลาเล็กน้อย
-  const barbs = lowQ ? 2 : 4; // ต่อ 1 ช่วงแกน ต่อข้าง
-  const th = 0.62; // มุมขนฝอยจากแกน
+  // ขอบเข้ม — แยกขนแต่ละเส้นออกจากกัน
+  g.strokeStyle = rgba(DEEP, a * 0.75); g.lineWidth = Math.max(0.7, w * 0.09); g.lineJoin = "round";
+  g.stroke();
+  if (lowQ) return;
+  // ริ้วขน: เส้นบางสีชมพูอ่อนตามความยาวเฉียงออกขอบ (ลายเส้นแบบภาพวาด) + เส้นกลางสว่างช่วงโคน
   g.lineCap = "round";
-  for (const [col, lw, aa, k0] of [[CRIMSON, 0.09, 0.9, 0], ["255,120,110", 0.05, 0.55, 0.5]]) {
-    g.strokeStyle = rgba(col, a * aa); g.lineWidth = Math.max(0.6, w * lw);
-    g.beginPath();
-    for (let i = 1; i < N; i++) {
-      const [tx, ty] = tan(i);
-      for (let b = 0; b < barbs; b++) {
-        const f = (b + k0) / barbs, u = (i + f) / N;
-        const bx = pts[i].x + (pts[i + 1].x - pts[i].x) * f, by = pts[i].y + (pts[i + 1].y - pts[i].y) * f;
-        const h = hw(u) * (0.9 + 0.25 * hash(i * 13.1 + b * 3.7 + ph));
-        const flick = REDUCED ? 0 : Math.sin(t / 240 + i * 0.7 + b + ph) * 0.12;
-        for (const side of [-1, 1]) {
-          const c = Math.cos(th + flick * side), sn = Math.sin(th + flick * side) * side;
-          const dx = tx * c - ty * sn, dy = ty * c + tx * sn;
-          const ex = bx + dx * h * 1.25, ey = by + dy * h * 1.25;
-          g.moveTo(bx, by);
-          g.quadraticCurveTo(bx + dx * h * 0.7 + tx * h * 0.15, by + dy * h * 0.7 + ty * h * 0.15, ex, ey);
-        }
-      }
+  g.strokeStyle = rgba(ROSE, a * 0.45); g.lineWidth = Math.max(0.6, w * 0.07);
+  g.beginPath();
+  for (let i = 2; i < N - 2; i += 2) {
+    const [tx, ty] = tan(i), h = hw(i / N);
+    for (const side of [-1, 1]) {
+      const k = 0.35 + 0.5 * hash(i * 3.3 + side + ph);
+      g.moveTo(pts[i].x - ty * h * 0.15 * side, pts[i].y + tx * h * 0.15 * side);
+      g.lineTo(pts[i].x + tx * step * 2.2 - ty * h * k * side, pts[i].y + ty * step * 2.2 + tx * h * k * side);
     }
-    g.stroke();
   }
-  // 3) แกนขน: เส้นสว่างบาง
-  g.strokeStyle = rgba("255,200,170", a * 0.7); g.lineWidth = Math.max(0.8, w * 0.07);
-  g.beginPath(); pts.forEach((q, k) => (k ? g.lineTo(q.x, q.y) : g.moveTo(q.x, q.y))); g.stroke();
-  // 4) ปลายขน: เปลวไฟเล็กๆ + ประกาย (เรืองแสง)
-  if (!lowQ) {
-    const prevOp = g.globalCompositeOperation;
-    g.globalCompositeOperation = "lighter";
-    glow(g, end.x, end.y, w * 0.9, FLAME, a * 0.35, GOLD);
-    for (let k = 0; k < 3; k++) {
-      const q = ((t / 900 + k / 3 + ph) % 1);
-      const [tx, ty] = tan(N);
-      g.fillStyle = rgba(GOLD, a * (1 - q) * 0.9);
-      g.beginPath(); g.arc(end.x + tx * w * 2 * q + (hash(k + ph) - 0.5) * w, end.y + ty * w * 2 * q - q * w * 1.5, Math.max(0.8, w * 0.1 * (1 - q)), 0, TAU); g.fill();
-    }
-    g.globalCompositeOperation = prevOp;
+  g.stroke();
+  g.strokeStyle = rgba("255,215,190", a * 0.55); g.lineWidth = Math.max(0.7, w * 0.08);
+  g.beginPath(); for (let k = 0; k <= Math.floor(N * 0.55); k++) (k ? g.lineTo(pts[k].x, pts[k].y) : g.moveTo(pts[k].x, pts[k].y)); g.stroke();
+  // ปลายแตกเป็นสะเก็ดไฟ (หลุดออกจากปลาย ลอยไปตามทิศหาง + ขึ้นเล็กน้อย)
+  const prevOp = g.globalCompositeOperation;
+  g.globalCompositeOperation = "lighter";
+  const [ex, ey] = tan(N);
+  for (let k = 0; k < 5; k++) {
+    const q = (t / 1100 + k / 5 + ph * 0.37) % 1;
+    const sz = Math.max(0.8, w * (0.22 - 0.16 * q));
+    const px = end.x + ex * w * 3.2 * q + (hash(k * 5.1 + ph) - 0.5) * w * 1.6;
+    const py = end.y + ey * w * 3.2 * q - q * w * 2.2;
+    g.fillStyle = rgba(k % 2 ? ROSE : GOLD, a * (1 - q) * 0.85);
+    g.beginPath(); g.ellipse(px, py, sz * 1.6, sz * 0.7, Math.atan2(ey, ex), 0, TAU); g.fill();
   }
+  glow(g, pts[Math.floor(N * 0.2)].x, pts[Math.floor(N * 0.2)].y, w * 1.2, FLAME, a * 0.25, GOLD);
+  g.globalCompositeOperation = prevOp;
 }
 // หางทั้งชุด รอบจุดเอว (x, y) · s = ขนาดช่อง (px) · grow 0..1 · t = เวลา (ms)
 //  ขนหางวาดแบบทึบ (source-over) ให้แดงเข้มแบบในคลิปแม้บนพื้นสว่าง · เรืองแสงปลายขนเท่านั้นที่ lighter
 function tails(g, x, y, s, grow, t, a, lowQ, K = 1) {
   const prev = g.globalCompositeOperation;
   g.globalCompositeOperation = "source-over";
-  // วาดคู่สั้น/หลังก่อน แล้วคู่ยาวทับ (ซ้อนชั้นแบบขนหางจริง)
+  // วาดฝั่งขนสั้นก่อน แล้วกลุ่มหลักจากสั้นไปยาว (เส้นยาวอยู่บนสุด)
   for (let k = TAILS.length - 1; k >= 0; k--) {
-    if (lowQ && k >= 4) continue;
-    const [ang, len, w, ph] = TAILS[k];
-    const sway = REDUCED ? 0 : Math.sin(t / 1100 + ph) * 0.07; // พลิ้วช้าๆ ทั้งเส้น
-    plume(g, x, y, ang, s * len * K, s * w * K, grow, sway, t, ph, a, lowQ);
+    if (lowQ && k % 2) continue;
+    const [ang, len, w, curl, sC, ph] = TAILS[k];
+    const sway = REDUCED ? 0 : Math.sin(t / 700 + ph) * 0.1; // ทั้งเส้นแกว่งช้าๆ
+    plume(g, x, y, ang, s * len * K, s * w * K, curl, sC, grow, sway, t / 260 + ph, t, ph, a, lowQ);
   }
   g.globalCompositeOperation = prev;
 }
