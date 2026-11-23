@@ -16,8 +16,8 @@
 //    · เผาสนาม: พื้นไฟ 40% ของช่องโล่ง 5 เทิร์น (แบบนกหวีด Judgment Bolt) · เปลี่ยนแผนที่ = เผาใหม่ (onBoardPlaced) · ทีมตัวเองไม่โดน
 //    · เดิน 5 · ตีปกติ กรวย 3 (ระยะ 1–3 · ฮุค strikeCone) ไฟ ความเสียหาย 2 (พลังโจมตี +1 · บัฟพลังโจมตีบวกได้ · ลดเกราะก่อน) + ลุกไหม้ 2
 //    · ไม่ถือไพ่ (แต้มการ์ด 0 — noCards) · ใช้ไอเทมไม่ได้ (noItems) · ไม่มีท่าไม้ตาย
-//    · พื้นฐาน เพลงแห่งชีวิต (1–4 แต้ม · ไม่มีคูลดาวน์): ฟื้นตัวเองเท่าแต้ม · รอง เพลงเพลิง (4 แต้ม · คูลดาวน์ 3): ทุกคนบนแผนที่ (รวมเพื่อน · ไม่รวมตัวเอง · หลบได้)
-//      ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · คลิป ฟีนิกสกิลเฉพาะตัว ทุกครั้ง · ร่างนี้ฮีลเพื่อนไม่ได้ (เพลงแห่งชีวิตใช้กับตัวเองเท่านั้น)
+//    · พื้นฐาน เพลิงแห่งชีวิต (1–4 แต้ม · ไม่มีคูลดาวน์): ฟื้นตัวเองเท่าแต้ม · รอง เพลิงนรก (4 แต้ม · คูลดาวน์ 3): ทุกคนบนแผนที่ (รวมเพื่อน · ไม่รวมตัวเอง · หลบได้)
+//      ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · คลิป ฟีนิกสกิลเฉพาะตัว ทุกครั้ง · ร่างนี้ฮีลเพื่อนไม่ได้ (เพลิงแห่งชีวิตใช้กับตัวเองเท่านั้น)
 //    · กันตาย 3 ครั้ง: ดาเมจถึงตาย = พลังชีวิต 1 + สตั้น ตายไม่ได้จนต้นเทิร์นถัดไป (แบบ Master) · ครบ 3 = ตายจริง
 //    · เพลงนกไฟเป็นเพลงสนาม (skillMusic) · เสียงไฟลุก + ปีกกระพือวน (client)
 //  สกิลติดตัว ลูกชายคนเล็ก รอสฟิลด์ (ตอนนี้อยู่ช่อง passive — นกเพลิงอมตะมาเมื่อไรย้ายไป passive2):
@@ -55,13 +55,13 @@ const BASIC = { dmg: 1, phoenixDmg: 2, burn: 2, cd: 2 }; // cd = กดเทิ
 const HEAL = { range: 3, max: 3, phoenixMax: 4, cd: 2 };
 const PHOENIX = { key: "joshuaPhoenix", turns: 3, retaliate: 1, burn: 2 };
 const PASSIVE2 = { name: "ลูกชายคนเล็ก รอสฟิลด์", reactHeal: 2, strikeBurn: 1 };
-const T = { cone: 0.55 }; // จังหวะไฟพุ่งถึงช่องแรก (วินาที) — client JOSHUA_T.cone ต้องตรงกัน (ms)
+const T = { cone: 0.55, ignite: 2.2 }; // cone = ไฟพุ่งถึงช่องแรก · ignite = ระเบิดเพลิง+จอมืดก่อนคลิปกำเนิดนกไฟ (วินาที) — client JOSHUA_T ต้องตรงกัน (ms)
 
 const isMe = (p) => !!p && p.characterId === ID && !p.summon;
 const matchOf = () => require("../server/match");
 const round = () => matchOf().roundNumber || 0;
 const cdLeft = (ready, r) => Math.max(0, (ready || 0) - r);
-function fresh() { return { basicReady: 0, healReady: 0, phoenixSever: 0, hitKey: null, form: "human", guards: 0, down: null, hellReady: 0, birdAt: 0 }; }
+function fresh() { return { basicReady: 0, healReady: 0, phoenixSever: 0, hitKey: null, form: "human", guards: 0, down: null, hellReady: 0, birdAt: 0, hatch: false }; }
 function st(p) { return p.joshua || (p.joshua = fresh()); }
 const birdOn = (p) => isMe(p) && !!p.joshua && p.joshua.form === "bird";
 const phoenixOn = (p) => isMe(p) && p.alive !== false && ((p.statuses && p.statuses[PHOENIX.key]) || 0) > 0;
@@ -203,30 +203,36 @@ function rebirth(engine, p) {
   p.hp = BIRD.hp;
   growBird(engine, p);
   engine.log(`🐦‍🔥 ${p.name} นกเพลิงอมตะ — เกิดใหม่เป็นนกฟีนิกซ์! (พลังชีวิต ${BIRD.hp})`);
-  // คลิปกำเนิดนกไฟ → หลังคลิป: เผาสนาม + เสียง (กฎผู้ใช้: ไม่มีเสียงซ้อนวีดีโอ) · ค่าต่างๆ เปลี่ยนแล้วตั้งแต่ตอนนี้
-  p.cutsceneShown = p.cutsceneShown || {};
-  p.cutsceneShown[CUT.rebirth] = true;
-  engine.queueCutscene(p, CUT.rebirth);
-  engine.deferAfterCutscene(() => {
-    if (!p.alive || !birdOn(p)) return;
-    engine.sfx(SFX.phoenix);
-    fx(engine, p, "birdRise");
-    burnField(engine, p);
+  // ฉาก (ผู้ใช้ 2026-11-23): ระเบิดเพลิงรุนแรง + จอมืดลงบนกระดาน (ภาพอย่างเดียว — กฎผู้ใช้: ไม่มีเสียงตัดหน้าวีดีโอ)
+  //  → คลิปกำเนิดนกไฟ → หลังคลิป: นกปรากฏ + เผาสนาม + เสียง · ค่าต่างๆ เปลี่ยนแล้วตั้งแต่ตอนนี้ (client ยังวาดหมากเดิมระหว่าง hatch)
+  s.hatch = true;
+  engine.skillBeat(0.05, () => { if (p.pos) fx(engine, p, "ignite", { secs: T.ignite }); });
+  engine.skillBeat(T.ignite, () => {
+    p.cutsceneShown = p.cutsceneShown || {};
+    p.cutsceneShown[CUT.rebirth] = true;
+    engine.queueCutscene(p, CUT.rebirth);
+    engine.deferAfterCutscene(() => {
+      s.hatch = false;
+      if (!p.alive || !birdOn(p)) return;
+      engine.sfx(SFX.phoenix);
+      fx(engine, p, "birdRise");
+      burnField(engine, p);
+    });
   });
   if (engine.wantFlow) engine.wantFlow();
 }
-// เพลงแห่งชีวิต: ฟื้นตัวเองเท่าแต้ม
+// เพลิงแห่งชีวิต: ฟื้นตัวเองเท่าแต้ม
 function castSong(engine, p, n) {
   const got = engine.withEffectSource(p, () => engine.healHp(p, n));
-  engine.log(`🎶 ${p.name} เพลงแห่งชีวิต — ฟื้นพลังชีวิต +${got || 0}`);
+  engine.log(`🔥 ${p.name} เพลิงแห่งชีวิต — ฟื้นพลังชีวิต +${got || 0}`);
   engine.sfx(SFX.heal);
   fx(engine, p, "heal", { n });
   return ` · +${got || 0}`;
 }
-// เพลงเพลิง: คลิปทุกครั้ง → ทุกคนบนแผนที่ (ไม่รวมตัวเอง · รวมเพื่อน) ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · หลบได้
+// เพลิงนรก: คลิปทุกครั้ง → ทุกคนบนแผนที่ (ไม่รวมตัวเอง · รวมเพื่อน) ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · หลบได้
 function castHellSong(engine, p) {
   st(p).hellReady = engine.roundNumber + BIRD.hell.cd;
-  engine.log(`🔥 ${p.name} เพลงเพลิง — เปลวเพลิงกลืนทั้งแผนที่`);
+  engine.log(`🔥 ${p.name} เพลิงนรก — เปลวเพลิงกลืนทั้งแผนที่`);
   p.cutsceneShown = p.cutsceneShown || {};
   p.cutsceneShown[CUT.hellsong] = true;
   engine.queueCutscene(p, CUT.hellsong);
@@ -242,19 +248,19 @@ function landHellSong(engine, p) {
     if (!t.alive || !t.pos) continue;
     if (engine.sameTeam(p, t)) {
       // เพื่อนร่วมทีมโดนด้วย (ข้อเสียของร่าง — ผู้ใช้สั่ง): ไม่ใส่ต้นตอ (ท่อดาเมจกันยิงพวกเดียวกัน) · ดาเมจตายตัว · หลบได้
-      if (engine.skillDodge(p, t, "เพลงเพลิง")) continue;
+      if (engine.skillDodge(p, t, "เพลิงนรก")) continue;
       engine.withEffectSource(null, () => {
         engine.withElement("fire", () => engine.dealMixed(t, BIRD.hell.dmg));
         if (t.alive) engine.applyBurn(t, BIRD.hell.burn);
       });
-      engine.log(`🔥 ${t.name} โดนเพลงเพลิง -${BIRD.hell.dmg} · ลุกไหม้ +${BIRD.hell.burn}`);
+      engine.log(`🔥 ${t.name} โดนเพลิงนรก -${BIRD.hell.dmg} · ลุกไหม้ +${BIRD.hell.burn}`);
       if (t.alive && t.hp <= 0) { engine.instantDeath(t); if (!t.alive) engine.log(`💀 ${t.name} เลือดจริงหมด ตกรอบ!`); }
       if (!t.alive) t.pos = null;
       continue;
     }
     engine.withEffectSource(p, () => {
       // พลังโจมตีร่างนก = 1 + 1 (damageBonus) → bonus ให้รวมเป็น 3
-      const res = engine.skillStrike(p, t, "เพลงเพลิง", { bonus: BIRD.hell.dmg - 1 - BIRD.atk });
+      const res = engine.skillStrike(p, t, "เพลิงนรก", { bonus: BIRD.hell.dmg - 1 - BIRD.atk });
       if (!res || res.dodge || res.blocked || !t.alive) return;
       const n = engine.applyBurn(t, BIRD.hell.burn);
       if (n > 0) engine.log(`🔥 ${t.name} ลุกไหม้ +${n}`);
@@ -345,10 +351,10 @@ module.exports = {
     if (birdOn(p)) {
       if (tier === "basic") {
         const choices = [];
-        for (let n = 1; n <= BIRD.songMax; n++) choices.push({ key: String(n), name: `เพลงแห่งชีวิต ${n}`, img: IMG.phoenix, cost: n, area: { kind: "self" }, cd: 0, locked: false, desc: songDesc(n) });
-        return { name: "เพลงแห่งชีวิต", img: IMG.phoenix, desc: "เลือก 1–4 แต้ม: ฟื้นพลังชีวิตตัวเองเท่าแต้มที่ใช้", choices };
+        for (let n = 1; n <= BIRD.songMax; n++) choices.push({ key: String(n), name: `เพลิงแห่งชีวิต ${n}`, img: IMG.phoenix, cost: n, area: { kind: "self" }, cd: 0, locked: false, desc: songDesc(n) });
+        return { name: "เพลิงแห่งชีวิต", img: IMG.phoenix, desc: "เลือก 1–4 แต้ม: ฟื้นพลังชีวิตตัวเองเท่าแต้มที่ใช้", choices };
       }
-      if (tier === "secondary") return { name: "เพลงเพลิง", img: IMG.phoenix, desc: hellDesc(), cost: BIRD.hell.cost };
+      if (tier === "secondary") return { name: "เพลิงนรก", img: IMG.phoenix, desc: hellDesc(), cost: BIRD.hell.cost };
       return null;
     }
     if (!isMe(p) || tier !== "secondary") return null;
@@ -440,7 +446,7 @@ module.exports = {
     if (birdOn(p) && st(p).down != null && engine.roundNumber > st(p).down) {
       st(p).down = null;
       engine.log(`🔥 ${p.name} นกฟีนิกซ์ลุกขึ้นจากเปลวไฟอีกครั้ง (พลังชีวิต ${p.hp})`);
-      fx(engine, p, "birdRise");
+      fx(engine, p, "heal", { n: 1 }); // ฟื้นจากกันตาย = เสาไฟคืนชีพเล็กๆ (ไม่ใช่ฉากปรากฏตัวเต็มจอ)
     }
     if (st(p).phoenixSever && !phoenixOn(p)) { st(p).phoenixSever = 0; engine.log(`🐦‍🔥 ร่างนกเพลิงของ ${p.name} หมดลง`); }
   },
@@ -462,7 +468,7 @@ module.exports = {
     const r = engine.roundNumber;
     const s = st(p);
     return {
-      bird: birdOn(p), guards: birdOn(p) ? s.guards : 0, down: birdOn(p) && s.down != null,
+      bird: birdOn(p) && !s.hatch, hatch: !!s.hatch, guards: birdOn(p) ? s.guards : 0, down: birdOn(p) && s.down != null,
       hellCd: birdOn(p) ? cdLeft(s.hellReady, r) : 0,
       phoenix: phoenixOn(p) ? p.statuses[PHOENIX.key] : 0,
       basicCd: cdLeft(st(p).basicReady, r),

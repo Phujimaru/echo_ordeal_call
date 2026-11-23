@@ -206,7 +206,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("midoriyaFx", onMidoriya);
     // โจชัว รอสฟิลด์ (joshuaFx.js): กรวยไฟ / พรของนกเพลิง / สวมร่างนกเพลิง / ลุกไหม้สวนกลับ
-    const JOSHUA_KIND = { cone: "joshuaCone", heal: "joshuaHeal", phoenix: "joshuaPhoenix", singe: "joshuaSinge" };
+    const JOSHUA_KIND = { cone: "joshuaCone", heal: "joshuaHeal", phoenix: "joshuaPhoenix", singe: "joshuaSinge", ignite: "joshuaIgnite", birdRise: "joshuaBirdRise" };
     const onJoshua = (ev) => {
       const at = ev && ev.at;
       if (!ev || !at || !Number.isFinite(at.x) || !Number.isFinite(at.y)) return;
@@ -216,6 +216,7 @@ export default function useCharSocketFx(ctx) {
       pushFx([{ kind, x: at.x, y: at.y, size: ev.size || 1, tiles, dir: ev.dir, phoenix: !!ev.phoenix, dur: JOSHUA_FX_DUR[kind] }]);
       if (kind === "joshuaCone" && !lowQ) timers.current.push(setTimeout(() => setShake((n) => n + 1), JOSHUA_T.cone + 120));
       if (kind === "joshuaPhoenix" && !lowQ) setShake((n) => n + 1);
+      if (kind === "joshuaIgnite" && !lowQ) for (const d of [700, 1000, 1300, 1600, 1850, 2050]) timers.current.push(setTimeout(() => setShake((n) => n + 1), d)); // ระเบิดเพลิงโหมหนักขึ้น
       if (kind === "joshuaSinge") playSfx("joshua_singe"); // ลุกไหม้สวนกลับ: เสียงพร้อมภาพ (มาตรงจังหวะปะทะผ่าน hitFx)
     };
     socket.on("joshuaFx", onJoshua);

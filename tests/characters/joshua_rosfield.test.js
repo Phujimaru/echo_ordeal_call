@@ -26,7 +26,12 @@ test.afterEach(() => {
   engine.clearPhaseTimer(); Math.random = realRandom; engine.setGameMode("ffa");
   match.cutsceneQueue.length = 0; match.afterCutscene = []; match.skillBeats = []; queued.length = 0;
 });
-const runAfter = () => { for (const fn of match.afterCutscene.splice(0)) combat.withEffectSource(engine.players.a, fn); };
+const runAfter = () => {
+  for (let i = 0; i < 10 && (match.skillBeats.length || match.afterCutscene.length); i++) {
+    for (const b of match.skillBeats.splice(0)) combat.withEffectSource(engine.players.a, b.fn);
+    for (const fn of match.afterCutscene.splice(0)) combat.withEffectSource(engine.players.a, fn);
+  }
+};
 
 function clear(cx, cy, r = 9) {
   const map = engine.boardMap();
@@ -305,7 +310,7 @@ test("ร่างนก: ตีปกติกรวย 3 ไฟ 2 + ลุก�
   assert.equal(u.statuses.hburn, 2);
 });
 
-test("ร่างนก: เพลงแห่งชีวิต 1–4 แต้มฟื้นตัวเอง · เพลงเพลิง ทุกคนรวมเพื่อน 3 + ลุกไหม้ 3 คูลดาวน์ 3", () => {
+test("ร่างนก: เพลิงแห่งชีวิต 1–4 แต้มฟื้นตัวเอง · เพลิงนรก ทุกคนรวมเพื่อน 3 + ลุกไหม้ 3 คูลดาวน์ 3", () => {
   const { p, t, u } = setup({ mode: "duo" });
   p.teamId = "x"; u.teamId = "x"; t.teamId = "y";
   kill(p); runAfter();

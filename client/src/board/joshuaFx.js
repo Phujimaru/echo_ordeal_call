@@ -18,8 +18,8 @@ const REDUCED = typeof window !== "undefined" && window.matchMedia && window.mat
 const CORE = "255,248,226", GOLD = "255,196,92", FLAME = "255,104,40", CRIMSON = "214,24,48", DEEP = "120,8,36";
 
 // จังหวะ (ms) — server characters/joshua_rosfield.js T ต้องตรงกัน (วินาที)
-export const JOSHUA_T = { cone: 550 };
-export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800 };
+export const JOSHUA_T = { cone: 550, ignite: 2200 };
+export const JOSHUA_FX_DUR = { joshuaCone: 2100, joshuaHeal: 1700, joshuaPhoenix: 2200, joshuaSinge: 800, joshuaIgnite: 2600, joshuaBirdRise: 5200 };
 export const isJoshuaFx = (kind) => typeof kind === "string" && kind in JOSHUA_FX_DUR;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
@@ -329,6 +329,112 @@ function singeFx(g, e, t, dur, seed, lowQ) {
   g.globalCompositeOperation = "source-over";
 }
 
+// ---------- นกเพลิงอมตะ: ระเบิดเพลิงก่อนคลิปกำเนิดนกไฟ (ผู้ใช้ 2026-11-23) ----------
+//  จอมืดลงทั้งจอ → เปลวไฟรวมตัวที่ร่าง → ระเบิดเพลิงรุนแรง (เสาไฟ + เปลวลุกรอบวง + คลื่นไฟบนพื้น) โหมหนักขึ้นเรื่อยๆ
+//  → ท้ายฉากแสงขาวร้อนจ้าแล้วตัดเข้าวีดีโอ (JOSHUA_T.ignite) · ภาพอย่างเดียว ไม่มีเสียง (กฎผู้ใช้: ห้ามเสียงตัดหน้าวีดีโอ)
+function igniteFx(g, e, t, dur, seed, lowQ) {
+  const A = bodyAt(e.x, e.y, e.size || 1);
+  const beat = JOSHUA_T.ignite;
+  const q = clamp01(t / beat);
+  // 1) จอมืด (ทั้งจอ — วาดนอกพิกัดกล้อง)
+  const dark = Math.min(0.78, easeOut(clamp01(t / 700)) * 0.78) * (t > beat ? 1 - clamp01((t - beat) / 350) : 1);
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  g.fillStyle = `rgba(8,2,4,${dark})`; g.fillRect(0, 0, g.canvas.width, g.canvas.height);
+  g.restore();
+  g.globalCompositeOperation = "lighter";
+  // 2) เปลวไฟรวมตัว (0–40%) → ระเบิด (40%+) ใหญ่ขึ้นเรื่อยๆ
+  const burst = clamp01((q - 0.35) / 0.65);
+  const R = A.s * (0.6 + 3.2 * easeOut(burst));
+  glow(g, A.bx, A.hy, A.s * (0.5 + 1.6 * q), CRIMSON, 0.85, GOLD);
+  glow(g, A.bx, A.by, R * 1.1, FLAME, 0.55 * (0.4 + burst), GOLD);
+  // วงไฟบนพื้นแผ่ออก (หลายชั้น)
+  for (let k = 0; k < 3; k++) {
+    const rr = R * (0.55 + 0.25 * k) * (0.9 + 0.1 * Math.sin(t / 90 + k));
+    g.strokeStyle = rgba(k ? FLAME : GOLD, (0.7 - 0.18 * k) * (0.3 + burst)); g.lineWidth = Math.max(1, A.s * (0.12 - 0.03 * k));
+    g.beginPath(); g.ellipse(A.bx, A.by, rr, rr * 0.5, 0, 0, TAU); g.stroke();
+  }
+  // เสาไฟพุ่งขึ้นจากร่าง
+  const colH = A.s * (1 + 5.5 * easeOut(burst));
+  const cg = g.createLinearGradient(A.bx, A.by, A.bx, A.by - colH);
+  cg.addColorStop(0, rgba(CORE, 0.9)); cg.addColorStop(0.3, rgba(GOLD, 0.8)); cg.addColorStop(0.7, rgba(FLAME, 0.45)); cg.addColorStop(1, rgba(CRIMSON, 0));
+  g.fillStyle = cg;
+  const cw = A.s * (0.35 + 0.5 * burst);
+  g.beginPath(); g.ellipse(A.bx, A.by - colH / 2, cw, colH / 2, 0, 0, TAU); g.fill();
+  // เปลวไฟลุกโหมรอบวง (ทึบ ให้เห็นชัดบนพื้นสว่างด้วย)
+  g.globalCompositeOperation = "source-over";
+  const nF = lowQ ? 10 : 26;
+  for (let i = 0; i < nF; i++) {
+    const h = hash(seed + i * 3.7), ang = (i / nF) * TAU + h;
+    const rr = R * (0.25 + 0.75 * hash(seed + i * 9.1));
+    const fx0 = A.bx + Math.cos(ang) * rr, fy0 = A.by + Math.sin(ang) * rr * 0.5;
+    const grow = clamp01((q - 0.15 - h * 0.3) / 0.35);
+    flame(g, fx0, fy0, A.s * (0.14 + 0.12 * h) * (1 + burst), A.s * (0.6 + 1.4 * h) * grow * (0.85 + 0.15 * Math.sin(t / 70 + i)), Math.sin(t / 110 + i) * 0.4, 0.95 * grow);
+  }
+  g.globalCompositeOperation = "lighter";
+  if (!lowQ) embers(g, A.bx, A.by, R, 40, t, 0.95, seed, 1.6);
+  // 3) ท้ายฉาก: แสงขาวร้อนจ้า → ตัดเข้าวีดีโอ
+  const white = clamp01((t - beat * 0.82) / (beat * 0.18)) * (t > beat ? 1 - clamp01((t - beat) / 350) : 1);
+  if (white > 0) {
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = `rgba(255,236,200,${white * 0.85})`; g.fillRect(0, 0, g.canvas.width, g.canvas.height);
+    g.restore();
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+// ---------- นกฟีนิกซ์ปรากฏตัว (หลังคลิปกำเนิดนกไฟ · ผู้ใช้ 2026-11-23: ร้อน ไฟลุก อึดอัด มืดลง ละอองไฟ) ----------
+//  ทั้งจอ: มืดลงโทนแดงเข้ม → ขอบจอวงไฟแดงส้มเต้นบีบเข้ามา · ไอร้อนพลิ้วลอยขึ้น · ละอองไฟลอยทั่วจอ · ค้าง ~4 วิแล้วจาง
+//  ที่ตัวนก: แสงวาบ + วงไฟแผ่ · เสียงมาจาก server หลังคลิป (joshua_phoenix) — ฉากนี้ภาพอย่างเดียว
+function birdRiseFx(g, e, t, dur, seed, lowQ) {
+  const A = bodyAt(e.x, e.y, e.size || 1);
+  const inA = easeOut(clamp01(t / 500)), outA = 1 - clamp01((t - (dur - 1200)) / 1200), k = inA * outA;
+  const pulse = REDUCED ? 0.5 : 0.5 + 0.5 * Math.sin(t / 260);
+  const W = g.canvas.width, H = g.canvas.height;
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  // 1) มืดลง โทนแดงเข้มร้อน
+  g.fillStyle = `rgba(28,3,4,${0.55 * k})`; g.fillRect(0, 0, W, H);
+  // 2) ขอบจอวงไฟบีบเข้ามา (อึดอัด) — เต้นตามความร้อน
+  const R0 = Math.min(W, H) * (0.32 - 0.05 * pulse), R1 = Math.hypot(W, H) * 0.62;
+  const vg = g.createRadialGradient(W / 2, H / 2, R0, W / 2, H / 2, R1);
+  vg.addColorStop(0, "rgba(120,10,8,0)");
+  vg.addColorStop(0.55, `rgba(150,22,10,${0.35 * k})`);
+  vg.addColorStop(0.85, `rgba(210,60,14,${(0.5 + 0.15 * pulse) * k})`);
+  vg.addColorStop(1, `rgba(255,120,30,${(0.62 + 0.2 * pulse) * k})`);
+  g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  g.globalCompositeOperation = "lighter";
+  // 3) ไอร้อนพลิ้วลอยขึ้น (เส้นคลื่นจางๆ ทั่วจอ)
+  if (!lowQ && !REDUCED) {
+    g.lineWidth = Math.max(1, H * 0.004);
+    for (let i = 0; i < 14; i++) {
+      const h1 = hash(seed + i * 4.3), x0 = h1 * W, life = 2200 + 1400 * hash(seed + i * 7.9);
+      const q = ((t + h1 * life) % life) / life, y0 = H * (1.05 - q * 1.2);
+      g.strokeStyle = `rgba(255,140,60,${0.18 * k * Math.sin(Math.PI * q)})`;
+      g.beginPath();
+      for (let j = 0; j <= 12; j++) { const yy = y0 - j * H * 0.02, xx = x0 + Math.sin(j * 0.9 + t / 300 + i) * W * 0.012; j ? g.lineTo(xx, yy) : g.moveTo(xx, yy); }
+      g.stroke();
+    }
+  }
+  // 4) ละอองไฟลอยทั่วจอ
+  const nE = lowQ ? 40 : 110;
+  for (let i = 0; i < nE; i++) {
+    const h1 = hash(seed + i * 1.7), h2 = hash(seed + i * 3.1), h3 = hash(seed + i * 5.9);
+    const life = 1800 + 2600 * h3, q = ((t + h1 * life) % life) / life;
+    const x = h2 * W + Math.sin(q * 7 + i) * W * 0.02, y = H * (1.02 - q * 1.1);
+    const r = Math.max(1, H * (0.002 + 0.004 * h1) * (1 - q * 0.6));
+    g.fillStyle = `rgba(${q < 0.5 ? GOLD : FLAME},${0.9 * k * Math.sin(Math.PI * q)})`;
+    g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+  }
+  g.restore();
+  // 5) ที่ตัวนก: แสงวาบ + วงไฟแผ่
+  g.globalCompositeOperation = "lighter";
+  const fl = 1 - clamp01(t / 900);
+  glow(g, A.bx, A.hy, A.s * (1 + 3 * (1 - fl)), CRIMSON, 0.9 * fl + 0.25 * k, GOLD);
+  const rr = A.s * (0.5 + 4.5 * easeOut(clamp01(t / 1300)));
+  g.strokeStyle = rgba(FLAME, 0.8 * (1 - clamp01(t / 1500))); g.lineWidth = Math.max(1, A.s * 0.1);
+  g.beginPath(); g.ellipse(A.bx, A.by, rr, rr * 0.5, 0, 0, TAU); g.stroke();
+  g.globalCompositeOperation = "source-over";
+}
+
 export function joshuaFx(g, e, now, lowQ) {
   const dur = e.dur || JOSHUA_FX_DUR[e.kind];
   const t = now - e.t0;
@@ -339,6 +445,8 @@ export function joshuaFx(g, e, now, lowQ) {
   else if (e.kind === "joshuaHeal") healFx(g, e, t, dur, seed, lowQ);
   else if (e.kind === "joshuaPhoenix") phoenixFx(g, e, t, dur, seed, lowQ);
   else if (e.kind === "joshuaSinge") singeFx(g, e, t, dur, seed, lowQ);
+  else if (e.kind === "joshuaIgnite") igniteFx(g, e, t, dur, seed, lowQ);
+  else if (e.kind === "joshuaBirdRise") birdRiseFx(g, e, t, dur, seed, lowQ);
   g.restore();
 }
 
@@ -417,7 +525,8 @@ function drawWarped(g, im, bx, by, W, flap) {
     const L = lift * 0.55 * w * dx * 1.6 * H; // บวก = ขอบบนยกขึ้น
     g.drawImage(im, (i / C) * iw, 0, iw / C, ih, x0, Math.round(oy - L), x1 - x0, Math.round(H + L));
   }
-  return { left: ox, right: ox + W, top: oy - W * 0.1, bottom: oy + H };
+  // top = เหนือหัวนกเล็กน้อย (ป้ายชื่อ/หลอดเลือดวางต่อจากตรงนี้) — ขอบบนของรูป (ปลายปีก) สูงจนป้ายชนปุ่มมุมบนของจอ (ผู้ใช้แจ้ง)
+  return { left: ox, right: ox + W, top: by - H * 0.3, bottom: oy + H };
 }
 // u = หน่วยจาก drawUnit (u.size = 3) · wx, wy = กลางช่องมุมบนซ้าย · liftZ = ลอยเพิ่ม (กระโดด/เดิน)
 export function drawPhoenixBird(g, u, now, wx, wy, liftZ = 0) {

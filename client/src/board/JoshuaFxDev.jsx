@@ -55,8 +55,17 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
     bird: (withClip = true) => {
       const on = !CUR.units.find((x) => x.id === "me")?.jbird;
       if (!on) { setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, jbird: null, standee: null, size: 1 } : u))); stopLoopSfx(); stopMusic(); return; }
-      if (withClip) { after.current = () => play.bird(false); setClip("/characters/joshua_rosfield/joshua_rebirth.mp4"); return; }
+      if (withClip) {
+        // เหมือนเกมจริง: ระเบิดเพลิง + จอมืด (ไม่มีเสียง) → คลิปกำเนิดนกไฟ → นกปรากฏ
+        const a = me();
+        pushFx([{ kind: "joshuaIgnite", x: a.x, y: a.y, dur: JOSHUA_FX_DUR.joshuaIgnite }]);
+        for (const d of [700, 1000, 1300, 1600, 1850, 2050]) setTimeout(() => setShake && setShake((n) => n + 1), d);
+        setFocus(a);
+        setTimeout(() => { after.current = () => play.bird(false); setClip("/characters/joshua_rosfield/joshua_rebirth.mp4"); }, JOSHUA_T.ignite);
+        return;
+      }
       setUnits((us) => us.map((u) => (u.id === "me" ? { ...u, aura: null, jbird: { down: false }, standee: "/characters/joshua_rosfield/phoenix.webp", size: 3 } : u)));
+      { const a = me(); pushFx([{ kind: "joshuaBirdRise", x: a.x, y: a.y, size: 3, dur: JOSHUA_FX_DUR.joshuaBirdRise }]); playSfx("joshua_phoenix"); setShake && setShake((n) => n + 1); }
       startLoopSfx("joshua_bird_loop");
       playMusic("joshua_phoenix_theme");
       setFocus(me());
@@ -68,7 +77,7 @@ export default function JoshuaFxDev({ units, setUnits, pushFx, setFocus, map, se
     return () => { delete window.__joshuaFx; };
   });
   useEffect(() => () => stopLoopSfx(), []);
-  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"], ["bird", "นกฟีนิกซ์"], ["hellsong", "เพลงเพลิง"]];
+  const labels = [["slash", "ฟัน"], ["cone", "เพื่อปกป้องทุกคน"], ["conePhoenix", "กรวย (ร่างนกเพลิง)"], ["heal", "พรของนกเพลิง"], ["phoenix", "สวมร่างนกเพลิง"], ["phoenixNoClip", "สวมร่าง (ไม่มีคลิป)"], ["singe", "ลุกไหม้สวนกลับ"], ["aura", "ออร่า"], ["bird", "นกฟีนิกซ์"], ["hellsong", "เพลิงนรก"]];
   return (
     <>
     {clip && (
