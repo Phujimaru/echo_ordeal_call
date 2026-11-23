@@ -643,7 +643,8 @@ function areaTiles(p, area, dir, tile) {
 // แต้มมากเดินก่อน · เท่ากันสุ่ม · ไพ่แตกไปท้ายแถว (หลายคนสุ่มกันเอง)
 //  ฮุค orderLast(p) → true = เดินท้ายสุดเสมอ หลังคนไพ่แตก (Master: ไม่จั่วไพ่ — GRID_PLAN §7.34)
 function turnOrderOf(players, rng = Math.random) {
-  const lastOf = (p) => { const h = CHAR_HOOKS[p.characterId]; return h && h.orderLast && combat.runHook(h, "orderLast", p) ? 1 : 0; };
+  // ฮุค orderFirst(p) → true = เดินลำดับแรกเสมอ (ก่อนทุกคน — โจชัว นกฟีนิกซ์: เทิร์นที่ฟื้นจากกันตาย) · มาก่อน orderLast
+  const lastOf = (p) => { const h = CHAR_HOOKS[p.characterId]; return h && h.orderFirst && combat.runHook(h, "orderFirst", p) ? -1 : h && h.orderLast && combat.runHook(h, "orderLast", p) ? 1 : 0; };
   const rows = players.map((p) => ({ p, last: lastOf(p), bust: cardDeck.bustedOf(p), score: cardDeck.scoreOf(p), r: rng() }));
   rows.sort((a, b) => (a.last - b.last) || (a.bust - b.bust) || (a.bust ? 0 : b.score - a.score) || (a.r - b.r));
   return rows.map((row) => row.p.id);

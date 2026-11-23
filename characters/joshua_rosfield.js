@@ -19,6 +19,7 @@
 //    · พื้นฐาน เพลิงแห่งชีวิต (1–4 แต้ม · ไม่มีคูลดาวน์): ฟื้นตัวเองเท่าแต้ม · รอง เพลิงนรก (4 แต้ม · คูลดาวน์ 3): ทุกคนบนแผนที่ (รวมเพื่อน · ไม่รวมตัวเอง · หลบได้)
 //      ไฟ 3 + ลุกไหม้ 3 + คราบไฟ · คลิป ฟีนิกสกิลเฉพาะตัว ทุกครั้ง · ร่างนี้ฮีลเพื่อนไม่ได้ (เพลิงแห่งชีวิตใช้กับตัวเองเท่านั้น)
 //    · กันตาย 3 ครั้ง: ดาเมจถึงตาย = พลังชีวิต 1 + สตั้น ตายไม่ได้จนต้นเทิร์นถัดไป (แบบ Master) · ครบ 3 = ตายจริง
+//      เทิร์นที่ฟื้น = เดินลำดับแรกแน่นอน (ฮุค orderFirst — action.turnOrderOf)
 //    · เพลงนกไฟเป็นเพลงสนาม (skillMusic) · เสียงไฟลุก + ปีกกระพือวน (client)
 //  สกิลติดตัว ลูกชายคนเล็ก รอสฟิลด์ (ตอนนี้อยู่ช่อง passive — นกเพลิงอมตะมาเมื่อไรย้ายไป passive2):
 //    · ลุกไหม้บนตัวโจชัว = ฟื้นพลังชีวิต 1 แทนเสียหาย (ฮุค hburnHeals — _universal_status.tickBurn)
@@ -291,6 +292,8 @@ module.exports = {
   groundImmune(p) { return birdOn(p); },
   noCards(p) { return birdOn(p); },
   noItems(p) { return birdOn(p); },
+  // ฟื้นจากกันตายเทิร์นไหน = เทิร์นนั้นเดินลำดับแรกแน่นอน
+  orderFirst(p) { return birdOn(p) && p.alive && st(p).firstRound === round(); },
   strikeCone(p) { return birdOn(p) ? BIRD.coneLen : 0; },
   attackElement(engine, p) { return birdOn(p) ? "fire" : null; },
   damageBonus(engine, attacker) { return birdOn(attacker) ? BIRD.atk : 0; },
@@ -448,6 +451,7 @@ module.exports = {
     if (!isMe(p) || !p.alive) return;
     if (birdOn(p) && st(p).down != null && engine.roundNumber > st(p).down) {
       st(p).down = null;
+      st(p).firstRound = engine.roundNumber; // ฟื้นเทิร์นนี้ = เดินลำดับแรก (ผู้ใช้ 2026-11-23 · ฮุค orderFirst)
       engine.log(`🔥 ${p.name} นกฟีนิกซ์ลุกขึ้นจากเปลวไฟอีกครั้ง (พลังชีวิต ${p.hp})`);
       fx(engine, p, "heal", { n: 1 }); // ฟื้นจากกันตาย = เสาไฟคืนชีพเล็กๆ (ไม่ใช่ฉากปรากฏตัวเต็มจอ)
     }

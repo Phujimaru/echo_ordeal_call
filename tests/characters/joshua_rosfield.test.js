@@ -337,3 +337,18 @@ test("ร่างนก: เพลิงแห่งชีวิต 1–4 แ�
   nextRound();
   assert.ok(jo.canUseSkill(engine, p, "secondary", []), "เทิร์น N+3");
 });
+
+test("ร่างนก: ฟื้นจากกันตายเทิร์นไหน เทิร์นนั้นเดินลำดับแรก (ฮุค orderFirst) · เทิร์นถัดไปกลับเป็นปกติ", () => {
+  const { p, t, u } = setup();
+  kill(p); runAfter();
+  kill(p); // กันตายครั้งที่ 1
+  assert.ok(!jo.orderFirst(p));
+  nextRound();
+  jo.onRoundStartTick(engine, p);
+  assert.ok(jo.orderFirst(p));
+  p.cards = []; t.cards = [{ v: 10 }]; u.cards = [{ v: 9 }];
+  const order = action.turnOrderOf([t, u, p]);
+  assert.equal(order[0], "a", "เดินคนแรก");
+  nextRound();
+  assert.ok(!jo.orderFirst(p), "เทิร์นถัดไปไม่ได้สิทธิ์แล้ว");
+});

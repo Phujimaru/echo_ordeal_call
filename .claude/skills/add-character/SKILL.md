@@ -293,7 +293,7 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ตีปกติเป็นกรวยทางทิศของเป้า / ไม่โดนผลพื้นตอนจบตา | `strikeCone(p)` → ความยาว (`Board.coneToward`) · `groundImmune(p)` → true (โจชัว ร่างนกฟีนิกซ์ — GAME_SYSTEM §65) | `action.canStrike`/`laneVictims` · `action.endUnitTile` |
 | ลูปเสียงพื้นหลังระหว่างร่าง/สถานะ | `Game.jsx` effect + `startLoopSfx`/`pauseLoopSfx` (คลิปเล่น = พัก) — ต้นแบบ โจชัว ร่างนกเพลิง | `client/src/audio.js` |
 | ลงผลต้นเทิร์นที่โดนคนอื่น (หลังลูปผู้เล่น) | broadcast `onRoundDealt(engine)` (Master: ลงจากฟ้า/ฟื้น + คลื่นกระแทก) | `phases/draw.js dealRound` |
-| ไม่ถือไพ่ / เดินท้ายสุด / คนอื่นฮีลไม่ได้ | `noCards(p)` · `orderLast(p)` · `blocksHealFrom(engine, p, src)` | `draw.dealHand` · `action.turnOrderOf` · `combat.healHp` |
+| ไม่ถือไพ่ / เดินท้ายสุด / เดินลำดับแรก / คนอื่นฮีลไม่ได้ | `noCards(p)` · `orderLast(p)` · `orderFirst(p)` (โจชัว) · `blocksHealFrom(engine, p, src)` | `draw.dealHand` · `action.turnOrderOf` · `combat.healHp` |
 | คลื่นหลายแฉก (ตรงกว้างเท่าตัว + เฉียงจากมุมหน้า) | `area { kind: "line", len, fan }` (`fan: 0` = แนวกว้างเท่าตัว) | `Board.lineTiles` |
 | ควบคุมตาเดินของคนอื่น (ผู้คุมเดิน/สกิล/ตีแทน · เป้าเป็นฝ่ายผู้คุม · ใช้ไอเทมไม่ได้) | `Possess.mark(t, by, round)` + ล้างใน `afterActorEnd` / `Possess.sweep()` (ดิเอโก้ อสูรกายดึกดำบรรพ์: เข้าร่วมเผ่าพันธุ์ — GAME_SYSTEM §60) | `server/possess.js` → `Duo.controlledId` / `combat.sameTeam` / `shop` |
 | ใช้ไอเทมไม่ได้ตามร่าง | ฮุค `noItems(p)` → true | `shop.itemsBlocked` |
