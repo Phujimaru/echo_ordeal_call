@@ -52,6 +52,7 @@ import { KIRI_FX_DUR, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { SHINRA_FX_DUR, isShinraFx, shinraFx } from "./shinraFx";
 import { MIDORIYA_FX_DUR, isMidoriyaFx, midoriyaFx } from "./midoriyaFx";
 import { JOSHUA_FX_DUR, isJoshuaFx, joshuaFx } from "./joshuaFx";
+import { isAizenFx, aizenFx } from "./aizenFx";
 import { OPHY_FX_DUR, isOphyFx, ophyFx, ophyGroundItems } from "./ophyFx";
 import { MAGNA_FX_DUR, isMagnaFx, magnaFx, magnaChains } from "./magnaFx";
 import { NARU_FX_DUR, drawNaruSight, isNaruFx, naruhodoFx } from "./naruhodoFx";
@@ -577,6 +578,7 @@ export function drawFrame(g, st, now) {
     else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
     else if (isShinraFx(e.kind)) shinraFx(g, e, now, lowQ); // คุซาคาเบะ ชินระ (shinraFx.js)
     else if (isJoshuaFx(e.kind)) joshuaFx(g, e, now, lowQ); // โจชัว รอสฟิลด์ (joshuaFx.js)
+    else if (isAizenFx(e.kind)) aizenFx(g, e, now, lowQ); // ไอเซ็น มาโคโตะ (aizenFx.js)
     else if (isOphyFx(e.kind)) ophyFx(g, e, now, lowQ, units); // Ophy นักเล่นแร่แปรธาตุ (ophyFx.js)
     else if (isMidoriyaFx(e.kind)) midoriyaFx(g, e, now, lowQ); // มิโดริยะ อิซึคุ (midoriyaFx.js)
     else if (isMagnaFx(e.kind)) magnaFx(g, e, now, lowQ); // แม็กน่า สวิง (magnaFx.js)

@@ -30,6 +30,7 @@ const kiri = require("./emiya_kiritsugu"); // เอมิยะ คริซุ
 const shinra = require("./kusakabe_shinra"); // คุซาคาเบะ ชินระ: อุ่นเครื่องพอแล้ว ครั้งแรกของแมตช์ · ลาทัม ทุกครั้ง
 const arm = require("./armstrong"); // อาร์มสตรอง: ทุกคลิปเล่นทุกครั้ง ยกเว้นเปิดนาโน (ครั้งแรกของเกม — triggerCutscene) · ผู้ใช้ 2026-11-21
 const joshua = require("./joshua_rosfield"); // โจชัว รอสฟิลด์: สวมร่างนกเพลิง ทุกครั้งที่กด (ผู้ใช้ 2026-11-23)
+const aizen = require("./aizen_makoto"); // ไอเซ็น มาโคโตะ: คลิปไคจูทุกครั้งที่เรียก · คลิปอุลตร้าแมนออร์บ ดาร์ก (ผู้ใช้ 2026-11-24)
 const midoriya = require("./midoriya_izuku"); // มิโดริยะ อิซึคุ: Smash 4 แบบทุกครั้ง · 1,000,000% ครั้งแรกของแมตช์
 const vergil = require("./vergil"); // เวอจิล: Judgment Cut End (ท่อนพุ่งพื้นใส → เต็มจอ) ทุกครั้ง · I am the storm ครั้งแรกของแมตช์
 const dino = require("./diego_dino"); // ดิเอโก้ อสูรกายดึกดำบรรพ์: ทุกคลิปทุกครั้ง (GRID_PLAN §7.36)
@@ -229,6 +230,14 @@ module.exports = function buildTransforms() {
     // คุซาคาเบะ ชินระ (GRID_PLAN §7.32) — ความยาวจริง 9.1 / 15.5 วิ
     [shinra.CUT.warm]: { img: shinra.IMG.warm, video: shinra.VIDEO.warm, title: "อุ่นเครื่องพอแล้ว", label: "ปล่อยท่าไม้ตาย", seconds: 9.3, music: null, afterReveal: false },
     [shinra.CUT.latom]: { img: shinra.IMG.latom, video: shinra.VIDEO.latom, title: "ลาทัม", label: "ปล่อยท่าไม้ตาย", seconds: 15.7, music: null, afterReveal: false },
+    // ไอเซ็น มาโคโตะ (GRID_PLAN §7.44) — ความยาวจริง 12.03 / 18.33 / 13.80 / 29.57 วิ
+    ...Object.fromEntries(["redking", "grigio", "guebasser"].map((k) => [aizen.CUT[k], { img: aizen.KAIJU[k].img, video: aizen.KAIJU[k].video, title: aizen.KAIJU[k].name, label: "จงมาออกมา!!!!!!!!!", seconds: aizen.CLIP_SEC[k], music: null, afterReveal: false }])),
+    [aizen.CUT.orb]: { img: aizen.IMG.orbCover, video: aizen.VIDEO.orb, title: "อุลตร้าแมนออร์บ ดาร์ก", label: "ปล่อยท่าไม้ตาย", seconds: aizen.CLIP_SEC.orb, music: null, afterReveal: false },
+    // ร่างออร์บ ดาร์ก — Dark Slash / Ray ทุกครั้ง · Inferno / Rock Calibur ครั้งแรกของแมตช์
+    [aizen.CUT.slash]: { img: aizen.IMG.orbSkill1, video: aizen.VIDEO.slash, title: "Dark Slash", label: "ปล่อยสกิล", seconds: aizen.CLIP_SEC.slash, music: null, afterReveal: false },
+    [aizen.CUT.inferno]: { img: aizen.IMG.orbSkill1, video: aizen.VIDEO.inferno, title: "Inferno", label: "ปล่อยสกิล", seconds: aizen.CLIP_SEC.inferno, music: null, afterReveal: false },
+    [aizen.CUT.rock]: { img: aizen.IMG.orbSkill1, video: aizen.VIDEO.rock, title: "Rock Calibur", label: "ปล่อยสกิล", seconds: aizen.CLIP_SEC.rock, music: null, afterReveal: false },
+    [aizen.CUT.ray]: { img: aizen.IMG.orbSkill3, video: aizen.VIDEO.ray, title: "Dark Origium Ray", label: "ปล่อยท่าไม้ตาย", seconds: aizen.CLIP_SEC.ray, music: null, afterReveal: false },
     [joshua.CUT.ultimate]: { img: joshua.IMG.ultimate, video: joshua.VIDEO.ultimate, title: "สวมร่างนกเพลิง", label: "ปล่อยท่าไม้ตาย", seconds: joshua.CLIP_SEC.ultimate, music: null, afterReveal: false },
     [joshua.CUT.rebirth]: { img: joshua.IMG.phoenix, video: joshua.VIDEO.rebirth, title: "นกเพลิงอมตะ", label: "เกิดใหม่", seconds: joshua.CLIP_SEC.rebirth, music: null, afterReveal: false },
     [joshua.CUT.hellsong]: { img: joshua.IMG.phoenix, video: joshua.VIDEO.hellsong, title: "เพลิงนรก", label: "ปล่อยสกิล", seconds: joshua.CLIP_SEC.hellsong, music: null, afterReveal: false },

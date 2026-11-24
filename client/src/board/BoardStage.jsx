@@ -911,7 +911,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // ไก่ / นก (น้ำยาแปลงร่างของ Ophy — ใครก็ติดได้ · server/morph.js) ทับทุกภาพ · Ophy เอง = ภาพตัวเต็มแทนหมาก
       standee: !mk && p.morph === "chicken" ? "/characters/ophy/chicken.webp" : !mk && p.morph === "bird" ? "/characters/ophy/bird.webp"
         : !mk && p.ophy && (p.characterId || (p.character && p.character.id)) === "ophy" ? "/characters/ophy/standee.webp"
-        : !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
+        : !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : !mk && p.aizen ? p.aizen.standee || null : null, // ไอเซ็น มาโคโตะ: ไคจู/ร่างที่สิง/ออร์บ ดาร์ก · เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
       // Ophy (ophyFx.js ophyUnitFront): ยา 4 ขวดถัดไปเหนือหัว (ทุกคนเห็น) · Lock in · calculated

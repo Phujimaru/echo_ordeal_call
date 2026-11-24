@@ -435,6 +435,7 @@ function buildStateInner(viewerId) {
         gray: hook && hook.grayState ? hook.grayState(engine, p) : undefined, // เกรย์: ศพที่เก็บ / จงบ้าคลั่ง / ชาร์จรองโกมิเนียต (แนวลำแสง)
         gyro: hook && hook.gyroState ? hook.gyroState(engine, p) : undefined, // ไจโร: ลูกเหล็ก (บนพื้น/ในมือ) / สัดส่วนทองคำ / ม้า / เสริมท่าไม้ตาย (GRID_PLAN §7.11 สัญญาข้อมูล)
         dino: hook && hook.dinoState ? hook.dinoState(engine, p, viewer) : undefined,
+        aizen: hook && hook.aizenState ? hook.aizenState(engine, p) : undefined, // ไอเซ็น มาโคโตะ: ภาพหมากไคจู (ตัวที่เรียก/ร่างที่สิง) · ร่างออร์บ ดาร์ก · พลังชีวิตร่างไอเซ็นระหว่างสิง
         possessedBy: (() => { const e = require("./possess").live(p); return e ? e.by : null; })(), // ควบคุมร่าง (server/possess.js — เข้าร่วมเผ่าพันธุ์): ใครคุมตาเดินของคนนี้ (รอ/กำลังคุม) // ดิเอโก้ อสูรกายดึกดำบรรพ์: ร่าง / ความบ้าคลั่ง / คูลดาวน์ / ภาพหมาก — GRID_PLAN §7.36
         diego: hook && hook.diegoState ? hook.diegoState(engine, p, viewer) : undefined, // ดิเอโก้: เล่ห์เหลี่ยม / กระสุน / เดอะเวิลด์ / ม้า / ตาข่าย (เจ้าของเห็น) — GRID_PLAN §7.12
         valentine: hook && hook.valentineState ? hook.valentineState(engine, p) : undefined, // วาเลนไทน์: กระสุน / หลบสายตา / คูลดาวน์ท่าไม้ตาย / กระดานคู่ขนาน (ทุกคนเห็น — GRID_PLAN §7.13)
@@ -452,7 +453,7 @@ function buildStateInner(viewerId) {
         roland: hook && hook.rolandState ? hook.rolandState(engine, p) : undefined, // โรลันด์: Emotion / Furioso charge / BS Page ที่เหลือ
         zect: hook && hook.zectState ? hook.zectState(engine, p) : undefined, // ไรเดอร์ ZECT: ร่าง / ปุ่ม Clock Up นอกตา — GRID_PLAN §7.28
         kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
-        kenzo: hook && hook.kenzoState ? hook.kenzoState(engine, p) : undefined, // เค็นโซ ซุกะ: ร่างไรเดอร์ / เคยเล่นคลิปแปลงร่าง — GRID_PLAN §7.44
+        kenzo: hook && hook.kenzoState ? hook.kenzoState(engine, p) : undefined, // เค็นโซ ซุกะ: ร่างไรเดอร์ / เคยเล่นคลิปแปลงร่าง — GRID_PLAN §7.45
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         ophy: hook && hook.ophyState ? hook.ophyState(engine, p, mine) : undefined, // Ophy: ยา 4 ขวดถัดไป/วัตถุดิบที่ตก/ช่องพลังงาน (ทุกคน) · กระเป๋าวิเศษทั้งใบ (เจ้าตัว) — GRID_PLAN §7.43

@@ -18,8 +18,10 @@ R = {
  'bake_henshin': (1.5, .25, 'lufs', [('2596.wav', .45, -3, 0, 1.0), ('1143-preview.mp3', .25, -2, .2, 1.3), ('2186.wav', .03, -2, .48, 1.02), ('1428.wav', .105, -8, .55, .95)]),
  'bake_eject': (.7, .2, 'lufs', [('1664.wav', A, 0, 0, .18), ('3206.wav', A, -3, .02, .68), ('849.wav', .21, -8, .06, .6)]),
  'bake_corrode': (.6, .15, 'lufs', [('3155.wav', A, 0, 0, .3), ('2447.wav', .45, -2, .03, .57), ('123.wav', 5.0, -6, .02, .58)]),
+ 'bake_decay': (.6, .2, 'lufs', [('2945.wav', 0, -2, 0, .12), ('2937.wav', .23, -3, 0, .5), ('3158.wav', .22, -8, .03, .5), ('404.wav', .13, -4, .08, .52), ('2996.wav', .1, -12, .1, .4)]),
+ 'bake_again': (.5, .15, 'lufs', [('1665.wav', .09, 0, 0, .3), ('1659.wav', .17, -4, .10, .2), ('3164.wav', .08, -6, .16, .34)]),
 }
-LIMIT = {'bake_shot': 0.3, 'bake_shot2': 0.35, 'bake_chomp': 0.5, 'bake_open': 0.12, 'bake_card': 0.07, 'bake_standby': 0.3, 'bake_henshin': 0.45, 'bake_eject': 0.15, 'bake_corrode': 0.35}
+LIMIT = {'bake_shot': 0.3, 'bake_shot2': 0.35, 'bake_chomp': 0.5, 'bake_open': 0.12, 'bake_card': 0.07, 'bake_standby': 0.3, 'bake_henshin': 0.45, 'bake_eject': 0.15, 'bake_corrode': 0.35, 'bake_decay': 0.1, 'bake_again': 0.3}
 def load(f, ss=0, t=None):
     cmd = ['ffmpeg', '-v', 'error', '-ss', f'{ss:.4f}', '-i', f if os.path.isabs(f) else os.path.join(SRC, f)]
     if t: cmd += ['-t', f'{t:.4f}']

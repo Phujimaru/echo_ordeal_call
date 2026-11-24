@@ -44,6 +44,8 @@ const ELEMENTS = {
   poison: { icon: "☠️", name: "พิษ" },
   light: { icon: "✨", name: "แสง" },
   dark: { icon: "🌑", name: "มืด" },
+  // ธาตุหินของไอเซ็น มาโคโตะ (เร็ดคิง · ผู้ใช้ 2026-11-24): แบบลม — ไม่ติดคราบ · เจอคราบใดก็ตาม = ตกผลึก (คราบหาย · ไม่มีดาเมจ · ถูกตรึง 1 เทิร์น)
+  rock: { icon: "🪨", name: "หิน" },
 };
 const AURA_KEYS = { fire: "elFire", ice: "elIce", bolt: "elBolt", water: "elWater", poison: "elPoison", light: "elLight", dark: "elDark" };
 const ORDER = ["fire", "ice", "bolt", "water", "poison", "light", "dark"];
@@ -53,6 +55,7 @@ const FOG_TURNS = 3, HOLE_TURNS = 3, STIR_TURNS = 3, GLARE_TURNS = 3;
 const AURA_TURNS = 2; // ลูป endTurn ลดทุกจบเทิร์น = ค้างเทิร์นนี้ + เทิร์นถัดไป
 const FROST_TURNS = 2; // เยือกแข็ง: น้ำแข็งกัด 2 เทิร์น
 const ROOT_TURNS = 1; // เยือกแข็ง: เดินไม่ได้ 1 เทิร์น
+const CRYSTAL_ROOT = 1; // ตกผลึก (หิน): ถูกตรึง 1 เทิร์น
 
 const pairKey = (a, b) => [a, b].sort().join("+");
 const REACTIONS = {
@@ -63,6 +66,7 @@ const REACTIONS = {
   [pairKey("ice", "water")]: { key: "freeze", name: "เยือกแข็ง", frost: true },
   [pairKey("bolt", "water")]: { key: "conduct", name: "นำไฟฟ้า", bonus: 2, pierce: true },
   wind: { key: "swirl", name: "พัดพา" },
+  rock: { key: "crystal", name: "ตกผลึก" }, // หิน + คราบใดก็ได้
   // ---- Master (GRID_PLAN §7.34 · ชื่อผู้ใช้อนุมัติ) ----
   [pairKey("poison", "fire")]: { key: "fog", name: "หมอกพิษ", special: true },
   [pairKey("poison", "bolt")]: { key: "stir", name: "กระตุ้น", special: true },
@@ -166,6 +170,12 @@ function apply(t, el, source, opts = {}) {
     if (!CLASSIC.has(have)) return null; // ลม + แสง/มืด = ไม่เกิดปฏิกิริยา
     return windBurst([t], source);
   }
+  if (el === "rock") { // ตกผลึกก่อนเกิดปฏิกิริยาเสมอ (ไม่ติดคราบหิน · ไม่มีคราบ = ไม่มีผล)
+    const have = auraOf(t);
+    if (!have || opts.noSwirl) return null;
+    clearAura(t);
+    return crystallize(t, have, source);
+  }
   const have = auraOf(t);
   const r = have ? REACTIONS[pairKey(have, el)] : null;
   if (!have || !r || (have === el && el !== "light") || locked(t, r)) {
@@ -251,6 +261,21 @@ function react(t, a, b, source, chain = null) {
     for (const u of hit) if (!u.alive) u.pos = null;
     if (hit.length) out.chain = hit.length;
   }
+  afterReaction(t, out, source);
+  return out;
+}
+// ตกผลึก 🪨 (ธาตุหิน + คราบใดก็ได้): คราบหาย · ไม่มีดาเมจ · ถูกตรึง (rooted) 1 เทิร์น (ไม่ลามลูกโซ่)
+function crystallize(t, a, source) {
+  const r = REACTIONS.rock;
+  const e = engine();
+  const lines = [];
+  const rt = rTurns(t, CRYSTAL_ROOT);
+  if (rt > 0 && t.alive && combat().applyDebuff(t, "rooted", 1, rt + (e.hasActed(t.id) || e.actorId === t.id ? 1 : 0))) lines.push(`${t.name} ถูกตรึง ${rt} เทิร์น`);
+  match.lastLog.push(`${ELEMENTS[a].icon}🪨 ${r.name}! ${lines.join(" · ")}`.trim());
+  const out = { key: r.key, name: r.name, a, b: "rock", id: t.id };
+  match.elemLast = out;
+  fx("elemReact", { key: r.key, name: r.name, a, b: "rock", id: t.id, at: t.pos ? { ...t.pos } : null, ring: [], size: action().sizeOf(t) });
+  sfx("crystal"); // client audio.js elem_crystal (หินถล่ม)
   afterReaction(t, out, source);
   return out;
 }

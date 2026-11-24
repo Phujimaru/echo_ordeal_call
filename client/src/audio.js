@@ -687,6 +687,9 @@ const FILES = {
   // ดิเอโก้ แบรนโด (อสูรกายดึกดำบรรพ์ · characters/diego_dino.js) — เสียงเอฟเฟกต์สังเคราะห์ .claude/plans/diego-dino-sfx.py (ยังไม่มีคนฟัง)
   //  เสียงพากย์ตัดตามประโยค (Whisper) จากไฟล์ผู้ใช้ → characters/diego_dino/voice · .claude/plans/diego-dino-voice-cut.py · หน้าฟัง diego-dino-voice.html
   ...Object.fromEntries(["claw", "bite", "crack", "virus", "possess", "charge", "slam", "leap", "drain", "revert"].map((k) => [`dino_${k}`, `/effect_sound/diego_dino/dino_${k}.m4a`])),
+  // ไอเซ็น มาโคโตะ (aizenFx.js · characters/aizen_makoto.js) — เสียงจาก Mixkit (ผู้ใช้อนุญาตให้โหลด 2026-11-24)
+  ...Object.fromEntries(["roar_redking", "roar_grigio", "roar_guebasser", "arrive", "step", "hit_rock", "hit_fire", "hit_wind", "crystal", "possess", "dismount", "orb_arrive", "orb_leave", "calibur", "inferno", "bump", "orb_strike"].map((k) => [`az_${k}`, `/characters/aizen_makoto/sfx/az_${k}.mp3`])),
+  elem_crystal: "/characters/aizen_makoto/sfx/az_crystal.mp3", // ปฏิกิริยาตกผลึก (ธาตุหิน — server/element.js)
   ...Object.fromEntries([
     ...Array.from({ length: 13 }, (_, i) => `h${String(i + 1).padStart(2, "0")}`),
     ...Array.from({ length: 22 }, (_, i) => `e${String(i + 1).padStart(2, "0")}`),
