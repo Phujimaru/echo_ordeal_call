@@ -48,6 +48,8 @@ test('ตีปกติที่มีธาตุตามร่าง/อา�
     ['kensaki_kazuma', (p) => { p.kazuma.blade = true; p.kazuma.armed = { kind: 'blast', cards: {}, round: engine.roundNumber, at: 1 }; }, 'bolt'],
     ['kagami', (p) => { p.zect.kickArmed = true; }, 'bolt'],
     ['kusakabe_shinra', () => {}, 'fire'], // ตีปกติไฟเสมอ (GRID_PLAN §7.32)
+    ['kenzo_suga', () => {}, 'dark'], // ตีปกติมืดทั้งสองร่าง (GRID_PLAN §7.44)
+    ['kenzo_suga', (p) => { p.kenzo.rider = true; }, 'dark'],
   ];
   for (const [ch, prep, want] of cases) {
     const P = setup(ch);
@@ -114,6 +116,7 @@ test('ทุกตัวละครที่เล่นได้อยู่�
     'ophy', // Ophy: ธาตุมาจากน้ำยาที่ยิง/ดื่ม (💧❄️⚡☠️🔥 ตามขวด · Element.apply ตรง) · ระเบิดหม้อยา = ปกติ — tests/characters/ophy.test.js
     'joshua_rosfield', // โจชัว รอสฟิลด์: ตีปกติฟันดาบไม่มีธาตุ · เพื่อปกป้องทุกคน ไฟ · ร่างนกเพลิงติดคราบไฟต่อหลังปฏิกิริยา — tests/characters/joshua_rosfield.test.js
     'midoriya_izuku',
+    'kenzo_suga', // เค็นโซ ซุกะ: ตีปกติมืดทั้งสองร่าง (ผู้ใช้สั่ง 2026-11-24)
     'naruhodo_ryuichi']); // นารุโฮโดะ: ปกติทุกการกระทำ (สัญญา naruhodo-contract.md) // มิโดริยะ: ลม→คราบไฟฟ้า ระหว่าง Full Cowl — tests/characters/midoriya_izuku.test.js
   const playable = Object.values(CHAR_BY_ID).filter((c) => !c.hidden && !c.summonOnly && !c.npc).map((c) => c.id);
   const missing = playable.filter((id) => !covered.has(id));

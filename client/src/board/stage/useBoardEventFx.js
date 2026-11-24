@@ -18,6 +18,7 @@ import { GIL_EVENT_FX, GIL_T } from "../gilFx";
 import { FERN_EVENT_FX } from "../fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "../optimusFx";
 import { GIO_EVENT_FX, GIO_FX_DUR, GIO_REWIND_HIT, GIO_SLAM_HIT } from "../giornoFx";
+import { BAKE_EVENT_FX, BAKE_FX_DUR } from "../bakeFx";
 import { ARJ_EVENT_FX } from "../arjunaBoardFx";
 import { otoyaEventFx } from "../otoyaFx";
 import { sameSide } from "../../duo";
@@ -187,6 +188,21 @@ export default function useBoardEventFx(ctx) {
     socket.on("giornoFx", onGio);
     return () => socket.off("giornoFx", onGio);
   }, [pushFx, look, lowQ]);
+  // เค็นโซ ซุกะ: socket "bakeFx" { kind, id, at, targetId?, n? } → bakeFx.js · corrode/decay มาตอนปะทะ (boardFxAtHit → hitFx)
+  //  เสียงการกัดกิน/ผุพัง/ได้ยิงอีกครั้งเล่นที่นี่ (ไม่มีคลิปในจังหวะนั้น) · แปลงร่าง/คืนร่าง เสียงมาจาก server
+  useEffect(() => {
+    const onBake = (e) => {
+      const kind = e && BAKE_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      pushFx([{ kind, x: e.at.x, y: e.at.y, size: e.size || 1, n: e.n | 0, dur: BAKE_FX_DUR[kind] }]);
+      if (kind === "bakeCorrode") playSfx("bake_corrode");
+      else if (kind === "bakeDecay") playSfx("bake_decay");
+      else if (kind === "bakeAgain") playSfx("bake_again");
+    };
+    hitFx.current.bakeFx = onBake;
+    socket.on("bakeFx", onBake);
+    return () => socket.off("bakeFx", onBake);
+  }, [pushFx]);
   // คุเรไน โอโตยะ: socket "otoyaFx" { kind, id, at, size, to?, targetId?, tsize?, n? } → otoyaFx.js · เสียงมาจาก server
   useEffect(() => {
     const onOtoya = (e) => {

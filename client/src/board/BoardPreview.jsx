@@ -56,6 +56,7 @@ import ArjunaFxDev from "./ArjunaFxDev"; // ?arjuna2=1 = ปุ่มเล่�
 import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่นมนต์อสูรเทพของนกหวีดอัญเชิญ
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
+import KenzoFxDev from "./KenzoFxDev";
 import JoshuaFxDev from "./JoshuaFxDev";
 import OphyFxDev from "./OphyFxDev";
 import NaruhodoFxDev from "./NaruhodoFxDev"; // ?naruhodo=1 = ปุ่มเล่นเอฟเฟกต์ของนารุโฮโดะ ริวอิจิ
@@ -161,6 +162,7 @@ const ARJUNA_DEV = Q.get("arjuna2") === "1";
 const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
+const KENZO_DEV = Q.get("kenzo") === "1"; // ?kenzo=1 = เค็นโซ ซุกะ · ปืน Bake Magnum (HUD จริง) + เอฟเฟกต์ยิง/การกัดกิน/แปลงร่าง (KenzoFxDev.jsx)
 const JOSHUA_DEV = Q.get("joshua") === "1";
 const OPHY_DEV = Q.get("ophy") === "1"; // ?ophy=1 = Ophy · ปุ่มเล่นยิงขวด 11 ชนิด / สวนกลับ / หม้อระเบิด / ดื่ม / วาร์ป / ของตก / ไก่-นก (OphyFxDev.jsx)
 const MAGNA_DEV = Q.get("magna") === "1";
@@ -614,6 +616,7 @@ export default function BoardPreview() {
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {OPHY_DEV && <OphyFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setGround={setOphyGround} />}
       {JOSHUA_DEV && <JoshuaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
+      {KENZO_DEV && <KenzoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {NARU_DEV && <NaruhodoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MAGNA_DEV && <MagnaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}

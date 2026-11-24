@@ -44,6 +44,7 @@ import SkillChoices from "./hud/SkillChoices";
 import DiaryBook, { DiaryCenter } from "./hud/DiaryBook";
 import { BladeRouzerSlot, EvolutionScene, BladeRouzerPanel } from "./hud/BladeRouzer";
 import FaizPhone, { AxelClock } from "./hud/FaizPhone";
+import BakeMagnum from "./hud/BakeMagnum";
 import { rosterOf, rosterAlive, sameSide, sideAlive, unitsOfSide } from "../duo";
 import { requestAttention } from "../attention";
 import { clickSound, uiSound, playSfx, stopSfx, sfxPlayId, suspendMusic, startLoopSfx, stopLoopSfx, pauseLoopSfx, resumeLoopSfx } from "../audio";
@@ -517,11 +518,13 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ฉากใส่การ์ด Evolution (Rouze Absorber) · หมดตา/เข้าร่างแล้ว = ปิด
   const [kzEvolve, setKzEvolve] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false); // อินุอิ: Faiz Phone กางอยู่
+  const [bakeOpen, setBakeOpen] = useState(false); // เค็นโซ ซุกะ: ปืน Bake Magnum กางอยู่ (hud/BakeMagnum.jsx)
   const [ophyOpen, setOphyOpen] = useState(false); // Ophy: กระเป๋าวิเศษกางอยู่ (hud/OphyPocket.jsx) · เปิดดูได้ทุกช่วง (ปรุง/เรียงเฉพาะตาตัวเอง)
   if (ophyOpen && (!me?.ophy?.call || !me.alive)) setOphyOpen(false);
   // Ophy calculated: โหมดยิงต่อเนื่อง — กดยิงยาครั้งเดียว แล้วเลือกช่องต่อได้เรื่อยๆ จนกดอีกที (พัก) / ยิงไม่ได้ / หมดตา
   const [ophyAuto, setOphyAuto] = useState(false);
   if (phoneOpen && (!myTurn || canto || !me?.inui?.opened)) setPhoneOpen(false);
+  if (bakeOpen && (!myTurn || canto || !me?.kenzo)) setBakeOpen(false);
   if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
   // ตัวเลือกที่ไม่กินโควตา 1 สกิล/เทิร์น (server: ราคา 0 = สลับอาวุธ/ดาบเขม่า) — choice.free ทับได้ถ้า server ส่งมา
@@ -588,6 +591,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     if (me?.hikaru && tier === "basic" && vp.w >= 768) { clickSound(); setHkForms(true); return; }
     // อินุอิ ทาคุมิ: Faiz Phone แผงกดรหัส (เปิดกระเป๋าแล้ว)
     if (me?.inui?.opened && tier === "basic" && vp.w >= 768) { clickSound(); setPhoneOpen(true); return; }
+    // เค็นโซ ซุกะ: ปืน Bake Magnum (แปลงร่าง/คืนร่าง ด้วยการเล่นปืนจริง)
+    if (me?.kenzo && tier === "basic" && vp.w >= 768) { setBakeOpen(true); return; }
     // เคนซากิ คาซุมะ: เปิดแผงการ์ด Blay Rouzer — เสียงเปิดแผงทุกครั้ง (เฉพาะคนกด · ผู้ใช้สั่ง 2026-10-25)
     if (me?.kazuma && tier === "secondary" && vp.w >= 768) { playSfx("kazuma_open"); setKzOpen(true); return; }
     // เวอจิล: ฟันรัว — ฟันเป้าเดิม/ศัตรูคนเดียวที่ติดตัวทันที ไม่ยืนยัน ไม่เลือกเป้า (หน้าต่างเวลาคอมโบสั้น)
@@ -1310,6 +1315,9 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       )}
       {phoneOpen && me?.inui && (
         <FaizPhone inui={me.inui} points={me.skillPoints || 0} skillUsed={!!me.skillUsed} onClose={() => setPhoneOpen(false)} onDial={(form) => socket.emit("useSkill", { tier: "basic", form })} />
+      )}
+      {bakeOpen && me?.kenzo && (
+        <BakeMagnum kenzo={me.kenzo} onClose={() => setBakeOpen(false)} onFire={(form) => socket.emit("useSkill", { tier: "basic", form })} />
       )}
       {kzEvolve && me?.kazuma && (
         <EvolutionScene onClose={() => setKzEvolve(false)} onDone={() => socket.emit("useSkill", { tier: "basic", form: "evolution" })} />

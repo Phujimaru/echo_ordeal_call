@@ -1398,6 +1398,41 @@
       "env": {
         "ECHO_SERVER_PORT": "3071"
       }
+    },
+    {
+      "name": "server-kenzo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3073,
+      "env": {
+        "PORT": "3073",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "NODE_PATH": "C:/Echo/node_modules"
+      }
+    },
+    {
+      "name": "client-kenzo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5273",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5273,
+      "env": {
+        "ECHO_SERVER_PORT": "3073"
+      }
     }
   ]
 }

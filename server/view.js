@@ -452,6 +452,7 @@ function buildStateInner(viewerId) {
         roland: hook && hook.rolandState ? hook.rolandState(engine, p) : undefined, // โรลันด์: Emotion / Furioso charge / BS Page ที่เหลือ
         zect: hook && hook.zectState ? hook.zectState(engine, p) : undefined, // ไรเดอร์ ZECT: ร่าง / ปุ่ม Clock Up นอกตา — GRID_PLAN §7.28
         kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
+        kenzo: hook && hook.kenzoState ? hook.kenzoState(engine, p) : undefined, // เค็นโซ ซุกะ: ร่างไรเดอร์ / เคยเล่นคลิปแปลงร่าง — GRID_PLAN §7.44
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
         ophy: hook && hook.ophyState ? hook.ophyState(engine, p, mine) : undefined, // Ophy: ยา 4 ขวดถัดไป/วัตถุดิบที่ตก/ช่องพลังงาน (ทุกคน) · กระเป๋าวิเศษทั้งใบ (เจ้าตัว) — GRID_PLAN §7.43

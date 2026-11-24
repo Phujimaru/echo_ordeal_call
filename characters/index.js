@@ -54,6 +54,7 @@ const armstrong = require("./armstrong"); // อาร์มสตรอง — 
 const joshua_rosfield = require("./joshua_rosfield"); // โจชัว รอสฟิลด์ — Boss (เทพไฟ FFXVI · กรวยไฟ/พรของนกเพลิง/สวมร่างนกเพลิง · ลุกไหม้ = ฟื้น — GRID_PLAN §7.41)
 const yugi_muto = require("./yugi_muto"); // ยูกิ มุโต้ — เอาฮา (เด็ค 40 ใบ เอ็กโซเดีย 5 + ไหจอมละโมบ 35 · ดรอว์/ทิ้ง · เปิดใช้ = ดรอว์ 2 / หลบแน่นอน · ครบ 5 ชิ้นชนะเกม)
 const ophy = require("./ophy"); // Ophy นักเล่นแร่แปรธาตุ — ยาก (กระเป๋าวิเศษ 6×3 · ปรุงยา 11 สูตร · ปืนยิงยา 3×3 · Lock in สวนกลับ · calculated — GRID_PLAN §7.43)
+const kenzo_suga = require("./kenzo_suga"); // เค็นโซ ซุกะ (Kamen Rider Bake) — ง่าย (Bake Magnum แปลงร่าง/คืนร่าง · การกัดกิน — GRID_PLAN §7.44)
 const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
@@ -105,6 +106,7 @@ const CHARACTER_MODULES = [
   joshua_rosfield,
   yugi_muto,
   ophy,
+  kenzo_suga,
 ];
 
 const CHAR_HOOKS = {};
