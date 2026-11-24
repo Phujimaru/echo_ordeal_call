@@ -1524,3 +1524,14 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - **โซ่ Soul Chain**: `ACTIONS` รับฟังก์ชัน `(p, key)` แล้ว (Ophy: ดื่มน้ำยาวาร์ป `ophy.drinkMoves`)
 - **เดิน/ของบนพื้น**: วัตถุดิบที่ตก + ช่องพลังงานเก็บที่ `p.ophy.drops/nodes` (ทุกคนเห็น — `useCharLayers` → `ophyGround` → `ophyGroundItems`) · เก็บใน `afterWalk` คืนบันทึก `{ undo }` (ย้อนเดิน = ของกลับ/พลังงานคืน)
 - **เครื่องมือ dev**: `ECHO_DEV_OPHY=1` = เริ่มพร้อมวัตถุดิบทุกชนิด 9 + ยาครบทุกขวด · launch `server-ophy` / `client-ophy` · หน้าทดสอบ `?board=1&ophy=1` (`OphyFxDev.jsx` · `window.__ophyFx(kind)`)
+
+## 68. ธาตุหิน (ตกผลึก) / ยูนิต AI ตัวใหญ่ / สิงร่างยูนิตของตัวเอง (ไอเซ็น มาโคโตะ `characters/aizen_makoto.js` · GRID_PLAN §7.44)
+- **ธาตุหิน** `rock` 🪨 (`server/element.js`): ไม่มีคราบ (ไม่อยู่ใน `AURA_KEYS`) · `apply(t, "rock")` เจอคราบใดก็ได้ → `crystallize` = คราบหาย · ไม่มีดาเมจ · `rooted` 1 เทิร์น (+1 ถ้าเป้าเดินแล้ว แบบเยือกแข็ง) · ไม่ลามลูกโซ่ · เหตุการณ์ `elemReact` key `crystal` (client `elementReactFx.js` case `crystal`) · เสียงยืม `elem_freeze`
+  · client: `ELEMENTS.rock` · `PANEL_KEYS` (ตารางมุมขวาบนมีหิน) · **ไม่อยู่ใน `ELEMENT_KEYS`** = ระเบิดธาตุเลือกหินไม่ได้
+- **ยูนิต AI ตัวใหญ่** (`server/unitAi.js`): `planTurn` ใช้ `sizeOf(u)` + `smashes(u)` กับ `Board.reachable` · ช่องว่างเช็คทั้งกรอบ (`footprint`) · ระยะจากกรอบตัว — ไคจู 3×3 ตั้ง `u.boardSize = 3` หลัง `summon.spawn`
+  · ท่าตีของยูนิตเป็นกรอบ/กรวย: ฮุค `strikeAllows` ของ characterId ยูนิตเช็ครูปท่า (`Board.rectToward` / `coneToward`) — AI เลือกช่องที่ตีถึงจริง
+- **สิงร่างยูนิตของตัวเอง** (ไม่ใช่ `server/possess.js` ซึ่งคุมตาของผู้เล่นอื่น): ระเบียนผู้เล่นรับตำแหน่ง/ขนาด/เลือด/เกราะ/`statuses` ของยูนิต แล้วลบยูนิต (`summon.remove`) · ของเดิมเก็บใน `p.aizen.ride` ·
+  `maxHp`/`maxArmor`/`range`/`strikeRect`/`strikeCone`/`attackBaseOverride`/`attackElement` ตามร่าง · เลือดหมด = `preventDeath` คืนร่างเดิม · ลงร่าง = `spawn` ยูนิตใหม่ที่ช่องเดิมด้วยค่าที่เหลือ
+- ยูนิตฮุครายตัว `aizen_kaiju` (CHAR_HOOKS ไม่อยู่ใน MODULES — `tests/character-rules.test.js` ยกเว้นไว้) · ภาพหมาก `aizenState().standee` → BoardStage `standee`
+- **ร่างออร์บ ดาร์ก** (ชุดสกิลแยกในตัวเดียว): `skillPub` (`flash: true`) + `skillArea` + `skillCost` + `skillLocks` ตามร่าง · ขยาย 3×3 ด้วย `engine.resizeUnit` (ฮุค `smashes` = พังสิ่งกีดขวาง · ไม่มีที่ = ลองใหม่ `onActorStart`/`onRoundStartTick`) · ติดตัวแทนชั่วคราวด้วย `characterPub().passive` · ติดตัวมืดผ่านฮุค `onArmorLost`
+- **เอฟเฟกต์** socket `aizenFx` → `useCharSocketFx` → `aizenEventFx` (fx + เสียงตามจังหวะ + จอสั่น) → `boardDraw` `aizenFx` · ฟิลด์ `sound: false` = คลิปเพิ่งเล่น (ไม่มีเสียงเอฟเฟกต์ — กฎผู้ใช้) · เสียงไคจูตอนตี `attackSound` · เท้าไคจู `onUnitWalked`

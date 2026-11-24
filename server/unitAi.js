@@ -48,10 +48,11 @@ function planTurn(u) {
   const P = match.players;
   const map = A.startMap();
   const seen = A.walkUnits(u.id).filter((o) => !Visibility().hiddenFrom(u, P[o.id]));
-  const reach = Board.reachable(map, { id: u.id, x: u.pos.x, y: u.pos.y, size: 1 }, A.movOf(u), seen, {
-    isAlly: (a, b) => C.sameTeam(P[a.id], P[b.id]), blocked: A.boardBlocked(u.id), hop: A.hopTiles(),
+  const size = A.sizeOf(u); // ตัวใหญ่ (ไคจูของไอเซ็น 3×3) — ช่อง = มุมซ้ายบนของตัว
+  const reach = Board.reachable(map, { id: u.id, x: u.pos.x, y: u.pos.y, size }, A.movOf(u), seen, {
+    isAlly: (a, b) => C.sameTeam(P[a.id], P[b.id]), blocked: A.boardBlocked(u.id), hop: A.hopTiles(), smash: A.smashes(u),
   });
-  const occupied = (t) => seen.some((o) => o.id !== u.id && Board.covers(o, t.x, t.y));
+  const occupied = (t) => Board.footprint(t.x, t.y, size).some((c) => seen.some((o) => o.id !== u.id && Board.covers(o, c.x, c.y)));
   const tiles = [...reach.values()].filter((t) => !occupied(t));
   if (!tiles.some((t) => t.x === u.pos.x && t.y === u.pos.y)) tiles.push({ x: u.pos.x, y: u.pos.y, d: 0 });
   const me = Board.boxOf(u);
@@ -61,13 +62,13 @@ function planTurn(u) {
   const near = (e) => Board.dist(me, Board.boxOf(e));
   // เป้า = ตัวที่ใกล้ที่สุดเสมอ (สเปก: "เล็งตัวที่ใกล้สุดเสมอและเดินเข้าไปหาเอง")
   const goal = [...enemies].sort((a, b) => near(a) - near(b) || a.hp - b.hp || a.armor - b.armor)[0];
-  const hits = tiles.filter((t) => reaches(u, tileBox(t), goal));
+  const hits = tiles.filter((t) => reaches(u, tileBox(t, size), goal));
   if (hits.length) {
     hits.sort((a, b) => a.d - b.d || a.y - b.y || a.x - b.x); // ตีได้จากช่องที่เดินน้อยสุด
     const t = hits[0];
     return { to: { x: t.x, y: t.y }, targetId: goal.id };
   }
-  const gap = (t) => Board.dist(tileBox(t), Board.boxOf(goal));
+  const gap = (t) => Board.dist(tileBox(t, size), Board.boxOf(goal));
   tiles.sort((a, b) => gap(a) - gap(b) || a.d - b.d || a.y - b.y || a.x - b.x);
   const best = tiles[0];
   const stay = best.x === u.pos.x && best.y === u.pos.y;

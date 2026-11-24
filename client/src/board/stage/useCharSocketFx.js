@@ -21,6 +21,7 @@ import { SHINRA_FX_DUR, SHINRA_T, latomBoomStart, latomFxDur } from "../shinraFx
 import { MIDORIYA_T, smashDur } from "../midoriyaFx";
 import { HELL_T, JOSHUA_FX_DUR, JOSHUA_T } from "../joshuaFx";
 import { ophyEventFx } from "../ophyFx";
+import { aizenEventFx } from "../aizenFx";
 import { SORA_FRAME_T, shellThrowDur } from "../soraFrameFx";
 import { MASTER_T, masterPose } from "../masterFx";
 import { DINO_T } from "../dinoFx";
@@ -235,6 +236,15 @@ export default function useCharSocketFx(ctx) {
       if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
     };
     socket.on("ophyFx", onOphy);
+    // ไอเซ็น มาโคโตะ (aizenFx.js): ไคจูปรากฏ · เข้าสิง/ลงร่าง · ออร์บ ดาร์ก · คลื่นดาบ · ลำแสง · ผลักชน — เสียง/จอสั่นตามจังหวะภาพ
+    const onAizen = (ev) => {
+      const out = aizenEventFx(ev);
+      const at = (ms, fn) => (ms > 0 ? timers.current.push(setTimeout(fn, ms)) : fn());
+      pushFx(out.fx);
+      for (const [name, ms] of out.sfx) at(ms, () => playSfx(name));
+      if (!lowQ) for (const ms of out.shake) at(ms, () => setShake((n) => n + 1));
+    };
+    socket.on("aizenFx", onAizen);
     hitFx.current.joshuaFx = onJoshua; // ลุกไหม้สวนกลับระหว่างตีปกติ: engine.boardFxAtHit — เล่นตรงจังหวะปะทะ
     // แม็กน่า สวิง (magnaFx.js): บอลไฟ / ตีบอล / ปาบอลโซ่ / โซ่ติด-ขาด / Finisher (โซ่ฟ้า → ดึง → ระเบิด) / Knuckle / Boost
     //  เสียงฝั่ง client เฉพาะจังหวะที่ไม่มีคลิป: ปาพลาด (โดน = คลิป Deathmatch ตามมา) · ดึง/ระเบิด/โซ่ขาด (หลังคลิป Finisher จบแล้ว)
@@ -333,7 +343,7 @@ export default function useCharSocketFx(ctx) {
     };
     socket.on("soraFx", onSora);
     hitFx.current.shinraFx = onShinra; // มอดไหม้จากภายใน: engine.boardFxAtHit — ระเบิดตรงจังหวะปะทะ
-    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("vergilFx", onVergil); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("joshuaFx", onJoshua); socket.off("ophyFx", onOphy); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
+    return () => { socket.off("diegoFx", onDiego); socket.off("dioFx", onDio); socket.off("vergilFx", onVergil); socket.off("zectFx", onZect); socket.off("kiriFx", onKiri); socket.off("shinraFx", onShinra); socket.off("midoriyaFx", onMidoriya); socket.off("joshuaFx", onJoshua); socket.off("ophyFx", onOphy); socket.off("aizenFx", onAizen); socket.off("magnaFx", onMagna); socket.off("armFx", onArm); socket.off("dinoFx", onDino); socket.off("soraFx", onSora); socket.off("clockWalk", onClockWalk); };
   }, [pushFx, look, lowQ]);
 
   // นักบินปริศนา / บานาจ ลิงซ์ (GRID_PLAN §7.5.1): socket "sliverFx" { kind, id, ... } — แสงแตก/จอสั่นตามเหตุการณ์ (ตำแหน่งใหม่มากับ state)

@@ -54,6 +54,7 @@ const armstrong = require("./armstrong"); // อาร์มสตรอง — 
 const joshua_rosfield = require("./joshua_rosfield"); // โจชัว รอสฟิลด์ — Boss (เทพไฟ FFXVI · กรวยไฟ/พรของนกเพลิง/สวมร่างนกเพลิง · ลุกไหม้ = ฟื้น — GRID_PLAN §7.41)
 const yugi_muto = require("./yugi_muto"); // ยูกิ มุโต้ — เอาฮา (เด็ค 40 ใบ เอ็กโซเดีย 5 + ไหจอมละโมบ 35 · ดรอว์/ทิ้ง · เปิดใช้ = ดรอว์ 2 / หลบแน่นอน · ครบ 5 ชิ้นชนะเกม)
 const ophy = require("./ophy"); // Ophy นักเล่นแร่แปรธาตุ — ยาก (กระเป๋าวิเศษ 6×3 · ปรุงยา 11 สูตร · ปืนยิงยา 3×3 · Lock in สวนกลับ · calculated — GRID_PLAN §7.43)
+const aizen_makoto = require("./aizen_makoto"); // ไอเซ็น มาโคโตะ — ระดับง่าย (อัญเชิญไคจู 3×3 AI · เข้าสิงไคจู · อุลตร้าแมนออร์บ ดาร์ก)
 const magna = require("./magna"); // แม็กน่า สวิง — ยาก (OverHeat · บอลไฟ/ไม้เบสบอล · Soul Chain Deathmatch โซ่ server/soulChain.js · Finisher) // คุเรไน โอโตยะ — ยาก (ปากหวาน / ดนตรีในหัวใจ / Dark Kiva 3 ครั้ง · หลุมพราง · Wake Up)
 
 const CHARACTER_MODULES = [
@@ -105,6 +106,7 @@ const CHARACTER_MODULES = [
   joshua_rosfield,
   yugi_muto,
   ophy,
+  aizen_makoto,
 ];
 
 const CHAR_HOOKS = {};
@@ -113,6 +115,8 @@ for (const mod of CHARACTER_MODULES) CHAR_HOOKS[mod.id] = mod;
 CHAR_HOOKS.kishinami_hakuno = require("./_hakuno");
 // ตัวอัญเชิญของ Master (characters/_master_summon.js) — ฮุครายตัว ไม่อยู่ใน MODULES
 CHAR_HOOKS.master_summon = require("./_master_summon");
+// ไคจูของไอเซ็น มาโคโตะ (characters/_aizen_kaiju.js) — ฮุครายตัว ไม่อยู่ใน MODULES
+CHAR_HOOKS.aizen_kaiju = require("./_aizen_kaiju");
 // รายการตามลำดับ (ไม่ enumerable — CHAR_HOOKS ยังเป็นแผนที่ id → โมดูลล้วนๆ)
 // "แม่นยำ" จากออร่า (ฮุค auraAccurate(p)) — _universal_status.accurateActive ถามทุกแหล่ง
 for (const mod of CHARACTER_MODULES) if (typeof mod.auraAccurate === "function") Status.addAccurateSource((p) => mod.auraAccurate(p));

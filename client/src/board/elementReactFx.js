@@ -7,7 +7,7 @@
 import { P, gEllipse, glow } from "./boardGeo";
 
 const TAU = Math.PI * 2;
-const RGB = { fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181", poison: "125,220,74", light: "255,236,160", dark: "138,92,255" };
+const RGB = { rock: "214,170,98", fire: "255,122,61", ice: "143,216,255", bolt: "255,216,74", water: "74,163,255", wind: "127,224,181", poison: "125,220,74", light: "255,236,160", dark: "138,92,255" };
 const TOX = "150,235,80", MIASMA = "120,70,150", VOID = "30,10,45";
 const WHITE = "255,255,255", STEAM = "235,240,245", SMOKE = "70,55,50", HOT = "255,220,120";
 
@@ -247,6 +247,28 @@ export function elReact(g, e, p, lowQ) {
         const h = hash01(seed + 300 + i), an = h * TAU + p * 7, rr = 0.55 + h * 0.6;
         const [px, py, ps] = P(wx + Math.cos(an) * rr * n, wy + Math.sin(an) * rr * n, 0.3 + h * 1.8 - p * 0.6);
         flake(g, px, py, ps * 0.08, A, 0.95 * k, an);
+      }
+      break;
+    }
+    // 🪨 ตกผลึก (หิน + คราบใดก็ได้): คราบสีเดิมถูกดูดลงพื้น → ผลึกหินสีทรายงอกล้อมตัวเป็นกรงแล้วแข็งค้าง → แตกเป็นฝุ่น
+    case "crystal": {
+      const k = env(p, 0, 0.05, 0.8, 1), sink = clamp01(p / 0.3), grow = easeOut3(clamp01((p - 0.18) / 0.3));
+      const ROCK = RGB.rock;
+      for (const t of own) { quad(g, t.x, t.y, 1, 1, 0.01, rgba(A, 0.45 * (1 - sink) * k)); quad(g, t.x, t.y, 1, 1, 0.012, rgba(ROCK, 0.5 * grow * k)); quadStroke(g, t.x, t.y, 1, 1, 0.02, rgba(ROCK, 0.9 * k), 3); }
+      if (p < 0.4) for (let i = 0; i < 18 * many; i++) {
+        const an = (i / 18) * TAU, h = hash01(seed + i), down = 1.6 * (1 - sink) * (0.5 + h * 0.6);
+        const [px, py, ps] = P(wx + Math.cos(an) * 0.45 * n, wy + Math.sin(an) * 0.45 * n, down);
+        drop(g, px, py, ps * 0.07, A, 0.9 * (1 - sink));
+      }
+      for (let i = 0; i < 10; i++) {
+        const an = (i / 10) * TAU + 0.2, up = easeOut3(clamp01((p - 0.18 - i * 0.012) / 0.2));
+        crystal(g, wx + Math.cos(an) * 0.48 * n, wy + Math.sin(an) * 0.48 * n, 0.14, (1 + hash01(seed + 40 + i) * 0.8) * up, ROCK, 0.95 * k, Math.cos(an) * 0.25);
+      }
+      if (grow > 0) { const [bx, by, bs] = P(wx, wy, 0.6); additive(g, () => glow(g, bx, by, bs * 1.1 * n, ROCK, 0.45 * env(p, 0.2, 0.3, 0.55, 0.9))); }
+      if (p > 0.75) for (let i = 0; i < 20 * many; i++) {
+        const h = hash01(seed + 200 + i), an = h * TAU, rr = 0.4 + (p - 0.75) * 3 * (0.5 + h);
+        const [px, py, ps] = P(wx + Math.cos(an) * rr * n * 0.5, wy + Math.sin(an) * rr * n * 0.5, 0.2 + h * 0.8);
+        drop(g, px, py, ps * 0.05, ROCK, 0.8 * k);
       }
       break;
     }

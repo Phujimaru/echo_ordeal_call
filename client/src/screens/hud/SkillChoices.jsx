@@ -9,7 +9,7 @@ import { shopInfoOf } from "../../data/shop";
 //  locked + left 0 = ใช้ครบแล้ว (เครื่องดูดฝุ่น) → ป้าย 🔋0 ตามเดิม
 // ตัวเลือกที่เป็นไอเทมในกระเป๋า (c.item — โจรุโน่: ชีวิตทดแทน) = ชื่อ/รูป/ไอคอนของไอเทมนั้น
 function itemLook(c) {
-  if (!c.item) return { name: c.name, img: c.img, icon: null };
+  if (!c.item) return { name: c.name, img: c.img, icon: c.icon || null }; // c.icon = ไอคอนแทนรูป (ไอเซ็น Orb Calibur: ไอคอนธาตุ)
   const info = shopInfoOf(c.item);
   return { name: info.label(c.item), img: info.img || null, icon: info.img ? null : info.icon };
 }
