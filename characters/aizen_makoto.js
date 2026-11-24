@@ -13,7 +13,7 @@
 //    ระหว่างสิง ร่างไอเซ็นฟื้นพลังชีวิต 1 ต่อเทิร์น · กดอีกครั้ง (0 · ไม่ใช้โควตา) = ลงจากร่าง (ไคจูกลับเป็น AI ที่เดิม · ไอเซ็นลงช่องว่างข้างๆ)
 //    ร่างไคจูเลือดหมด = ไคจูตาย (คูลดาวน์) · ไอเซ็นหลุดออกมากลางตัวด้วยพลังชีวิต/เกราะเดิม
 //  ท่าไม้ตาย "ฉันนี่แหละ คืออุลตร้าแมน" (4): เก็บไคจูทั้งหมด (+ คูลดาวน์) → ร่างอุลตร้าแมนออร์บ ดาร์ก 5 เทิร์น (สเปกร่าง ผู้ใช้ 2026-11-24)
-//    พลังชีวิตสูงสุด +3 เกราะ +2 (ฟื้นเต็มตอนแปลง · คืนร่างตัดส่วนเกิน) · ตัว 3×3 · เดิน 5 · ตีปกติกวาด 3 ช่องหน้าตัว (ทุกคนในแถว) · แต้มสกิล +1 ต่อเทิร์น
+//    พลังชีวิตสูงสุด +3 เกราะ +2 (ฟื้นเต็มตอนแปลง · คืนร่างตัดส่วนเกิน) · พลังโจมตี +1 · ตัว 3×3 · เดิน 5 · ตีปกติกวาด 3 ช่องหน้าตัว (ทุกคนในแถว) · แต้มสกิล +1 ต่อเทิร์น
 //    ธาตุของร่าง (Orb Calibur) มืด/ไฟ/หิน: ตีปกติ + Dark Slash/Inferno/Rock Calibur + ติดตัวอุลตร้าแมนที่แท้จริง เปลี่ยนตาม
 //    พื้นฐาน (2 · คูลดาวน์ 2): คลื่น 6×3 ดาเมจ 2 ผลักถอยสุดระยะ ชน +1 · รอง Orb Calibur (0 · ไม่ใช้โควตา): เปลี่ยนธาตุ
 //    ท่าไม้ตาย Dark Origium Ray (4 · คูลดาวน์ 3): ลำแสง 7×3 ดาเมจ 4 ทุกคนในแนว · ธาตุ ไฟ → มืด → หิน ตามลำดับ
@@ -67,7 +67,7 @@ const COST = { secondary: 2, ultimate: 4 };
 const ORB_TURNS = 5;
 const BODY_REGEN = 1;
 // ---- ร่างอุลตร้าแมนออร์บ ดาร์ก ----
-const ORB = { hp: 3, armor: 2, mov: 5, size: 3, regen: 1 };
+const ORB = { hp: 3, armor: 2, atk: 1, mov: 5, size: 3, regen: 1 };
 const ORB_ELS = {
   dark: { name: "มืด", icon: "🌑", basic: "Dark Slash", clip: "slash", passive: "เกราะเสียหาย = ฟื้นพลังชีวิตเท่ากัน", desc: "พื้นฐาน Dark Slash · ตีปกติธาตุมืด · เกราะเสียหาย = ฟื้นพลังชีวิตเท่ากัน" },
   fire: { name: "ไฟ", icon: "🔥", basic: "Inferno", clip: "inferno", passive: "เหรียญ +1 ต่อเทิร์น", desc: "พื้นฐาน Inferno · ตีปกติธาตุไฟ · เหรียญ +1 ต่อเทิร์น" },
@@ -477,7 +477,8 @@ module.exports = {
   strikeCone(p) { const d = specOf(p); return d && d.cone ? d.cone : 0; },
   strikeAllows(p, t) { return shapeAllows(eng(), p, t); },
   smashes(p) { return riding(p) || orbOn(p); }, // ตัว 3×3 เดิน/ขยายตัวพังสิ่งกีดขวางได้ (กติกาตัวใหญ่)
-  attackBaseOverride(engine, a) { const d = specOf(a); return d ? d.atk : 1; },
+  // ร่างออร์บ ดาร์ก: พลังโจมตี +1 (ผู้ใช้ 2026-11-24) — ตีปกติ 2
+  attackBaseOverride(engine, a) { const d = specOf(a); if (d) return d.atk; return orbOn(a) ? 1 + ORB.atk : 1; },
   attackSound(p) { const d = specOf(p); if (d) return d.sound; return orbOn(p) ? "az_orb_strike" : null; },
   attackElement(engine, p) {
     const d = specOf(p);

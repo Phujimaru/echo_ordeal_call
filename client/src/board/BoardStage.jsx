@@ -1156,6 +1156,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   // ---------- ฉากเต็มจอ: ลำดับเดิน (ORDER) · ตาเดิน (ทุกครั้งที่ขึ้นตาใหม่) ----------
   const sk = vp ? Math.min(vp.w / 1920, vp.h / 1080) : 1; // ตัวย่อของเวทีออกแบบ 1920 × 1080
   const roster = rosterAlive(state.players); // ผู้เล่นจริง (ตัวที่สองของระบบคู่ไม่นับในลำดับ · เจ้าของที่ล้มแต่คู่ยังรอด = ยังอยู่)
+  //  ยูนิตที่ AI คุม (ตัวอัญเชิญของ Master · ไคจูของไอเซ็น) ไม่ขึ้นในฉาก/แถบลำดับเดิน — ไคจูเคยกินช่องว่างในฉากลำดับเดิน (ผู้ใช้ 2026-11-24)
+  const isAiUnit = (u) => !!(u && u.summon && /^(master_|aizen_)/.test(u.summon.kind || ""));
   const seat = [...roster].filter((p) => p.alive || p.score != null).sort((a, b) => (a.position || 0) - (b.position || 0)).map((p) => p.id);
   const [call, setCall] = useState(null); // { id, key }
   // ระบบคู่: สลับตัวในตาเดียวกัน (กระจกเงา) ไม่ขึ้นฉากตาเดินซ้ำ — นับตาตามฝ่าย · ฉากใช้เจ้าของฝ่าย
@@ -1169,7 +1171,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   const endCall = useCallback(() => setCall(null), []);
   // เสียงฉากตาเดิน (ผู้ใช้ให้ไฟล์มา 2026-10-09): ตาเรา = notificate_mine · ตาคนอื่น = notificate
   useEffect(() => {
-    if (!call || (byId[call.id] && byId[call.id].summon && /^master_/.test(byId[call.id].summon.kind || ""))) return;
+    if (!call || isAiUnit(byId[call.id])) return;
     const mine = !!me && sameSide(byId[call.id] || { id: call.id }, me);
     playSfx(mine ? "notificate_mine" : "notificate");
     if (mine) requestAttention(); // ถึงตาเรา: หน้าต่างไม่ได้โฟกัส = ไอคอนแถบงานกระพริบ
@@ -1178,7 +1180,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   // ---------- แถบลำดับเดิน ----------
   // มืดบอด (masked): server ส่ง turnOrder ว่าง — ไม่แสดงลำดับเลย
   //  ยูนิตที่ถูกเรียก (ตัวอัญเชิญของ Master / มอน) ไม่ขึ้นในแถบลำดับ — ผู้ใช้ 2026-11-16 (กระดานโดนเบียด)
-  const isAiUnit = (u) => !!(u && u.summon && /^master_/.test(u.summon.kind || ""));
+
   const notUnit = (id) => !isAiUnit(byId[id]);
   const order = masked ? []
     : phase === "PLAYING" || !state.turnOrder || !state.turnOrder.length

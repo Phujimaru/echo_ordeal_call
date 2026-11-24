@@ -287,14 +287,14 @@ test("ท่าไม้ตาย: เก็บไคจู (+ คูลดา�
   assert.equal(queued.filter((k) => k === "aizen_orb_dark").length, 1);
 });
 
-test("ออร์บ ดาร์ก: ตีปกติกวาด 3 ช่องหน้าตัว (ทุกคนในแถว) · แต้มสกิล +1 ต่อเทิร์น", () => {
+test("ออร์บ ดาร์ก: ตีปกติกวาด 3 ช่องหน้าตัว (ทุกคนในแถว) · พลังโจมตี +1 · แต้มสกิล +1 ต่อเทิร์น", () => {
   const { a, b, c } = toOrb();
   a.pos = { x: 5, y: 5 };
   b.pos = { x: 5, y: 4 }; c.pos = { x: 7, y: 4 };
   b.armor = 0; c.armor = 0;
   assert.ok(engine.attackTarget("a", "b"));
   engine.clearPhaseTimer();
-  assert.equal(b.hp, 29); assert.equal(c.hp, 29, "โดนทั้งแถว");
+  assert.equal(b.hp, 28); assert.equal(c.hp, 28, "โดนทั้งแถว · พลังโจมตี 1 + 1");
   a.skillPoints = 3;
   A.onRoundStartTick(engine, a);
   assert.equal(a.skillPoints, 4);
