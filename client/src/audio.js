@@ -656,6 +656,8 @@ const FILES = {
   // อินุอิ ทาคุมิ: เสียงจากผู้ใช้ · ปุ่ม 3 เสียงไล่ระดับ key1/2/3 + ENTER + 103/106/279/ยิง ตัดจาก Sound Effects Henshin And Finisher · standby จาก "เสียงปุ่มและ standby"
   ...Object.fromEntries(["key1", "key2", "key3", "enter", "standby", "henshin2", "exceed", "single", "burst", "charge", "shot", "shot_burst", "startup", "timeout"].map((k) => [`inui_${k}`, `/characters/inui_takumi/sfx/inui_${k}.m4a`])),
   inui_axel: "/characters/inui_takumi/inui_axel_theme.m4a", // เล่นตลอด Start Up
+  // เค็นโซ ซุกะ (Bake Magnum): เสียงจาก Mixkit ตัด/ผสม — แหล่งที่มา .claude/plans/kenzo-sfx-sources.md · ยังไม่มีคนฟัง
+  ...Object.fromEntries(["shot", "shot2", "open", "card", "chomp", "standby", "henshin", "eject", "corrode", "decay", "again"].map((k) => [`bake_${k}`, `/characters/kenzo_suga/sfx/bake_${k}.mp3`])),
   // เอมิยะ คริซุงุ: kiri_alter = time_altersong ของผู้ใช้ (ตลอด Time Alter) · smg/smoke/place สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   kiri_alter: "/characters/emiya_kiritsugu/kiri_alter_theme.m4a",
   kiri_smg: "/characters/emiya_kiritsugu/sfx/kiri_smg.mp3",

@@ -156,6 +156,7 @@ const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "we
   "oilSoaked",    // ชุ่มน้ำมัน (ดิเอโก้): โดนไม้ขีด = ระเบิด 3×3 รอบตัว
   "diegoNet",     // ติดตาข่าย (ดิเอโก้): ป้ายคู่กับถูกตรึง — โดนไม้ขีด = ลุกไหม้ 3
   "stirred",      // กระตุ้น (ปฏิกิริยาพิษ+สายฟ้า — server/element.js): ดาเมจต่อเทิร์นทุกแบบ ×2
+  "kenzoCorrode", // การกัดกิน (เค็นโซ ซุกะ): พลังโจมตี −N สะสม — ล้าง = หายทั้งก้อน
   "noPassive"];   // ลบสกิลติดตัว (server/passiveSeal.js — Rule Breaker ของชิโร่ระหว่าง UBW)
 // ดีบัฟที่ล้างได้ทีละขั้น (คำสาป / ช็อต): โดนล้าง = ลดลงทีละ 1 หน่วย ไม่หายทั้งหมด
 const SOFT_DEBUFF_STEP = ["curse", "shock"];
@@ -546,7 +547,7 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite", "rolandUrging", "rolandScars", "rolandKiss", "rolandLies", "dinoVirus"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite", "rolandUrging", "rolandScars", "rolandKiss", "rolandLies", "dinoVirus", "kenzoCorrode"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
 
 module.exports = {
   SPELLBURDEN_MAX,

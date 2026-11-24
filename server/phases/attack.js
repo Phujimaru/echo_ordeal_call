@@ -290,6 +290,7 @@ function strikeBody(attacker, target, counter) {
   //  "พิษร้าย" หักพลังโจมตีเหมือน "อ่อนแอ" — ซ้อนกันได้ จึงรวมกันก่อนหักทีเดียว
   const weakAtk = isFixed ? 0 : statusAmtOf(attacker, "weak") + poisonAtkPenalty(attacker);
   if (weakAtk > 0) dmg = Math.max(0, dmg - weakAtk);
+  dmg = Math.max(0, dmg); // พลังโจมตีติดลบ (การกัดกินของเค็นโซ — ออร่าค่าลบ) = 0 ไม่ใช่ดาเมจติดลบ
   // คุ้มครอง (สถานะพื้นฐาน): ความเสียหายที่ได้รับลดลงตามจำนวนที่ระบุ (ไม่ระบุ = 1)
   const guardAmt = (target.statuses.guard || 0) > 0 ? (statusAmtOf(target, "guard") || 1) : 0;
   if (guardAmt > 0) dmg = Math.max(0, dmg - guardAmt);

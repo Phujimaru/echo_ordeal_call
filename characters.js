@@ -2239,6 +2239,31 @@ const CHARACTERS = [
       effect: null,
     },
   },
+  {
+    // ---------- เค็นโซ ซุกะ (Kamen Rider Bake) — ง่าย — ดู characters/kenzo_suga.js (GRID_PLAN §7.45) ----------
+    //  พลังชีวิต 10 / เกราะ 5 (ค่าตั้งต้น) · ปุ่มเดียว Bake Magnum (HUD ปืน client/src/screens/hud/BakeMagnum.jsx) · รอง/ท่าไม้ตายไม่มี
+    id: "kenzo_suga",
+    gender: "m",
+    name: "เค็นโซ ซุกะ",
+    avatar: 0,
+    difficulty: "easy",
+    img: "/characters/kenzo_suga/kenzo.webp",
+    mov: 4,
+    range: [1, 3],
+    passive: {
+      name: "นักวิทย์อัจฉริยะ",
+      desc: "ร่าง Kamen Rider Bake ตีปกติโดน = การกัดกิน +1 (พลังโจมตี −1 ต่อหน่วย สะสมถาวร · ตีปกติและสกิล ไม่รวมปฏิกิริยา · ต้านได้ · ล้างได้)",
+    },
+    basic: {
+      name: "Bake Magnum",
+      desc: "แปลงร่าง Kamen Rider Bake / คืนร่างมนุษย์ (ฟรี · ไม่นับโควตาสกิล) · ร่างไรเดอร์: ตีปกติแล้ว 30% ได้ตีอีกครั้ง (เลือกเป้าใหม่ได้) · ตีโดน 30% ผุพัง 2 เทิร์น · ต้นเทิร์นเสียพลังชีวิต 1 (ทะลุเกราะ) · ร่างมนุษย์: แต้มสกิลไม่ฟื้น · ต้นเทิร์นใช้แต้มสกิล 1 ฟื้นพลังชีวิต 1 (ไม่มีแต้ม = ไม่ฟื้น)",
+      area: { kind: "self" },
+      cost: 0,
+      img: "/characters/kenzo_suga/bake_magnum.webp",
+      instant: true,
+      effect: null, // form "henshin" / "revert" จาก BakeMagnum.jsx
+    },
+  },
 ];
 
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]));
