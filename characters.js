@@ -2237,6 +2237,8 @@ const CHARACTERS = [
       img: "/characters/aizen_makoto/skill3.webp",
       instant: true,
       effect: null,
+    },
+  },
   {
     // ---------- เค็นโซ ซุกะ (Kamen Rider Bake) — ง่าย — ดู characters/kenzo_suga.js (GRID_PLAN §7.45) ----------
     //  พลังชีวิต 10 / เกราะ 5 (ค่าตั้งต้น) · ปุ่มเดียว Bake Magnum (HUD ปืน client/src/screens/hud/BakeMagnum.jsx) · รอง/ท่าไม้ตายไม่มี
