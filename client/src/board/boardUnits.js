@@ -21,6 +21,7 @@ import { KIRI_GHOST } from "./kiriFx";
 import { shinraAuraBack, shinraAuraFront } from "./shinraFx";
 import { midoriyaAuraBack, midoriyaAuraFront } from "./midoriyaFx";
 import { joshuaAuraBack, joshuaAuraFront, drawPhoenixBird } from "./joshuaFx";
+import { aizenAuraBack } from "./aizenFx";
 import { ophyUnitFront } from "./ophyFx";
 import { magnaAuraBack, magnaAuraFront } from "./magnaFx";
 import { naruUnitFront } from "./naruhodoFx";
@@ -299,6 +300,7 @@ function drawUnit(g, u, now, boxes) {
   // คุซาคาเบะ ชินระ (shinraFx.js): ไอพ่นใต้เท้า (ฮีโร่) / เพลิงท่วมตัว (อุ่นเครื่องพอแล้ว)
   if (u.magna) magnaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.magna); // แม็กน่า: OverHeat/Fire Boost
   if (u.dino) dinoAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.dino); // ดิเอโก้ อสูรกายดึกดำบรรพ์: เงาหาง/ไอรอบเท้า
+  if (u.aura === "aizenOrb") { const n = Math.max(1, u.size || 1); aizenAuraBack(g, u.rx + n / 2 + (u.ox || 0), u.ry + n / 2 + (u.oy || 0), n, u.aizenEl, now, u.lowQ, u.alpha == null ? 1 : u.alpha); } // ไอเซ็น ร่างออร์บ ดาร์ก
   if (u.aura === "joshuaPhoenix") joshuaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // โจชัว ร่างนกเพลิง
   if (u.aura === "midoriyaCowl") midoriyaAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha); // มิโดริยะ Full Cowl
   if (u.aura === "shinraHero" || u.aura === "shinraBlaze") shinraAuraBack(g, u.rx + 0.5 + (u.ox || 0), u.ry + 0.5 + (u.oy || 0), now, u.lowQ, u.alpha == null ? 1 : u.alpha, u.aura === "shinraBlaze");

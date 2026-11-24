@@ -898,7 +898,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // แม็กน่า สวิง (magnaFx.js): บอลไฟวนรอบตัว · แสงร้อนตาม OverHeat · Fire Knuckle/Boost · โซ่ (เจ้าของโซ่วาดไปหาคู่โซ่ — server soulChain.publicOf)
       magna: !mk && p.magna ? { balls: p.magna.balls | 0, heat: p.magna.heat | 0, knuckle: p.magna.knuckle | 0, boost: p.magna.boost | 0 } : null,
       chain: p.soulChain && p.soulChain.by === p.id ? { to: p.soulChain.with, armed: !!(p.magna && p.magna.armed) } : null,
-      aura: p.joshua && p.joshua.phoenix > 0 ? "joshuaPhoenix" : p.midoriya && p.midoriya.cowl > 0 ? "midoriyaCowl" : p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
+      aura: !mk && p.aizen && p.aizen.orb > 0 ? "aizenOrb" : p.joshua && p.joshua.phoenix > 0 ? "joshuaPhoenix" : p.midoriya && p.midoriya.cowl > 0 ? "midoriyaCowl" : p.shinra && p.shinra.warm > 0 ? "shinraBlaze" : p.shinra && p.shinra.hero > 0 ? "shinraHero" : p.kira && p.kira.king ? "kira" : p.kazuma && p.kazuma.king ? "kazumaKing" : p.inui && p.inui.exceed ? "faizExceed" : null, // กิระร่างราชาแมลงอวกาศ: หมอกดำแดง · คาซุมะ King Form: ตราโพทอง
       // ยูกินับถอยหลังเกิดใหม่เป็นประตู (p.yuki = { left, at } — ทุกคนเห็น): ออร่าฟ้า-ขาวไหลเข้าตัว + ตัวเลข · กระดานมืด (yukiFx.js)
       yuki: p.yuki && p.yuki.left > 0 ? { left: p.yuki.left | 0, at: p.yuki.at } : null,
       // ไจโร: ม้าใต้หมาก (mounted) · ออร่าทอง/เกลียวทองคำ (empowered) · ม้าโดนตี = แวบ (horseHp ลด) — gyroFx.js (มืดบอด = ไม่เห็น)
@@ -914,6 +914,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         : !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : !mk && p.aizen ? p.aizen.standee || null : null, // ไอเซ็น มาโคโตะ: ไคจู/ร่างที่สิง/ออร์บ ดาร์ก · เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
+      aizenEl: !mk && p.aizen && p.aizen.orb > 0 ? p.aizen.el || "dark" : null, // ไอเซ็น ร่างออร์บ ดาร์ก: สีออร่าตามธาตุ (aizenFx.aizenAuraBack)
       // Ophy (ophyFx.js ophyUnitFront): ยา 4 ขวดถัดไปเหนือหัว (ทุกคนเห็น) · Lock in · calculated
       ophy: !mk && p.ophy && p.alive ? { queue: p.ophy.queue || [], lockIn: !!p.ophy.lockIn, calc: !!p.ophy.calc } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,

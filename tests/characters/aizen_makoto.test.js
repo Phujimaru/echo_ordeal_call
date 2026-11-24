@@ -264,8 +264,9 @@ test("ท่าไม้ตาย: เก็บไคจู (+ คูลดา�
   engine.useSkill("a", "ultimate", []);
   assert.equal(engine.summon.ofOwner("a").length, 0);
   assert.equal(a.aizen.ride, null);
-  assert.equal(a.aizen.ready.redking, match.roundNumber + A.CD);
-  assert.equal(a.aizen.ready.guebasser, match.roundNumber + A.CD);
+  assert.equal(a.aizen.ready.redking, match.roundNumber + A.ORB_RECALL_CD, "เก็บด้วยท่าไม้ตาย = คูลดาวน์ 5");
+  assert.equal(a.aizen.ready.guebasser, match.roundNumber + A.ORB_RECALL_CD);
+  assert.equal(a.statuses[A.ORB_STATUS], A.ORB_TURNS, "ป้ายสถานะนับเทิร์น");
   assert.equal(a.hp, 10); assert.equal(a.armor, 5);
   assert.equal(engine.sizeOf(a), 3);
   assert.equal(engine.baseMovOf(a), 5);
@@ -276,8 +277,11 @@ test("ท่าไม้ตาย: เก็บไคจู (+ คูลดา�
   assert.equal(me.character.ultimate.name, "Dark Origium Ray");
   assert.equal(me.character.passive.name, "อุลตร้าแมนที่แท้จริง");
   assert.equal(me.aizen.standee, A.IMG.orb);
-  // หมดเวลา: คืนร่าง ตัดส่วนเกิน
-  for (let i = 0; i < A.ORB_TURNS; i++) A.onEndTurn(engine);
+  assert.equal(me.aizen.orb, A.ORB_TURNS);
+  // หมดเวลา (ลูป endTurn ลดป้ายสถานะจนหมด): คืนร่าง ตัดส่วนเกิน
+  for (let i = 0; i < A.ORB_TURNS - 1; i++) { a.statuses[A.ORB_STATUS]--; A.onEndTurn(engine); }
+  assert.ok(a.aizen.orb, "ยังไม่หมด");
+  delete a.statuses[A.ORB_STATUS]; A.onEndTurn(engine);
   assert.equal(a.aizen.orb, null);
   assert.equal(engine.sizeOf(a), 1);
   assert.equal(a.hp, 7); assert.equal(a.armor, 3);
@@ -327,6 +331,29 @@ test("Dark Slash: 2 แต้ม · คลื่น 6×3 ดาเมจ 2 · �
   assert.equal(b.hp, 28 - 2 - 1, "ชน +1");
 });
 
+test("Inferno: ลุกไหม้ 2 + พื้นไฟ 2 เทิร์น ไม่ผลัก · Rock Calibur: ถูกตรึง 1 เทิร์น ไม่ผลัก", () => {
+  const { a, b, c } = toOrb();
+  a.pos = { x: 5, y: 10 };
+  b.pos = { x: 6, y: 8 }; c.pos = { x: 20, y: 20 };
+  b.armor = 0;
+  a.aizen.orb.el = "fire";
+  engine.useSkill("a", "basic", [], { dir: "up" });
+  runDeferred(a);
+  assert.equal(b.hp, 28);
+  assert.deepEqual(b.pos, { x: 6, y: 8 }, "ไม่ผลัก");
+  assert.equal(b.statuses.hburn, 2);
+  const flame = match.board.flame || {};
+  assert.ok(flame["6,9"] && flame["5,4"], "พื้นไฟทั้งพื้นที่ 6×3");
+  assert.equal((match.board.flameLeft || {})["6,9"], 2);
+  nextRound(); nextRound(); a.skillPoints = 8;
+  a.aizen.orb.el = "rock";
+  delete b.statuses.rooted;
+  engine.useSkill("a", "basic", [], { dir: "up" });
+  runDeferred(a);
+  assert.deepEqual(b.pos, { x: 6, y: 8 });
+  assert.ok(b.statuses.rooted > 0, "ถูกตรึง");
+});
+
 test("Orb Calibur: 0 แต้ม ไม่ใช้โควตา · ธาตุร่างเปลี่ยนตีปกติ/พื้นฐาน/ติดตัว (มืด ฟื้นเลือดแทนเกราะ · ไฟ เหรียญ +1 · หิน เกราะ +1)", () => {
   const { a, b } = toOrb();
   a.pos = { x: 5, y: 10 }; b.pos = { x: 20, y: 20 };
@@ -343,9 +370,17 @@ test("Orb Calibur: 0 แต้ม ไม่ใช้โควตา · ธาต
   A.onRoundStartTick(engine, a);
   assert.equal(a.gold, g + 1);
   engine.useSkill("a", "secondary", [], { form: "rock" });
+  assert.equal(a.aizen.orb.el, "fire", "คูลดาวน์ 1 เทิร์น — เปลี่ยนซ้ำในเทิร์นเดียวไม่ได้");
+  nextRound();
+  engine.useSkill("a", "secondary", [], { form: "rock" });
+  assert.equal(a.aizen.orb.el, "fire", "เทิร์นถัดไปยังไม่ได้");
+  nextRound();
+  engine.useSkill("a", "secondary", [], { form: "rock" });
+  assert.equal(a.aizen.orb.el, "rock");
   a.armor = 2;
   A.onRoundStartTick(engine, a);
   assert.equal(a.armor, 3);
+  a.aizen.orbReady.calibur = 0;
   engine.useSkill("a", "secondary", [], { form: "dark" });
   a.hp = 5; a.armor = 3;
   engine.withEffectSource(b, () => combat.dealMixed(a, 2));
@@ -353,20 +388,22 @@ test("Orb Calibur: 0 แต้ม ไม่ใช้โควตา · ธาต
   assert.equal(a.hp, 7, "เกราะเสีย 2 = ฟื้น 2");
 });
 
-test("Dark Origium Ray: 4 แต้ม · 7×3 ดาเมจ 4 ทุกคนในแนว · ไฟ → มืด → หิน (ปิดท้ายตกผลึก = ถูกตรึง) · คูลดาวน์ 3 · คลิปทุกครั้ง", () => {
+test("Dark Origium Ray: 4 แต้ม · 7×3 ดาเมจ 4 ทุกคนในแนว · มืด → แสง → ไฟ (ไม่มีคราบ = หลุมดำ แล้วติดไฟ · มีคราบ = ปฏิกิริยาตามลำดับ) · คูลดาวน์ 3 · คลิปทุกครั้ง", () => {
   const { a, b, c } = toOrb();
   a.pos = { x: 5, y: 10 };
   b.pos = { x: 5, y: 7 }; c.pos = { x: 7, y: 4 };
   b.armor = 0; c.armor = 0;
-  b.statuses.elWater = 2; // คราบน้ำ → ไฟเจอ = ระเหย
+  b.statuses.elLight = 2; // คราบแสงอยู่ก่อน → มืดเจอ = หลุมดำทันที → แสง = คราบใหม่ → ไฟแทนที่ (ไม่มีปฏิกิริยาแสง+ไฟ)
   queued.length = 0;
   engine.useSkill("a", "ultimate", [], { dir: "up" });
   assert.equal(a.skillPoints, 4);
   assert.deepEqual(queued, ["aizen_orb_ray"]);
   runDeferred(a);
   assert.equal(c.hp, 26);
-  assert.ok(b.hp <= 23, "ระเหย +3");
-  for (const t of [b, c]) { assert.ok(t.statuses.rooted > 0, `${t.id} ถูกตรึง`); assert.equal(Element.auraOf(t), null); }
+  assert.equal(b.hp, 26);
+  for (const t of [b, c]) assert.equal(Element.auraOf(t), "fire", `${t.id} ปิดท้ายด้วยคราบไฟ`);
+  const holes = (match.elemFields || []).filter((f) => f.kind === "hole");
+  assert.equal(holes.length, 2, "หลุมดำทั้งสองคน (c: มืด+แสง · b: แสงเดิม+มืด)");
   nextRound(); a.skillPoints = 8;
   engine.useSkill("a", "ultimate", [], { dir: "up" });
   assert.equal(a.skillPoints, 8, "คูลดาวน์ 3");
@@ -406,4 +443,20 @@ test("คลิปทุกตัวลงทะเบียนในตาร�
   assert.deepEqual([...A.EVERY_CLIP].sort(), ["ray", "slash"]);
   const { a } = toOrb();
   assert.equal(view.displayImg(a), A.IMG.orbCover);
+});
+
+test("ท่าตีบนกระดาน: ไคจูแต่ละตัว (บอท/ตอนสิง) และออร์บ ดาร์ก มีท่าตีของตัวเอง · ไม่มีร่าง = ตีปกติ", () => {
+  const K = require("../../characters/_aizen_kaiju");
+  const { a } = setup();
+  assert.equal(A.attackStyle(a), null);
+  summon("grigio");
+  const g = kaijuOf("grigio");
+  assert.equal(K.attackStyle(g), "aizenGrigioStrike");
+  nextRound();
+  engine.useSkill("a", "secondary", [], { form: "grigio" });
+  assert.equal(A.attackStyle(a), "aizenGrigioStrike");
+  assert.equal(K.attackStyle({ summon: { aizenKaiju: "redking" } }), "aizenRedkingStrike");
+  assert.equal(K.attackStyle({ summon: { aizenKaiju: "guebasser" } }), "aizenGuebasserStrike");
+  const o = toOrb();
+  assert.equal(A.attackStyle(o.a), "aizenOrbStrike");
 });

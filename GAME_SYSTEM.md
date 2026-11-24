@@ -1534,4 +1534,6 @@ board/boardRules.js            สำเนากติกาจาก server/bo
   `maxHp`/`maxArmor`/`range`/`strikeRect`/`strikeCone`/`attackBaseOverride`/`attackElement` ตามร่าง · เลือดหมด = `preventDeath` คืนร่างเดิม · ลงร่าง = `spawn` ยูนิตใหม่ที่ช่องเดิมด้วยค่าที่เหลือ
 - ยูนิตฮุครายตัว `aizen_kaiju` (CHAR_HOOKS ไม่อยู่ใน MODULES — `tests/character-rules.test.js` ยกเว้นไว้) · ภาพหมาก `aizenState().standee` → BoardStage `standee`
 - **ร่างออร์บ ดาร์ก** (ชุดสกิลแยกในตัวเดียว): `skillPub` (`flash: true`) + `skillArea` + `skillCost` + `skillLocks` ตามร่าง · ขยาย 3×3 ด้วย `engine.resizeUnit` (ฮุค `smashes` = พังสิ่งกีดขวาง · ไม่มีที่ = ลองใหม่ `onActorStart`/`onRoundStartTick`) · ติดตัวแทนชั่วคราวด้วย `characterPub().passive` · ติดตัวมืดผ่านฮุค `onArmorLost`
+- **ป้ายสถานะร่าง** `aizenOrb` (statuses = เทิร์นที่เหลือ · ลูป endTurn ลดเอง · `onEndTurn` คืนร่างเมื่อหมด) · ออร่า `units[].aura "aizenOrb"` + `aizenEl` (BoardCanvas คัดฟิลด์) → `boardUnits` `aizenAuraBack` (กลางตัวตาม `u.size`)
+- **ท่าตีปกติ** `attackStyle` → `AIZEN_MS`/`AIZEN_HIT_P` (boardFxBasic STYLE_MS) · วาดใน `aizenFx.strikeFx` จาก `e.lane` (ช่องทั้งกรอบ/กรวย)
 - **เอฟเฟกต์** socket `aizenFx` → `useCharSocketFx` → `aizenEventFx` (fx + เสียงตามจังหวะ + จอสั่น) → `boardDraw` `aizenFx` · ฟิลด์ `sound: false` = คลิปเพิ่งเล่น (ไม่มีเสียงเอฟเฟกต์ — กฎผู้ใช้) · เสียงไคจูตอนตี `attackSound` · เท้าไคจู `onUnitWalked`

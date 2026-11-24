@@ -12,6 +12,7 @@ module.exports = {
   attackBaseOverride(engine, u) { const d = spec(u); return d ? d.atk : 1; },
   attackElement(engine, u) { const d = spec(u); return d ? d.el : null; },
   attackSound(u) { const d = spec(u); return d ? d.sound : null; },
+  attackStyle(u) { const d = spec(u); return d ? d.style : null; }, // ท่าตีบนกระดาน (client aizenFx.js strikeFx)
   strikeRect(u) { const d = spec(u); return d && d.rect ? d.rect : null; },
   strikeCone(u) { const d = spec(u); return d && d.cone ? d.cone : 0; },
   strikeAllows(u, t) { return aizen().shapeAllows(eng(), u, t); },

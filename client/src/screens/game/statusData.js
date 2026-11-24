@@ -16,6 +16,7 @@ const STATUS_INFO = {
   elLight:   { icon: "✨", label: "คราบแสง", cls: "bg-yellow-100 text-gray-900", desc: "" },
   elDark:    { icon: "🌑", label: "คราบมืด", cls: "bg-violet-700 text-white", desc: "" },
   stirred:   { icon: "🧬", label: "กระตุ้น", cls: "bg-lime-300 text-gray-900", desc: "" },
+  aizenOrb: { icon: "🌑", label: "อุลตร้าแมนออร์บ ดาร์ก", cls: "bg-violet-950 text-white", desc: "" }, // ไอเซ็น มาโคโตะ (GRID_PLAN §7.44) — เลข = เทิร์นที่เหลือ
   joshuaPhoenix: { icon: "🐦‍🔥", label: "ร่างนกเพลิง", cls: "bg-orange-500 text-gray-900", desc: "" }, // โจชัว รอสฟิลด์ (GRID_PLAN §7.41)
   frostbite: { icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900", desc: "" },
   // Ophy (characters/ophy.js · GRID_PLAN §7.43) — สถานะใหม่ที่ใครก็ติดได้
