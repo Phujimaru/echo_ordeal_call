@@ -367,7 +367,7 @@ qtePending() / sweepQte()                กันสรุปรอบ (checkAl
 - **ผลข้างเคียงที่ต่างจากลุกไหม้**: ระหว่างติดอยู่ การฟื้นพลังชีวิตเหลือครึ่ง (`bleedHealPenalty` ใน `healHp()`) — ฟื้น 1 หน่วยไม่ถูกลด
 - ฮุครายตัวละคร (ไม่ต้องแก้ `_universal_status.js`): `hbleedImmune(p)` / `hbleedHeals(p)` / `hbleedLabel(p)` / `hbleedHarmless(p)`
   (`hbleedHarmless` คุมเฉพาะการลดครึ่งของ `healHp`) · ลุกไหม้มีชุดเดียวกัน `hburnImmune` / `hburnHeals` / `hburnLabel` — ตัวละครปัจจุบันไม่ได้ใช้
-- **ลุกไหม้ใส่ผ่าน `engine.applyBurn(p, n)`** เหมือนกัน (เคารพ `resist` + เพดาน `HBURN_MAX = 6` + ประทับ `statusAt` · คืนจำนวนที่ติดเพิ่มจริง) — ไรโด ฮิคารุใช้ (คิงแพนด้อน · สโตเรี่ยม · ท่าไม้ตาย)
+- **ลุกไหม้ใส่ผ่าน `engine.applyBurn(p, n)`** เหมือนกัน (เคารพ `resist` + ไม่มีเพดาน (`HBURN_MAX = Infinity` — ผู้ใช้ปลด 2026-11-24 · เดิม 6) + ประทับ `statusAt` · คืนจำนวนที่ติดเพิ่มจริง) — ไรโด ฮิคารุใช้ (คิงแพนด้อน · สโตเรี่ยม · ท่าไม้ตาย)
 
 **ภาระเวท (`spellburden`) — กฎกลาง ห้าม bypass** (ตอนนี้ไม่มีตัวละครที่มอบ — ระบบยังอยู่และมีเทสต์)
 ทุกแหล่งต้องเรียก **`engine.applySpellburden(p, turns)`** เท่านั้น (`_universal_status.js` → wrapper ใน `server/combat.js`)

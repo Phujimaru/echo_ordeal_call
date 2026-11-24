@@ -370,3 +370,22 @@ test("ร่างนก: ศัตรูโจมตีใส่ = ผู้โ
   engine.clearPhaseTimer();
   assert.equal(t.statuses.hburn, 1);
 });
+
+test("นกเพลิงอมตะ: ตายช่วงจั่วไพ่ (นอกตาเดิน) = สั่งเล่นฉากเกิดใหม่ทันที · ตัวยังไม่โตจนคลิปจบ", async () => {
+  const { p } = setup();
+  const realPause = engine.pausePlayingForCutscene;
+  let called = 0;
+  engine.pausePlayingForCutscene = () => { called++; };
+  try {
+    match.gameState = "PLAYING";
+    kill(p);
+    assert.ok(p.alive && jo.birdOn(p));
+    assert.equal(engine.sizeOf(p), 1, "ยังไม่โตก่อนคลิป");
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(called, 1, "สั่งเล่นฉากเอง");
+    runAfter();
+    assert.equal(engine.sizeOf(p), 3, "โตหลังคลิป");
+  } finally {
+    engine.pausePlayingForCutscene = realPause;
+  }
+});

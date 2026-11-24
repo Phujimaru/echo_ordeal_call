@@ -41,6 +41,7 @@ const IMG = {
   secondary: `${DIR}/skill2.webp`,
   ultimate: `${DIR}/skill3.webp`,
   phoenix: `${DIR}/phoenix.webp`,
+  birdCover: `${DIR}/joshua_phoenix_cover.webp`, // ปกร่างนกฟีนิกซ์ (หน้าลำดับเดิน/เปิดการ์ด — ภาพผู้ใช้ 2026-11-24)
 };
 const FX = "joshuaFx";
 const VIDEO = { ultimate: `${DIR}/joshua_skill3.mp4`, rebirth: `${DIR}/joshua_rebirth.mp4`, hellsong: `${DIR}/joshua_hellsong.mp4` };
@@ -203,7 +204,7 @@ function rebirth(engine, p) {
   p.shield = 0;
   p.armor = 0;
   p.hp = BIRD.hp;
-  growBird(engine, p);
+  // ตัวโตเป็น 3×3 ตอนนกปรากฏหลังคลิป (ผู้ใช้แจ้ง: ตัวโตขึ้นเฉยๆ ก่อนเปลี่ยนร่าง)
   engine.log(`🐦‍🔥 ${p.name} นกเพลิงอมตะ — เกิดใหม่เป็นนกฟีนิกซ์! (พลังชีวิต ${BIRD.hp})`);
   // ฉาก (ผู้ใช้ 2026-11-23): ระเบิดเพลิงรุนแรง + จอมืดลงบนกระดาน (ภาพอย่างเดียว — กฎผู้ใช้: ไม่มีเสียงตัดหน้าวีดีโอ)
   //  → คลิปกำเนิดนกไฟ → หลังคลิป: นกปรากฏ + เผาสนาม + เสียง · ค่าต่างๆ เปลี่ยนแล้วตั้งแต่ตอนนี้ (client ยังวาดหมากเดิมระหว่าง hatch)
@@ -216,12 +217,24 @@ function rebirth(engine, p) {
     engine.deferAfterCutscene(() => {
       s.hatch = false;
       if (!p.alive || !birdOn(p)) return;
+      growBird(engine, p);
       engine.sfx(SFX.phoenix);
       fx(engine, p, "birdRise");
       burnField(engine, p);
     });
   });
   if (engine.wantFlow) engine.wantFlow();
+  kickHatch(engine, p);
+}
+// ฉากเกิดใหม่ต้องเล่นทันที (ผู้ใช้แจ้ง: ตายนอกตาเดิน → คลิปไม่เล่นจนเปิดไพ่) — คิวฉากถูกเล่นแค่ตอนใช้สกิล/ตีจบ/จบตาเดิน
+//  ถ้าหลังลงผลแล้วยังไม่มีใครเล่นคิว (ช่วงตาเดินว่าง ACTION หรือช่วงจั่วไพ่ PLAYING) = สั่งเล่นเอง · ช่วงอื่น (ฉากตี/คลิป) = คิวถูกเล่นอยู่แล้ว
+//  ช่วงจัดลำดับ/จบเทิร์น = ลองใหม่ที่ต้นตาเดินของใครก็ได้ / หลังแจกไพ่ (onUnitActorStart · onRoundDealt)
+function kickHatch(engine, p) {
+  setTimeout(() => {
+    const m = matchOf();
+    if (!p.joshua || !p.joshua.hatch || !m.skillBeats || !m.skillBeats.length) return;
+    if (m.gameState === "ACTION" || m.gameState === "PLAYING") engine.pausePlayingForCutscene();
+  }, 30);
 }
 // เพลิงแห่งชีวิต: ฟื้นตัวเองเท่าแต้ม
 function castSong(engine, p, n) {
@@ -302,7 +315,10 @@ module.exports = {
   damageBonus(engine, attacker) { return birdOn(attacker) ? BIRD.atk : 0; },
   skillHidden(p, tier) { return birdOn(p) && tier === "ultimate"; },
   skillMusic(engine, p) { return birdOn(p) && p.alive ? { music: MUSIC, at: st(p).birdAt || 0 } : null; },
-  characterPub(engine, p) { return birdOn(p) ? { name: "นกฟีนิกซ์", img: IMG.phoenix } : null; },
+  characterPub(engine, p) { return birdOn(p) ? { name: "นกฟีนิกซ์", img: IMG.birdCover } : null; },
+  // ฉากเกิดใหม่ค้างคิว (ตายช่วงจัดลำดับ/จบเทิร์น) → เล่นทันทีที่เกมเข้าช่วงที่เล่นได้
+  onRoundDealt(engine) { for (const p of Object.values(engine.players)) if (isMe(p) && p.joshua && p.joshua.hatch) kickHatch(engine, p); },
+  onUnitActorStart(engine) { for (const p of Object.values(engine.players)) if (isMe(p) && p.joshua && p.joshua.hatch) kickHatch(engine, p); },
   // นกเพลิงอมตะ: ตายครั้งแรก (ไม่มีคราบน้ำแข็ง/น้ำ) = เกิดใหม่ · ร่างนก: กันตาย 3 ครั้ง (พลังชีวิต 1 + สตั้น จนต้นเทิร์นถัดไป)
   preventDeath(engine, p) {
     if (!isMe(p)) return false;
