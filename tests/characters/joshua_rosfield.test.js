@@ -359,3 +359,14 @@ test("ร่างนก: จบเทิร์นแต้มสกิล +2 (�
   kill(p); runAfter();
   assert.equal(jo.skillRegen(p), 2);
 });
+
+test("ร่างนก: ศัตรูโจมตีใส่ = ผู้โจมตีลุกไหม้ 1", () => {
+  const { p, t } = setup();
+  kill(p); runAfter();
+  t.statuses = {};
+  t.pos = { x: p.pos.x + 3, y: p.pos.y + 1 };
+  engine.setActor("b");
+  engine.attackTarget("b", "a");
+  engine.clearPhaseTimer();
+  assert.equal(t.statuses.hburn, 1);
+});
