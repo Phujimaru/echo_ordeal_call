@@ -40,6 +40,13 @@ export default function useCharLayers(ctx) {
   const ballSig = JSON.stringify(state.players.filter((p) => p.gyro && Array.isArray(p.gyro.balls) && p.gyro.balls.length)
     .flatMap((p) => p.gyro.balls.filter((b) => b && Number.isFinite(b.x) && Number.isFinite(b.y)).map((b) => ({ owner: p.id, color: p.color, x: b.x, y: b.y, seq: b.seq | 0 }))));
   const gyroBalls = useMemo(() => { const list = JSON.parse(ballSig); return list.length ? list : null; }, [ballSig]);
+  // Ophy: วัตถุดิบที่ตก + ช่องพลังงานธาตุ (p.ophy.drops / nodes — ทุกคนเห็น) — ophyFx.js ophyGroundItems
+  const ophySig = JSON.stringify(state.players.filter((p) => p.ophy).reduce((o, p) => {
+    for (const d of p.ophy.drops || []) o.drops.push({ x: d.x, y: d.y, k: d.k, left: d.left | 0 });
+    for (const n of p.ophy.nodes || []) o.nodes.push({ x: n.x, y: n.y });
+    return o;
+  }, { drops: [], nodes: [] }));
+  const ophyGround = useMemo(() => { const o = JSON.parse(ophySig); return o.drops.length || o.nodes.length ? o : null; }, [ophySig]);
   // ดิเอโก้: ชั้นพื้น board.diego (น้ำมัน/ไฟ/ขี้เถ้า — ทุกคนเห็น) + ตาข่าย (server ส่ง nets ให้เจ้าของเท่านั้น · สีตามเจ้าของ)
   const dBoard = state.board && state.board.diego ? state.board.diego : null;
   const diegoSig = JSON.stringify({
@@ -95,5 +102,5 @@ export default function useCharLayers(ctx) {
     return { flora: celFlora, kings, hold: wallHold, preview: wallPreview };
   }, [celFlora, kingSig, wallHold, wallPreview]);
 
-  return { songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp };
+  return { ophyGround, songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp };
 }

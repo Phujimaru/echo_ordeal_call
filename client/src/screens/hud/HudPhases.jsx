@@ -153,7 +153,21 @@ const BLADES = (
     <g className="atkb-b r"><path className="atkb-blade" d="M50 50 L20 12 L14 10 L16 16 L46 54 Z" /><path className="atkb-guard" d="M52 42 L42 52" /><path className="atkb-grip" d="M49 51 L55 57" /></g>
   </svg>
 );
-export function AttackButton({ disabled = false, onClick, targets = 0 }) {
+//  potion = ภาพขวดยาถัดไป (Ophy: ปุ่มโจมตี = ยิงยา) · cost = พลังงานที่ใช้ (calculated ครั้งที่ 2 ขึ้นไป)
+export function AttackButton({ disabled = false, onClick, targets = 0, potion = null, cost = 0 }) {
+  if (potion) return (
+    <button type="button" className="atkb atkb-potion" data-hotkey="F" aria-keyshortcuts="F" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+      <kbd className="hk" aria-hidden="true">F</kbd>
+      <span className="atkb-bg" aria-hidden="true" />
+      <span className="atkb-emb">
+        <span className="atkb-hex" aria-hidden="true" />
+        <img key={potion} className="atkb-bottle" src={potion} alt="" draggable={false} />
+        {cost > 0 && <span className="atkb-count">{cost}</span>}
+      </span>
+      <b>ยิงยา</b>
+      <span className="atkb-chev" aria-hidden="true"><i /><i /><i /></span>
+    </button>
+  );
   return (
     <button type="button" className="atkb" data-hotkey="F" aria-keyshortcuts="F" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
       <kbd className="hk" aria-hidden="true">F</kbd>

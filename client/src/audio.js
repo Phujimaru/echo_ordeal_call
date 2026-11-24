@@ -451,6 +451,13 @@ const FILES = {
   // โจชัว รอสฟิลด์ (GRID_PLAN §7.41): ฟันดาบ = สำเนา vergil slash2 (Mixkit) · เสียงไฟจริงจาก Mixkit (ผู้ใช้สั่งโหลด 2026-11-23 · Mixkit Free License):
   //  กรวยไฟ = "Fire swoosh burning" #1328 · พร = "Soft woosh fire" #1346 · สวมร่าง = "Big fire flame burning" #1331 (ตัด 4.5 วิ) · พื้นหลัง = "Campfire crackles" #1330 (ครอสเฟดเป็นลูป 22 วิ)
   // ยูกิ มุโต้: เสียงการ์ด (สังเคราะห์ 2026-11-23 · ยังไม่ผ่านหูผู้ใช้) — ดรอว์ / ทิ้ง / ไหจอมละโมบ / ชิ้นส่วนป้องกัน · ชนะ = คลิป exodia_boost (เสียงในคลิป)
+  // Ophy (characters/ophy.js · GRID_PLAN §7.43): เสียงพากย์/เสียงกระเป๋า/หม้อ/ขวด = ไฟล์เพื่อนผู้ใช้ (wav → mp3 · loudnorm −15)
+  //  เสียงเสริมจาก Mixkit (Free License — ผู้ใช้อนุญาตให้โหลด 2026-11-24): ดื่ม "Game magical potion drink" #2828 · เก็บของ "Magic sparkle touch" #3083 ·
+  //  แปลงร่าง "Magic sparkle poof hit" #3082 · วาร์ป teleport #868 · ไก่ "Chicken hens clucking" #1768 · ล่องหน "Magic wand sparkle" #3062
+  ...Object.fromEntries([["hey", "hey_there"], ["hoho", "hoho"], ["bye", "bye"], ["haha1", "haha_01"], ["haha2", "haha_02"], ["atk1", "atk_01"], ["atk2", "atk_02"],
+    ["nuh", "nuh_uh"], ["open", "mp_01"], ["sort", "mp_02"], ["calc", "mp_02"], ["put1", "bw_put_01"], ["put2", "bw_put_02"], ["put3", "bw_put_03"], ["brew", "bw_suc"],
+    ["throw", "pt_throw_1"], ["shatter", "pt_throw_2"], ["drink", "drink"], ["pick", "pick"], ["poof", "poof"], ["warp", "warp"], ["cluck", "cluck"], ["invis", "invis"]]
+    .map(([k, f]) => [`ophy_${k}`, `/characters/ophy/sfx/${f}.mp3`])),
   yugi_draw: "/characters/yugi_muto/sfx/yugi_draw.mp3",
   yugi_drop: "/characters/yugi_muto/sfx/yugi_drop.mp3",
   yugi_greed: "/characters/yugi_muto/sfx/yugi_greed.mp3",

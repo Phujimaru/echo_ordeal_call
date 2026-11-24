@@ -1400,3 +1400,14 @@ button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
 
 /* ปุ่มพิเศษที่มีรูปแทนอีโมจิ (x.img — เจ้าหญิง Echo: ไดอารี่ความทรงจำ) */
 .hc-btn .ico .ico-img { width: 1.5em; height: 1.5em; object-fit: contain; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+
+/* Ophy: ปุ่มโจมตี = ยิงยา (ภาพขวดถัดไปแทนดาบไขว้ · เด้งเข้าเมื่อขวดเปลี่ยน · ลอยโยกเบาๆ ตอนกดได้) */
+.atkb-potion .atkb-bottle {
+  position: relative; width: 62%; height: 62%; object-fit: contain; image-rendering: pixelated;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, .6)); animation: atkb-bottle-in .35s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+.atkb-potion[data-off="false"] .atkb-bottle { animation: atkb-bottle-in .35s cubic-bezier(.3, 1.6, .5, 1) both, atkb-bottle-bob 1.6s ease-in-out .35s infinite; }
+.atkb-potion[data-off="false"]:hover .atkb-bottle { filter: drop-shadow(0 0 12px rgba(255, 240, 160, .95)); }
+@keyframes atkb-bottle-in { from { transform: translateY(14px) scale(.4) rotate(-30deg); opacity: 0; } }
+@keyframes atkb-bottle-bob { 50% { transform: translateY(-3px) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .atkb-potion .atkb-bottle { animation: none !important; } }

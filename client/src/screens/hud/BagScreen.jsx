@@ -47,7 +47,7 @@ function Icon({ info, className = "" }) {
 // statusOf(p) = รายการสถานะ (Game.jsx forecastStatusItems: { key, icon, label, cls, n }) — ใช้กับตัวเลือกของยาล้างสถานะ
 // shops = ร้านบนแผนที่ที่ซื้อจากระยะไกลได้ (Gate of Babylon ของกิลกาเมช — me.remoteShop) · null = ไม่มีปุ่มร้าน · onShop(ร้าน) = เปิดร้านนั้น
 const SHOP_CREST = { apoth: "⚗️", forge: "⚙️", cara: "🐎", capsule: "📦" };
-export default function BagScreen({ me, players, myTurn: turnProp, rtFree = false, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb, side = null }) { // side = แผงคู่ข้างกระเป๋า (Road Trip: กล่องรถ — วางในเวทีเดียวกัน ขนาด/สเกลเท่ากัน)
+export default function BagScreen({ me, players, myTurn: turnProp, rtFree = false, bagSlots = 5, draw = null, onDrawUse, statusOf, onClose, shops = null, onShop, onBomb, onOphyWarp, side = null }) { // side = แผงคู่ข้างกระเป๋า (Road Trip: กล่องรถ — วางในเวทีเดียวกัน ขนาด/สเกลเท่ากัน)
   const k = useStageK();
   const items = me?.inventory || [];
   const [selUid, setSelUid] = useState(items[0]?.uid || null);
@@ -158,6 +158,11 @@ export default function BagScreen({ me, players, myTurn: turnProp, rtFree = fals
           <button type="button" className="bag-btn primary" disabled={!myTurn || !onBomb} onClick={() => { clickSound(); onBomb(sel, bombEl); }}>โยน</button>
         </>
       );
+    } else if (type === "ophyPotion" && sel.potion === "warp") {
+      // น้ำยาวาร์ปของ Ophy: ดื่ม = เลือกช่องว่างในระยะ 4 (Game.jsx pickReq "ophyWarp")
+      actions = <button type="button" className="bag-btn primary" disabled={!myTurn || !onOphyWarp} onClick={() => { clickSound(); onOphyWarp(sel); }}>ดื่ม</button>;
+    } else if (type === "ophyPotion") {
+      actions = <button type="button" className="bag-btn primary" disabled={!myTurn} onClick={() => emit("useInventoryItem", { uid: sel.uid })}>ดื่ม</button>;
     } else if (type === "kebread") {
       // ขนมปังของเอมิลิโกะ: กินเอง / ป้อนเคทที่ยืนติดกัน (คุมเอมิลิโกะอยู่เท่านั้น)
       const isEmi = me?.character?.id === "emiliko";

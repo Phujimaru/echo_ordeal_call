@@ -26,6 +26,7 @@ import { ForecastScreen, OrderCall, TurnCall } from "./BoardScenes";
 import { faceStyle } from "./charFace";
 import { preloadIceArt } from "./iceFx";
 import { preloadGyroArt } from "./gyroFx";
+import { preloadOphyArt } from "./ophyFx";
 import { NARU_STATE, preloadNaruhodoArt } from "./naruhodoFx";
 import { preloadDiegoArt } from "./diegoFx";
 import { ELEMENTS, auraOf } from "../data/elements";
@@ -244,6 +245,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
   useEffect(() => { if (hasIceSpike) preloadIceArt(); }, [hasIceSpike]);
   const hasGyro = state.players.some((p) => !!p.gyro);
   useEffect(() => { if (hasGyro) preloadGyroArt(); }, [hasGyro]);
+  const hasOphy = state.players.some((p) => !!p.ophy || !!p.morph);
+  useEffect(() => { if (hasOphy) preloadOphyArt(); }, [hasOphy]);
   const hasDiego = state.players.some((p) => !!p.diego);
   useEffect(() => { if (hasDiego) preloadDiegoArt(); }, [hasDiego]);
   const hasNaru = state.players.some((p) => !!p.naruhodo);
@@ -788,6 +791,8 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
           if (pickInfo.foot > 1) h.ghost = fp;
           // ระเบิดรอบจุดลง (ดิเอโก้ ย่ำกระหม่อม: ข้าวหลามตัดรัศมี blast)
           if (pick.blast > 0) h.aoe = [...fp, ...Rules.aoeTiles(map, a.x, a.y, pick.blast, 1).map((t) => key(t.x, t.y))];
+          // กรอบ n×n รอบจุดลง (Ophy ยิงยา: วง 3×3)
+          if (pick.square > 1) h.aoe = squareKeys(map, a.x, a.y, pick.square);
         }
         // เลือกหลายช่อง (ลอว์: Shambles / Shamble): ช่องที่เลือกไว้แล้ว = กรอบทองค้าง
         if (multiIds.length) h.aoe = [...new Set([...(h.aoe || []), ...multiIds])];
@@ -903,9 +908,14 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       jbird: !mk && p.joshua && p.joshua.bird ? { down: !!p.joshua.down } : null, // (hatch = ระหว่างระเบิดเพลิง/คลิป ยังวาดหมากเดิม) // โจชัว ร่างนกฟีนิกซ์: นกเพลิงกระพือปีก 3×3 (joshuaFx.drawPhoenixBird)
-      standee: !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
+      // ไก่ / นก (น้ำยาแปลงร่างของ Ophy — ใครก็ติดได้ · server/morph.js) ทับทุกภาพ · Ophy เอง = ภาพตัวเต็มแทนหมาก
+      standee: !mk && p.morph === "chicken" ? "/characters/ophy/chicken.webp" : !mk && p.morph === "bird" ? "/characters/ophy/bird.webp"
+        : !mk && p.ophy && (p.characterId || (p.character && p.character.id)) === "ophy" ? "/characters/ophy/standee.webp"
+        : !mk && p.joshua && p.joshua.bird ? "/characters/joshua_rosfield/phoenix.webp" : !mk && p.freddy ? p.freddy.standee || null : !mk && p.foxy ? p.foxy.standee || null : !mk && p.master ? p.master.standee || null : !mk && p.dino ? p.dino.standee || null : null, // เฟรดดี้ / Master + ตัวอัญเชิญ / ดิเอโก้ อสูรกายดึกดำบรรพ์ (ร่างคน/ไดโนเสาร์ · ขี่ม้า = หกเหลี่ยม): ภาพตัวเต็มแทนหมาก
       // ดิเอโก้ อสูรกายดึกดำบรรพ์ (dinoFx.js): ร่าง/ความบ้าคลั่ง · ไวรัสบนตัว (ใครก็ติดได้) · กำลังถูกควบคุมร่าง (server/possess.js)
       dino: !mk && p.dino ? { form: p.dino.form, frenzy: p.dino.frenzy | 0 } : null,
+      // Ophy (ophyFx.js ophyUnitFront): ยา 4 ขวดถัดไปเหนือหัว (ทุกคนเห็น) · Lock in · calculated
+      ophy: !mk && p.ophy && p.alive ? { queue: p.ophy.queue || [], lockIn: !!p.ophy.lockIn, calc: !!p.ophy.calc } : null,
       dvirus: !mk && p.statuses ? (p.statuses.dinoVirus | 0) : 0,
       // นารุโฮโดะ (naruhodoFx.js naruUnitFront): ถูกสืบสวน (เฉพาะคนสืบเห็น) · ถูกคัดค้าน (statuses.naruhodoObjected — ทุกคนเห็น)
       naru: (() => {
@@ -950,7 +960,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       hp: t.hp ?? 0, maxHp: t.maxHp ?? 0, armor: t.armor ?? 0, maxArmor: t.maxArmor ?? 0, isMe: false, isActor: false, teamId: t.teamId || null,
     }))),
   [state.players, state.actorId, state.clockUp, me, myDim, naruScoutId, naruEv, hold, vitHold, threatIds, pickValid, ghost, faces, iceHold, iceGhosts, diegoGhosts, corpses, byId, riderOn, coopMode, carDrivers, state.world, vehicleBars]);
-  const { songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp } = useCharLayers({ celFlora, dirPick, hover, pickInfo, sameDim, spikeList, state, wallHold, wallOrient, wallPlan });
+  const { ophyGround, songs, grays, gils, ferns, gyroBalls, kiriGround, diegoGround, otoyaProp, ryougiProp, emiyaProp, lawProp, celineProp } = useCharLayers({ celFlora, dirPick, hover, pickInfo, sameDim, spikeList, state, wallHold, wallOrient, wallPlan });
   // ---------- คลิก ----------
   const busy = !!anim;
   const onUnitClick = (id) => {
@@ -1267,6 +1277,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         emiya={emiyaProp}
         law={lawProp}
         gyroBalls={gyroBalls}
+        ophyGround={ophyGround}
         diego={diegoGround}
         kiri={kiriGround}
         soraShells={state.board && Array.isArray(state.board.soraShells) ? state.board.soraShells : null}

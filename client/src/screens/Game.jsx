@@ -26,6 +26,7 @@ import { DioGauge, DioInterrupt, LastStandDuel } from "./hud/DioHud";
 import { ShinraEmber } from "./hud/ShinraHud";
 import { RolandEgo } from "./hud/RolandHud";
 import { YugiHand } from "./hud/YugiHud";
+import OphyPocket from "./hud/OphyPocket";
 import { MagnaHeat } from "./hud/MagnaHud";
 import NaruhodoHud, { TradePanel } from "./hud/NaruhodoHud";
 import { FreddyDoors } from "./hud/FreddyDoors";
@@ -516,6 +517,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ฉากใส่การ์ด Evolution (Rouze Absorber) · หมดตา/เข้าร่างแล้ว = ปิด
   const [kzEvolve, setKzEvolve] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false); // อินุอิ: Faiz Phone กางอยู่
+  const [ophyOpen, setOphyOpen] = useState(false); // Ophy: กระเป๋าวิเศษกางอยู่ (hud/OphyPocket.jsx) · หมดตา = ปิด
+  if (ophyOpen && (!myTurn || !me?.ophy?.call)) setOphyOpen(false);
   if (phoneOpen && (!myTurn || canto || !me?.inui?.opened)) setPhoneOpen(false);
   if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
@@ -590,6 +593,8 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       const tid = vergilQuickTarget(me, state.players);
       if (tid) { clickSound(); socket.emit("useSkill", { tier, targets: [tid] }); return; }
     }
+    // Ophy: ปรุงยา = เปิดกระเป๋าวิเศษ (ปรุง/เรียง/ดื่ม/ให้ ทำในกระเป๋า)
+    if (me?.ophy?.call && tier === "basic" && vp.w >= 768) { setOphyOpen(true); return; }
     // ปุ่มหลายตัวเลือก: เปิดตัวเลือก (การเลือก = การยืนยัน)
     if (ch?.[tier]?.choices && vp.w >= 768) { clickSound(); setChoiceOpen({ tier, unit: me?.id }); return; }
     // ระบบคู่: กระจกเงา (สลับตัว · 0 แต้ม) ไม่ต้องยืนยัน — ตื่นขึ้นอีกครั้ง (มีราคา) ยังถามตามการตั้งค่า
@@ -679,7 +684,24 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       // ปุ่มพิเศษที่มี tiles (actions[].tiles): เลือกช่องบนกระดาน (มุมบนซ้ายของตัว) → charAction { key, tile }
       const act = (me.actions || []).find((x) => x.key === pickReq.key);
       const tiles = act && Array.isArray(act.tiles) ? act.tiles : [];
-      boardPick = { kind: "tile", place: "list", tiles, foot: Math.max(1, me.size | 0), label: act ? act.name : pickReq.key, onPick: (tile) => { socket.emit("charAction", { key: pickReq.key, tile }); done(); }, onCancel: done };
+      boardPick = { kind: "tile", place: "list", tiles, foot: Math.max(1, me.size | 0), square: act && act.square > 1 ? act.square : 0, label: act ? act.name : pickReq.key, onPick: (tile) => { socket.emit("charAction", { key: pickReq.key, tile }); done(); }, onCancel: done };
+    } else if (pickReq.kind === "ophyWarp") {
+      // น้ำยาวาร์ป (Ophy · ดื่มเอง/ไอเทมที่ได้รับ): ช่องว่างในระยะ 4 (แมนฮัตตัน) → ดื่ม
+      const tiles = [];
+      if (state.board && me?.pos) {
+        const map = Rules.normalizeMap(state.board);
+        const taken = new Set((state.players || []).filter((p) => p.alive && p.pos).flatMap((p) => Rules.footprint(p.pos.x, p.pos.y, p.size || 1).map((t) => `${t.x},${t.y}`)));
+        for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+          const d = Math.abs(dx) + Math.abs(dy), x = me.pos.x + dx, y = me.pos.y + dy;
+          if (d >= 1 && d <= 4 && !Rules.isObstacle(map, x, y) && !taken.has(`${x},${y}`)) tiles.push({ x, y });
+        }
+      }
+      boardPick = { kind: "tile", place: "list", tiles, foot: 1, label: "🌀 4", onPick: (tile) => {
+        clickSound();
+        if (pickReq.uid) socket.emit("useInventoryItem", { uid: pickReq.uid, tile });
+        else socket.emit("charAction", { key: `ophy:drink:${pickReq.ref}`, tile });
+        done();
+      }, onCancel: done };
     }
   }
   const pickGift = (id) => {
@@ -1155,11 +1177,15 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
                   {ch?.ultimate && <SkillSlot variant="hud" label="ท่าไม้ตาย" tier="ultimate" skill={ch?.ultimate} points={me.skillPoints} rangeLabel={areaText(ch?.ultimate?.area)} disabled={slotOff("ultimate")} onUse={requestSkillUse} cooldown={muimiUltCd || giftCd("ultimate")} />}
                 </>
               }
-              attack={{ disabled: canto || !!state.action?.noStrike || !attackables.length, targets: attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
+              attack={me?.ophy?.call
+                // Ophy: ปุ่มโจมตี = ยิงยา (เลือกช่องในระยะ 3 · วง 3×3) — characters/ophy.js hudActions "ophy:throw"
+                ? (() => { const act = (me.actions || []).find((x) => x.key === "ophy:throw"); const ok = !!act && !act.disabled && Array.isArray(act.tiles) && act.tiles.length > 0 && !canto;
+                  return { disabled: !ok, targets: 0, potion: act && act.img, cost: act && act.cost, onClick: () => { clickSound(); setPickReq(pickReq?.kind === "action" && pickReq.key === "ophy:throw" ? null : { kind: "action", key: "ophy:throw" }); } }; })()
+                : { disabled: canto || !!state.action?.noStrike || !attackables.length, targets: attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shops={canto ? null : nearShops.map((sh) => ({ id: sh.id, kind: sh.kind, name: sh.name || shopName(sh.kind), onClick: () => viewShop(sh) }))}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
               drop={me && (state.players || []).some((p) => p.alive && p.ride === me.id) ? { onClick: () => { clickSound(); socket.emit("rideDrop"); } } : null}
-              extra={[...rtVanBtns, ...(me?.actions || []).map((x) => {
+              extra={[...rtVanBtns, ...(me?.actions || []).filter((x) => x.key !== "ophy:throw").map((x) => {
                 // tiles = เลือกช่องบนกระดานก่อน (กดซ้ำ = ยกเลิก) · ไม่มี = ส่งทันที (ม้าของไจโร/ดิเอโก้)
                 const picking = pickReq?.kind === "action" && pickReq.key === x.key;
                 const tiles = Array.isArray(x.tiles) && x.tiles.length ? x.tiles : null;
@@ -1214,6 +1240,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
         skillConfirm={skillConfirm} onConfirmSkill={confirmSkillUse} onCancelSkill={cancelSkillConfirm}
         remoteShops={me?.remoteShop ? shopList : null} onRemoteShop={(sh) => { setBagOpen(false); viewShop(sh); }}
         onBomb={(it, el) => { setBagOpen(false); setPickReq({ kind: "bomb", uid: it.uid, el }); }}
+        onOphyWarp={(it) => { setBagOpen(false); setPickReq({ kind: "ophyWarp", uid: it.uid }); }}
       />
       {/* ยูนะขอขี่ (server/ride.js): เจ้าของตัวที่ถูกขอกดยินยอม/ปฏิเสธ */}
       {state.rideAsk && state.rideAsk.mine && (
@@ -1242,6 +1269,21 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           isOk={choiceOk}
           onClose={() => setKzOpen(false)}
           onPick={(c) => socket.emit("useSkill", { tier: "secondary", form: c.key })}
+        />
+      )}
+      {ophyOpen && me?.ophy?.call && (
+        <OphyPocket
+          ophy={me.ophy}
+          me={me}
+          players={state.players}
+          teamMode={state.gameMode === "duo" || state.gameMode === "trio" || state.gameMode === "eos" || !!state.roadtrip}
+          canAct={myTurn && !canto}
+          onClose={() => setOphyOpen(false)}
+          onBrew={(refs) => socket.emit("useSkill", { tier: "basic", form: `brew:${refs.join(",")}` })}
+          onSort={(arr) => socket.emit("charAction", { key: `ophy:sort:${arr}` })}
+          onDrink={(ref, k) => { if (k === "warp") { setOphyOpen(false); setPickReq({ kind: "ophyWarp", ref }); } else socket.emit("charAction", { key: `ophy:drink:${ref}` }); }}
+          onGive={(ref, mateId) => socket.emit("charAction", { key: `ophy:give:${ref}:${mateId}` })}
+          onNote={(tokens) => socket.emit("charAction", { key: `ophy:note:${tokens}` })}
         />
       )}
       {phoneOpen && me?.inui && (

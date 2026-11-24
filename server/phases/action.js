@@ -193,6 +193,7 @@ function unitAlly(a, b) {
 // บินได้ (ฮุค flies(p) — โล่บินได้ของบานาจ GRID_PLAN §7.5.1): เดินทะลุสิ่งกีดขวาง/คนแบบเดินทะลุ (Board.reachable ghost) หยุดซ้อนช่องได้
 //  และไม่ขวางทางเดินของใคร (walkUnits ไม่นับ) — ยังถูกตี/โดนพื้นที่ได้ตามปกติ
 function flies(p) {
+  if (require("../morph").flies(p)) return true; // นก (น้ำยาแปลงร่างของ Ophy): บินข้ามสิ่งกีดขวาง
   const hook = p && CHAR_HOOKS[p.characterId];
   return !!(hook && hook.flies && hook.flies(p));
 }
@@ -233,6 +234,8 @@ function tauntAllows(p, t) {
 //  ตัวละครเปลี่ยนเองได้ผ่านฮุค mov(p) (ไจโร: ขี่ม้า) · ค่าตั้งต้นของเจ้าหญิง Echo ตอนเปลี่ยนสกิล = ของ Echo (statId)
 function baseMovOf(p) {
   if (p.summon && Number.isFinite(p.summon.mov)) return p.summon.mov; // ยูนิตที่ถูกเรียก (server/summon.js)
+  const morph = require("../morph").mov(p); // ไก่ 3 / นก 6 (น้ำยาแปลงร่างของ Ophy — server/morph.js)
+  if (morph != null) return morph;
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.mov ? hook.mov(p) : null;
   if (Number.isFinite(own)) return own;
@@ -321,6 +324,8 @@ function rangeOf(p) {
   return RT.rangeMod(p, Fodlan.rangeMod(p, Colony.rangeMod(p, baseRangeOf(p)))); // Road Trip: ประตูท้าย +1 · Colony: หอสังเกตการณ์ +1 · ไฟดับ −1 (server/colony.js) · Eos: Bow of the Clever +2
 }
 function baseRangeOf(p) {
+  const morph = require("../morph").range(p); // ไก่ประชิด / นกตีไม่ได้ (server/morph.js)
+  if (morph) return morph;
   const hook = CHAR_HOOKS[p.characterId];
   const own = hook && hook.range ? hook.range(p) : null;
   if (Array.isArray(own)) return own;

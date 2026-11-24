@@ -11,6 +11,7 @@
 //  ไฟล์นี้ไม่ require อะไร — require ได้จากทุกที่โดยไม่วน
 // ============================================================
 const KEY = "noPassive";
-const sealed = (p) => !!p && ((p.statuses && p.statuses[KEY]) || 0) > 0;
+// ไก่ / นก (น้ำยาแปลงร่างของ Ophy — server/morph.js) = ไม่มีสกิลติดตัวระหว่างเป็นร่างนั้นด้วย
+const sealed = (p) => !!p && !!p.statuses && ((p.statuses[KEY] || 0) > 0 || (p.statuses.chicken || 0) > 0 || (p.statuses.bird || 0) > 0);
 const on = (p) => !sealed(p);
 module.exports = { KEY, sealed, on };

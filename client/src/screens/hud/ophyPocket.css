@@ -1,0 +1,147 @@
+/* กระเป๋าวิเศษของ Ophy — OphyPocket.jsx · ภาพพื้นหลังพิกเซลของเพื่อนผู้ใช้ · เคลื่อนไหวด้วย transform/opacity/filter เท่านั้น */
+.op-veil {
+  position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 55%, rgba(60, 30, 80, .55), rgba(8, 6, 14, .82));
+  backdrop-filter: blur(3px); animation: op-veil-in .22s ease-out both;
+}
+@keyframes op-veil-in { from { opacity: 0; } to { opacity: 1; } }
+.op-stage {
+  position: relative; flex: none; transform-origin: center; user-select: none; touch-action: none;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .6)) drop-shadow(0 0 30px rgba(255, 190, 110, .18));
+  animation: op-open .38s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+@keyframes op-open { from { opacity: 0; translate: 0 26px; rotate: -2deg; } to { opacity: 1; translate: 0 0; rotate: 0deg; } }
+.op-bg { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; }
+
+/* ---------- ช่องกระเป๋า ---------- */
+.op-slot {
+  position: absolute; display: flex; align-items: center; justify-content: center; cursor: grab; border-radius: 4px;
+  transition: box-shadow .15s, background-color .15s;
+}
+.op-slot:hover { background: rgba(255, 245, 200, .14); box-shadow: inset 0 0 0 2px rgba(255, 246, 210, .55); }
+.op-slot[data-on="true"] { box-shadow: inset 0 0 0 3px #fff3b0, 0 0 14px rgba(255, 220, 120, .8); }
+.op-slot[data-over="true"] { background: rgba(140, 255, 190, .22); box-shadow: inset 0 0 0 3px rgba(150, 255, 200, .9); }
+.op-slot[data-next="true"]::after {
+  content: ""; position: absolute; inset: 4px; border-radius: 6px; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, .85), 0 0 16px 4px rgba(120, 220, 255, .75);
+  animation: op-next 1.2s ease-in-out infinite;
+}
+@keyframes op-next { 50% { opacity: .35; } }
+.op-item { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; pointer-events: none; transition: opacity .15s, transform .15s; }
+.op-slot:hover .op-item { transform: translateY(-3px) scale(1.06); }
+.op-item[data-ghost="true"] { opacity: .28; }
+.op-pot { width: 84%; height: 84%; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 3px 0 rgba(60, 30, 10, .45)); pointer-events: none; }
+.op-pot.sm { width: 26px; height: 26px; }
+.op-mat {
+  width: 74%; height: 74%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 40% 35%, rgba(var(--rgb), .55), rgba(var(--rgb), .1) 70%, transparent 72%);
+}
+.op-mat-ic { font-size: 46px; line-height: 1; filter: drop-shadow(0 3px 0 rgba(60, 30, 10, .4)); }
+.op-mat.sm { width: 26px; height: 26px; }
+.op-mat.sm .op-mat-ic { font-size: 18px; }
+.op-n {
+  position: absolute; right: 6px; bottom: 3px; min-width: 22px; padding: 0 5px; border-radius: 8px; text-align: center;
+  font: 800 17px/22px "Press Start 2P", ui-monospace, monospace; color: #fffbe9; background: rgba(70, 38, 18, .82);
+  box-shadow: 0 0 0 2px rgba(255, 230, 170, .55); pointer-events: none;
+}
+.op-n[data-low="true"] { color: #ffb4a0; }
+.op-cap {
+  position: absolute; left: 244px; top: 268px; padding: 1px 8px; border-radius: 7px; pointer-events: none;
+  font: 800 16px/22px ui-monospace, monospace; color: #5c3418; background: rgba(255, 236, 190, .55);
+}
+.op-cap[data-full="true"] { color: #fff; background: #c0392b; }
+
+/* ---------- หม้อ ---------- */
+.op-potslot { position: absolute; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 4px; transition: box-shadow .15s, background-color .15s; }
+.op-potslot:hover { background: rgba(255, 245, 200, .14); }
+.op-potslot[data-over="true"] { background: rgba(140, 255, 190, .25); box-shadow: inset 0 0 0 3px rgba(150, 255, 200, .95); }
+.op-item.in { animation: op-plop .32s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes op-plop { from { transform: translateY(-26px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.op-cauldron[data-ready="ok"] .op-potslot { box-shadow: inset 0 0 0 3px rgba(130, 255, 170, .85), 0 0 18px rgba(110, 255, 160, .6); }
+.op-cauldron[data-ready="bad"] .op-potslot { box-shadow: inset 0 0 0 3px rgba(255, 150, 90, .8); }
+.op-cauldron[data-brewing="fail"] .op-potslot, .op-cauldron[data-brewing="fail"] .op-out { animation: op-shake .45s linear 2; }
+@keyframes op-shake { 20% { transform: translate(-4px, 2px) rotate(-3deg); } 40% { transform: translate(4px, -2px) rotate(3deg); } 60% { transform: translate(-3px, -2px); } 80% { transform: translate(3px, 2px); } }
+.op-out { position: absolute; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.op-out .op-pot.pop { width: 96%; height: 96%; animation: op-pop 1.5s cubic-bezier(.2, 1.5, .4, 1) both; }
+@keyframes op-pop {
+  0% { transform: translateY(70px) scale(.2); opacity: 0; filter: brightness(3) drop-shadow(0 0 0 #fff); }
+  25% { transform: translateY(-8px) scale(1.25); opacity: 1; filter: brightness(1.6) drop-shadow(0 0 18px #fff7c0); }
+  45% { transform: translateY(0) scale(1); filter: brightness(1.1) drop-shadow(0 0 10px #fff7c0); }
+  85% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { transform: translateY(40px) scale(.6); opacity: 0; filter: none; }
+}
+.op-out::before, .op-out::after { content: ""; position: absolute; inset: -30%; border-radius: 50%; opacity: 0; pointer-events: none; }
+.op-cauldron[data-brewing="brew"] .op-out::before { background: radial-gradient(circle, rgba(255, 250, 200, .95), rgba(255, 210, 110, .45) 40%, transparent 70%); animation: op-flash .9s ease-out both; }
+.op-cauldron[data-brewing="brew"] .op-out::after { border: 4px solid rgba(255, 244, 190, .95); animation: op-ring .8s ease-out both; }
+@keyframes op-flash { 0% { opacity: 0; transform: scale(.3); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes op-ring { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.7); } }
+.op-smoke { position: absolute; inset: -40%; border-radius: 50%; background: radial-gradient(circle, rgba(90, 80, 100, .9), rgba(150, 100, 200, .5) 45%, transparent 70%); animation: op-puff 1.1s ease-out both; }
+@keyframes op-puff { 0% { opacity: 0; transform: scale(.3); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-40px) scale(1.8); } }
+/* ฟองลอยขึ้นจากเตา (ลายพิกเซลบนภาพ) — เร็วขึ้นตอนหม้อพร้อม */
+.op-bubbles { position: absolute; left: 248px; top: 56px; width: 50px; height: 120px; pointer-events: none; }
+.op-bubbles i {
+  position: absolute; bottom: 0; left: calc(var(--i) * 6px); width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(150, 235, 255, .8); box-shadow: 0 0 6px rgba(150, 235, 255, .9); opacity: 0;
+  animation: op-bub 2.4s ease-in infinite; animation-delay: calc(var(--i) * .34s);
+}
+.op-cauldron[data-ready="ok"] .op-bubbles i { animation-duration: 1.1s; background: rgba(140, 255, 170, .9); box-shadow: 0 0 8px rgba(140, 255, 170, .95); }
+.op-cauldron[data-ready="bad"] .op-bubbles i { animation-duration: 1.3s; background: rgba(255, 170, 110, .9); }
+@keyframes op-bub { 0% { opacity: 0; transform: translate(0, 0) scale(.5); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(calc((var(--i) - 3) * 3px), -110px) scale(1.2); } }
+.op-streak { position: absolute; left: 388px; top: 136px; display: flex; gap: 6px; pointer-events: none; }
+.op-streak i { width: 12px; height: 12px; border-radius: 50%; background: rgba(110, 70, 40, .35); box-shadow: inset 0 0 0 2px rgba(110, 70, 40, .55); transition: background-color .2s, box-shadow .2s; }
+.op-streak i[data-on="true"] { background: #7dffb0; box-shadow: 0 0 10px #7dffb0, inset 0 0 0 2px #fff; }
+
+/* ---------- ปุ่มบนภาพ (โปร่ง — ภาพเป็นปุ่มอยู่แล้ว) ---------- */
+.op-hit { position: absolute; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 10px; transition: transform .12s, filter .12s, background-color .12s; }
+.op-hit:hover { background: rgba(255, 250, 220, .2); transform: scale(1.06); }
+.op-hit:active { transform: scale(.95); }
+.op-ok[data-live="true"] { animation: op-ok 1s ease-in-out infinite; box-shadow: 0 0 0 3px rgba(130, 255, 170, .9), 0 0 22px rgba(110, 255, 160, .8); }
+@keyframes op-ok { 50% { transform: scale(1.08); } }
+.op-cd { position: absolute; right: -8px; bottom: -8px; padding: 1px 6px; border-radius: 8px; font: 800 14px/20px ui-monospace, monospace; color: #fff; background: #6b4226; }
+.op-paper[data-note="true"] { background: rgba(255, 250, 220, .12); }
+.op-note { position: absolute; left: 18%; top: 30%; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.op-note-i { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: rgba(255, 255, 255, .45); box-shadow: 0 0 0 2px rgba(150, 100, 60, .5); animation: op-ink .35s ease-out both; }
+.op-note-i:nth-child(2) { animation-delay: .08s; } .op-note-i:nth-child(3) { animation-delay: .16s; }
+.op-note-i[data-miss="true"] { opacity: .3; filter: grayscale(1); }
+@keyframes op-ink { from { opacity: 0; transform: rotate(-12deg) scale(.6); } }
+.op-book:hover { filter: drop-shadow(0 0 8px #fff3b0); }
+.op-pen:hover { transform: rotate(-12deg) scale(1.08); }
+
+/* ---------- ดื่ม / ให้ ---------- */
+.op-pop {
+  position: absolute; transform: translate(-50%, -100%); padding: 8px 10px; border-radius: 14px; z-index: 4;
+  background: linear-gradient(#fff4d8, #f1d7a4); box-shadow: 0 0 0 3px #6b4226, 0 10px 24px rgba(0, 0, 0, .45);
+  animation: op-pop-in .18s cubic-bezier(.3, 1.6, .5, 1) both;
+}
+@keyframes op-pop-in { from { transform: translate(-50%, -88%) scale(.7); opacity: 0; } }
+.op-pop::after { content: ""; position: absolute; left: 50%; bottom: -9px; translate: -50% 0; border: 9px solid transparent; border-bottom: 0; border-top-color: #6b4226; }
+.op-pop-name { display: block; text-align: center; font: 800 15px/20px system-ui, sans-serif; color: #5c3418; margin-bottom: 6px; white-space: nowrap; }
+.op-pop-row { display: flex; gap: 6px; }
+.op-pop-btn {
+  display: flex; align-items: center; gap: 4px; padding: 5px 10px; border: 0; border-radius: 10px; cursor: pointer;
+  font: 800 15px/20px system-ui, sans-serif; color: #fff; background: linear-gradient(#5aa9ff, #2b6fd1); box-shadow: 0 3px 0 #1b4a92;
+  transition: transform .1s, filter .1s;
+}
+.op-pop-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.op-pop-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1b4a92; }
+.op-pop-btn img { width: 22px; height: 22px; image-rendering: pixelated; }
+.op-pop-btn img.face { border-radius: 50%; object-fit: cover; image-rendering: auto; box-shadow: 0 0 0 2px #fff; }
+.op-pop-btn.give { background: linear-gradient(#5fd48a, #2c9c55); box-shadow: 0 3px 0 #1d6b3a; }
+
+.op-tip {
+  position: absolute; transform: translate(-50%, calc(-100% - 6px)); padding: 3px 10px; border-radius: 8px; pointer-events: none; white-space: nowrap; z-index: 5;
+  font: 800 14px/20px system-ui, sans-serif; color: #fffbe9; background: rgba(60, 32, 16, .92); box-shadow: 0 0 0 2px rgba(255, 220, 150, .5);
+  animation: op-pop-in .12s ease-out both;
+}
+.op-drag {
+  position: absolute; width: 92px; height: 92px; translate: -50% -50%; pointer-events: none; z-index: 6;
+  display: flex; align-items: center; justify-content: center; rotate: -8deg;
+  filter: drop-shadow(0 12px 10px rgba(0, 0, 0, .45)) drop-shadow(0 0 12px rgba(255, 240, 180, .8));
+}
+.op-guide { position: absolute; inset: 0; z-index: 8; animation: op-page .25s ease-out both; }
+@keyframes op-page { from { opacity: 0; transform: perspective(900px) rotateY(-14deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .op-stage, .op-veil, .op-guide, .op-pop, .op-item.in { animation: none; }
+  .op-slot[data-next="true"]::after, .op-ok[data-live="true"], .op-bubbles i { animation: none; }
+}

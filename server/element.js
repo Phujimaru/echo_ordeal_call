@@ -27,6 +27,7 @@ Object.assign(module.exports, {
   current, withElement, withChainBlock, capture, auraOf, terrainAura, terrainAt, clearAura, afterHit, apply, react, windBurst, tickFrost, pub,
   attackElementOf, skillElementOf, lastReaction, takeReaction,
   tickFields, resetFields, fieldsPub, typeOf, typeBlocks, typeAdjust, withReaction,
+  withRing, reactShift, auraTurnsFor,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -116,12 +117,29 @@ function clearAura(p) {
 }
 function setAura(p, el) {
   clearAura(p);
-  p.statuses[AURA_KEYS[el]] = AURA_TURNS;
+  p.statuses[AURA_KEYS[el]] = auraTurnsFor(p);
 }
-function canTake(t, source) {
+// เวลาคราบของ p: ภูมิต่ำ (immLow) +2 · ภูมิสูง (immHigh) −1 (สถานะ Universal — Ophy GRID_PLAN §7.43) · อย่างน้อย 1
+function auraTurnsFor(p) {
+  const st = (p && p.statuses) || {};
+  return Math.max(1, AURA_TURNS + ((st.immLow || 0) > 0 ? 2 : 0) - ((st.immHigh || 0) > 0 ? 1 : 0));
+}
+// ส่วนต่างของ "ผลจากปฏิกิริยา" ที่ t ได้รับ (ดาเมจ +/− · สถานะ ±เทิร์น): ภูมิต่ำ +1 · ภูมิสูง −1 · ฮุคตัวละคร reactionShift(p) (Ophy ติดตัว: −1)
+function reactShift(t) {
+  if (!t || !t.statuses) return 0;
+  let n = ((t.statuses.immLow || 0) > 0 ? 1 : 0) - ((t.statuses.immHigh || 0) > 0 ? 1 : 0);
+  const h = CHAR_HOOKS[t.characterId];
+  if (h && typeof h.reactionShift === "function") {
+    try { n += Number(h.reactionShift(t)) || 0; } catch (err) { console.error(`[hook] ${h.id}.reactionShift โยน error:`, err); }
+  }
+  return n;
+}
+// เทิร์นของสถานะจากปฏิกิริยาที่ t ได้รับ (≤ 0 = ไม่ติด)
+const rTurns = (t, n) => Math.max(0, n + reactShift(t));
+function canTake(t, source, force) {
   if (!t || !t.alive || !t.pos || !t.statuses) return false;
   if (t.summon && t.summon.noStatus) return false;
-  if (source && (source.id === t.id || combat().sameTeam(source, t))) return false;
+  if (!force && source && (source.id === t.id || combat().sameTeam(source, t))) return false;
   return true;
 }
 
@@ -138,9 +156,9 @@ function afterHit(p) {
 }
 
 // ธาตุ el ลงที่ t (ต้นตอ source) → ปฏิกิริยาที่เกิด | null
-//  opts.noSwirl = คราบที่มาจากการพัด (ไม่พัดต่อ)
+//  opts.noSwirl = คราบที่มาจากการพัด (ไม่พัดต่อ) · opts.force = ติดได้แม้เป็นตัวต้นตอเอง (Ophy: ยาที่ยิง/ดื่มโดนตัวเอง)
 function apply(t, el, source, opts = {}) {
-  if (!ELEMENTS[el] || !canTake(t, source)) return null;
+  if (!ELEMENTS[el] || !canTake(t, source, opts.force)) return null;
   if (el === "wind") {
     const have = auraOf(t);
     if (!have || opts.noSwirl) return null;
@@ -190,8 +208,9 @@ function react(t, a, b, source, chain = null) {
     }
     if (r.frost && t.alive) {
       const e = engine();
-      if (C.applyDebuff(t, "frostbite", 1, FROST_TURNS)) lines.push(`${t.name} น้ำแข็งกัด ${FROST_TURNS} เทิร์น`);
-      if (C.applyDebuff(t, "rooted", 1, ROOT_TURNS + (e.hasActed(t.id) || e.actorId === t.id ? 1 : 0))) lines.push(`เดินไม่ได้ ${ROOT_TURNS} เทิร์น`);
+      const ft = rTurns(t, FROST_TURNS), rt = rTurns(t, ROOT_TURNS);
+      if (ft > 0 && C.applyDebuff(t, "frostbite", 1, ft)) lines.push(`${t.name} น้ำแข็งกัด ${ft} เทิร์น`);
+      if (rt > 0 && C.applyDebuff(t, "rooted", 1, rt + (e.hasActed(t.id) || e.actorId === t.id ? 1 : 0))) lines.push(`เดินไม่ได้ ${rt} เทิร์น`);
     }
     for (const u of ring) {
       if (!u.alive) continue;
@@ -207,7 +226,7 @@ function react(t, a, b, source, chain = null) {
   match.lastLog.push(`${chain ? "⛓️ " : ""}${ELEMENTS[a].icon}${ELEMENTS[b].icon} ${r.name}${chain ? " (ลูกโซ่)" : "!"} ${lines.join(" · ")}`.trim());
   const out = { key: r.key, name: r.name, a, b, id: t.id };
   if (!chain) match.elemLast = out;
-  fx("elemReact", { key: r.key, name: r.name, a, b, id: t.id, at, ring: ring.map((u) => u.id), size: action().sizeOf(t), ...(chain ? { chainFrom: chain.from, step: chain.step } : {}) });
+  fx("elemReact", { key: r.key, name: r.name, a, b, id: t.id, at, ring: ring.map((u) => u.id), size: action().sizeOf(t), ...(ringR > 1 ? { wide: ringR } : {}), ...(chain ? { chainFrom: chain.from, step: chain.step } : {}) });
   if (!chain) sfx(r.key);
   // ลูกโซ่ (ผู้ใช้สั่ง 2026-11-14): ปฏิกิริยาเป้าเดียว (ระเหย/กัดเซาะ/เยือกแข็ง/นำไฟฟ้า) ลามไปศัตรูที่ยืนติดกันซึ่งมีคราบธาตุเดียวกับคราบที่ถูกใช้ (a)
   //  ลามต่อเป็นทอดๆ จนไม่มีคนติดคราบยืนติด · คนละครั้งต่อการตี · ผลเท่าปฏิกิริยาเดิม (ไม่รวมดาเมจของการตี)
@@ -252,11 +271,18 @@ function killCheck(u, main) {
 }
 
 // ศัตรูของต้นตอที่ยืนรอบตัว t (8 ทิศรอบกล่องของ t · ตัวใหญ่นับทั้งกล่อง) — ไม่มีต้นตอ = ทุกคนยกเว้น t
+//  withRing(r, fn): ขยายวงรอบตัวชั่วคราว (Ophy: ดื่มยาทำปฏิกิริยาเอง = 5×5 → r 2)
+let ringR = 1;
+function withRing(r, fn) {
+  const prev = ringR;
+  ringR = Math.max(1, r | 0);
+  try { return fn(); } finally { ringR = prev; }
+}
 function ringOf(t, source) {
   if (!t || !t.pos) return [];
   const tb = { x: t.pos.x, y: t.pos.y, size: action().sizeOf(t) };
   return Object.values(match.players).filter((u) => u !== t && u.alive && u.pos && canTake(u, source) &&
-    cheb(tb, { x: u.pos.x, y: u.pos.y, size: action().sizeOf(u) }) <= 1);
+    cheb(tb, { x: u.pos.x, y: u.pos.y, size: action().sizeOf(u) }) <= ringR);
 }
 // ช่องว่างระหว่างสองกล่องแบบเชบีเชฟ (0 = ทับ/ติดกัน)
 function cheb(a, b) {
@@ -436,10 +462,11 @@ function reactSpecial(t, a, b, r, source) {
     if (r.key === "fog" && at) {
       const f = addField("fog", t, source, FOG_TURNS, a, b);
       ring = unitsAround(f.box, FOG_RADIUS, source, { withMain: t });
-      for (const u of ring) if (blindTurns(u, 1)) lines.push(`${u.name} ตาบอด`);
+      for (const u of ring) if (rTurns(u, 1) > 0 && blindTurns(u, rTurns(u, 1))) lines.push(`${u.name} ตาบอด`);
       lines.unshift(`หมอกพิษ 3×3 ${FOG_TURNS} เทิร์น`);
     } else if (r.key === "stir") {
-      if (C.applyDebuff(t, "stirred", 1, STIR_TURNS)) lines.push(`${t.name} ดาเมจต่อเทิร์น ×2 ${STIR_TURNS} เทิร์น`);
+      const n = rTurns(t, STIR_TURNS);
+      if (n > 0 && C.applyDebuff(t, "stirred", 1, n)) lines.push(`${t.name} ดาเมจต่อเทิร์น ×2 ${n} เทิร์น`);
     } else if (r.key === "spread" && at) {
       const turns = (t.statuses && t.statuses.poison) || 0;
       const Status = require("../characters/_universal_status");
@@ -449,7 +476,8 @@ function reactSpecial(t, a, b, r, source) {
       addField("hole", t, source, HOLE_TURNS, a, b);
       lines.push(`หลุมดำ ${HOLE_TURNS} เทิร์น`);
     } else if (r.key === "glare") {
-      if (blindTurns(t, GLARE_TURNS)) lines.push(`${t.name} ตาบอด ${GLARE_TURNS} เทิร์น`);
+      const n = rTurns(t, GLARE_TURNS);
+      if (n > 0 && blindTurns(t, n)) lines.push(`${t.name} ตาบอด ${n} เทิร์น`);
       if (engine().applyPassiveSeal && engine().applyPassiveSeal(t, GLARE_TURNS) !== false) lines.push(`สกิลติดตัวใช้ไม่ได้ ${GLARE_TURNS} เทิร์น`);
     }
     lockFor(t, r);
@@ -599,7 +627,9 @@ function typeAdjust(p, n) {
     }
   }
   if (p._statusDamage && ((p.statuses && p.statuses.stirred) || 0) > 0) mult *= 2; // กระตุ้น: ดาเมจต่อเทิร์น ×2
-  return mult === 1 ? n : Math.ceil(n * mult);
+  const out = mult === 1 ? n : Math.ceil(n * mult);
+  // ดาเมจของปฏิกิริยา ± ภูมิต่ำ/ภูมิสูง/ฮุค reactionShift (Ophy GRID_PLAN §7.43) — ลดถึง 0 ได้
+  return match.reactEls && !p._statusDamage ? Math.max(0, out + reactShift(p)) : out;
 }
 
 Object.assign(module.exports, {

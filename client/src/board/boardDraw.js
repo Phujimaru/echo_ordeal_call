@@ -51,6 +51,7 @@ import { KIRI_FX_DUR, drawKiriGround, isKiriFx, kiriFx } from "./kiriFx";
 import { SHINRA_FX_DUR, isShinraFx, shinraFx } from "./shinraFx";
 import { MIDORIYA_FX_DUR, isMidoriyaFx, midoriyaFx } from "./midoriyaFx";
 import { JOSHUA_FX_DUR, isJoshuaFx, joshuaFx } from "./joshuaFx";
+import { OPHY_FX_DUR, isOphyFx, ophyFx, ophyGroundItems } from "./ophyFx";
 import { MAGNA_FX_DUR, isMagnaFx, magnaFx, magnaChains } from "./magnaFx";
 import { NARU_FX_DUR, drawNaruSight, isNaruFx, naruhodoFx } from "./naruhodoFx";
 import { DINO_FX_DUR, isDinoFx, dinoFx } from "./dinoFx";
@@ -93,7 +94,7 @@ export const FX_DUR = {
   darkWave: 3000, emote: 2600, teamPing: 3200,
   slash: 420, float: 1300, burst: 560, beam: BEAM_T.charge + BEAM_T.extend + BEAM_T.hold + BEAM_T.fade + 40, quake: 2200, grow: GROW_MS, smash: SMASH_MS,
   mythSlash: SORA_T.slash2 + SL_LIFE + 40, soraWheel: SORA_T.wheel, soraBoom: SORA_T.boom, soraDash: SORA_T.wheel + 2000, ...SORA_FRAME_FX_DUR, deathBoom: DEATH_BOOM_MS, ...STYLE_MS, ...HK_FX_DUR, ...ICE_FX_DUR, ...SH_FX_DUR,
-  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...VG_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...MIDORIYA_FX_DUR, ...JOSHUA_FX_DUR, ...MAGNA_FX_DUR, ...NARU_FX_DUR, ...DINO_FX_DUR, ...MASTER_FX_DUR, ...ELEM_FX_DUR,
+  ...FAIZ_FX_DUR, ...ZECT_FX_DUR, ...ROLAND_FX_DUR, ...KIRA_FX_DUR, ...YUNA_FX_DUR, ...GRAY_FX_DUR, ...GYRO_FX_DUR, ...DIEGO_FX_DUR, ...VAL_FX_DUR, ...FERN_FX_DUR, ...CELINE_FX_DUR, ...RYOUGI_FX_DUR, ...EMIYA_FX_DUR, ...KAZUMA_FX_DUR, ...MOON_FX_DUR, ...LAW_FX_DUR, ...DIVINE_FX_DUR, ...OT_FX_DUR, ...GIO_FX_DUR, ...ARJ_FX_DUR, ...DIO_FX_DUR, ...VG_FX_DUR, ...OTOYA_FX_DUR, ...GIL_FX_DUR, ...KIRI_FX_DUR, ...SHINRA_FX_DUR, ...MIDORIYA_FX_DUR, ...JOSHUA_FX_DUR, ...OPHY_FX_DUR, ...MAGNA_FX_DUR, ...NARU_FX_DUR, ...DINO_FX_DUR, ...MASTER_FX_DUR, ...ELEM_FX_DUR,
 };
 
 
@@ -103,6 +104,7 @@ export const FX_DUR = {
 //   gils? = กิลกาเมช [{ id, x, y, size, ea, storm, warns, weapons, charge }] (gilFx.js)
 //   ferns? = เฟิร์นที่ Zoltraak ครั้งที่ 6 พร้อม / เพิ่มระยะรออยู่ [{ id, x, y, size, empowered, boost }] (fernFx.js — แสงปลายคทา)
 //   gyroBalls? = ลูกเหล็กของไจโรบนพื้น [{ owner, color, x, y, seq }] (gyroFx.js)
+//   ophyGround? = { drops, nodes } วัตถุดิบที่ตก/ช่องพลังงานธาตุของ Ophy (ophyFx.js)
 //   diego? = { oil, fire, ash, nets } ชั้นพื้นของดิเอโก้ · timeFreeze? = { by } หยุดเวลาอยู่ (diegoFx.js)
 //   celine? = { flora, kings, hold, preview } ของค้างของเซลิน (celineFx.js) · terrain "icewall" = กำแพงน้ำแข็ง (drawCelineWall)
 //   ryougi? = { units: [{ id, eyes, mind, bloom }], blood: [{ x, y, size, id }] } เรียวกิ (ryougiFx.js) · terrain "chasm" = ช่องพัง (drawRyougiGround — ไม่ใช่สิ่งกีดขวาง)
@@ -419,6 +421,8 @@ export function drawFrame(g, st, now) {
   if (storms) stormWallItems(items, g, storms, info, now, lowQ);
   // ลูกเหล็กของไจโรบนพื้น (หมุนตลอด + วงสีเจ้าของ) — เรียงความลึกกับตัวละคร
   if ((st.gyroBalls && st.gyroBalls.length) || fx.some((e) => e.kind === "gyroThrow")) gyroBallItems(items, g, st.gyroBalls, fx, now, lowQ);
+  // Ophy: วัตถุดิบที่ตก + ช่องพลังงานธาตุ (ทุกคนเห็น — ophyFx.js) — เรียงความลึกกับตัวละคร
+  if (st.ophyGround) ophyGroundItems(items, g, st.ophyGround, now, lowQ, depthOf);
   // เปลวไฟกองไฟของดิเอโก้ — เรียงความลึกกับตัวละคร
   if (dFx) diegoFireItems(items, g, dGround, fx, now, lowQ, amb);
   // วาเลนไทน์: ธงปัก (โบกตลอด) + ผ้าในฉาก + ภาพที่จับไว้ของตัวที่หายจาก state แล้ว — เรียงความลึกกับตัวละคร
@@ -571,6 +575,7 @@ export function drawFrame(g, st, now) {
     else if (isKiriFx(e.kind)) kiriFx(g, e, now, lowQ); // เอมิยะ คริซุงุ (kiriFx.js)
     else if (isShinraFx(e.kind)) shinraFx(g, e, now, lowQ); // คุซาคาเบะ ชินระ (shinraFx.js)
     else if (isJoshuaFx(e.kind)) joshuaFx(g, e, now, lowQ); // โจชัว รอสฟิลด์ (joshuaFx.js)
+    else if (isOphyFx(e.kind)) ophyFx(g, e, now, lowQ, units); // Ophy นักเล่นแร่แปรธาตุ (ophyFx.js)
     else if (isMidoriyaFx(e.kind)) midoriyaFx(g, e, now, lowQ); // มิโดริยะ อิซึคุ (midoriyaFx.js)
     else if (isMagnaFx(e.kind)) magnaFx(g, e, now, lowQ); // แม็กน่า สวิง (magnaFx.js)
     else if (isNaruFx(e.kind)) naruhodoFx(g, e, now, lowQ); // นารุโฮโดะ ริวอิจิ (naruhodoFx.js)

@@ -18,6 +18,12 @@ const STATUS_INFO = {
   stirred:   { icon: "🧬", label: "กระตุ้น", cls: "bg-lime-300 text-gray-900", desc: "" },
   joshuaPhoenix: { icon: "🐦‍🔥", label: "ร่างนกเพลิง", cls: "bg-orange-500 text-gray-900", desc: "" }, // โจชัว รอสฟิลด์ (GRID_PLAN §7.41)
   frostbite: { icon: "🥶", label: "น้ำแข็งกัด", cls: "bg-sky-200 text-gray-900", desc: "" },
+  // Ophy (characters/ophy.js · GRID_PLAN §7.43) — สถานะใหม่ที่ใครก็ติดได้
+  immLow:    { icon: "🦠", label: "ภูมิต่ำ", cls: "bg-lime-700 text-white", desc: "ติดคราบธาตุนานขึ้น 2 เทิร์น · ผลจากปฏิกิริยาธาตุที่ได้รับ +1 (ดาเมจ +1 · สถานะ +1 เทิร์น)" },
+  immHigh:   { icon: "🛡️", label: "ภูมิสูง", cls: "bg-emerald-600 text-white", desc: "ติดคราบธาตุน้อยลง 1 เทิร์น · ผลจากปฏิกิริยาธาตุที่ได้รับ −1 (ดาเมจ −1 · สถานะ −1 เทิร์น)" },
+  invis:     { icon: "👻", label: "ล่องหน", cls: "bg-slate-300 text-gray-900", desc: "ศัตรูมองไม่เห็น ยกเว้นยืนห่างไม่เกิน 2 ช่อง" },
+  chicken:   { icon: "🐔", label: "ไก่", cls: "bg-amber-600 text-white", desc: "เลือด/เกราะคงเดิม · เดิน 3 · ไม่มีสกิลและสกิลติดตัว · โจมตีปกติ 1" },
+  bird:      { icon: "🐦", label: "นก", cls: "bg-sky-500 text-white", desc: "เลือด/เกราะคงเดิม · เดิน 6 บินข้ามสิ่งกีดขวาง · ไม่มีสกิลและสกิลติดตัว · โจมตีปกติไม่ได้ · ใช้ไอเทมได้" },
   hbleed:    { icon: "🩸", label: "เลือดไหล", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1 และระหว่างนี้ฟื้นพลังชีวิตได้แค่ครึ่งเดียว" },
   hburn:     { icon: "🔥", label: "ลุกไหม้", cls: "bg-echo-hp", desc: "ต้นเทิร์นเสียพลังชีวิต 1 เกราะรับก่อน แล้วลดลงทีละ 1" },
   nodraw:    { icon: "🚫", label: "ห้ามจั่ว", cls: "bg-echo-hp", desc: "จั่วไพ่เพิ่มไม่ได้" },

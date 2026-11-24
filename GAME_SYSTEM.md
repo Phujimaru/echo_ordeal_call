@@ -1508,3 +1508,19 @@ board/boardRules.js            สำเนากติกาจาก server/bo
 - หลบแน่นอนจากผลของตัวเอง: ฮุคเดิม `grantedDodge` / `dodgeSure` (§41)
 - อนิเมชันมือการ์ดฝั่ง client: server ใส่ `fx = { seq, kind: draw|drop|play, i, card, drew }` ทุกครั้งที่มือเปลี่ยน → `YugiHand` เทียบ seq แล้วสร้างการ์ดบิน/ผี (ไม่ตรงกับมือจริง = จัดใหม่เงียบๆ) · หน้าทดสอบ `?hud=1&game=1&yugi=1&scn=my` (จำลองเด็คในเครื่อง)
 - เสียงต่อการกระทำ: `applyInstantSkill` จด `p.yugi.sound` → ฮุค `skillSound` คืนแล้วล้าง · ชนะ = `engine.skillFlash({ …, sound })` ของตัวเอง + `silentFlash` กันป้ายซ้อน
+
+## 67. ยิงขวดยา / กระเป๋าวิเศษ / แปลงร่างไก่-นก / ภูมิต่ำ-สูง / ล่องหนสถานะ / ไม่รับผลต่อเทิร์น (Ophy `characters/ophy.js` · GRID_PLAN §7.43)
+- **ไก่ / นก** `server/morph.js` (สถานะ `chicken` ดีบัฟ · `bird`): ใครก็ติดได้ · จุดเช็ค `action.baseMovOf` (3 / 6) · `baseRangeOf` (ไก่ `[1,1]` · นก `[1,0]`) · `action.flies` (นก) ·
+  `skills.useSkill` (ไม่มีสกิล) · `passiveSeal.sealed` (ไม่มีสกิลติดตัว) · `attack.strike` + `estimateAttackOn` (ไก่ตี 1 ตายตัว) · `view.displayImg` + `players[].morph` (BoardStage = ภาพตัวเต็ม) · `stageNoSkill`
+- **สถานะ Universal ใหม่**: `immLow` ภูมิต่ำ (ดีบัฟ) · `immHigh` ภูมิสูง · `invis` ล่องหน (บัฟ) — คราบธาตุ `Element.auraTurnsFor` (+2 / −1) · ดาเมจปฏิกิริยาใน `typeAdjust` (`reactShift` ±1 เมื่อ `match.reactEls`) ·
+  สถานะจากปฏิกิริยา (น้ำแข็งกัด/ตรึง/กระตุ้น/ตาบอด) ±เทิร์นผ่าน `rTurns` · ฮุคตัวละคร `reactionShift(p)` → ส่วนต่างเพิ่ม (Ophy −1)
+- **ล่องหนสถานะ** `statuses.invis` → `visibility.stealthed` นับด้วย · ศัตรูที่ห่างไม่เกิน 2 ช่อง (จากช่องที่มอง `eyeOf`) เห็น · ล่องหนของตัวละคร (ฮุค `stealthed`) ยังใช้ `seenBy` เหมือนเดิม
+- **`Element.apply(t, el, src, { force: true })`** = ติดคราบได้แม้ t เป็นต้นตอเอง (ยาที่ยิง/ดื่มโดนตัวเอง) · **`Element.withRing(r, fn)`** = ขยายวงรอบตัวของปฏิกิริยาชั่วคราว (5×5 → r 2 · `elemReact.wide`)
+- **ไม่รับผลสถานะต่อเทิร์น**: ฮุค `dotShrug(engine, p, kind)` → true (kind `burn`/`frost`/`poison`/`shock`) ใน `phases/draw.js` · เวลาสถานะยังเดิน (ลุกไหม้/น้ำแข็งกัดลด 1 เหมือนทำงาน)
+- **ปุ่มโจมตีเป็นปุ่มอื่น**: ฮุค `hudActions` คืน `{ key: "ophy:throw", tiles, square: 3, img, cost }` → Game.jsx เอาไปแทนปุ่มโจมตี (`AttackButton potion`) แทนปุ่มพิเศษ ·
+  `pickReq.kind === "action"` ส่ง `square` ให้ BoardStage แสดงกรอบ n×n ตามเมาส์ในโหมดเลือกช่องแบบรายการ
+- **ยิงในตาเดิน** = `engine.skillBeat(0.85, land)` + `pausePlayingForCutscene()` (ขวดลอยถึงก่อนผลลง) · **สวนกลับ** (Lock in) จดใน `onAttacked` แล้วลงผลใน `setImmediate` หลังการกระทำนั้นจบ (`flushCounters` — เทสต์เรียกตรง)
+- **กระเป๋า/ไอเทมให้เพื่อน**: `shop.tradeMate` (export) · ไอเทม `ophyPotion { potion }` ใช้จากกระเป๋าทั่วไป → `ophy.drinkItem` (วาร์ป = `opts.tile`) · BagScreen `onOphyWarp` → pickReq `ophyWarp`
+- **โซ่ Soul Chain**: `ACTIONS` รับฟังก์ชัน `(p, key)` แล้ว (Ophy: ดื่มน้ำยาวาร์ป `ophy.drinkMoves`)
+- **เดิน/ของบนพื้น**: วัตถุดิบที่ตก + ช่องพลังงานเก็บที่ `p.ophy.drops/nodes` (ทุกคนเห็น — `useCharLayers` → `ophyGround` → `ophyGroundItems`) · เก็บใน `afterWalk` คืนบันทึก `{ undo }` (ย้อนเดิน = ของกลับ/พลังงานคืน)
+- **เครื่องมือ dev**: `ECHO_DEV_OPHY=1` = เริ่มพร้อมวัตถุดิบทุกชนิด 9 + ยาครบทุกขวด · launch `server-ophy` / `client-ophy` · หน้าทดสอบ `?board=1&ophy=1` (`OphyFxDev.jsx` · `window.__ophyFx(kind)`)

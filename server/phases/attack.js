@@ -127,7 +127,8 @@ function terrainCoverDodge(target) {
 function estimateAttackOn(attacker, target) {
   try {
     const hook = CHAR_HOOKS[attacker.characterId];
-    const fixed = hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target, { estimate: true }) : null;
+    const morphHit = require("../morph").strikeDamage(attacker); // ไก่ (น้ำยาแปลงร่างของ Ophy): ตีปกติ 1 ตายตัว
+    const fixed = morphHit != null ? morphHit : hook && hook.fixedStrikeDamage ? hook.fixedStrikeDamage(engine, attacker, target, { estimate: true }) : null;
     if (Number.isFinite(fixed)) return Math.max(0, fixed);
     const c = computeAttackBase(engine, attacker, target);
     const mult = (hook && hook.strikeMult && hook.strikeMult(attacker)) || 1;
@@ -279,7 +280,8 @@ function strikeBody(attacker, target, counter) {
   // ดาเมจตายตัวของตีปกติ (ฮุค fixedStrikeDamage — เอมิลิโกะ เครื่องดูดฝุ่น: เท่าระยะ) = ไม่รับบัฟ/ดีบัฟฝั่งผู้ตี ไม่ติดคริติคอล
   //  (คุ้มครอง/ขัดแย้ง/เปราะบางของเป้ายังมีผล)
   const fixedHook = CHAR_HOOKS[attacker.characterId];
-  const fixed = fixedHook && fixedHook.fixedStrikeDamage ? fixedHook.fixedStrikeDamage(engine, attacker, target, { counter }) : null; // counter = ตีสวน (ออพติมัส ไพร์ม: ฟันสวน 2)
+  const morphHit = require("../morph").strikeDamage(attacker); // ไก่ (น้ำยาแปลงร่างของ Ophy — server/morph.js): ตีปกติ 1 ตายตัว
+  const fixed = morphHit != null ? morphHit : fixedHook && fixedHook.fixedStrikeDamage ? fixedHook.fixedStrikeDamage(engine, attacker, target, { counter }) : null; // counter = ตีสวน (ออพติมัส ไพร์ม: ฟันสวน 2)
   const isFixed = Number.isFinite(fixed);
   let dmg = isFixed ? fixed : base;
   // เสริมพลัง / อ่อนแอ (สถานะพื้นฐาน patch 2.0.8): เพิ่ม/ลดดาเมจที่ทำได้ตามจำนวนที่ระบุ

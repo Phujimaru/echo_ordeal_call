@@ -22,10 +22,15 @@ const Dim = require("./dimension");
 
 function hookOf(p) { return p ? CHAR_HOOKS[p.characterId] : null; }
 
-// ล่องหนของตัวละคร (ไม่สนช่องที่ยืน)
-function stealthed(p) {
+// ล่องหนของตัวละคร (ไม่สนช่องที่ยืน) · สถานะ Universal "ล่องหน" (invis — น้ำยาล่องหนของ Ophy) ก็นับ
+function hookStealth(p) {
   const hook = hookOf(p);
   return !!(p && p.alive && hook && hook.stealthed && hook.stealthed(p));
+}
+const INVIS_SEEN = 2; // ล่องหน (invis): ศัตรูที่ยืนห่างไม่เกิน 2 ช่องมองเห็น (ผู้ใช้ — GRID_PLAN §7.43)
+function potionInvis(p) { return !!(p && p.alive && p.statuses && (p.statuses.invis || 0) > 0); }
+function stealthed(p) {
+  return hookStealth(p) || potionInvis(p);
 }
 function seenBy(viewer, target) {
   const hook = hookOf(target);
@@ -85,7 +90,8 @@ function hiddenFromOne(viewer, target) {
   if (viewer.summon && viewer.summon.sight > 0 && viewer.alive && viewer.pos && Board.dist(Board.boxOf(eye), Board.boxOf(target)) <= viewer.summon.sight) return false;
   // ล่องหนที่คนใกล้ๆ มองเห็น (ฮุคของเป้า seenBy(engine, viewer, target) → true = viewer เห็น — เฟิร์น: ซ่อนเร้นมานา ศัตรูในระยะ 2)
   //  ข้ามแค่ล่องหนของตัวละคร · พุ่มหญ้า/ม่านแดงยังบังตามปกติ
-  if (stealthed(target) && !seenBy(eye, target)) return true;
+  if (hookStealth(target) && !seenBy(eye, target)) return true;
+  if (potionInvis(target) && !hookStealth(target) && !(eye.pos && target.pos && Board.dist(Board.boxOf(eye), Board.boxOf(target)) <= INVIS_SEEN)) return true;
   if (Soot.hiddenByStorm(viewer, target)) return true; // ม่านแดง (ระบำเขม่า): คนละฝั่งของม่านมองไม่เห็นกัน
   if (require("./pveMode").isPveMob(target)) return false; // มอนของโหมด PVE (Eos eosmob + Road Trip rtmob): ไม่ซ่อนในป่า/พุ่ม (บังแค่หมอก/พายุทราย — fodlan hides ด้านบน)
   if (!inBush(target)) return false;

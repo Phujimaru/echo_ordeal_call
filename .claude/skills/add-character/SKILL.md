@@ -270,6 +270,11 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | ไถลบนน้ำแข็ง (ระบบกลาง `server/ice.js`) | `onSlide(engine, p, n, ctx)` · `slideStrike(engine, p, target, n, ctx)` (ไถลชนศัตรู — ลงดาเมจเอง · เดินชน = จบตา) · `ownSpike(engine, p, ctx)` | `Ice.resolveEntry` |
 | วาง/ผลัก/ทำเชื่องช้าบนกระดาน | `engine.ice.layIce / placeSpike / raiseSpike / pushUnit(u, dir, ctx, n = 1) / applySlow(t, turns = 3) / begin+flush (iceFx)` — ดู GAME_SYSTEM §19 · ตัวใหญ่ 2×2 ขึ้นไปเดินเหยียบหนามน้ำแข็งได้ (`trampleSpikes` — ตัวใหญ่ใหม่ได้กติกานี้เอง) | `server/ice.js` |
 | ตีปกติไม่ได้ | `range: [1, 0]` ใน `characters.js` (ไม่มีช่องที่ตีถึง) | – |
+| ปุ่มโจมตีเป็นการกระทำเฉพาะตัว (เลือกช่อง + กรอบ n×n) | `range: [1, 0]` + `hudActions` คืน `{ key, tiles, square, img, cost }` → Game.jsx ใช้แทนปุ่มโจมตี (ต้นแบบ Ophy "ophy:throw" — GAME_SYSTEM §67) | `charAction` |
+| ผลจากปฏิกิริยาธาตุที่ได้รับ ±N (ดาเมจ + เทิร์นสถานะ) | ฮุค `reactionShift(p)` → ส่วนต่าง (Ophy −1) · สถานะกลาง ภูมิต่ำ `immLow` +1 / ภูมิสูง `immHigh` −1 | `server/element.js` `reactShift` |
+| ไม่รับผลสถานะต่อเทิร์นบางครั้ง | ฮุค `dotShrug(engine, p, kind)` → true (`burn`/`frost`/`poison`/`shock`) | `phases/draw.js` |
+| ธาตุใส่ตัวเอง / ปฏิกิริยาวงใหญ่ | `Element.apply(t, el, src, { force: true })` · `Element.withRing(r, fn)` | `server/element.js` |
+| แปลงร่างคนอื่น (ไก่/นก) · ล่องหนแบบสถานะ | สถานะ `chicken` / `bird` (`server/morph.js`) · `invis` (`server/visibility.js` — ห่าง ≤ 2 เห็น) | GAME_SYSTEM §67 |
 | ไม่โดนผลลดระยะเดิน (ไพ่แตก/เชื่องช้า/โทษระยะเดิน/สภาพอากาศ) | `movCutImmune(p)` → true (ตรึง/เดินไม่ได้ยังมีผล · Ice Spike ติดตัว 4) | `action.movOf` · `Ice.applySlow` |
 | ไม่โดนผลของแผนที่ (น้ำแข็งกัด / สตั้นจากแผนที่) | `mapEffectImmune(p, kind)` → true · kind `"frostbite"` / `"stun"` (Ice Spike ติดตัว 5) — ผลแผนที่ใหม่ต้องถามฮุคนี้ | `server/fodlan/stage4.js` |
 | ท่าพุ่ง/ผลักเขียนเองที่หยุดเพราะหนามน้ำแข็งขวาง | `engine.ice.dashBump(u, dir)` (ส่ง iceFx เอง) / `engine.ice.bumpSpike(u, x, y, ctx)` (ในชุด iceFx ของตัวเอง) — หนามทำงานแบบไถลชน · `pushUnit` เรียกให้แล้ว | `server/ice.js` |

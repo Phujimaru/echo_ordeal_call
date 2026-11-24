@@ -4,7 +4,7 @@ Object.assign(module.exports, {
   goldCapOf, addGold, shopCatalog, shopItemName, openShop, openShopAt, refreshShopForJourney, journeyGiftItem,
   shopDue, relocateShop, maybeMoveShop, shopTurnsLeft, shopTurnsLeftOf, bagFull, dropItem,
   shopAt, shopTiles, shopById, restockAll, bagSlotsOf, remoteShop, razeShopsIn, capsule, capsules, placeCapsule, clearCapsule, clearShops, publicShops, nearShopOf, tickMerchant,
-  giveItem, swapItem,
+  giveItem, swapItem, tradeMate,
   grantInventoryItem, asleep, viewShop, buyShopItem,
   cardLabel, useInventoryItem, useDrawItem, chargeBatteries, cleansableOf,
 });
@@ -104,6 +104,7 @@ function shopItemName(item) {
   if (item.type === "kebread") return "ขนมปัง";
   if (item.type === "giornoArrow") return "ธนู Requiem";
   if (item.type === "lawHeart") return `หัวใจของ ${item.targetName || "?"}`;
+  if (item.type === "ophyPotion") return require("../characters/ophy").potionName(item.potion); // น้ำยาที่ Ophy มอบให้ (characters/ophy.js)
   if (item.type === "torch") return "คบเพลิง";
   if (item.type === "gysahl") return "ผักกิซาล";
   if (item.type === "pillarWard") return "เกราะเสา";
@@ -569,6 +570,17 @@ function useInventoryItem(id, uid, opts = {}) {
     if (!hook || !hook.useCharItem || (hook.canUseCharItem && !hook.canUseCharItem(engine, p, item))) return;
     action.lockMove(p);
     hook.useCharItem(engine, p, item, opts);
+    return;
+  }
+  // ---------- น้ำยาที่ Ophy มอบให้ (characters/ophy.js · GRID_PLAN §7.43): ดื่ม = ผลของน้ำยาลงที่ตัวเองเท่านั้น ----------
+  //  ไอเทมทั่วไป (ล็อกการเดินแบบไอเทมอื่น) · น้ำยาวาร์ป: opts.tile = ช่องในระยะ 4 · ใช้ไม่ได้ = ไม่เสียของ
+  if (item.type === "ophyPotion") {
+    if (!require("../characters/ophy").drinkItem(engine, p, item, opts)) return;
+    action.lockMove(p);
+    const at = p.inventory.indexOf(item);
+    if (at >= 0) p.inventory.splice(at, 1);
+    itemUsed(p, item);
+    view.broadcastState();
     return;
   }
   // ---------- วงจรพลังงาน (ผู้ใช้สั่ง 2026-11-08): ถอนแต้มสกิลออกจากถังเท่าที่เลือก — ถังอยู่ในกระเป๋าต่อ ----------

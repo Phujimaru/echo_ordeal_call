@@ -174,7 +174,8 @@ const MOVES = {
   // ชั้นมิติ (เดินทะลุ / กระดานคู่ขนาน) — แยกชั้นแล้วคู่โซ่ตีกันไม่ได้
   funny_valentine: { basic: () => true, ultimate: (p, o) => o.form === "parallel" },
 };
-const ACTIONS = { sliver_bullet: ["dash"], sora_otosumi: ["soraWarp"] };
+// ค่าในตาราง = รายชื่อคีย์ หรือฟังก์ชัน (p, key) → true = ปุ่มนี้ย้ายตัวเอง (Ophy: ดื่มน้ำยาวาร์ป "ophy:drink:<ช่อง>")
+const ACTIONS = { sliver_bullet: ["dash"], sora_otosumi: ["soraWarp"], ophy: (p, key) => require("../characters/ophy").drinkMoves(p, key) };
 function ownerShadow(p) {
   try { const o = require("./duo").ownerOf(p); return o && o.shadow; } catch { return null; }
 }
@@ -188,6 +189,7 @@ function skillBlocked(p, tier, opts) { return linked(p) && movesSelf(p, tier, op
 function actionBlocked(p, key) {
   if (!linked(p)) return false;
   const list = ACTIONS[p.characterId];
+  if (typeof list === "function") return !!list(p, key);
   return !!(list && list.includes(key));
 }
 module.exports.movesSelf = movesSelf;

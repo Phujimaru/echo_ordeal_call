@@ -55,6 +55,8 @@ function chainLocks(p, locks) {
   return out;
 }
 function displayImg(p) {
+  const morph = require("./morph").img(p); // ไก่ / นก (น้ำยาแปลงร่างของ Ophy) ทับทุกร่าง
+  if (morph) return morph;
   const look = CHAR_HOOKS.echo.lookOf(p); // เจ้าหญิง Echo สวมร่าง = ภาพบนกระดานของ Echo เสมอ
   if (look) return look.boardImg;
   const hook = CHAR_HOOKS[p.characterId];
@@ -452,6 +454,7 @@ function buildStateInner(viewerId) {
         kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19
+        ophy: hook && hook.ophyState ? hook.ophyState(engine, p, mine) : undefined, // Ophy: ยา 4 ขวดถัดไป/วัตถุดิบที่ตก/ช่องพลังงาน (ทุกคน) · กระเป๋าวิเศษทั้งใบ (เจ้าตัว) — GRID_PLAN §7.43
         yugi: hook && hook.yugiState ? hook.yugiState(engine, p, mine) || undefined : undefined, // ยูกิ มุโต้: มือ/เด็ค/ป้องกัน (เจ้าตัวเห็นการ์ด · คนอื่นเห็นจำนวน) — GRID_PLAN §7.42
         yuki: hook && hook.yukiState ? hook.yukiState(engine, p) || undefined : undefined, // ยูกิ มาโคโตะ: นับถอยหลังระเบิด { left, at } (มืดลง + ออร่ารวมที่ตัว — yukiFx.js) — GRID_PLAN §7.21
         law: hook && hook.lawState ? hook.lawState(engine, p) : undefined, // ลอว์: Room / ตีได้อีก / สกิลรองที่เหลือ / คูลดาวน์ / ท่าไม้ตายที่รอตี / Counter Shock — GRID_PLAN §7.20
@@ -462,7 +465,8 @@ function buildStateInner(viewerId) {
         remoteShop: shop.remoteShop(p) || undefined, // ซื้อจากร้านไหนก็ได้บนแผนที่ (กิลกาเมช Gate of Babylon)
         strikeZone: hook && hook.strikeZone ? hook.strikeZone(p) || undefined : undefined, // กรอบที่ตีปกติได้ { x0, y0, x1, y1 } (ลอว์: ตัวเองและเป้าต้องอยู่ใน Room)
         ryougiSlain: p.ryougiSlain || undefined, // ถูกเรียวกิสังหารทันที — ศพที่ค้างวาดเป็นกองเลือด (ryougiFx.js)
-        stageNoSkill: Fodlan.noSkill(p) || undefined, // Eos: อยู่ในรถ = ใช้สกิลไม่ได้ (ปุ่มสกิลเทา)
+        stageNoSkill: Fodlan.noSkill(p) || require("./morph").noSkill(p) || undefined, // Eos: อยู่ในรถ = ใช้สกิลไม่ได้ (ปุ่มสกิลเทา) · ไก่/นก (server/morph.js)
+        morph: require("./morph").of(p) || undefined, // ไก่ / นก (น้ำยาแปลงร่างของ Ophy) — BoardStage วาดภาพตัวเต็มแทนหมาก
         carWalk: Fodlan.carWalk(p) || undefined, // Eos: ขับรถ — ถนน/พื้นเรียบเท่านั้น (Rules.reachable opts.carWalk)
         flatWalk: Fodlan.flatWalk(p) || undefined, // Eos: ขี่โชโกโบะ — ป่าทึบ/น้ำตื้นกิน 1 ก้าว (Rules.reachable opts.flatWalk)
         swim: action.swims(p) || undefined, // ว่ายบนพื้นเปียก ไม่ไถล (โซระ Orca Frame — Rules opts.swim)
@@ -523,6 +527,8 @@ function unseenPub(o, p) {
     // ไจโร: ลูกเหล็กบนพื้นยังเห็น (ไม่บอกตำแหน่งเจ้าของ) · ค่าอื่นซ่อน
     gyro: o.gyro ? { balls: o.gyro.balls, hand: null, golden: null, mounted: null, horseHp: null, horseCd: null, empowered: false, ultCd: null } : undefined,
     diego: undefined, celine: undefined, emiya: undefined, kazuma: undefined, inui: undefined, zect: undefined, law: undefined, giorno: undefined, otoya: undefined,
+    // Ophy: วัตถุดิบที่ตก/ช่องพลังงานยังเห็น (อยู่บนพื้น) · ลำดับยาบนหัว/สถานะซ่อน
+    ophy: o.ophy ? { queue: [], drops: o.ophy.drops, nodes: o.ophy.nodes } : undefined, morph: undefined,
     // กิลกาเมช: อาวุธที่ปักค้าง/ช่องที่สายฟ้าเล็ง/แนว Enuma Elish ยังเห็น (อยู่บนพื้น ไม่บอกตำแหน่งตัว) · ค่าอื่นซ่อน
     gil: o.gil ? { ea: false, wealth: null, wealthMax: o.gil.wealthMax, ammo: null, storm: o.gil.storm, warns: o.gil.warns, weapons: o.gil.weapons, charge: o.gil.charge ? { ...o.gil.charge } : null } : undefined,
     // เฟิร์น: คนที่มองไม่เห็นไม่รู้อะไรเลย (ไม่บอกว่าซ่อนเร้นอยู่ · ตัวนับ/คูลดาวน์ว่าง)

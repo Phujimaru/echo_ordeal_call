@@ -57,6 +57,7 @@ import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่น
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
 import JoshuaFxDev from "./JoshuaFxDev";
+import OphyFxDev from "./OphyFxDev";
 import NaruhodoFxDev from "./NaruhodoFxDev"; // ?naruhodo=1 = ปุ่มเล่นเอฟเฟกต์ของนารุโฮโดะ ริวอิจิ
 import MagnaFxDev from "./MagnaFxDev"; // ?magna=1 = ปุ่มเล่นเอฟเฟกต์ของแม็กน่า สวิง
 import DinoFxDev from "./DinoFxDev"; // ?dino=1 = ปุ่มเล่นเอฟเฟกต์ของดิเอโก้ อสูรกายดึกดำบรรพ์
@@ -161,6 +162,7 @@ const SORA_DEV = Q.get("sora") === "1";
 const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
 const JOSHUA_DEV = Q.get("joshua") === "1";
+const OPHY_DEV = Q.get("ophy") === "1"; // ?ophy=1 = Ophy · ปุ่มเล่นยิงขวด 11 ชนิด / สวนกลับ / หม้อระเบิด / ดื่ม / วาร์ป / ของตก / ไก่-นก (OphyFxDev.jsx)
 const MAGNA_DEV = Q.get("magna") === "1";
 const NARU_DEV = Q.get("naruhodo") === "1";
 const DINO_DEV = Q.get("dino") === "1";
@@ -320,6 +322,8 @@ export default function BoardPreview() {
   const [songsMock, setSongsMock] = useState(null);
   // ไจโร (?gyro=1): ลูกเหล็กบนพื้นจำลอง [{ owner, color, x, y, seq }] (prop gyroBalls)
   const [gyroBalls, setGyroBalls] = useState(null);
+  const [ophyGround, setOphyGround] = useState(null); // Ophy (?ophy=1): วัตถุดิบที่ตก/ช่องพลังงาน
+
   // ดิเอโก้ (?diego=1): ชั้นพื้นจำลอง { oil, fire, ash, nets } (prop diego) · หยุดเวลา { by } (prop timeFreeze)
   const [diegoGround, setDiegoGround] = useState(null);
   const [timeFreeze, setTimeFreeze] = useState(null);
@@ -555,6 +559,7 @@ export default function BoardPreview() {
         storms={storms}
         songs={songsMock}
         gyroBalls={gyroBalls}
+        ophyGround={ophyGround}
         diego={diegoGround}
         timeFreeze={timeFreeze}
         valentine={valFlags.length ? { flags: valFlags } : null}
@@ -607,6 +612,7 @@ export default function BoardPreview() {
       {DIVINE_DEV && <DivineFxDev units={units} map={map} pushFx={pushFx} setFocus={setFocus} />}
       {SORA_DEV && <SoraFxDev units={units} pushFx={pushFx} setFocus={setFocus} setShell={setSoraShell} />}
       {SHINRA_DEV && <ShinraFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {OPHY_DEV && <OphyFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setGround={setOphyGround} />}
       {JOSHUA_DEV && <JoshuaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {NARU_DEV && <NaruhodoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}

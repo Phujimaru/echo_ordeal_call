@@ -1362,6 +1362,42 @@
       "env": {
         "ECHO_SERVER_PORT": "3069"
       }
+    },
+    {
+      "name": "server-ophy",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server.js"
+      ],
+      "port": 3071,
+      "env": {
+        "PORT": "3071",
+        "ECHO_DEV_RICH": "1",
+        "ECHO_DEV_ACTION_TIME": "600",
+        "JOURNEY_START_SECONDS": "0",
+        "NODE_PATH": "C:/Echo/node_modules",
+        "ECHO_DEV_OPHY": "1"
+      }
+    },
+    {
+      "name": "client-ophy",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "client",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5271",
+        "--strictPort",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5271,
+      "env": {
+        "ECHO_SERVER_PORT": "3071"
+      }
     }
   ]
 }

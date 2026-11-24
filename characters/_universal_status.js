@@ -50,12 +50,15 @@ const BUFF_KEYS = [
   "accurate",  // แม่นยำ: เจาะการหลบหลีกทุกแบบ
   "promo",
   "jutti",     // จุติ: ตายแล้วคืนชีพด้วยพลังชีวิต 1 ล้างดีบัฟทั้งหมด (combat.instantDeath · 1 ครั้งแล้วหาย)
+  "immHigh",   // ภูมิสูง (Ophy — GRID_PLAN §7.43): คราบธาตุ −1 เทิร์น · ผลจากปฏิกิริยา −1 (server/element.js)
+  "invis",     // ล่องหน (Ophy): ศัตรูมองไม่เห็น ยกเว้นยืนห่างไม่เกิน 2 ช่อง (server/visibility.js)
 ];
 const BUFF_LABEL = {
   resist: "ต้านสถานะผิดปกติ", guard: "คุ้มครอง", fortune: "โชคลาภ", mend: "เยียวยา",
   might: "เสริมพลัง", empower: "เสริมพลัง", evade: "หลบหลีก", spellflow: "กระแสเวท",
   freecast: "การ์ดราชินี",
   awaken: "ตื่นขึ้น", accurate: "แม่นยำ", promo: "เปิดแต้ม", jutti: "จุติ",
+  immHigh: "ภูมิสูง", invis: "ล่องหน",
 };
 // ตัวนับลำดับ — เดินหน้าอย่างเดียวทั้งเกม จึงเทียบข้ามผู้เล่นได้
 let buffSeq = 0;
@@ -138,6 +141,8 @@ function applySpellburden(p, turns) {
 const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "weak", "fragile", "spellburden", "oblada", "hburn", "hbleed", "frostbite", "invert", "nohealing", "manaSeal", "chaa", "blind",
   "manaLeech",
   "poison",       // พิษร้าย: ดีบัฟเต็มตัว ล้าง/ต้านได้ตามปกติ
+  "immLow",       // ภูมิต่ำ (Ophy — GRID_PLAN §7.43): คราบธาตุ +2 เทิร์น · ผลจากปฏิกิริยา +1 (server/element.js)
+  "chicken",      // ไก่ (น้ำยาแปลงร่างของ Ophy — server/morph.js): เดิน 3 · ไม่มีสกิล/สกิลติดตัว · ตีปกติ 1
   // patch 3.4.6: ดีบัฟที่ตกหล่นจากรายการเดิม — เดิมล้าง/ต้านไม่ได้ทั้งที่เป็นดีบัฟเต็มตัว
   "decay",        // ผุพัง: เกราะฟื้นไม่ได้
   "stagger",      // ชะงัก: ฟื้นแต้มสกิลไม่ได้ทุกช่องทาง

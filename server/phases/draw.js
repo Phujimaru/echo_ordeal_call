@@ -139,15 +139,19 @@ function dealRound() {
     combat.firePassive(p, "roundStart");
 
     // ---------- ลุกไหม้ (hburn, สถานะ Universal): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 — ย้าย body ไป characters/_universal_status.js แล้ว ----------
-    tickBurn(engine, p);
-    require("../element").tickFrost(engine, p); // น้ำแข็งกัด (ปฏิกิริยาเยือกแข็ง · server/element.js): ดาเมจ 1/เทิร์น
+    // ฮุค dotShrug(engine, p, kind) → true = ต้นเทิร์นนี้ไม่ได้รับผลของสถานะนั้น (เวลาสถานะยังเดินตามปกติ)
+    //  kind: "burn" ลุกไหม้ · "frost" น้ำแข็งกัด · "poison" พิษร้าย · "shock" ช็อต (Ophy ติดตัว: 40%)
+    if (!dotShrug(p, "burn")) tickBurn(engine, p);
+    else if ((p.statuses.hburn || 0) > 0) { p.statuses.hburn--; if (p.statuses.hburn <= 0) delete p.statuses.hburn; }
+    if (!dotShrug(p, "frost")) require("../element").tickFrost(engine, p); // น้ำแข็งกัด (ปฏิกิริยาเยือกแข็ง · server/element.js): ดาเมจ 1/เทิร์น
+    else if ((p.statuses.frostbite || 0) > 0) { p.statuses.frostbite--; if (p.statuses.frostbite <= 0) delete p.statuses.frostbite; }
     // ---------- เลือดไหล (hbleed, สถานะ Universal patch 2.5): ดาเมจ 1/เทิร์น สะสมสูงสุด 6 ----------
     tickBleed(engine, p);
-    tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase
+    if (!dotShrug(p, "poison")) tickPoison(engine, p); // พิษร้าย (สถานะ Universal): ดาเมจต้นเทิร์น — ส่วนพลังโจมตีหักที่ computeAttackBase
     } finally { match.dotTick = false; }
     if (!p.alive) { skipFallen(p, cardHolder); continue; } // ตกรอบจากผลต้นเทิร์น = ไม่ได้ไพ่/ผลที่เหลือ
     // ช็อต (สถานะ Universal): โรล 15% ติดสตั้น — ต้องอยู่ก่อนบล็อกเช็คสตั้นด้านล่าง ไม่งั้นสตั้นจะเลื่อนไปมีผลเทิร์นถัดไป
-    tickShock(engine, p);
+    if (!dotShrug(p, "shock")) tickShock(engine, p);
     p.statusAmt.cardAtkBonus = 0; // พลังโจมตีจากการ์ดแดง — รีเซ็ตทุกรอบ
     if (cardHolder) dealHand(p);
     else { p.locked = true; p.busted = false; p.colorTrigger = { red: 0, blue: 0, green: 0, yellow: 0 }; }
@@ -225,6 +229,13 @@ function lockStuckSides() {
     const units = Duo.unitsOf(o).filter((u) => u.alive);
     if (units.length && units.every(held)) o.locked = true;
   }
+}
+// ฮุคตัวละคร dotShrug — สถานะต่อเทิร์นที่ติดอยู่ไม่ออกฤทธิ์ครั้งนี้ (เรียกเฉพาะตอนสถานะนั้นติดอยู่จริง)
+const DOT_KEY = { burn: "hburn", frost: "frostbite", poison: "poison", shock: "shock" };
+function dotShrug(p, kind) {
+  if (!(((p.statuses && p.statuses[DOT_KEY[kind]]) || 0) > 0)) return false;
+  const h = CHAR_HOOKS[p.characterId];
+  return !!(h && typeof h.dotShrug === "function" && combat.runHook(h, "dotShrug", engine, p, kind));
 }
 // แจกไพ่ใบแรกของเทิร์น + เปิดรับการจั่ว (ระบบคู่: เรียกกับเจ้าของเท่านั้น)
 function dealHand(p) {
