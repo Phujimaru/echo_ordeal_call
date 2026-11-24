@@ -69,7 +69,7 @@ const WARM = { sp: 6, turns: 5, selfBurn: 5 };
 const LATOM = { sp: 3, ember: 4, cd: 2, len: 6, burn: 2, accurate: 2, smolder: 2, pvpCap: 5 };
 const DETONATE_PVP_CAP = 4;
 const RT_CAP = 10; // Road Trip (ผู้ใช้สั่ง 2026-11-14): ลาทัม + ระเบิดลุกไหม้ เพดาน 10 · Eos/Moon ไม่จำกัด
-const HBURN_MAX = 6;
+const HBURN_MAX = Infinity; // ลุกไหม้ไม่มีเพดาน (ผู้ใช้ปลดทั้งเกม 2026-11-24 — _universal_status.HBURN_MAX)
 // จังหวะฉาก (ms) — client SHINRA_T ต้องตรงกัน
 const T = { stormBeat: 0.75, latomCharge: 380, latomStep: 70, latomTail: 200 }; // ดาเมจลาทัมลงตอนระเบิดปิดท้ายเริ่ม (client LATOM_BOOM)
 

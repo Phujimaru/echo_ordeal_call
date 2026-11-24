@@ -2070,6 +2070,7 @@ const CHARACTERS = [
     name: "โจชัว รอสฟิลด์",
     avatar: 0,
     difficulty: "boss",
+    unique: true, // เลือกได้คนเดียวต่อเกม (ผู้ใช้ 2026-11-24)
     img: "/characters/joshua_rosfield/joshua.webp",
     mov: 4,
     range: [1, 3],

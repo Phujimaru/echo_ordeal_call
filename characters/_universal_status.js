@@ -418,8 +418,9 @@ function tickBurn(engine, p) {
   p.statuses.hburn = Math.max(0, p.statuses.hburn - 1);
   if (p.statuses.hburn <= 0) delete p.statuses.hburn;
 }
-// ใส่ "ลุกไหม้" n หน่วย (เพดาน HBURN_MAX) — คืนจำนวนที่ติดเพิ่มจริง, 0 = โดนต้านสถานะกันไว้/เต็มเพดานแล้ว
-const HBURN_MAX = 6;
+// ใส่ "ลุกไหม้" n หน่วย — คืนจำนวนที่ติดเพิ่มจริง, 0 = โดนต้านสถานะกันไว้
+//  ไม่มีเพดาน (ผู้ใช้สั่งปลดทั้งเกม 2026-11-24 — เดิมสูงสุด 6)
+const HBURN_MAX = Infinity;
 function applyBurn(p, n) {
   if (!p || !(n > 0)) return 0;
   if (resistActive(p)) return 0;
