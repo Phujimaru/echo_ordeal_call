@@ -6,8 +6,8 @@
 //  ติดตัว 1 อัจฉริยะแห่งการเล่นแร่แปรธาตุ
 //   · ผลจากปฏิกิริยาที่ได้รับ −1 (ดาเมจ −1 · สถานะ −1 เทิร์น — ฮุค reactionShift → server/element.js)
 //   · ลุกไหม้/พิษร้าย/น้ำแข็งกัด/ช็อต ทำงานต้นเทิร์น = 40% ไม่ได้รับผล (ฮุค dotShrug → server/phases/draw.js)
-//   · Ophy ทำให้เกิดปฏิกิริยา = วัตถุดิบตก 2–4 ชิ้นในพื้นที่ปฏิกิริยา (อยู่ 3 เทิร์น) + ได้เดินพิเศษ 3 ช่อง (ไม่ซ้อน — รีเซ็ตเป็น 3)
-//   · ดื่มยาธาตุตอนมีคราบอยู่แล้ว = ปฏิกิริยาที่ตัวเองขยาย 3×3 → 5×5 (ตัวเองโดนด้วย)
+//   · Ophy ทำให้เกิดปฏิกิริยา = วัตถุดิบตก 2–4 ชิ้นในพื้นที่ปฏิกิริยา ไม่ทับช่องที่มียูนิต (อยู่ 3 เทิร์น) + ได้เดินพิเศษ 3 ช่อง (ไม่ซ้อน — รีเซ็ตเป็น 3)
+//   · ดื่มยาธาตุตอนมีคราบอยู่แล้ว = ปฏิกิริยาที่ตัวเองขยาย 3×3 → 5×5 (ตัวเองโดนด้วย) · เทิร์นละ 1 ครั้ง
 //   · เดินเก็บวัตถุดิบที่ตก = ชิ้นละพลังงาน +2
 //  ติดตัว 2 ปืนยิงยา: ปุ่ม "ยิงยา" ระยะ 3 วง 3×3 (ยิงลงช่องว่างได้) · ใช้ยาในแถวเรียกใช้ตามลำดับแล้ววน · ไม่มีเลย = น้ำยาตั้งต้น
 //   · ไม่มีดาเมจ (ผลของยาเท่านั้น) · โดนตัวเองถ้าอยู่ในวง · ไม่จบตา แต่เดินต่อไม่ได้ · ตาละ 1 ครั้ง (ยกเว้น calculated)
@@ -19,6 +19,9 @@
 //  สกิลรอง Lock in (2 · คูลดาวน์ 2): 1 เทิร์น — ถูกเล็ง/โจมตี = โยนยาสวนกลับตามลำดับ (ไม่จำกัดครั้ง · ยาหมด = ไม่โยน)
 //   · ผ่านไปครบโดยไม่เสียหาย = ยาสุ่ม 1 ขวด + วัตถุดิบสุ่ม 3–4 ชิ้น
 //  ท่าไม้ตาย calculated (0 · คูลดาวน์ 1 · ยิงยา/ใช้สกิลรองไปแล้วใช้ไม่ได้): ตานี้ยิงยาต่อเนื่องได้ — ครั้งแรกฟรี ครั้งต่อไป 2 พลังงาน (ตายตัว)
+//   · client: กดยิงยาครั้งเดียว = โหมดยิงต่อเนื่อง (เลือกช่องต่อได้เลย) · กดอีกที = พัก
+//  ปรับสมดุล 2026-11-24: เปิดกระเป๋าดูได้ช่วงจั่ว/ตาคนอื่น (ปรุง/เรียงเฉพาะตาตัวเอง) · กดวัตถุดิบ = ลงหม้อ ครบ 3 = ปรุงทันที ·
+//   เสียงปรุงทุกคนได้ยิน · ✘ = ยกเลิกการจัดเรียง · ช่องพลังงาน 3 จุด/ระยะ 5/อยู่ 2 เทิร์น/ได้ 1–2 ชิ้น · ไพ่ฟ้า 2 หรือแดง 2 = ลูกแก้ว 1
 //
 //  คำตอบเพื่อนผู้ใช้ (2026-11-24): ยิงยาไม่มีดาเมจ · โดนตัวเองถ้าอยู่ในวง · โจมตีปกติตาละครั้ง (นอกท่าไม้ตาย) ·
 //   ช่องเรียกใช้ 1–6 · ยาเข้ากักตุน เต็มล้นไปเรียกใช้ · ไพ่สีนับเฉพาะเทิร์นนั้น · เดินพิเศษ 3 = แทนระยะเดิมเสมอ ·
@@ -49,7 +52,7 @@ const THROW_RANGE = 3;     // ระยะยิงยา (แมนฮัตต
 const THROW_SIZE = 3;      // วง 3×3
 const DROP_TURNS = 3;      // วัตถุดิบที่ตกอยู่ 3 เทิร์น
 const DROP_ENERGY = 2;     // เก็บวัตถุดิบที่ตก = พลังงาน +2/ชิ้น
-const NODE_COUNT = 2, NODE_RANGE = 4; // ช่องพลังงานธาตุ: ต้นเทิร์นสุ่ม 2 จุดในระยะ 4
+const NODE_COUNT = 3, NODE_RANGE = 5, NODE_TURNS = 2; // ช่องพลังงานธาตุ: ต้นเทิร์นสุ่ม 3 จุดในระยะ 5 · อยู่ 2 เทิร์น (ปรับสมดุล 2026-11-24)
 const REACT_MOVE = 3;      // เดินพิเศษหลังทำปฏิกิริยา
 const FREE_BREW = 35;      // % ปรุงสำเร็จไม่เสียของ
 const STREAK = 3, STREAK_REGEN = 2;
@@ -130,7 +133,7 @@ function fresh() {
     call, store, mats, cursor: 0, sortReady: 0, streak: 0, throwRound: -1,
     lockIn: null, lockReady: 0, lockRound: -1, calc: null, ultReady: 0,
     drops: [], nodes: [], dropSeq: 0, walkCarry: 0, walkNow: 0, pulse: { round: -1, n: 0 },
-    reacted: false, wide: false, note: null, sound: null, fx: null, fxSeq: 0, counterQ: [],
+    reacted: false, wide: false, wideRound: -1, note: null, sound: null, fx: null, fxSeq: 0, counterQ: [],
   };
 }
 function st(p) { return p.ophy || (p.ophy = fresh()); }
@@ -254,9 +257,10 @@ function potionOn(engine, p, u, k, how) {
     if (harm) {
       const go = () => E.apply(u, P.el, p, { force: self });
       // ดื่มเองตอนมีคราบอยู่แล้ว (ติดตัว 1): ปฏิกิริยาขยาย 3×3 → 5×5 (ตัวเองโดนด้วย)
-      const wide = how === "drink" && self && passiveOn(p) && !!E.auraOf(p);
+      const wide = how === "drink" && self && passiveOn(p) && !!E.auraOf(p) && st(p).wideRound !== roundOf(engine);
       if (wide) {
         st(p).wide = true;
+        st(p).wideRound = roundOf(engine);
         const out = E.withRing(2, go);
         if (out) spreadWide(engine, p, out);
         st(p).wide = false;
@@ -468,10 +472,13 @@ function pulseRoll(engine, p) {
 function dropAround(engine, p, at, r) {
   const s = st(p);
   const B = Board(), map = engine.boardMap(), spots = [];
+  // ไม่วางทับช่องที่มียูนิตยืน (ตัวเป้า/คนอื่น · ปรับสมดุล 2026-11-24)
+  const taken = new Set(Object.values(engine.players).filter((u) => u.alive && u.pos)
+    .flatMap((u) => B.footprint(u.pos.x, u.pos.y, engine.sizeOf(u)).map((c) => `${c.x},${c.y}`)));
   for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     const x = B.wx ? B.wx(at.x + dx) : at.x + dx, y = at.y + dy;
     if (!B.inBounds(map, x, y)) continue;
-    if (B.isObstacle(map, x, y)) continue;
+    if (B.isObstacle(map, x, y) || taken.has(`${x},${y}`)) continue;
     spots.push({ x, y });
   }
   if (!spots.length) return;
@@ -484,21 +491,22 @@ function dropAround(engine, p, at, r) {
   }
   boardFx(engine, { kind: "drop", id: p.id, from: { x: at.x, y: at.y }, drops: made.map((d) => ({ id: d.id, x: d.x, y: d.y, k: d.k })) });
 }
-// ช่องพลังงานธาตุ: ต้นเทิร์นสุ่ม 2 จุดในระยะ 4 รอบตัว (ไม่ใช่ช่องที่ยืน · ไม่ใช่สิ่งกีดขวาง)
+// ช่องพลังงานธาตุ: ต้นเทิร์นสุ่ม 3 จุดในระยะ 5 รอบตัว (ไม่ใช่ช่องที่ยืน · ไม่ใช่สิ่งกีดขวาง · ไม่ซ้ำจุดเดิม) · อยู่ 2 เทิร์น
 function rollNodes(engine, p) {
-  const s = st(p);
-  s.nodes = [];
+  const s = st(p), r = roundOf(engine);
+  s.nodes = s.nodes.filter((n) => (n.until == null ? false : n.until >= r));
   if (!p.pos || !passiveOn(p)) return;
+  const had = new Set(s.nodes.map((n) => `${n.x},${n.y}`));
   const B = Board(), map = engine.boardMap(), box = { x: p.pos.x, y: p.pos.y, size: engine.sizeOf(p) }, spots = [];
   for (let dy = -NODE_RANGE - 2; dy <= NODE_RANGE + 2; dy++) for (let dx = -NODE_RANGE - 2; dx <= NODE_RANGE + 2; dx++) {
     const x = B.wx ? B.wx(p.pos.x + dx) : p.pos.x + dx, y = p.pos.y + dy;
     if (!B.inBounds(map, x, y)) continue;
     const d = B.dist(box, { x, y, size: 1 });
     if (d < 1 || d > NODE_RANGE) continue;
-    if (!engine.tileFree(x, y, p.id)) continue;
+    if (!engine.tileFree(x, y, p.id) || had.has(`${x},${y}`)) continue;
     spots.push({ x, y });
   }
-  for (let i = 0; i < NODE_COUNT && spots.length; i++) s.nodes.push(spots.splice(Math.floor(Math.random() * spots.length), 1)[0]);
+  for (let i = 0; i < NODE_COUNT && spots.length; i++) s.nodes.push({ ...spots.splice(Math.floor(Math.random() * spots.length), 1)[0], until: r + NODE_TURNS - 1 });
 }
 
 // ---------- ปรุงยา ----------
@@ -522,7 +530,7 @@ function brew(engine, p, b) {
     s.streak++;
     const regen = s.streak % STREAK === 0;
     if (regen) Status.applySpRegen(p, STREAK_REGEN);
-    sound(p, SFX.brew);
+    sfx(engine, SFX.brew); // ทุกคนได้ยิน (ปรับสมดุล 2026-11-24)
     voice(p, "brew");
     markFx(p, { kind: "brew", potion: b.out, free, lost: !ok, regen });
     engine.log(`⚗️ ${p.name} ปรุง${POTIONS[b.out].name}สำเร็จ${free ? " (ไม่เสียวัตถุดิบ)" : ""}${ok ? "" : " — กระเป๋าเต็ม ยาหาย"}${regen ? ` · ฟื้นพลัง ${STREAK_REGEN} ขั้น` : ""}`);
@@ -532,7 +540,7 @@ function brew(engine, p, b) {
   const lose = [...b.refs].sort(() => Math.random() - 0.5).slice(0, 2);
   for (const r of lose) takeAt(s, r);
   s.streak = 0;
-  sound(p, SFX.fail);
+  sfx(engine, SFX.fail);
   markFx(p, { kind: "fail" });
   explode(engine, p);
 }
@@ -804,7 +812,8 @@ module.exports = {
       });
       s.nodes = s.nodes.filter((n) => {
         if (!keys.has(`${n.x},${n.y}`)) return true;
-        if (addMat(s, "orb", 1)) got.orb = (got.orb || 0) + 1;
+        const g = addMat(s, "orb", rand(1, 2));
+        if (g) got.orb = (got.orb || 0) + g;
         return false;
       });
       if (Object.keys(got).length) { markFx(p, { kind: "gain", mats: got, drops: gotDrops }); boardFx(engine, { kind: "pick", id: p.id, drops: gotDrops }); }
@@ -841,7 +850,8 @@ module.exports = {
       const got = {};
       const add = (m, n) => { const g = addMat(st(p), m, n); if (g) got[m] = (got[m] || 0) + g; };
       for (let i = 0; i < Math.floor(count("green") / 2); i++) add("herb", 1);
-      for (let i = 0; i < Math.floor(count("blue") / 2); i++) add("orb", rand(1, 2));
+      // ไพ่ฟ้า 2 ใบ หรือ ไพ่แดง 2 ใบ = ลูกแก้วธาตุ 1 ชิ้น (ปรับสมดุล 2026-11-24 · เดิมฟ้าอย่างเดียว 1–2)
+      for (let i = 0; i < Math.floor(count("blue") / 2) + Math.floor(count("red") / 2); i++) add("orb", 1);
       for (let i = 0; i < Math.floor(count("yellow") / 2); i++) add("crystal", rand(1, 2));
       if (roll(85)) add(engine.bustedOf(p) ? "spirit" : "water", rand(1, 2));
       if (Object.keys(got).length) {
@@ -856,6 +866,7 @@ module.exports = {
       if (!isOphy(p) || !p.ophy) continue;
       const s = p.ophy;
       s.drops = s.drops.filter((d) => d.until > r);
+      s.nodes = s.nodes.filter((n) => n.until != null && n.until > r);
       if (s.lockIn && s.lockIn.round < r - 1) endLockIn(engine, p); // กันค้าง (ถูกข้ามตาเดิน)
       if (s.calc && s.calc.round < r) s.calc = null;
     }
@@ -899,7 +910,7 @@ module.exports = {
     const pub = {
       queue: queueOf(s),
       drops: s.drops.map((d) => ({ id: d.id, x: d.x, y: d.y, k: d.k, left: Math.max(1, d.until - r + 1) })),
-      nodes: s.nodes.map((n) => ({ x: n.x, y: n.y })),
+      nodes: s.nodes.map((n) => ({ x: n.x, y: n.y, left: n.until == null ? 1 : Math.max(1, n.until - r + 1) })),
       lockIn: !!s.lockIn || undefined,
       calc: calcOn(engine, p) || undefined,
     };

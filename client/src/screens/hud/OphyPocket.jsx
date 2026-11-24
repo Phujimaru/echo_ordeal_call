@@ -2,8 +2,10 @@
 //  กระเป๋าวิเศษของ Ophy (characters/ophy.js · GRID_PLAN §7.43) — เปิดจากช่องสกิลพื้นฐาน "ปรุงยา"
 //   ภาพกระเป๋า/คู่มือ = ไฟล์เพื่อนผู้ใช้ (pocket.webp · guide1–3.webp ตัดจาก MP*.png) · ปุ่ม/ช่องวางทับตามพิกัดภาพ 712×652
 //   แถวบน เรียกใช้ (1–6 = ลำดับยิง) · แถวกลาง กักตุน · แถวล่าง วัตถุดิบ
-//   ลากของ: ช่อง → ช่อง = สลับ/รวมกอง (ยาอยู่แถวบน-กลาง · วัตถุดิบอยู่แถวล่าง) แล้ว ✓ ยืนยัน (คูลดาวน์ 1 เทิร์น)
-//           ช่อง → หม้อ 3 ช่อง = ใส่ของ · ครบ 3 แล้ว ✓ = ปรุง · กดช่องหม้อ = เอาออก
+//   ลากของ: ช่อง → ช่อง = สลับ/รวมกอง (ยาอยู่แถวบน-กลาง · วัตถุดิบอยู่แถวล่าง) แล้ว ✓ ยืนยัน (คูลดาวน์ 1 เทิร์น) · ✘ = ยกเลิก (ไม่มีอะไรค้าง = ปิด)
+//           กดวัตถุดิบ = ลงหม้อช่องว่างถัดไป · ยาต้องลากลงหม้อ · ครบ 3 = ปรุงทันที · กดช่องหม้อ = เอาออก (ปรับสมดุล 2026-11-24)
+//   เปิดดูได้ช่วงจั่ว/ตาคนอื่น (canAct = false → ดูอย่างเดียว)
+//   กันลากแล้วเบราว์เซอร์ลากข้อความ/ภาพของหน้า (เห็นเป็นภาพจอที่ถูกครอปติดเมาส์): mousedown/dragstart/selectstart ถูกกันทั้งแผ่น
 //   กดของในกระเป๋า = ดื่ม / ให้ (เพื่อนที่ยืนติดกัน) · ? = คู่มือ 3 หน้า · 📖 = หน้าสูตรทันที
 //   ✒️ = จดของในหม้อลงกระดาษ (หม้อว่าง = ลบ) · 📜 กระดาษ = ใส่ของตามสูตรที่จดจากกระเป๋าให้เอง (ของขาด = ไอคอนจาง)
 //  จอคอม/แท็บเล็ตเท่านั้น · ไม่มีข้อความอธิบาย (ชื่อ + ตัวเลข + ไอคอน)
@@ -66,7 +68,7 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
     setLay(clone(server)); setPot([null, null, null]); setSel(null);
   }, [serverSig, server]);
   // เปิดกระเป๋า = เสียงกระเป๋า
-  useEffect(() => { playSfx("ophy_open"); }, []);
+  useEffect(() => { playSfx("ophy_open"); try { window.getSelection()?.removeAllRanges(); } catch { /* ไม่มี selection */ } }, []);
   // ย่อ/ขยายตามจอ
   useEffect(() => {
     const fit = () => setScale(Math.max(0.6, Math.min(1.3, (window.innerWidth * 0.92) / W, (window.innerHeight * 0.86) / H)));
@@ -106,10 +108,10 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
     return hit ? hit.getAttribute("data-drop") : null;
   };
   const startDrag = (e, ref) => {
+    e.preventDefault();
     if (!canAct || e.button !== 0) return;
     const x = slotAt(ref);
     if (!x || inPot(ref) >= x.n) return;
-    e.preventDefault();
     const start = toLocal(e);
     let moved = false;
     const move = (ev) => {
@@ -121,11 +123,19 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
     const up = (ev) => {
       window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
       setDrag(null);
-      if (!moved) { clickSound(); setHover(null); setSel((s) => (s === ref ? null : ref)); return; }
+      if (!moved) { setHover(null); if (ref[0] === "m") toPot(ref); else { clickSound(); setSel((s) => (s === ref ? null : ref)); } return; }
       drop(ref, targetAt(ev));
     };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
   };
+  // กดวัตถุดิบ = ลงหม้อช่องว่างแรก
+  function toPot(ref) {
+    const x = slotAt(ref), i = pot.indexOf(null);
+    if (pending || i < 0 || !x || inPot(ref) >= x.n) { clickSound(); return; }
+    const next = pot.slice(); next[i] = ref;
+    setPot(next); setSel(null);
+    putSfx();
+  }
   function drop(from, to) {
     if (!to || to === from) return;
     if (to.startsWith("pot")) {
@@ -152,15 +162,29 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
   }
 
   // ---------- ปุ่ม ----------
+  // หม้อครบ 3 = ปรุงทันที (เว้นจังหวะให้เห็นของชิ้นที่ 3 ลงหม้อ)
+  const brewRef = useRef(onBrew);
+  useEffect(() => { brewRef.current = onBrew; });
+  const potKey = pot.join(",");
+  useEffect(() => {
+    if (!canAct || potKey.split(",").some((r) => !r)) return undefined;
+    const refs = potKey.split(",");
+    const t = setTimeout(() => { brewRef.current(refs); setPot([null, null, null]); }, 380);
+    return () => clearTimeout(t);
+  }, [potKey, canAct]);
   const confirm = () => {
     if (!canAct) return;
-    if (potFull) { onBrew(pot); setPot([null, null, null]); return; }
     if (pending && !sortLocked) {
       onSort(`c:${encodeRow(lay.call)}/s:${encodeRow(lay.store)}/m:${encodeRow(lay.mats)}`);
       playSfx("ophy_sort");
     }
   };
   const close = () => { clickSound(); onClose(); };
+  // ✘: มีของค้าง (จัดเรียงยังไม่ยืนยัน / ของในหม้อ) = ยกเลิก · ไม่มี = ปิด
+  const cancel = () => {
+    if (pending || pot.some(Boolean)) { playSfx("ophy_sort"); setLay(clone(server)); setPot([null, null, null]); setSel(null); return; }
+    close();
+  };
   const pen = () => {
     if (!canAct) return;
     clickSound();
@@ -220,7 +244,8 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
   };
 
   return (
-    <div className="op-veil" onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
+    <div className="op-veil" data-view={canAct ? "act" : "view"} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}
+      onMouseDown={(e) => e.preventDefault()} onDragStart={(e) => e.preventDefault()}>
       <div className="op-stage" ref={rootRef} style={{ width: W, height: H, transform: `scale(${scale})` }}>
         <img className="op-bg" src={`${OPHY_DIR}/pocket.webp`} alt="" draggable={false} />
 
@@ -258,11 +283,11 @@ export default function OphyPocket({ ophy, me, players, teamMode, canAct, onClos
         <span className="op-cap" data-full={(ophy.total || 0) >= (ophy.cap || 50) ? "true" : "false"}>{ophy.total || 0}/{ophy.cap || 50}</span>
 
         {/* ปุ่มบนภาพ */}
-        <button type="button" className="op-hit" style={boxStyle(BOX.close)} onClick={close} aria-label="ปิด" />
+        <button type="button" className="op-hit" style={boxStyle(BOX.close)} onClick={cancel} aria-label="ยกเลิก" />
         <button type="button" className="op-hit" style={boxStyle(BOX.help)} onClick={() => { clickSound(); setPage(1); }} aria-label="คู่มือ" />
         <button type="button" className="op-hit op-ok" style={boxStyle(BOX.ok)} onClick={confirm}
-          data-live={canAct && (potFull || (pending && !sortLocked)) ? "true" : "false"} aria-label="ยืนยัน">
-          {sortLocked && !potFull && <b className="op-cd">⏳{ophy.sortCd}</b>}
+          data-live={canAct && pending && !sortLocked ? "true" : "false"} aria-label="ยืนยัน">
+          {sortLocked && <b className="op-cd">⏳{ophy.sortCd}</b>}
         </button>
         <button type="button" className="op-hit op-book" style={boxStyle(BOX.book)} onClick={() => { clickSound(); setPage(3); }} aria-label="สูตร" />
         <button type="button" className="op-hit op-pen" style={boxStyle(BOX.pen)} onClick={pen} aria-label="จด" />

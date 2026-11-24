@@ -154,9 +154,9 @@ const BLADES = (
   </svg>
 );
 //  potion = ภาพขวดยาถัดไป (Ophy: ปุ่มโจมตี = ยิงยา) · cost = พลังงานที่ใช้ (calculated ครั้งที่ 2 ขึ้นไป)
-export function AttackButton({ disabled = false, onClick, targets = 0, potion = null, cost = 0 }) {
+export function AttackButton({ disabled = false, onClick, targets = 0, potion = null, cost = 0, auto = false }) {
   if (potion) return (
-    <button type="button" className="atkb atkb-potion" data-hotkey="F" aria-keyshortcuts="F" data-off={disabled ? "true" : "false"} disabled={disabled} onClick={onClick}>
+    <button type="button" className="atkb atkb-potion" data-hotkey="F" aria-keyshortcuts="F" data-off={disabled ? "true" : "false"} data-auto={auto ? "true" : "false"} disabled={disabled} onClick={onClick}>
       <kbd className="hk" aria-hidden="true">F</kbd>
       <span className="atkb-bg" aria-hidden="true" />
       <span className="atkb-emb">

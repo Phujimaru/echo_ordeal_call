@@ -1411,3 +1411,7 @@ button:disabled .hk, button[data-usable="false"] .hk { opacity: .45; }
 @keyframes atkb-bottle-in { from { transform: translateY(14px) scale(.4) rotate(-30deg); opacity: 0; } }
 @keyframes atkb-bottle-bob { 50% { transform: translateY(-3px) rotate(6deg); } }
 @media (prefers-reduced-motion: reduce) { .atkb-potion .atkb-bottle { animation: none !important; } }
+/* Ophy calculated: โหมดยิงต่อเนื่องเปิดอยู่ = ขอบทองเรืองเป็นจังหวะ */
+.atkb-potion[data-auto="true"] { box-shadow: 0 0 0 2px rgba(255, 214, 120, .95), 0 0 22px rgba(255, 190, 80, .7); animation: atkb-auto 1.1s ease-in-out infinite; }
+@keyframes atkb-auto { 50% { box-shadow: 0 0 0 2px rgba(255, 214, 120, .6), 0 0 34px rgba(255, 190, 80, .95); } }
+@media (prefers-reduced-motion: reduce) { .atkb-potion[data-auto="true"] { animation: none; } }

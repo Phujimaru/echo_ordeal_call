@@ -158,6 +158,65 @@ test('ปฏิกิริยาโดย Ophy: วัตถุดิบตก 
   assert.equal(O.ophy.drops.length, 1);
 });
 
+test('ปรับสมดุล 2026-11-24: วัตถุดิบตกไม่ทับช่องที่มียูนิต', () => {
+  const { O, A } = setup([['O', 'ophy', 4, 7], ['A', 'dummy', 7, 7]]);
+  engine.setActor('O');
+  O.ophy.call[0] = { k: 'flame', n: 1 };
+  A.statuses.elWater = 2;
+  Math.random = () => 0.5; // เดิมสุ่มได้ช่องกลาง = ช่องที่ A ยืน
+  act('O', 'ophy:throw', { x: 7, y: 7 });
+  runBeats(O);
+  assert.ok(O.ophy.drops.length >= 2);
+  assert.ok(O.ophy.drops.every((d) => !(d.x === 7 && d.y === 7)), JSON.stringify(O.ophy.drops));
+});
+
+test('ปรับสมดุล 2026-11-24: ดื่มยาขยายปฏิกิริยา 5×5 ได้เทิร์นละ 1 ครั้ง', () => {
+  const { O } = setup([['O', 'ophy', 4, 7], ['A', 'dummy', 12, 7]]);
+  engine.setActor('O');
+  O.ophy.store[1] = { k: 'flame', n: 2 };
+  O.hp = 13; O.armor = 2;
+  const E = require('../../server/element.js');
+  const ring = E.withRing;
+  let wide = 0;
+  E.withRing = (...a) => { wide++; return ring(...a); };
+  try {
+    O.statuses.elWater = 2;
+    act('O', 'ophy:drink:s1');
+    O.statuses = { elWater: 2 }; O.hp = 13;
+    act('O', 'ophy:drink:s1');
+  } finally { E.withRing = ring; }
+  assert.equal(wide, 1);
+});
+
+test('ปรับสมดุล 2026-11-24: ช่องพลังงาน 3 จุด ระยะ 5 อยู่ 2 เทิร์น · เก็บได้ 1–2 · ไพ่แดง 2 ใบ = ลูกแก้ว 1', () => {
+  const { O } = setup([['O', 'ophy', 8, 8], ['A', 'dummy', 20, 8]]);
+  const r0 = engine.roundNumber;
+  O.ophy.nodes = [];
+  hook().onRoundStartTick(engine, O);
+  assert.equal(O.ophy.nodes.length, 3);
+  const Board = require('../../server/board.js');
+  for (const n of O.ophy.nodes) assert.ok(Board.dist({ x: 8, y: 8, size: 1 }, { x: n.x, y: n.y, size: 1 }) <= 5);
+  match.roundNumber = r0 + 1;
+  hook().onRoundStartTick(engine, O);
+  assert.equal(O.ophy.nodes.length, 6); // ชุดก่อนยังอยู่ (2 เทิร์น)
+  match.roundNumber = r0 + 2;
+  hook().onRoundStartTick(engine, O);
+  assert.equal(O.ophy.nodes.length, 6); // ชุดแรกหมดอายุ
+  match.roundNumber = r0;
+  // เดินผ่าน = ลูกแก้ว 1–2
+  O.ophy.nodes = [{ x: 9, y: 8, until: r0 + 5 }];
+  mats(O, []);
+  Math.random = () => 0.99;
+  hook().afterWalk(engine, O, [{ x: 8, y: 8 }, { x: 9, y: 8 }]);
+  assert.equal(O.ophy.mats[0].k, 'orb');
+  assert.equal(O.ophy.mats[0].n, 2);
+  // ไพ่แดง 2 ใบ = ลูกแก้ว 1 (ไพ่ฟ้า 2 ใบ ก็ 1)
+  mats(O, []);
+  O.cards = [{ color: 'red' }, { color: 'red' }, { color: 'blue' }, { color: 'blue' }];
+  hook().onOrderBegin(engine);
+  assert.deepEqual(O.ophy.mats[0], { k: 'orb', n: 2 });
+});
+
 test('ติดตัว: ดาเมจปฏิกิริยาที่ Ophy ได้รับ −1', () => {
   const { O } = setup([['O', 'ophy', 4, 7], ['B', 'dummy', 12, 7]]);
   O.statuses.elWater = 2; O.armor = 0; O.hp = 13;

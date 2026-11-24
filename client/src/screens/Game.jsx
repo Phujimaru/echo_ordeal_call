@@ -517,8 +517,10 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   // ฉากใส่การ์ด Evolution (Rouze Absorber) · หมดตา/เข้าร่างแล้ว = ปิด
   const [kzEvolve, setKzEvolve] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false); // อินุอิ: Faiz Phone กางอยู่
-  const [ophyOpen, setOphyOpen] = useState(false); // Ophy: กระเป๋าวิเศษกางอยู่ (hud/OphyPocket.jsx) · หมดตา = ปิด
-  if (ophyOpen && (!myTurn || !me?.ophy?.call)) setOphyOpen(false);
+  const [ophyOpen, setOphyOpen] = useState(false); // Ophy: กระเป๋าวิเศษกางอยู่ (hud/OphyPocket.jsx) · เปิดดูได้ทุกช่วง (ปรุง/เรียงเฉพาะตาตัวเอง)
+  if (ophyOpen && (!me?.ophy?.call || !me.alive)) setOphyOpen(false);
+  // Ophy calculated: โหมดยิงต่อเนื่อง — กดยิงยาครั้งเดียว แล้วเลือกช่องต่อได้เรื่อยๆ จนกดอีกที (พัก) / ยิงไม่ได้ / หมดตา
+  const [ophyAuto, setOphyAuto] = useState(false);
   if (phoneOpen && (!myTurn || canto || !me?.inui?.opened)) setPhoneOpen(false);
   if (kzEvolve && (!myTurn || canto || !me?.kazuma?.canEvolve)) setKzEvolve(false);
   if (choiceOpen && (!myTurn || (canto && !cantoTier(choiceOpen.tier)) || choiceOpen.unit !== me?.id || !ch?.[choiceOpen.tier]?.choices)) setChoiceOpen(null);
@@ -618,6 +620,14 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
     if (pickReq.kind === "naruMove") { if (!(state.holdIt && state.holdIt.lawyerId === me?.id && state.holdIt.phase === "choose" && !state.holdIt.result)) setPickReq(null); return; }
     if (!myTurn || canto || gone) setPickReq(null);
   }, [pickReq, myTurn, canto, me?.actions, state.holdIt, me?.id]);
+  // Ophy calculated: โหมดยิงต่อเนื่อง — ยิงเสร็จ (ผลลงแล้ว ช่องกลับมา) = เข้าโหมดเลือกช่องเองอีกรอบ
+  const ophyThrowAct = (me?.actions || []).find((x) => x.key === "ophy:throw");
+  const ophyThrowLive = !!ophyThrowAct && !ophyThrowAct.disabled && Array.isArray(ophyThrowAct.tiles) && ophyThrowAct.tiles.length > 0;
+  useEffect(() => {
+    if (!ophyAuto) return;
+    if (!me?.ophy?.calc || state.actorId !== me?.id || canto || (ophyThrowAct && ophyThrowAct.disabled) || !ophyThrowAct) { setOphyAuto(false); return; }
+    if (!pickReq && myTurn && ophyThrowLive) setPickReq({ kind: "action", key: "ophy:throw" });
+  }, [ophyAuto, me?.ophy?.calc, me?.id, state.actorId, canto, ophyThrowAct, ophyThrowLive, pickReq, myTurn]);
   // Road Trip: ปุ่มรถตู้ตอนสู้บนรถ (หักรถชน · ยิงป้อมปืน · ขึ้น/ลงหลังคา) — เข้าแถวปุ่มพิเศษของ HUD · ปุ่มลัด G H T Y (roadtrip/rtVanActions.jsx)
   const rtVanBtns = rtVanButtons({
     rt: state.gameMode === "roadtrip" ? state.roadtrip : null, youId: state.youId, me, round: state.roundNumber,
@@ -1179,8 +1189,14 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
               }
               attack={me?.ophy?.call
                 // Ophy: ปุ่มโจมตี = ยิงยา (เลือกช่องในระยะ 3 · วง 3×3) — characters/ophy.js hudActions "ophy:throw"
-                ? (() => { const act = (me.actions || []).find((x) => x.key === "ophy:throw"); const ok = !!act && !act.disabled && Array.isArray(act.tiles) && act.tiles.length > 0 && !canto;
-                  return { disabled: !ok, targets: 0, potion: act && act.img, cost: act && act.cost, onClick: () => { clickSound(); setPickReq(pickReq?.kind === "action" && pickReq.key === "ophy:throw" ? null : { kind: "action", key: "ophy:throw" }); } }; })()
+                ? (() => { const act = ophyThrowAct; const ok = ophyThrowLive && !canto;
+                  const picking = pickReq?.kind === "action" && pickReq.key === "ophy:throw";
+                  return { disabled: !ok && !ophyAuto, targets: 0, potion: act && act.img, cost: act && act.cost, auto: ophyAuto, onClick: () => {
+                    clickSound();
+                    // calculated: กดครั้งเดียว = ยิงต่อเนื่อง · กดอีกที = พัก
+                    if (me.ophy.calc) { const on = !ophyAuto; setOphyAuto(on); setPickReq(on && ok ? { kind: "action", key: "ophy:throw" } : null); return; }
+                    setPickReq(picking ? null : { kind: "action", key: "ophy:throw" });
+                  } }; })()
                 : { disabled: canto || !!state.action?.noStrike || !attackables.length, targets: attackables.length, onClick: () => { clickSound(); setAtkSignal((n) => n + 1); } }}
               shops={canto ? null : nearShops.map((sh) => ({ id: sh.id, kind: sh.kind, name: sh.name || shopName(sh.kind), onClick: () => viewShop(sh) }))}
               ride={rideNear && !canto ? { disabled: !!state.action?.locked || !!state.rideAsk, onClick: () => { clickSound(); setPickReq({ kind: "ride" }); } } : null}
@@ -1270,6 +1286,12 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
           onClose={() => setKzOpen(false)}
           onPick={(c) => socket.emit("useSkill", { tier: "secondary", form: c.key })}
         />
+      )}
+      {/* Ophy: เปิดกระเป๋าวิเศษดูช่วงจั่ว/ตาคนอื่น (ตาตัวเองเปิดจากช่องปรุงยา) */}
+      {!ophyOpen && me?.ophy?.call && me.alive && hudMode !== "turn" && vp.w >= 768 && (
+        <button type="button" className="op-open" onClick={() => { clickSound(); setOphyOpen(true); }} aria-label="Magic pocket">
+          <img src="/characters/ophy/skill1.webp" alt="" draggable={false} />
+        </button>
       )}
       {ophyOpen && me?.ophy?.call && (
         <OphyPocket
