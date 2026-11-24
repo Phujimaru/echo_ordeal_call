@@ -1251,11 +1251,11 @@ function strikeTarget(id, targetId) {
   if (Visibility.hiddenFromUnit(p, target)) return false; // มองไม่เห็น = ตีไม่ได้ (ม่านแดง: นับจากตาของตัวที่ตีเอง)
   if (!canStrike(p, target)) return false;
   // Clock Up: สมาชิกที่ยังไม่จบตีกันเอง = หมากพุ่งชน → QTE กดรัว (server/clockUp.js)
-  if (ClockUp.duelWanted(p, target)) { Visibility.onHostileAct(p, "strike"); return ClockUp.startDuel(p, target, done); }
+  if (ClockUp.duelWanted(p, target)) { Visibility.onHostileAct(p, "strike", target); return ClockUp.startDuel(p, target, done); }
   timers.clearPhaseTimer();
   match.action.locked = true;
   require("../court").noteAct(p, "attack", "ตีปกติ", [target.id]); // บันทึกเหตุการณ์ของศาลนารุโฮโดะ (มีนารุโฮโดะในแมตช์เท่านั้น)
-  Visibility.onHostileAct(p, "strike"); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
+  Visibility.onHostileAct(p, "strike", target); // ตีจากในพุ่ม = โผล่จนจบเทิร์น · นักบินปริศนาปรากฏตัว
   // ฮุค interceptStrike(engine, p, target) → { after } = รับช่วงการตีนี้ (เฟรดดี้: มินิเกมประตู) — ฉากที่ฮุคคิวไว้ (skillBeat) เล่นก่อน
   //  after() คืน "strike" = ตีลงต่อโดยข้ามด่านหลบ (match.strikeSure) · ตัวเลข = วินาทีพักฉากก่อนจบตา
   const icHook = CHAR_HOOKS[p.characterId];

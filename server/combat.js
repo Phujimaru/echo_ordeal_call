@@ -338,6 +338,10 @@ function tookDamage(p) {
   const src = match.effectSourceId && match.players[match.effectSourceId];
   if (src && src.id !== p.id) {
     Ride.onAttacked(p, src);
+    // น้ำยาล่องหน (invis): ทำร้ายคนอื่น / ถูกทำร้าย = หลุด (server/visibility.js)
+    const Vis = require("./visibility");
+    Vis.breakInvis(p);
+    if (!sameTeam(src, p) && match.actorId === src.id) Vis.breakInvis(src); // ผลค้าง (ไฟไหม้/พิษ) นอกตาของต้นตอ ไม่นับว่าต้นตอโจมตี
     // ฮุค broadcast onDamageDealt(engine, ต้นตอ, เป้า): ต้นตอทำให้เป้าเสียพลังชีวิต/เกราะ/เลือดชั่วคราวจริง 1 หน่วย
     //  (วาเลนไทน์: สกิลติดตัว แต้มสกิล +1 ต่อการโจมตี 1 ครั้ง — แยกครั้งด้วย match.cmdSeq)
     broadcastHook("onDamageDealt", engine, src, p);

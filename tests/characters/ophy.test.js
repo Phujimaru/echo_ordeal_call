@@ -336,3 +336,36 @@ test('state: คนอื่นเห็นลำดับยา 4 ขวด ไ
   assert.equal(other.ophy.call, undefined);
   assert.ok(Array.isArray(view('O', 'O').ophy.store));
 });
+
+test('เนิฟ 2026-11-24: น้ำยาล่องหนหลุดเมื่อโจมตีหรือถูกโจมตี', () => {
+  const Vis = require('../../server/visibility.js');
+  const P = setup([['O', 'ophy', 3, 3], ['M', 'muimi', 4, 3], ['K', 'muimi', 8, 8]]);
+  const O = P.O, M = P.M, K = P.K;
+  // ตีปกติ: ทั้งคนตีและคนโดนหลุด
+  O.statuses.invis = 2; M.statuses.invis = 2;
+  Vis.onHostileAct(O, 'strike', M);
+  assert.equal(O.statuses.invis, undefined);
+  assert.equal(M.statuses.invis, undefined);
+  // ถูกทำร้ายในตาของคนอื่น: คนโดนหลุด · ต้นตอที่ทำในตาตัวเองก็หลุด
+  O.statuses.invis = 2; K.statuses.invis = 2;
+  match.actorId = 'K';
+  combat.withEffectSource(K, () => engine.dealMixed(O, 1));
+  assert.equal(O.statuses.invis, undefined);
+  assert.equal(K.statuses.invis, undefined);
+  // ผลค้างนอกตาของต้นตอ (เช่นไฟไหม้ตอนจบเทิร์น): ต้นตอไม่หลุด
+  O.statuses.invis = 2; K.statuses.invis = 2;
+  match.actorId = 'M';
+  combat.withEffectSource(K, () => engine.dealMixed(O, 1));
+  assert.equal(O.statuses.invis, undefined);
+  assert.equal(K.statuses.invis, 2);
+  // สกิลพื้นที่แบบโจมตีโดนศัตรู: ผู้ใช้กับคนโดนหลุด
+  O.statuses.invis = 2; M.statuses.invis = 2;
+  Vis.onAreaHit(O, ['M']);
+  assert.equal(O.statuses.invis, undefined);
+  assert.equal(M.statuses.invis, undefined);
+  // ใช้ไอเทมใส่คนอื่นไม่ใช่การโจมตี
+  O.statuses.invis = 2;
+  Vis.onHostileAct(O, 'item');
+  assert.equal(O.statuses.invis, 2);
+  match.actorId = null;
+});

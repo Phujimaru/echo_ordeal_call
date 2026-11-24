@@ -8,7 +8,7 @@
 //  ผู้ชมที่มองไม่เห็นได้ pos = null และไม่เห็นเส้นทางเดิน/บันทึกที่มีชื่อเขา (view.js)
 // export ก่อน require: ไฟล์ใน server/ require วนกันเอง — function declaration ถูก hoist จึงพร้อมใช้ตั้งแต่บรรทัดแรก
 Object.assign(module.exports, {
-  stealthed, inBush, concealed, hiddenFrom, hiddenFromUnit, exposeBush, onHostileAct, onAreaHit, onBump, filterLog, markTurn,
+  stealthed, inBush, concealed, hiddenFrom, hiddenFromUnit, exposeBush, onHostileAct, onAreaHit, onBump, breakInvis, filterLog, markTurn,
 });
 
 const CHAR_HOOKS = require("../characters/index");
@@ -29,6 +29,12 @@ function hookStealth(p) {
 }
 const INVIS_SEEN = 2; // ล่องหน (invis): ศัตรูที่ยืนห่างไม่เกิน 2 ช่องมองเห็น (ผู้ใช้ — GRID_PLAN §7.43)
 function potionInvis(p) { return !!(p && p.alive && p.statuses && (p.statuses.invis || 0) > 0); }
+// ล่องหนจากน้ำยา (invis) หลุดเมื่อโจมตีหรือถูกโจมตี (เนิฟ 2026-11-24 — GRID_PLAN §7.43)
+function breakInvis(p) {
+  if (!p || !p.statuses || !(p.statuses.invis > 0)) return;
+  delete p.statuses.invis;
+  if (p.statusAt) delete p.statusAt.invis;
+}
 function stealthed(p) {
   return hookStealth(p) || potionInvis(p);
 }
@@ -123,8 +129,10 @@ function exposeBush(p) {
 }
 // โจมตีปกติ / ยิงปืน / ใช้ไอเทมใส่คนอื่น — พุ่มหญ้าโผล่ + ตัวละครล่องหนปรากฏตัว (hook onReveal(engine, p, "act", how))
 //  how = "strike" ตีปกติ (คน/ผนึก/หนาม) · "slide" ไถลชน · "item" ใช้ไอเทมใส่คนอื่น (เฟิร์น: ไอเทมไม่ออกจากซ่อนเร้นมานา)
-function onHostileAct(p, how) {
+function onHostileAct(p, how, target) {
   exposeBush(p);
+  if (how !== "item") breakInvis(p);
+  if (target) breakInvis(target);
   const hook = hookOf(p);
   if (hook && hook.onReveal) hook.onReveal(engine, p, "act", how);
 }
@@ -137,6 +145,8 @@ function onAreaHit(user, ids) {
   for (const id of ids || []) {
     const t = match.players[id];
     if (!t || t.id === user.id || combat.sameTeam(user, t)) continue;
+    breakInvis(user);
+    breakInvis(t);
     const hook = hookOf(t);
     if (!hook || !hook.onReveal) continue;
     if (from !== null && stealthed(t)) st.witness.push({ targetId: t.id, side, from, to: match.lastLog.length });
