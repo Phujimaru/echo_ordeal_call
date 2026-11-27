@@ -36,6 +36,7 @@ const vergil = require("./vergil"); // เวอจิล: Judgment Cut End (ท
 const dino = require("./diego_dino"); // ดิเอโก้ อสูรกายดึกดำบรรพ์: ทุกคลิปทุกครั้ง (GRID_PLAN §7.36)
 const magna = require("./magna"); // แม็กน่า สวิง: Deathmatch (โซ่ติด) / Finisher (ทำงาน) ทุกครั้ง
 const kenzo = require("./kenzo_suga"); // เค็นโซ ซุกะ: แปลงร่างครั้งแรกของเกมเท่านั้น (ผู้ใช้สั่ง)
+const obv = require("./oberon_vortigern"); // โอเบรอน (วอร์ติเกิร์น): Lie Like Vortigern ทุกครั้ง (สุ่ม 2 เวอร์ชัน — ผู้ใช้ส่ง 2026-11-27)
 const inui = require("./inui_takumi"); // อินุอิ ทาคุมิ: แปลงร่างครั้งแรกต่อเกม · คลิปอื่นเล่นทุกครั้ง
 const ZECT = ["daisuke", "yaguruma", "kagami", "tsurugi"].map((id) => require(`./${id}`)); // ไรเดอร์ ZECT (GRID_PLAN §7.28)
 const gil = require("./gilgamesh_fake"); // กิลกาเมช (Fake): ชัก EA / ตี EA ครั้งแรก / ประตูบาบิโลนครั้งแรก — ครั้งเดียวต่อเกม · EAชาร์จ ครั้งแรกเต็ม
@@ -275,6 +276,11 @@ module.exports = function buildTransforms() {
     [vergil.CUT.duel]: { img: vergil.IMG.card, video: vergil.VIDEO.duel, title: "", label: "", seconds: vergil.CLIP_SEC.duel, music: null, afterReveal: false, noIntro: true, noFlash: true }, // พายุไม่หยุด (ครั้งแรกของแมตช์ · ไม่มีชื่อ — ผู้ใช้สั่ง)
     // เค็นโซ ซุกะ — ความยาวจริง (ffprobe) 17.6 วิ
     [kenzo.CUT.henshin]: { img: kenzo.IMG.bake, video: kenzo.VIDEO.henshin, title: "Kamen Rider Bake", label: "แปลงร่าง", seconds: 18, music: null, afterReveal: false },
+    // โอเบรอน (วอร์ติเกิร์น) — ความยาวจริง (ffprobe) 19.9 วิ · ชื่อท่าอยู่ในคลิปแล้ว
+    [obv.CUT.lieViolent]: { img: obv.IMG.lie, video: obv.VIDEO.lieViolent, title: "", label: "", seconds: obv.CLIP_SEC, music: null, afterReveal: false, noIntro: true },
+    [obv.CUT.lieCold]: { img: obv.IMG.lie, video: obv.VIDEO.lieCold, title: "", label: "", seconds: obv.CLIP_SEC, music: null, afterReveal: false, noIntro: true },
+    [obv.CUT.field]: { img: obv.IMG.field, video: obv.VIDEO.field, title: "", label: "", seconds: obv.CLIP_SECS.field, music: null, afterReveal: false, noIntro: true },
+    [obv.CUT.molt]: { img: obv.IMG.base, video: obv.VIDEO.molt, title: "", label: "", seconds: obv.CLIP_SECS.molt, music: null, afterReveal: false, noIntro: true },
     otUlt: { img: ot.IMG.skill3, video: ot.VIDEO.ult, title: "ข้าคือ...ออพติมัส ไพร์ม", label: "ปล่อยท่าไม้ตาย", seconds: 17.5, music: null, afterReveal: false },
   };
 };

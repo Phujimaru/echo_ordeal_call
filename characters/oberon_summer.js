@@ -133,8 +133,13 @@ module.exports = {
   },
   charAction(engine, p, key) {
     if (!isOberon(p) || key !== "molt" || (p.statuses.obsHate || 0) < HATE_MAX || !engine.canAct(p)) return false;
-    require("./oberon_vortigern").molt(engine, p);
-    engine.broadcastState();
+    // คลิป True Name (Oberon → Oberon Vortigern) แล้วค่อยลอกคราบ · มีคลิป = ไม่มีเสียงพากย์/เอฟเฟกต์ทับ
+    const obv = require("./oberon_vortigern");
+    p.obsHateKey = null;
+    p.statuses.obsHate = 0;
+    engine.queueCutscene(p, obv.CUT.molt);
+    engine.deferAfterCutscene(() => obv.molt(engine, p));
+    engine.pausePlayingForCutscene();
     return true;
   },
 

@@ -3,7 +3,7 @@
 //  ธีม: หลุมกลืนกิน (แดงเลือด/ดำ) · ความเน่าเปื่อยของซาก (เขียวหม่น/น้ำตาลหนอง) · ปีกแมลงปอ (ร่างจริง) · หนอนยักษ์แห่งหลุม
 //
 //  ท่าตีปกติ (ฮุค attackStyle):
-//   obvScythe   เคียวยมทูต: เคียวดำยักษ์ฟันโค้ง → เลือดสาด + ฝุ่นเน่าดูดเข้าหาโอเบรอน (ดูดแต้ม)
+//   obvScythe   เคียวยมทูต: ง้างเงาดำ → รอยฟันเสี้ยวจันทร์ดำขอบแดงเร็วคม → เลือดพุ่ง + วิญญาณไหลกลับ (ดูดแต้ม)
 //   obvCharge   ขี่ Vesper ชน: แมลงพุ่งจากโอเบรอนถึงเป้า (ฝุ่นตามทาง) → ปะทะ = พิษเขียวระเบิด + ซากผุ
 //  เหตุการณ์ socket "oberonFx" (kind → fx):
 //   molt     → obvMolt     ลอกคราบ: เปลือกแตกเป็นเสี่ยง ปีกแมลงปอกาง เลือดพุ่ง
@@ -11,7 +11,7 @@
 //   release  → obvRelease  สนามสลาย: หลุมคายทุกคนออก
 //   scythe   → obvScytheOn เปิดเคียว: วงเงาดำ + เคียวลอยขึ้นหลังตัว
 //   scrap    → obvScrap    ก็แค่เศษขยะ: เศษไอเทมถูกบดเป็นฝุ่นแล้วดูดเข้าตัว
-//   lie      → obvLie      Lie Like Vortigern: หนอนยักษ์ผุดจากใต้กระดาน ขดกลืน → เป้าแต่ละคนโดนกัด/หลับ
+//   lie      → obvLie      Lie Like Vortigern (หลังคลิป): แฟลชชมพูขาว → วังวนแดงม่วง + ฝูงแมลงดำ → กรงเล็บฉีกเป้า/หลับ
 //   rot      → obvRot      เน่าเปื่อย: ควันเน่าเขียวบนหัวศัตรูที่ถูกล็อกสกิล
 //   twilight → obvTwilight สนธยาเพิ่ม: หมอกม่วงแดงไหลลงหลุมรอบกระดาน
 //   vesper   → obvVesper   ขึ้น/ลง/Vesper ตาย
@@ -30,15 +30,15 @@ const REDUCED = typeof matchMedia === "function" && matchMedia("(prefers-reduced
 const okT = (t) => t && Number.isFinite(t.x) && Number.isFinite(t.y);
 const hash = (i, k) => { const v = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return v - Math.floor(v); };
 
-export const OBV_MS = { obvScythe: 980, obvCharge: 900 };
-export const OBV_HIT_P = { obvScythe: 0.48, obvCharge: 0.55 };
+export const OBV_MS = { obvScythe: 760, obvCharge: 900 };
+export const OBV_HIT_P = { obvScythe: 0.3, obvCharge: 0.55 };
 export const OBV_EVENT_FX = {
   molt: "obvMolt", swallow: "obvSwallow", release: "obvRelease", scythe: "obvScytheOn", scrap: "obvScrap",
   lie: "obvLie", rot: "obvRot", twilight: "obvTwilight", vesper: "obvVesper",
 };
 export const OBV_FX_DUR = {
   ...OBV_MS, obvMolt: 2200, obvSwallow: 3200, obvRelease: 1800, obvScytheOn: 1300, obvScrap: 1200,
-  obvLie: 4200, obvRot: 1500, obvTwilight: 1800, obvVesper: 900,
+  obvLie: 3600, obvRot: 1500, obvTwilight: 1800, obvVesper: 900,
 };
 export const isObvFx = (kind) => typeof kind === "string" && kind in OBV_FX_DUR;
 
@@ -100,22 +100,43 @@ function bones(g, x, y, r, q, n, seed) {
     g.restore();
   }
 }
-// เคียว (ใบโค้งดำ + ขอบแดง) — ang = มุมด้าม
-function scytheShape(g, x, y, L, ang, a) {
+// เคียวยมทูต (วาดใหม่ 2026-11-27 — ผู้ใช้: ตัวเคียวไม่สวย) · (x, y) = กลางด้าม · L = ความยาวด้าม · ang = มุมด้าม (0 = ตั้งตรง)
+//  ด้ามไม้ดำเรียวโค้งเล็กน้อย + ปลอกเหล็ก · ใบยาวโค้งลงปลายแหลม (เหล็กดำไล่เงา) · คมในเรืองแดง + ประกายเงินบางๆ
+function scytheShape(g, x, y, L, ang, a, flip = 1) {
   if (a <= 0) return;
-  g.save(); g.translate(x, y); g.rotate(ang); g.globalAlpha *= a;
-  g.shadowColor = "rgba(255,30,30,.75)"; g.shadowBlur = Math.max(4, L * 0.08);
-  g.strokeStyle = "#1a0c10"; g.lineWidth = Math.max(3, L * 0.05); g.lineCap = "round";
-  g.beginPath(); g.moveTo(0, L * 0.5); g.lineTo(0, -L * 0.5); g.stroke();
-  g.fillStyle = "#0b0507";
-  g.beginPath(); g.moveTo(0, -L * 0.5);
-  g.quadraticCurveTo(L * 0.85, -L * 0.72, L * 1.05, -L * 0.1);
-  g.quadraticCurveTo(L * 0.6, -L * 0.4, 0, -L * 0.3); g.closePath(); g.fill();
+  g.save(); g.translate(x, y); g.rotate(ang); g.scale(flip, 1); g.globalAlpha *= a;
+  const w = Math.max(2, L * 0.032);
+  // ด้าม
+  const sg = g.createLinearGradient(-w, 0, w, 0);
+  sg.addColorStop(0, "#3a2a2e"); sg.addColorStop(0.5, "#16090c"); sg.addColorStop(1, "#050102");
+  g.strokeStyle = sg; g.lineWidth = w; g.lineCap = "round";
+  g.beginPath(); g.moveTo(0, L * 0.5); g.quadraticCurveTo(L * 0.05, 0, 0, -L * 0.5); g.stroke();
+  // พันด้าม 2 จุด
+  g.strokeStyle = "#5a1218"; g.lineWidth = w * 1.25; g.lineCap = "butt";
+  for (const t of [0.12, 0.3]) { g.beginPath(); g.moveTo(-w * 0.1, L * t); g.lineTo(w * 0.1 + L * 0.004, L * t + w * 0.9); g.stroke(); }
+  // ปลอกเหล็กหัวด้าม
+  const hx = 0, hy = -L * 0.47;
+  g.fillStyle = "#2b2b33"; g.fillRect(hx - w * 0.9, hy - w * 1.2, w * 1.8, w * 2.4);
+  // ใบ: โคนที่หัวด้าม → ยาวออกไปทางขวา โค้งลงปลายแหลม
+  const BL = L * 0.82;
+  g.shadowColor = "rgba(255,30,40,.55)"; g.shadowBlur = Math.max(4, L * 0.06);
+  const bg = g.createLinearGradient(0, hy - L * 0.12, 0, hy + L * 0.16);
+  bg.addColorStop(0, "#4a4a56"); bg.addColorStop(0.45, "#16161c"); bg.addColorStop(1, "#050507");
+  g.fillStyle = bg;
+  g.beginPath();
+  g.moveTo(hx, hy - w * 1.1);                                                      // สันบนที่โคน
+  g.bezierCurveTo(hx + BL * 0.35, hy - L * 0.16, hx + BL * 0.8, hy - L * 0.12, hx + BL, hy + L * 0.13); // สันใบโค้งลง → ปลาย
+  g.bezierCurveTo(hx + BL * 0.72, hy - L * 0.02, hx + BL * 0.32, hy - L * 0.03, hx, hy + w * 1.3);     // คมใน (เว้ากว่า)
+  g.closePath(); g.fill();
   g.shadowBlur = 0;
-  g.strokeStyle = rgba(CRIMSON, 0.9); g.lineWidth = Math.max(1, L * 0.018);
-  g.beginPath(); g.moveTo(L * 0.05, -L * 0.31); g.quadraticCurveTo(L * 0.6, -L * 0.4, L * 1.05, -L * 0.1); g.stroke();
+  // คมเรืองแดง + ประกายเงิน
+  g.strokeStyle = "rgba(230,30,40,.95)"; g.lineWidth = Math.max(1.2, L * 0.012);
+  g.beginPath(); g.moveTo(hx + BL, hy + L * 0.13); g.bezierCurveTo(hx + BL * 0.72, hy - L * 0.02, hx + BL * 0.32, hy - L * 0.03, hx, hy + w * 1.3); g.stroke();
+  g.strokeStyle = "rgba(235,225,240,.65)"; g.lineWidth = Math.max(0.8, L * 0.005);
+  g.beginPath(); g.moveTo(hx + w, hy - w * 0.6); g.bezierCurveTo(hx + BL * 0.35, hy - L * 0.14, hx + BL * 0.78, hy - L * 0.1, hx + BL * 0.97, hy + L * 0.11); g.stroke();
   g.restore();
 }
+
 // ปีกแมลงปอ 4 ใบ (ยาวบาง กางออกข้าง · เส้นปีกตาข่าย · สีรุ้งจาง) — k = กาง 0→1
 function wings(g, x, y, s, k, a, t) {
   if (a <= 0 || k <= 0) return;
@@ -141,34 +162,54 @@ function wings(g, x, y, s, k, a, t) {
 }
 
 // ---------- ท่าตีปกติ ----------
+// เคียวยมทูต (ผู้ใช้ 2026-11-27: แบบเดิมใหญ่เกิน ดูตลก) — ฟันเร็วคมแบบยมทูต:
+//  ง้างสั้นๆ ที่มือโอเบรอน (เงาดำวูบ) → รอยฟันเสี้ยวจันทร์ดำขอบแดงบางๆ ผ่าตัวเป้าเร็วมาก → เลือดพุ่งเป็นแนว + ควันดำ + วิญญาณเล็กๆ ไหลกลับเข้ามือ
+function crescent(g, cx, cy, r, a0, a1, w, fillA, edgeA) {
+  // เสี้ยวเรียวหัวท้าย (หนาสุดกลางโค้ง)
+  const n = 24;
+  g.beginPath();
+  for (let i = 0; i <= n; i++) { const t = i / n, an = a0 + (a1 - a0) * t, ww = w * Math.sin(t * Math.PI); const x = cx + Math.cos(an) * (r + ww), y = cy + Math.sin(an) * (r + ww) * 0.55; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+  for (let i = n; i >= 0; i--) { const t = i / n, an = a0 + (a1 - a0) * t; g.lineTo(cx + Math.cos(an) * r, cy + Math.sin(an) * r * 0.55); }
+  g.closePath();
+  g.fillStyle = rgba("6,0,2", fillA); g.fill();
+  g.strokeStyle = rgba(CRIMSON, edgeA); g.lineWidth = 1.2; g.stroke();
+}
 function scytheStrike(g, e, p, seed, lowQ) {
   const A = bodyAt(e.x, e.y, e.size || 1), B = bodyAt(e.to.x, e.to.y, e.toSize || 1), hit = OBV_HIT_P.obvScythe;
-  const L = A.s * 2.7;
-  // เงาดำรวมที่มือ
-  halo(g, A.bx, A.hy, A.r * 1.6, VOID, 0.6 * (1 - p));
-  // เคียววาดโค้งจากหลังไปหน้า: มุมเริ่มยกสูง → ฟันลงผ่านเป้า
-  const k = p < hit ? easeIn(clamp01(p / hit)) : 1;
   const dir = Math.atan2(B.hy - A.hy, B.bx - A.bx);
-  const ang = dir - 2.2 + k * 2.6;
-  const mx = A.bx + (B.bx - A.bx) * 0.45, my = A.hy + (B.hy - A.hy) * 0.45 - A.s * 0.3;
-  scytheShape(g, mx, my, L, ang, p < 0.85 ? 1 : 1 - (p - 0.85) / 0.15);
-  // รอยฟันโค้งสีเลือด
-  if (p > hit * 0.6) {
-    const q = clamp01((p - hit * 0.6) / (1 - hit * 0.6));
-    g.strokeStyle = rgba(CRIMSON, (1 - q) * 0.95); g.lineWidth = A.s * 0.14 * (1 - q * 0.6); g.lineCap = "round";
-    g.beginPath(); g.arc(mx, my, L * 0.7, dir - 1.1, dir - 1.1 + 2.0 * easeOut(clamp01(q * 2))); g.stroke();
-    g.strokeStyle = rgba("255,220,220", (1 - q) * 0.7); g.lineWidth = A.s * 0.03;
-    g.beginPath(); g.arc(mx, my, L * 0.7, dir - 1.1, dir - 1.1 + 2.0 * easeOut(clamp01(q * 2))); g.stroke();
+  // ง้าง: เงาดำวูบที่มือ + เส้นแสงแดงจางพาดไปทางเป้า
+  // เคียวในมือ: ง้างเอนหลัง → เหวี่ยงผ่านไปทางเป้าตอนปะทะ แล้วจาง
+  const face = B.bx >= A.bx ? 1 : -1;
+  const sw = p < hit ? -0.9 * easeOut(p / hit) : -0.9 + 2.1 * easeOut(clamp01((p - hit) / 0.16));
+  scytheShape(g, A.bx + face * A.r * 0.55, A.hy - A.s * 0.05, A.s * 1.05, face * sw, p < 0.85 ? Math.min(1, p / 0.12) : 1 - (p - 0.85) / 0.15, face);
+  if (p < hit) {
+    const q = p / hit;
+    halo(g, A.bx, A.hy, A.r * (0.7 + q * 0.4), VOID, 0.45 * q);
+    return;
   }
-  if (p < hit) return;
   const q = clamp01((p - hit) / (1 - hit));
-  halo(g, B.bx, B.hy, B.r * (1 + q * 1.6), BLOOD, 0.8 * (1 - q));
-  splatter(g, B.bx, B.hy, B.r * 1.4, q, lowQ ? 10 : 22, seed, BLOOD);
-  rotPuff(g, B.bx, B.hy, B.r * 1.2, q, lowQ ? 4 : 8, seed, ROT);
-  // วิญญาณ (แต้มสกิล) ถูกดูดกลับเข้าหาโอเบรอน
-  for (let i = 0; i < (lowQ ? 3 : 6); i++) {
-    const qq = clamp01(q * 1.3 - i * 0.07), x = B.bx + (A.bx - B.bx) * easeIn(qq), y = B.hy + (A.hy - B.hy) * easeIn(qq) - Math.sin(qq * Math.PI) * A.s * (0.4 + i * 0.08);
-    halo(g, x, y, A.r * 0.28, DUSK, (1 - qq) * 0.9);
+  // รอยฟัน: กวาดเร็วใน 18% แรกของช่วงปะทะ แล้วค้างจางลง
+  const sweep = easeOut(clamp01(q / 0.18));
+  const r = B.r * 1.15, base = dir + Math.PI * 0.75;
+  const a0 = base, a1 = base + Math.PI * 1.05 * sweep;
+  crescent(g, B.bx, B.hy, r, a0, a1, B.r * 0.32, 0.92 * (1 - q), (1 - q) * 0.95);
+  // เส้นคมขาวแดงตามขอบ (แวบเดียว)
+  if (q < 0.3) {
+    g.strokeStyle = rgba("255,210,210", (1 - q / 0.3) * 0.9); g.lineWidth = 1.5;
+    g.beginPath(); for (let i = 0; i <= 16; i++) { const an = a0 + (a1 - a0) * (i / 16); const x = B.bx + Math.cos(an) * r, y = B.hy + Math.sin(an) * r * 0.55; if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke();
+  }
+  // เลือดพุ่งเป็นแนวตามทิศฟัน
+  const sp = lowQ ? 6 : 14;
+  for (let i = 0; i < sp; i++) {
+    const t = hash(i, seed), an = a0 + (a1 - a0) * t + 0.5, d = B.r * (0.4 + easeOut(q) * (0.8 + hash(i, 3)));
+    g.fillStyle = rgba(BLOOD, (1 - q) * 0.95);
+    g.beginPath(); g.arc(B.bx + Math.cos(an) * d, B.hy + Math.sin(an) * d * 0.55 + q * q * B.r, Math.max(1, B.r * 0.06 * (1 - q)), 0, TAU); g.fill();
+  }
+  rotPuff(g, B.bx, B.hy, B.r * 0.8, q, lowQ ? 3 : 6, seed, VOID);
+  // วิญญาณ (แต้มสกิล) ไหลกลับเข้ามือโอเบรอน
+  for (let i = 0; i < (lowQ ? 2 : 4); i++) {
+    const qq = clamp01(q * 1.25 - i * 0.08), x = B.bx + (A.bx - B.bx) * easeIn(qq), y = B.hy + (A.hy - B.hy) * easeIn(qq) - Math.sin(qq * Math.PI) * A.s * 0.25;
+    halo(g, x, y, A.r * 0.18, DUSK, (1 - qq) * 0.85);
   }
 }
 function chargeStrike(g, e, p, seed, lowQ, now) {
@@ -268,7 +309,7 @@ function scytheOnFx(g, e, p, seed, lowQ) {
   halo(g, A.bx, A.by, A.r * (1.2 + p * 1.4), VOID, 0.8 * (1 - p));
   g.strokeStyle = rgba(CRIMSON, 1 - p); g.lineWidth = 2;
   g.beginPath(); g.ellipse(A.bx, A.by, A.r * (0.8 + easeOut(p) * 2), A.r * (0.4 + easeOut(p)), 0, 0, TAU); g.stroke();
-  scytheShape(g, A.bx + A.r * 0.6, A.hy - A.s * 0.3 - easeOut(p) * A.s * 0.5, A.s * 1.5, -0.5, Math.sin(p * Math.PI));
+  scytheShape(g, A.bx + A.r * 0.5, A.hy - A.s * 0.15 - easeOut(p) * A.s * 0.2, A.s * 0.85, -0.5, Math.sin(p * Math.PI) * 0.9);
   rotPuff(g, A.bx, A.by, A.r * 1.4, p, lowQ ? 4 : 10, seed, VOID);
 }
 function scrapFx(g, e, p, seed, lowQ) {
@@ -284,53 +325,66 @@ function scrapFx(g, e, p, seed, lowQ) {
   rotPuff(g, A.bx, A.hy, A.r, p, lowQ ? 4 : 8, seed, "110,95,70");
   if (p > 0.6) halo(g, A.bx, A.hy, A.r * 1.5, BILE, (1 - p) * 1.2);
 }
-// หนอนยักษ์แห่งหลุม: ปล้องขดเป็นวงรอบกระดาน ผุดขึ้น → ปากอ้ากัดเป้า
+// Lie Like Vortigern — ต่อจากท้ายคลิป (ผู้ใช้สั่ง 2026-11-27: เอาหนอนออก เอฟเฟกต์ต่อจากวีดีโอ แบบรุนแรง)
+//  คลิปจบที่วังวนแดงม่วง → แสงชมพูขาวจ้า · บนกระดาน: แฟลชชมพูขาวจางลง → วังวนแดงม่วงหมุนแรงทั้งกระดาน + ฝูงแมลงดำวนดูด
+//  → เป้าแต่ละคนโดนกรงเล็บดำฉีก (เลือด + ซากเน่า + จอสั่น) · คนที่หลับ = หมอกอัสดง + z · หลบ = เงาวูบผ่าน
 function lieFx(g, e, p, seed, lowQ, now) {
   const A = bodyAt(e.x, e.y, 1);
-  const R = A.s * 4.6, rise = easeOut(clamp01(p / 0.35)), fall = clamp01((p - 0.82) / 0.18);
-  // ท้องฟ้าอัสดง (ม่วงส้ม) ทับกระดานบางๆ
-  halo(g, A.bx, A.by - A.s, R * 2.2, DUSK, 0.32 * (1 - fall) * rise);
-  const segs = lowQ ? 26 : 56;
-  const pos = (f) => {
-    const ang = f * TAU * 1.25 + now / 1600, r = R * (0.55 + f * 0.6);
-    return { ang, x: A.bx + Math.cos(ang) * r, y: A.by + Math.sin(ang) * r * 0.5 - rise * A.s * (1.2 + Math.sin(f * 9 + now / 300) * 0.25) + fall * A.s * 2 };
-  };
-  for (let i = segs - 1; i >= 0; i--) {
-    const f = i / segs, c = pos(f), n = pos(Math.max(0, f - 0.01));
-    const tang = Math.atan2(c.y - n.y, c.x - n.x);
-    const sz = A.s * (0.8 - f * 0.4);
-    const band = i % 3 === 0;
-    g.save(); g.translate(c.x, c.y); g.rotate(tang);
-    const gr = g.createLinearGradient(0, -sz, 0, sz);
-    gr.addColorStop(0, rgba(band ? "120,80,70" : "160,120,105", 1 - fall)); gr.addColorStop(0.45, rgba("92,52,58", 1 - fall)); gr.addColorStop(1, rgba("18,6,10", 1 - fall));
-    g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, sz * 0.55, sz, 0, 0, TAU); g.fill();
-    g.strokeStyle = rgba("20,6,10", 0.7 * (1 - fall)); g.lineWidth = 1.2; g.stroke();
-    // ขนหยาบดำยาว (แบบภาพ skill3.2)
-    if (i % 2 === 0) {
-      g.strokeStyle = rgba("14,6,8", 0.85 * (1 - fall)); g.lineWidth = 1;
-      for (let k = 0; k < 5; k++) { const yy = (k - 2) * sz * 0.35; g.beginPath(); g.moveTo(0, yy); g.quadraticCurveTo(sz * 0.4, yy + sz * 0.9, sz * (0.2 + hash(i, k) * 0.5), yy + sz * (1.4 + hash(k, i))); g.stroke(); }
-    }
+  const R = A.s * 7.5, fade = 1 - clamp01((p - 0.85) / 0.15);
+  // แฟลชชมพูขาว (ต่อจากเฟรมสุดท้ายของคลิป)
+  const fl = 1 - clamp01(p / 0.16);
+  if (fl > 0) { g.fillStyle = `rgba(250,225,235,${0.92 * fl})`; g.fillRect(A.bx - A.s * 40, A.by - A.s * 30, A.s * 80, A.s * 60); }
+  // วังวนแดงม่วงหมุนแรง (เส้นเลือดเกลียว)
+  const op = easeOut(clamp01(p / 0.2)) * fade;
+  const spin = now / 260;
+  const rings = lowQ ? 9 : 18;
+  for (let i = rings; i >= 1; i--) {
+    const f = i / rings, r = R * f;
+    g.strokeStyle = i % 3 === 0 ? rgba("190,40,140", 0.55 * op) : rgba(i % 2 ? CRIMSON : BLOOD, (0.35 + 0.5 * (1 - f)) * op);
+    g.lineWidth = Math.max(2, A.s * 0.16 * f);
+    const st = spin * (1.6 - f) + i * 0.9;
+    g.beginPath(); g.ellipse(A.bx, A.by, r, r * 0.5, 0, st, st + TAU * (0.55 + 0.3 * hash(i, 3))); g.stroke();
+  }
+  const core = g.createRadialGradient(A.bx, A.by, 0, A.bx, A.by, R * 0.35);
+  core.addColorStop(0, rgba("0,0,0", 0.9 * op)); core.addColorStop(1, rgba("40,0,10", 0));
+  g.fillStyle = core; g.beginPath(); g.ellipse(A.bx, A.by, R * 0.35, R * 0.18, 0, 0, TAU); g.fill();
+  // ฝูงแมลงดำวนดูดเข้าหลุม
+  const n = lowQ ? 40 : 110;
+  for (let i = 0; i < n; i++) {
+    const ph = (p * (1.4 + hash(i, 5)) + hash(i, 6)) % 1;
+    const rr = R * 1.2 * (1 - ph), an = hash(i, 7) * TAU + ph * 9 + spin * 0.4;
+    const x = A.bx + Math.cos(an) * rr, y = A.by + Math.sin(an) * rr * 0.5 - Math.sin(ph * Math.PI) * A.s * 0.6;
+    const sz = A.s * (0.04 + hash(i, 8) * 0.05);
+    g.save(); g.translate(x, y); g.rotate(an + Math.PI / 2);
+    g.fillStyle = rgba("8,2,4", 0.85 * fade); g.beginPath(); g.ellipse(0, 0, sz * 0.5, sz, 0, 0, TAU); g.fill();
+    g.fillStyle = rgba("200,190,220", 0.35 * fade); const fw = Math.sin(now / 25 + i) * sz * 0.9;
+    g.beginPath(); g.ellipse(-sz * 0.7, 0, Math.abs(fw), sz * 0.35, 0, 0, TAU); g.ellipse(sz * 0.7, 0, Math.abs(fw), sz * 0.35, 0, 0, TAU); g.fill();
     g.restore();
   }
-  // หัวหนอน (ปากกลมฟันวงใน)
-  const head = { x: A.bx + Math.cos(now / 1600) * R * 0.55, y: A.by + Math.sin(now / 1600) * R * 0.275 - rise * A.s * 1.6 + fall * A.s * 2 };
-  const mouth = A.s * 0.85 * rise * (1 - fall);
-  g.fillStyle = rgba("10,0,4", 1 - fall); g.beginPath(); g.ellipse(head.x, head.y, mouth, mouth * 0.75, 0, 0, TAU); g.fill();
-  g.fillStyle = rgba(BONE, 0.9 * (1 - fall));
-  for (let k = 0; k < 14; k++) { const a = k / 14 * TAU; g.beginPath(); g.moveTo(head.x + Math.cos(a) * mouth, head.y + Math.sin(a) * mouth * 0.75); g.lineTo(head.x + Math.cos(a + 0.12) * mouth * 0.6, head.y + Math.sin(a + 0.12) * mouth * 0.45); g.lineTo(head.x + Math.cos(a + 0.24) * mouth, head.y + Math.sin(a + 0.24) * mouth * 0.75); g.fill(); }
-  // เป้าแต่ละคน: กัด (เลือด+เน่า) · หลับ = ฟองสีม่วง Zzz
+  // เป้าแต่ละคน
   const hits = Array.isArray(e.hits) ? e.hits : [];
   hits.forEach((h, i) => {
     if (!okT(h.at)) return;
-    const t0 = 0.4 + (i / Math.max(1, hits.length)) * 0.3, q = clamp01((p - t0) / 0.3);
+    const t0 = 0.22 + (i / Math.max(1, hits.length)) * 0.35, q = clamp01((p - t0) / 0.32);
     if (q <= 0 || q >= 1) return;
     const B = bodyAt(h.at.x, h.at.y, h.size || 1);
-    if (h.dodge) { halo(g, B.bx, B.hy, B.r, "200,200,220", 0.5 * (1 - q)); return; }
-    halo(g, B.bx, B.hy, B.r * (1 + q * 1.5), BLOOD, 0.85 * (1 - q));
-    splatter(g, B.bx, B.hy, B.r * 1.4, q, lowQ ? 8 : 16, seed + i, BLOOD);
-    rotPuff(g, B.bx, B.hy, B.r * 1.2, q, lowQ ? 3 : 7, seed + i, ROT);
+    if (h.dodge) { halo(g, B.bx, B.hy, B.r * 1.2, "220,210,240", 0.5 * (1 - q)); return; }
+    // กรงเล็บดำ 3 รอย (ฉีกลงทแยง)
+    const cut = easeOut(clamp01(q / 0.25));
+    for (let k = -1; k <= 1; k++) {
+      const x0 = B.bx - B.r * 1.4 + k * B.r * 0.45, y0 = B.hy - B.r * 1.4, x1 = B.bx + B.r * 1.2 + k * B.r * 0.45, y1 = B.hy + B.r * 1.3;
+      g.strokeStyle = rgba("10,0,4", (1 - q) * 1.1); g.lineWidth = B.r * 0.22 * (1 - q * 0.6); g.lineCap = "round";
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + (x1 - x0) * cut, y0 + (y1 - y0) * cut); g.stroke();
+      g.strokeStyle = rgba(CRIMSON, (1 - q) * 0.9); g.lineWidth = B.r * 0.07;
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + (x1 - x0) * cut, y0 + (y1 - y0) * cut); g.stroke();
+    }
+    halo(g, B.bx, B.hy, B.r * (1 + q * 1.8), BLOOD, 0.85 * (1 - q));
+    splatter(g, B.bx, B.hy, B.r * 1.6, q, lowQ ? 10 : 24, seed + i, BLOOD);
+    rotPuff(g, B.bx, B.hy, B.r * 1.3, q, lowQ ? 4 : 9, seed + i, ROT);
+    bones(g, B.bx, B.by - B.s * 0.2, B.r, q, lowQ ? 3 : 6, seed + i);
     if (h.sleep) {
-      for (let k = 0; k < 3; k++) { const z = clamp01(q * 1.4 - k * 0.2); g.fillStyle = rgba(DUSK, 1 - z); g.font = `bold ${Math.round(B.r * (0.5 + k * 0.15))}px sans-serif`; g.fillText("z", B.bx + B.r * (0.4 + k * 0.3), B.hy - B.r * (0.6 + z * 1.2 + k * 0.4)); }
+      halo(g, B.bx, B.hy - B.r * 0.4, B.r * 1.6, DUSK, 0.45 * Math.sin(q * Math.PI));
+      for (let k = 0; k < 3; k++) { const z = clamp01(q * 1.4 - k * 0.2); g.fillStyle = rgba("230,190,255", 1 - z); g.font = `bold ${Math.round(B.r * (0.5 + k * 0.15))}px sans-serif`; g.fillText("z", B.bx + B.r * (0.4 + k * 0.3), B.hy - B.r * (0.6 + z * 1.2 + k * 0.4)); }
     }
   });
 }

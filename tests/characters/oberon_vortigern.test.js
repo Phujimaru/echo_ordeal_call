@@ -12,9 +12,10 @@ const blank = (id, characterId, teamId = null) => ({
   seen: {}, cutsceneShown: {}, inventory: [], teamId, avatar: 0, ready: true, gold: 0, img: '',
 });
 let realFlash, realQueue, realRandom;
+const clips = [];
 test.before(() => {
   realFlash = engine.skillFlash; realQueue = engine.queueCutscene; realRandom = Math.random;
-  engine.skillFlash = () => {}; engine.queueCutscene = () => {};
+  engine.skillFlash = () => {}; engine.queueCutscene = (p, k) => { clips.push(k); };
 });
 test.after(() => { engine.skillFlash = realFlash; engine.queueCutscene = realQueue; Math.random = realRandom; });
 test.afterEach(() => { engine.clearPhaseTimer(); Math.random = realRandom; engine.setCycleShift(0); });
@@ -171,7 +172,11 @@ test('Lie Like Vortigern: เฉพาะในสนาม · ดาเมจ 2
   O.skillPoints = 8; O.skillUsedRound = false;
   const until = engine.oberonField.untilRound();
   engine.setActor('O');
+  clips.length = 0;
   engine.useSkill('O', 'ultimate', []);
+  assert.equal(clips.length, 1, 'คลิป Lie เล่นทุกครั้ง');
+  assert.ok([obv.CUT.lieViolent, obv.CUT.lieCold].includes(clips[0]));
+  assert.deepEqual(obv.voiceLines(O).ultimate, [], 'มีคลิป = ไม่พากย์ทับ');
   assert.equal(T.hp, 8);
   assert.ok(T.statuses.decay > 0);
   assert.equal(T.statuses.sleep, 3);
@@ -206,9 +211,26 @@ test('ฤดูร้อน: แต้มความเกลียดชัง
   O.statuses.might = 2;
   engine.setActor('O');
   assert.ok(summer.hudActions(engine, O));
+  clips.length = 0;
   assert.ok(summer.charAction(engine, O, 'molt'));
+  engine.clearPhaseTimer();
+  assert.deepEqual(clips, [obv.CUT.molt], 'คลิป True Name ก่อนลอกคราบ');
   assert.equal(O.characterId, 'oberon_vortigern');
   assert.equal(O.hp, 4, 'ครึ่งหลอดของ 7 (ปัด)');
   assert.equal(O.statuses.might, undefined);
   assert.equal(O.obv.mounted, true);
+});
+
+test('เสียง/คลิป: เข้าสนธยามีคลิปทุกครั้ง ไม่พากย์ทับ · ตีปกติขี่ Vesper = เสียงชน · เปิดเคียว = buster · เพลงสนาม', () => {
+  const { O } = setup();
+  clips.length = 0;
+  engine.useSkill('O', 'ultimate', []);
+  assert.deepEqual(clips, [obv.CUT.field]);
+  assert.equal(engine.oberonField.active(), true, 'กลืนหลังคลิป');
+  assert.deepEqual(obv.voiceLines(O).ultimate, []);
+  assert.equal(obv.attackSound(O), obv.SFX.extra);
+  assert.equal(obv.skillMusic(engine, O).music, obv.MUSIC);
+  obv.charAction(engine, O, 'vesper');
+  O.statuses.obvScythe = 2;
+  assert.equal(obv.attackSound(O), obv.SFX.buster);
 });

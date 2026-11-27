@@ -31,6 +31,30 @@ const IMG = {
   base: `${DIR}/oberon_vortigern.webp`, skill1: `${DIR}/skill1.jpg`, skill2: `${DIR}/skill2.webp`,
   field: `${DIR}/skill3.webp`, lie: `${DIR}/skill3_lie.webp`, vesper: `${DIR}/vesper.webp`,
 };
+// คลิป Lie Like Vortigern 2 เวอร์ชันจากผู้ใช้ (รุนแรง / เย็นชา — สุ่มทุกครั้ง) · 19.9 วิ · ผลลงหลังคลิป แล้วเอฟเฟกต์บนกระดานต่อจากฉากท้ายคลิป
+//  + ฉากเข้าสนธยา (Abyssal Worm → OBERON → ดิ่งลงหลุม · 19.9 วิ) ทุกครั้ง · ลอกคราบ (True Name: Oberon → Oberon Vortigern · 5.8 วิ)
+const VIDEO = { lieViolent: `${DIR}/lie_violent.mp4`, lieCold: `${DIR}/lie_cold.mp4`, field: `${DIR}/field.mp4`, molt: `${DIR}/molt.mp4` };
+const CUT = { lieViolent: "obvLieViolent", lieCold: "obvLieCold", field: "obvField", molt: "obvMolt" };
+const CLIP_SEC = 20;
+const CLIP_SECS = { lieViolent: 20, lieCold: 20, field: 20, molt: 6 };
+// เสียงพากย์ (client/src/audio.js obv_vNN · ตัดจากคลิปของผู้ใช้ — .claude/plans/oberon-voice-cut.py)
+const v = (...n) => n.map((i) => `obv_v${String(i).padStart(2, "0")}`);
+const VOICE = {
+  turn: v(1, 2, 3, 7, 8, 9, 10, 11, 12),   // You're all so pathetic… · Let's go, then. · Don't hide. · Sure. …
+  struck: v(20, 27),                      // Ugh, what a pain! · Did you underestimate me?
+  basic: v(29, 32, 4),                    // Thanks for the meal! · Here's a full course! Now pay up! · Hahaha. Nice.
+  secondary: v(5, 23, 28),                // How bold of you. It's nauseating! · My condolences! · Corpses!
+  field: v(14, 15),                       // Very well. I'll show you the twilight sky! · …There's no light beyond this point.
+  vesper: v(30, 18),                      // Vesper! How about right there!? · Forward, my flies!
+  molt: v(26, 31),                        // I'm a bug, after all. · Having fun? I'm jealous!
+  kill: v(25, 13),                        // It suits you just perfectly! · …Fall forever.
+};
+// เสียงตีปกติ (ตัดจากคลิปต่อสู้ของผู้ใช้ — มีเสียงพากย์ปนในตัว จึงไม่มี voiceLines.strike)
+const SFX = { buster: "obv_hit_buster", quick: "obv_hit_quick", arts: "obv_hit_arts", extra: "obv_hit_extra",
+  // Mixkit เน้นเบส (ผู้ใช้อนุญาต 2026-11-27 — แหล่งที่มา .claude/plans/oberon-sfx-sources.md)
+  scytheOn: "obv_scythe_on", scrap: "obv_scrap", vesperOn: "obv_vesper_on", vesperOff: "obv_vesper_off", vesperDie: "obv_vesper_die",
+  twilight: "obv_twilight", rot: "obv_rot", release: "obv_release" };
+const MUSIC = "obv_theme"; // เพลงระหว่างสนธยายามค่ำคืน (theme.mp3 ของผู้ใช้)
 const HP = 7, ARMOR = 3, MOV = 4, MOV_VESPER = 6;
 const RANGE = [1, 1], RANGE_VESPER = [1, 3];
 const VESPER = { hp: 5, cd: 3, name: " Vesper" };
@@ -45,7 +69,7 @@ const TIERS = ["basic", "secondary", "ultimate"];
 const isMe = (p) => !!p && p.characterId === ID && !p.summon;
 const Field = () => require("../server/oberonField");
 const cdLeft = (ready, round) => Math.max(0, (ready || 0) - round);
-const vesperCfg = { ...VESPER, fx: (engine, p, mode) => fx(engine, p, "vesper", { mode }) };
+const vesperCfg = { ...VESPER, fx: (engine, p, mode) => { fx(engine, p, "vesper", { mode }); engine.sfx(mode === "die" ? SFX.vesperDie : mode === "mount" ? SFX.vesperOn : SFX.vesperOff); } };
 
 function fresh() {
   return {
@@ -56,11 +80,18 @@ function fresh() {
     fieldMine: false,    // สนามที่เปิดอยู่เป็นของคนนี้ (ตั้งคูลดาวน์ตอนสนามหาย)
     fieldAt: null,       // ตัดผลสกิล: { at }
     lieUsed: false,      // ใช้ Lie ไปแล้วในสนามนี้
+    ultVoice: null,      // เสียงพากย์ท่าไม้ตายของการกดครั้งนี้ ("field" | null = มีคลิป ไม่พากย์ทับ)
+    fieldSeq: 0,         // เพลงสนาม: ลำดับเริ่ม
   };
 }
 function st(p) {
   if (!p.obv) p.obv = fresh();
   return p.obv;
+}
+function voice(engine, p, key) {
+  const list = VOICE[key];
+  if (!list || !list.length) return;
+  engine.sfx(list[Math.floor(Math.random() * list.length)], null, { voice: p.id });
 }
 function fx(engine, p, kind, extra = {}) {
   engine.boardFx("oberonFx", { kind, id: p.id, color: engine.colorOf ? engine.colorOf(p) : null, ...(p.pos ? { at: { ...p.pos } } : {}), ...extra });
@@ -105,9 +136,9 @@ function scrap(engine, p, items) {
 function openField(engine, p) {
   const s = st(p);
   if (!Field().enter(p, engine.roundNumber + FIELD_TURNS)) return false;
-  s.fieldMine = true; s.lieUsed = false; s.fieldAt = { at: engine.severStamp() };
+  s.fieldMine = true; s.lieUsed = false; s.fieldAt = { at: engine.severStamp() }; s.fieldSeq = engine.severStamp();
   selfPoison(engine, p);
-  rotAll(engine, p);
+  rotAll(engine, p, true); // ส่วนหนึ่งของท่าที่มีคลิป — ไม่มีเสียง
   engine.log(`🕳️ ${p.name} สนธยายามค่ำคืน — หลุมกลืนกินทุกคน ${FIELD_TURNS} เทิร์น (นาฬิกาโลกหยุด)`);
   fx(engine, p, "swallow", { seq: Field().publicInfo().seq });
   return true;
@@ -124,7 +155,7 @@ function closeField(engine, reason) {
     p.obv.lieReady = r + LIE_CD;
   }
   if (ok) engine.log(reason === "death" ? "🕳️ หลุมกลืนกินสลายไปพร้อมผู้สร้าง — ทุกคนกลับที่เดิม" : "🕳️ สนธยายามค่ำคืนจบลง — ทุกคนกลับที่เดิม");
-  if (ok && p) fx(engine, p, "release", { reason });
+  if (ok && p) { fx(engine, p, "release", { reason }); engine.sfx(SFX.release); }
   return ok;
 }
 // ราชาแห่งการจอมหลอกลวง: สนามของตัวเอง = ติดพิษตลอด (ติดตรง ไม่ผ่านต้านสถานะ — แหล่งพิษของตัวเอง)
@@ -133,7 +164,7 @@ function selfPoison(engine, p) {
   p.statuses.poison = Math.max(p.statuses.poison || 0, 1);
 }
 // เน่าเปื่อย: ศัตรูทุกคนสุ่มช่องสกิล 1 ช่องที่มีอยู่ ไม่ซ้ำช่องของเทิร์นก่อน
-function rotAll(engine, p) {
+function rotAll(engine, p, silent = false) {
   const { CHAR_BY_ID } = require("../characters");
   for (const o of engine.alivePlayers()) {
     if (!enemyOf(engine, p, o) || o.summon) continue;
@@ -146,6 +177,7 @@ function rotAll(engine, p) {
     o.skillRot = { tier, round: engine.roundNumber, by: p.id };
   }
   const rotted = engine.alivePlayers().filter((o) => o.pos && o.skillRot && o.skillRot.round === engine.roundNumber && o.skillRot.by === p.id);
+  if (rotted.length && !silent) engine.sfx(SFX.rot);
   if (rotted.length) fx(engine, p, "rot", { targets: rotted.map((o) => ({ id: o.id, at: { ...o.pos }, size: engine.sizeOf(o), tier: o.skillRot.tier })) });
 }
 function lie(engine, p) {
@@ -173,7 +205,7 @@ function lie(engine, p) {
 }
 
 module.exports = {
-  id: ID, IMG,
+  id: ID, IMG, VIDEO, CUT, CLIP_SEC, CLIP_SECS, VOICE, SFX, MUSIC,
   HP, ARMOR, MOV, MOV_VESPER, RANGE_VESPER, VESPER, SCRAP, SCYTHE_TURNS, SCYTHE_DRAIN, SCYTHE_DRAIN_FIELD,
   FIELD_TURNS, FIELD_CD, LIE_CD, LIE_EXTEND, LIE_DMG, LIE_DECAY, TWILIGHT_MAX, TWILIGHT_WEAK_AT, CHARGE_POISON, CHARGE_DECAY,
   molt, closeField,
@@ -241,6 +273,26 @@ module.exports = {
     return names.length ? names.join(" · ") : null;
   },
 
+  // ---------- เสียง ----------
+  voiceLines(p) {
+    if (!isMe(p)) return null;
+    const s = st(p);
+    return { turn: VOICE.turn, struck: VOICE.struck, basic: VOICE.basic, secondary: VOICE.secondary, ultimate: s.ultVoice === "field" ? VOICE.field : [] };
+  },
+  // พื้นฐาน/รอง = เสียงกระแทก (+ เสียงพากย์จาก voiceLines) · ท่าไม้ตายมีคลิปทั้งสองแบบ = เงียบ
+  skillSound(p, tier) { return isMe(p) ? (tier === "basic" ? SFX.scrap : tier === "secondary" ? SFX.scytheOn : null) : null; },
+  attackSound(p) {
+    if (!isMe(p)) return undefined;
+    if (mounted(p)) return SFX.extra;
+    if (scytheOn(p)) return SFX.buster;
+    return Math.random() < 0.5 ? SFX.quick : SFX.arts;
+  },
+  skillMusic(engine, p) {
+    if (!isMe(p) || !p.alive || !fieldMine(p)) return null;
+    return { music: MUSIC, at: st(p).fieldSeq || 0 };
+  },
+  onKill(engine, killer) { if (isMe(killer)) voice(engine, killer, "kill"); },
+
   // ---------- Vesper ----------
   absorbDamage(engine, p) { return isMe(p) && PassiveSeal.on(p) && Horse.absorb(engine, p, st(p), vesperCfg); },
   hudActions(engine, p) {
@@ -248,7 +300,13 @@ module.exports = {
     const a = { ...Horse.action(engine, p, st(p)), key: "vesper", icon: "🪲", name: st(p).mounted ? "ลง Vesper" : "ขี่ Vesper", img: IMG.vesper };
     return [PassiveSeal.sealed(p) ? { ...a, disabled: true } : a];
   },
-  charAction(engine, p, key) { return isMe(p) && key === "vesper" && PassiveSeal.on(p) && Horse.toggle(engine, p, st(p), vesperCfg); },
+  charAction(engine, p, key) {
+    if (!isMe(p) || key !== "vesper" || !PassiveSeal.on(p)) return false;
+    const was = st(p).mounted;
+    const ok = Horse.toggle(engine, p, st(p), vesperCfg);
+    if (ok && !was) voice(engine, p, "vesper");
+    return ok;
+  },
 
   // ---------- สกิล ----------
   skillPub(p, tier) {
@@ -302,8 +360,19 @@ module.exports = {
       return "";
     }
     if (tier === "ultimate") {
-      if (fieldMine(p)) { lie(engine, p); return ""; }
-      openField(engine, p);
+      if (fieldMine(p)) {
+        // คลิปเต็ม (สุ่มรุนแรง/เย็นชา) → ผลลงหลังคลิป + เอฟเฟกต์บนกระดานต่อจากท้ายคลิป · ไม่มีเสียงพากย์/เอฟเฟกต์ทับคลิป (กฎผู้ใช้ 2026-11-03)
+        s.ultVoice = null;
+        s.lieUsed = true; // กันกดซ้ำระหว่างคลิป
+        engine.queueCutscene(p, Math.random() < 0.5 ? CUT.lieViolent : CUT.lieCold);
+        engine.deferAfterCutscene(() => engine.withEffectSource(p, () => lie(engine, p)));
+        engine.log(`🐛 ${p.name} Lie Like Vortigern`);
+        return "";
+      }
+      // คลิปเข้าสนธยา → กลืนทุกคนหลังคลิปจบ (ฉากท้ายคลิปดิ่งลงหลุม) · มีคลิป = ไม่พากย์ทับ
+      s.ultVoice = null;
+      engine.queueCutscene(p, CUT.field);
+      engine.deferAfterCutscene(() => engine.withEffectSource(p, () => openField(engine, p)));
       return "";
     }
     return "";
@@ -333,6 +402,7 @@ module.exports = {
       if (next > 0) { t.statuses.twilight = next; t.statusAmt.twilight = next; } else { delete t.statuses.twilight; if (t.statusAmt) delete t.statusAmt.twilight; }
       if (next >= TWILIGHT_WEAK_AT) engine.applyDebuff(t, "weak", 1, 1);
     }
+    engine.sfx(SFX.twilight);
     rotAll(engine, caster);
     fx(engine, caster, "twilight");
   },

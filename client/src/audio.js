@@ -658,6 +658,12 @@ const FILES = {
   inui_axel: "/characters/inui_takumi/inui_axel_theme.m4a", // เล่นตลอด Start Up
   // เค็นโซ ซุกะ (Bake Magnum): เสียงจาก Mixkit ตัด/ผสม — แหล่งที่มา .claude/plans/kenzo-sfx-sources.md · ยังไม่มีคนฟัง
   ...Object.fromEntries(["shot", "shot2", "open", "card", "chomp", "standby", "henshin", "eject", "corrode", "decay", "again"].map((k) => [`bake_${k}`, `/characters/kenzo_suga/sfx/bake_${k}.mp3`])),
+  // โอเบรอน (วอร์ติเกิร์น): เสียงพากย์ 32 ประโยค (ตัดจากคลิปของผู้ใช้ — .claude/plans/oberon-voice-cut.py · -16 LUFS) · เสียงตีปกติ 4 แบบ (-14 LUFS) · เพลงสนาม
+  ...Object.fromEntries(Array.from({ length: 32 }, (_, i) => { const k = `obv_v${String(i + 1).padStart(2, "0")}`; return [k, `/characters/oberon_vortigern/voice/${k}.mp3`]; })),
+  ...Object.fromEntries(["buster", "quick", "arts", "extra"].map((k) => [`obv_hit_${k}`, `/characters/oberon_vortigern/sfx/obv_hit_${k}.mp3`])),
+  obv_theme: "/characters/oberon_vortigern/theme.mp3",
+  // Mixkit เน้นเบส (.claude/plans/oberon-sfx-sources.md · -14 LUFS)
+  ...Object.fromEntries(["scythe_on", "scrap", "vesper_on", "vesper_off", "vesper_die", "twilight", "rot", "release"].map((k) => [`obv_${k}`, `/characters/oberon_vortigern/sfx/obv_${k}.mp3`])),
   // เอมิยะ คริซุงุ: kiri_alter = time_altersong ของผู้ใช้ (ตลอด Time Alter) · smg/smoke/place สังเคราะห์ด้วย ffmpeg — ยังไม่มีคนฟัง
   kiri_alter: "/characters/emiya_kiritsugu/kiri_alter_theme.m4a",
   kiri_smg: "/characters/emiya_kiritsugu/sfx/kiri_smg.mp3",
