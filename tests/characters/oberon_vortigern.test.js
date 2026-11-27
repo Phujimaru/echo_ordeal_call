@@ -234,3 +234,12 @@ test('เสียง/คลิป: เข้าสนธยามีคลิ�
   O.statuses.obvScythe = 2;
   assert.equal(obv.attackSound(O), obv.SFX.buster);
 });
+
+test('ป้ายฉากตี (onStrikeLanded) เป็น array ไม่ใช่สตริง — กันตัวอักษรแตกทีละแถว', () => {
+  const { O, T } = setup();
+  T.hp = 10; T.armor = 0;
+  const r = obv.onStrikeLanded(engine, O, T, {});
+  assert.ok(Array.isArray(r));
+  assert.ok(r.includes('Vesper ชน'));
+  assert.deepEqual(obv.onStrikeLanded(engine, O, T, { counter: true }), []);
+});

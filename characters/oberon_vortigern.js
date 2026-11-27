@@ -254,7 +254,7 @@ module.exports = {
     return undefined;
   },
   onStrikeLanded(engine, a, t, { counter } = {}) {
-    if (!isMe(a) || !t || counter) return null;
+    if (!isMe(a) || !t || counter) return [];
     const names = [];
     if (scytheOn(a)) {
       const inField = fieldMine(a);
@@ -270,7 +270,7 @@ module.exports = {
       engine.applyDebuff(t, "decay", null, CHARGE_DECAY);
       names.push("Vesper ชน");
     }
-    return names.length ? names.join(" · ") : null;
+    return names; // รายการชื่อป้ายฉากตี (array เท่านั้น — สตริงถูกแตกเป็นตัวอักษรทีละแถว · บั๊ก 6.6.1)
   },
 
   // ---------- เสียง ----------

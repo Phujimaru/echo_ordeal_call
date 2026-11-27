@@ -340,7 +340,9 @@ function strikeBody(attacker, target, counter) {
   match.lastLog.push(`${attacker.name} ${verb} ${target.name} -${dmg} (${pierce ? "ทะลุเกราะ" : "ลดเกราะก่อน"})`);
   // ผลเมื่อตีปกติลงเฉพาะตัวละคร (ฮุค onStrikeLanded — ไรโด ฮิคารุ: ติดสถานะตามร่าง) → ชื่อป้ายในฉากตี
   const landedHook = CHAR_HOOKS[attacker.characterId];
-  const landedFx = landedHook && landedHook.onStrikeLanded && target.alive ? landedHook.onStrikeLanded(engine, attacker, target, { counter }) || [] : [];
+  const landedRaw = landedHook && landedHook.onStrikeLanded && target.alive ? landedHook.onStrikeLanded(engine, attacker, target, { counter }) : null;
+  // ชื่อป้ายต้องเป็น array — สตริงเดี่ยว (โอเบรอน 6.6.1) ถูก client แตกเป็นตัวอักษรทีละแถว
+  const landedFx = Array.isArray(landedRaw) ? landedRaw : typeof landedRaw === "string" && landedRaw ? [landedRaw] : [];
   if (!counter && target.alive) require("../fodlan").onStrikeLanded(attacker, target); // Eos: อาวุธจักรพรรดิ (ฟื้นเกราะ/ผลัก/สตั้น/แทงทะลุ …)
   // เลือดหมดจากการตี = ตกรอบทันที (เดิมกวาดตอนจบเทิร์น — บนกระดานคนตายต้องหายจากช่องก่อนตีสวน/คนถัดไป)
   if (target.alive && target.hp <= 0) {
