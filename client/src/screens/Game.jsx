@@ -132,6 +132,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   //  รวมมาเข้าคิวเดียว เล่นทีละอันตามลำดับที่เข้ามา — แบนเนอร์เปลี่ยนเทิร์นผูกกับเฟส TRANSITION
   //  จึงไม่เข้าคิว แต่ "กั้นคิว" ไว้แทน ไม่มีฉากไหนเล่นทับมันได้
   const prevCycle = useRef(null);
+  const prevObvField = useRef(false);
   const [statusViewId, setStatusViewId] = useState(null); // ดูสถานะผู้เล่นคนอื่น (แตะการ์ดตอนไม่ได้เลือกเป้า)
   const [bagOpen, setBagOpen] = useState(false);     // ร้านค้ามายา (patch 2.2 full): เปิดดูคลังของตัวเอง
   const [shopId, setShopId] = useState(null); // ร้านที่เปิดดูอยู่ (state.shops[i].id) — null = ปิด
@@ -728,8 +729,12 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
   }, [giftSel, phase, done]);
 
   // แบนเนอร์สลับกลางวัน/กลางคืน: เด้งเมื่อ cycle เปลี่ยนระหว่างแมตช์ แล้วหายเอง
+  //  สนธยายามค่ำคืน (โอเบรอน วอร์ติเกิร์น): เข้า/ออก/ระหว่างสนาม = ไม่ใช่วงจรวัน/คืนของภูมิภาค — ไม่เด้ง
+  const obvFieldOn = !!(state.oberonField && state.oberonField.on);
   useEffect(() => {
-    if (prevCycle.current && state.cycle && prevCycle.current !== state.cycle) {
+    const fieldFlip = prevObvField.current !== obvFieldOn;
+    prevObvField.current = obvFieldOn;
+    if (prevCycle.current && state.cycle && prevCycle.current !== state.cycle && !obvFieldOn && !fieldFlip) {
       const j = state.journey;
       pushScene("cycle", {
         cycle: state.cycle,
@@ -738,7 +743,7 @@ function GameBoardCore({ state, lowQ, skillConfirmOn = true }) {
       });
     }
     prevCycle.current = state.cycle;
-  }, [state.cycle, state.journey, pushScene]);
+  }, [state.cycle, state.journey, pushScene, obvFieldOn]);
 
   // เฟส CUTSCENE: วีดีโอแปลงร่าง (key=id -> remount กันจอดำ)
   //  โหมดประหยัด (patch 2.0.6): ข้ามวีดีโอ — แสดงกระดาน + แจ้งเตือนว่าใครเปิดท่าไม้ตาย รอเวลาเท่าวีดีโอจริง

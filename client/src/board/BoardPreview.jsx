@@ -57,6 +57,7 @@ import DivineFxDev from "./DivineFxDev"; // ?divine=1 = ปุ่มเล่น
 import ShinraFxDev from "./ShinraFxDev"; // ?shinra=1 = ปุ่มเล่นเอฟเฟกต์ไฟของคุซาคาเบะ ชินระ
 import MidoriyaFxDev from "./MidoriyaFxDev";
 import KenzoFxDev from "./KenzoFxDev";
+import OberonFxDev from "./OberonFxDev";
 import JoshuaFxDev from "./JoshuaFxDev";
 import OphyFxDev from "./OphyFxDev";
 import NaruhodoFxDev from "./NaruhodoFxDev"; // ?naruhodo=1 = ปุ่มเล่นเอฟเฟกต์ของนารุโฮโดะ ริวอิจิ
@@ -164,12 +165,13 @@ const SHINRA_DEV = Q.get("shinra") === "1";
 const MIDORIYA_DEV = Q.get("midoriya") === "1";
 const KENZO_DEV = Q.get("kenzo") === "1"; // ?kenzo=1 = เค็นโซ ซุกะ · ปืน Bake Magnum (HUD จริง) + เอฟเฟกต์ยิง/การกัดกิน/แปลงร่าง (KenzoFxDev.jsx)
 const JOSHUA_DEV = Q.get("joshua") === "1";
+const OBERON_DEV = Q.get("oberon") === "1"; // ?oberon=1&area=90 = โอเบรอน (วอร์ติเกิร์น) · สนามกลืนกิน + เอฟเฟกต์ (OberonFxDev.jsx)
 const OPHY_DEV = Q.get("ophy") === "1"; // ?ophy=1 = Ophy · ปุ่มเล่นยิงขวด 11 ชนิด / สวนกลับ / หม้อระเบิด / ดื่ม / วาร์ป / ของตก / ไก่-นก (OphyFxDev.jsx)
 const MAGNA_DEV = Q.get("magna") === "1";
 const NARU_DEV = Q.get("naruhodo") === "1";
 const DINO_DEV = Q.get("dino") === "1";
 const MASTER_DEV = Q.get("master") === "1";
-const initialUnits = () => (KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
+const initialUnits = () => (OBERON_DEV ? OberonFxDev.units(baseUnits()) : KE_DEV ? ShadowFxDev.units(baseUnits()) : GYRO_DEV ? GyroFxDev.units(baseUnits()) : DIEGO_DEV ? DiegoFxDev.units(baseUnits())
   : VAL_DEV ? ValentineFxDev.units(baseUnits()) : FERN_DEV ? FernFxDev.units(baseUnits()) : CELINE_DEV ? CelineFxDev.units(baseUnits())
   : NARU_DEV ? baseUnits().map((u) => (u.id === "me" ? { ...u, name: "นารุโฮโดะ ริวอิจิ", img: "/characters/naruhodo_ryuichi/naruhodo.webp", color: "#2c56b0" } : u)) : EMIYA_DEV ? EmiyaFxDev.units(baseUnits()) : KAZUMA_DEV ? KazumaFxDev.units(baseUnits()) : LAW_DEV ? LawFxDev.units(baseUnits()) : baseUnits());
 const baseUnits = () => [
@@ -277,7 +279,7 @@ const btn = (on) => ({
 });
 
 export default function BoardPreview() {
-  const [area, setAreaState] = useState(() => qInt("area", 1, 60, 1));
+  const [area, setAreaState] = useState(() => qInt("area", 1, 99, 1));
   const [rotation, setRotation] = useState(() => qInt("rot", 0, 3, 0));
   const [soraShell, setSoraShell] = useState(false); // ?sora=1: กระดองเต่าค้าง (SoraFxDev)
   const [zoom, setZoom] = useState(() => qInt("zoom", 0, 2, 0)); // 2 = มองจากด้านบน (ส่งเป็น view="top")
@@ -286,7 +288,7 @@ export default function BoardPreview() {
   const map = useMemo(() => mapFor(area, sq), [area, sq]);
   const M = useMemo(() => ({ ...map, shop: null }), [map]); // ร้านแบบเดิม 1×1 เลิกใช้แล้ว — ?shops=1 = ร้าน 2×2 (shops)
   const shops = useMemo(() => (SHOPS_ON ? shopTrio(map) : null), [map]);
-  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 60, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
+  const [units, setUnitsState] = useState(() => { const m = mapFor(qInt("area", 1, 99, 1), Q.get("sq") === "1"); return placeUnits(initialUnits(), m, shopOf(m)); });
   const unitsRef = useRef(units); // ค่าล่าสุดสำหรับ setTimeout/คอลแบ็กแอนิเมชัน
   const setUnits = (fn) => {
     const next = typeof fn === "function" ? fn(unitsRef.current) : fn;
@@ -617,6 +619,7 @@ export default function BoardPreview() {
       {OPHY_DEV && <OphyFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} setGround={setOphyGround} />}
       {JOSHUA_DEV && <JoshuaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {KENZO_DEV && <KenzoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
+      {OBERON_DEV && <OberonFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MIDORIYA_DEV && <MidoriyaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} map={map} />}
       {NARU_DEV && <NaruhodoFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}
       {MAGNA_DEV && <MagnaFxDev units={units} setUnits={setUnits} pushFx={pushFx} setFocus={setFocus} />}

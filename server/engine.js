@@ -123,6 +123,7 @@ Object.defineProperties(engine, Object.getOwnPropertyDescriptors({
   // ตัดผลสกิลที่ทำงานอยู่ (server/sever.js — รากฐานจิตของเรียวกิ): ฮุค severables + จดลำดับตอนเปิดผลด้วย severStamp()
   sever: Sever,
   severStamp: Sever.stamp,
+  oberonField: require("./oberonField"), // สนธยายามค่ำคืน: สนามกลืนกิน 10×10 ของโอเบรอน (วอร์ติเกิร์น)
   ice: Ice, // ธารน้ำแข็ง / หนามน้ำแข็ง / ไถล / ผลัก / เชื่องช้า (server/ice.js — Ice Spike + น้ำแข็งภูมิภาค VI)
   tileArea: action.tileArea, // ช่องที่สกิลชนิด tile คลุม (ช่องเดียว / กรอบ square×square)
   boardUnits: action.boardUnits,

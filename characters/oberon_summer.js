@@ -44,6 +44,8 @@ const DREAM_STUN_TURNS = 3;
 const DREAM_COOLDOWN = 5;
 
 const isOberon = (p) => !!p && p.characterId === ID;
+// แต้มความเกลียดชัง (GRID_PLAN §7.46): ถูกศัตรูโจมตี (ถูกเลือกเป็นเป้าก็นับ แม้หลบได้) ครั้งละ 1 · ครบ 5 = ปุ่มลอกคราบเป็นวอร์ติเกิร์น (ถาวร)
+const HATE_MAX = 5;
 
 // ผู้รับม่านแห่งราตรี "ทุกคนในรัศมี" — ids = ผู้ที่อยู่ในรัศมี (server/skills.js resolveArea ส่งมาเป็น array เสมอ)
 //  โหมดทีม = เฉพาะตัวเอง + เพื่อนร่วมทีม · ffa = ทุกคนในรัศมี · ไม่มีรายชื่อ = ตัวเองคนเดียว (ไม่แจกทั้งสนาม)
@@ -109,6 +111,31 @@ module.exports = {
     // ผลสกิลของโอเบรอนที่ลงตัวเอง (ตัดผลสกิล server/sever.js — รากฐานจิตของเรียวกิ) · at = engine.severStamp()
     p.obsSelfVeil = null;   // ม่านแห่งราตรีที่ตัวเองร่ายใส่ตัวเอง: { at, until } (until = เทิร์นสุดท้ายที่มีผล)
     p.obsSelfDream = null;  // จุดจบของความฝันที่ตัวเองใช้กับตัวเอง: { at, useRound } (รายการใน obsDreamQueue)
+    p.obsHateKey = null;    // การโจมตีที่นับแต้มความเกลียดชังไปแล้ว (แยกครั้งด้วย commandSeq)
+    if (p.statuses) delete p.statuses.obsHate; // แต้มความเกลียดชัง (สแตค — ป้ายสถานะ)
+  },
+
+  // ---------- แต้มความเกลียดชัง → ลอกคราบเป็นโอเบรอน (วอร์ติเกิร์น) ----------
+  HATE_MAX,
+  onAttacked(engine, p, attacker) {
+    if (!isOberon(p) || p.summon || !p.alive || !attacker || attacker.id === p.id || engine.sameTeam(p, attacker)) return;
+    const key = `${attacker.id}|${engine.roundNumber}|${engine.actorId || ""}|${engine.commandSeq}`;
+    if (p.obsHateKey === key) return; // การโจมตีเดียว (หลายฮิต/หลายจังหวะ) นับครั้งเดียว
+    p.obsHateKey = key;
+    const n = Math.min(HATE_MAX, (p.statuses.obsHate || 0) + 1);
+    p.statuses.obsHate = n;
+    p.statusAmt.obsHate = n;
+    if (n === HATE_MAX) engine.log(`🖤 ${p.name} แต้มความเกลียดชังครบ ${HATE_MAX} — ลอกคราบได้`);
+  },
+  hudActions(engine, p) {
+    if (!isOberon(p) || p.summon || !p.alive || (p.statuses.obsHate || 0) < HATE_MAX) return undefined;
+    return [{ key: "molt", icon: "🦋", name: "วอร์ติเกิร์น", img: "/characters/oberon_vortigern/oberon_vortigern.webp", on: false, cd: 0, disabled: !engine.canAct(p) }];
+  },
+  charAction(engine, p, key) {
+    if (!isOberon(p) || key !== "molt" || (p.statuses.obsHate || 0) < HATE_MAX || !engine.canAct(p)) return false;
+    require("./oberon_vortigern").molt(engine, p);
+    engine.broadcastState();
+    return true;
   },
 
   // พลังโจมตีจากท่าของโอเบรอน (ungated — อ่านที่ computeAttackBase ใครติดก็ได้)

@@ -329,6 +329,7 @@ function tickMerchant() {
 }
 // ต้นเทิร์น (dealRound): ครบกำหนด = ร้านยา/โรงช่างปรากฏจุดใหม่ + ของใหม่ · พ่อค้าเร่สุ่มโผล่/จากไป · คิดผลของภูมิภาคใหม่
 function maybeMoveShop() {
+  if (require("./oberonField").blocksWorld()) return; // สนธยายามค่ำคืน: นาฬิกาโลกหยุด — ร้านค้างอยู่บนกระดานเดิม ไม่ย้าย/ไม่นับ
   if (rtActive()) { refreshShopForJourney(); return; } // Road Trip: ร้านมีเฉพาะที่จุดพัก (server/roadtrip/stop.js เปิด/ปิดเอง)
   if (Colony.active()) { refreshShopForJourney(); return; } // Colony: ร้าน = แคปซูลเสบียง (server/colony.js ตั้ง/เก็บเอง)
   if (ntShipShop()) { refreshShopForJourney(); return; } // Nautilus: ร้าน = เรือ Nautilus ที่ท่าจอดของชั้น (ไม่มีแผงร้าน ไม่ย้าย · ของใหม่ทุกชั้น)

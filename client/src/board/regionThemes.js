@@ -15,6 +15,7 @@
 import { LW, OX, P, PS, depthOf, gPoly, glow, rng, sceneSize, unprojectScene, viewAxes } from "./boardGeo";
 import { cactusShape, deadTreeShape, drawTree, pineShape, prism, SNOW_PINE, windmillSails } from "./boardProps";
 import { MOON_THEMES } from "./schoolTheme";
+import { OBERON_THEMES } from "./oberonTheme";
 import { fodlanThemes } from "./fodlan/index";
 import { roadtripThemes } from "./roadtrip/theme";
 
@@ -1020,6 +1021,8 @@ for (const [area, th] of Object.entries(fodlanThemes())) { if (th.pal) THEMES[ar
 // ธีมของภูมิภาค (ไม่รู้จัก = ภูมิภาค I)
 // Road Trip (area 70–75 · board/roadtrip/theme.js) — ธีมตามภูมิภาคปัจจุบันของการเดินทาง
 Object.assign(THEMES, roadtripThemes());
+// สนธยายามค่ำคืน — สนามกลืนกิน 10×10 ของโอเบรอน (วอร์ติเกิร์น) (area 90 · oberonTheme.js)
+Object.assign(THEMES, OBERON_THEMES);
 export function themeOf(area) { return THEMES[area] || THEMES[1]; }
 // ช่วงพื้นโลกที่มองเห็น (หน่วยช่อง) — ใช้กระจายลายพื้น
 export function worldRange(view) {

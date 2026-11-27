@@ -373,6 +373,7 @@ function startMatch() {
   match.roundNumber = startRound - 1;
   match.cycleShift = 0;
   match.forcedNight = null;
+  match.oberonField = null; // สนธยายามค่ำคืน (server/oberonField.js)
   match.legStart = 1;
   match.journeyScene = null;
   const startArea = devStartArea() || (startRound > Journey.AREA_TURNS ? Journey.pickNextArea(1) : 1);
@@ -473,6 +474,7 @@ function backToLobby() {
   match.roundNumber = 0;
   match.cycleShift = 0;
   match.forcedNight = null;
+  match.oberonField = null; // สนธยายามค่ำคืน (server/oberonField.js)
   match.legStart = 1;
   match.journeyScene = null;
   match.journeyArea = 1;

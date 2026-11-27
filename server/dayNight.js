@@ -14,6 +14,7 @@ function isNightRound(n) {
   // Road Trip (GRID_PLAN §8.8): กลางวัน/กลางคืนตามระยะทาง (match.roadtrip.night) — ไม่ใช้วงจรเทิร์นเดิม
   if (match.world === "roadtrip" && match.roadtrip) return forcedNightAt(n) || !!match.roadtrip.night; // กลางคืนบังคับ (Wake Up 1) มาก่อน
   if (forcedNightAt(n)) return true;
+  if (match.oberonField && match.oberonField.on) return true; // สนธยายามค่ำคืน (โอเบรอน วอร์ติเกิร์น): กลางคืนตลอดสนาม — ผลภูมิภาคไม่เกิด (Journey.current)
   const m = n - match.cycleShift;
   const block = m > 0 ? Math.floor((m - 1) / cycleTurns()) : 0;
   return m > 0 && block % 2 === 1;

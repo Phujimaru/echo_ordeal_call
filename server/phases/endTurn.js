@@ -231,6 +231,7 @@ function recordCharStats(resultOf) {
 // การเดินทาง: เทิร์นหน้าเป็นภูมิภาคใหม่ (สุ่ม) -> พักเฟส CUTSCENE (ไม่มีคลิป) ให้ client เล่นฉากสุ่ม + เดินทางบนลูกโลก
 function maybeJourneyAdvance() {
   if (!Journey.active(engine) || !Journey.legEnds(match.roundNumber, match.legStart)) return false;
+  if (require("../oberonField").blocksWorld()) return false; // สนธยายามค่ำคืน: นาฬิกาโลกหยุด (ภูมิภาคไม่เปลี่ยน)
   const from = Journey.areaNow(engine);
   const to = Journey.pickNextArea(from);
   const route = [...match.journeyRoute]; // เส้นทางที่ผ่านมา (ถึงต้นทาง) — ฉากวาดค้างไว้บนโลก

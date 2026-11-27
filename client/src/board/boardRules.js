@@ -1516,6 +1516,22 @@ for (const [area, d] of Object.entries(RT_DEF.defs)) MAPS[area] = buildMap({ ...
 const RT_AREAS = Object.keys(RT_DEF.defs).map(Number);
 const isRoadtripArea = (area) => RT_AREAS.includes(Number(area));
 
+// ---------- สนธยายามค่ำคืน — สนามเฉพาะของโอเบรอน (วอร์ติเกิร์น) (GRID_PLAN §7.46) ----------
+//  หลุมกลืนกิน 10×10 พื้นเดินได้ทุกช่อง (ผู้ใช้สั่ง: ภาพอุโมงค์หลุมหมุนวน · ไม่มีสิ่งกีดขวาง) · ไม่มีจุดฟื้นฟู/ร้าน
+//  จุดยืนแจกเองตอนกลืน (characters/_oberon_abyss.js — โอเบรอนกลาง · ที่เหลือรอบขอบ) · spawns = ขอบทั้งวง (กันพังถ้ามีใครเรียก placeOnBoard)
+const OBERON_AREA = 90;
+const OBERON_FIELD = { cols: 10, rows: 10 };
+MAPS[OBERON_AREA] = buildMap({
+  area: OBERON_AREA,
+  name: "สนธยายามค่ำคืน",
+  cols: OBERON_FIELD.cols, rows: OBERON_FIELD.rows,
+  terrain: {},
+  heal: [],
+  spawns: [[0, 0], [9, 0], [0, 9], [9, 9], [4, 0], [0, 5], [9, 4], [5, 9]],
+  shopSpots: [],
+});
+const isOberonArea = (area) => Number(area) === OBERON_AREA;
+
 // ภูมิภาคที่ไม่มีแผนที่ (ไม่ควรเกิด) ใช้ของภูมิภาค I
 function mapOf(area) {
   return MAPS[area] || MAPS[1];
@@ -2331,6 +2347,7 @@ function normalizeMap(pub) {
 export {
   COLS, ROWS, DIRS, LINE_DIRS, MAPS, TERRAIN_INFO, MOON_AREA, MOON, isMoonArea, UNBREAKABLE,
   COLONY_AREA, COLONY, isColonyArea, FODLAN_AREA, FODLAN_STAGES, isFodlanArea, EOS_AREA, isEosArea, NAUTILUS_AREA, NAUTILUS_STAGES, isNautilusArea, RT_AREAS, isRoadtripArea,
+  OBERON_AREA, OBERON_FIELD, isOberonArea,
   key, mapOf, inBounds, isObstacle, isHeal, dist, inRange, unitAt,
   setWrap, wrapCols, wx, wdx, wallBlocks,
   sizeOf, boxOf, footprint, covers, bigFits, growPlan, pushOutTile, placeBig,

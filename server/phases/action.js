@@ -51,6 +51,7 @@ const RT = require("../roadtrip"); // Road Trip: ประตูท้ายเ�
 function boardMap() {
   const b = match.board;
   const base = Board.mapOf(b ? b.area : 1);
+  if (b && Board.isOberonArea(b.area)) return base; // สนามกลืนกินของโอเบรอน (server/oberonField.js): ไม่มีชั้นของภูมิภาค/ด่าน
   const cv = Colony.layerVer(); // Colony: รอยรั่ว + ปล้องที่ปิดผนึก (server/colony.js)
   const fv = Fodlan.layerVer(); // Fodlan: ชั้นของด่าน (เรือ ไฟลาม สะพานน้ำแข็ง … — server/fodlan/stageN.js)
   if (!(b && b.broken && b.broken.length) && !Ice.hasOverlay(b) && !(b && b.chasm && b.chasm.length) && !cv && !fv) return base;
@@ -425,6 +426,8 @@ function smashes(p) {
 //  ร้านค้าถูกยกออก — ต้นเทิร์นถัดไป (dealRound) สุ่มจุดใหม่บนแผนที่นี้พร้อมของใหม่ (GRID_PLAN §3)
 //  ตัวใหญ่: วางใกล้จุดเกิดของตัวเองให้ทั้งตัวลงได้โดยไม่ทับใคร (พังสิ่งกีดขวางได้ = พังของใต้ตัว)
 function placeOnBoard(area) {
+  // สนามกลืนกินของโอเบรอนที่ค้างอยู่ (เปลี่ยนแผนที่กลางสนาม — ด่านใหม่/ภูมิภาคใหม่/เริ่มเกม) = ทิ้งสนามเงียบๆ ไม่คืนกระดานเดิม
+  if (match.oberonField && match.oberonField.on) match.oberonField = { on: false, seq: match.oberonField.seq, by: match.oberonField.by, reason: "map" };
   require("../element").resetFields(); // หมอกพิษ / หลุมดำ หายเมื่อเปลี่ยนแผนที่
   Ride.clearAll(); // ขี่ผู้เล่นอื่น: เปลี่ยนภูมิภาค = ลงจากหลังทุกคน (ได้จุดเกิดของตัวเอง)
   Summon.removeAll({ keepOnMap: true }); // ยูนิตที่ถูกเรียก (server/summon.js) หายหมด — ยกเว้นตัวที่ตั้ง keepOnMap (ตัวอัญเชิญของ Master: เจ้าของวางใหม่ใน onBoardPlaced)

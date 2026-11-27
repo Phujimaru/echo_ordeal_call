@@ -77,7 +77,9 @@ const CHARACTERS = [
     //  ภาพสกิลใช้ภาพตอนเช้าของโอเบรอนตัวเก่า (ภาพประจำตัวเป็นภาพใหม่)
     id: "oberon_summer",
     gender: "m", // เพศ — ปากหวาน/หนุ่มเจ้าเสน่ห์ของคุเรไน โอโตยะ (characters/_gender.js)
-    name: "โอเบรอน (ฤดูร้อน)",
+    name: "โอเบรอน", // การ์ดเดียวสองโหมด (ผู้ใช้สั่ง 2026-11-27 · แบบดิเอโก้) — โหมดบอกร่าง
+    // วอร์ติเกิร์น = ตัวละคร oberon_vortigern (join สลับ characterId · GRID_PLAN §7.46) · ฤดูร้อนแต้มความเกลียดชังครบ 5 = ลอกคราบกลางเกมได้
+    modes: [{ key: "summer", name: "ฤดูร้อน" }, { key: "vortigern", name: "วอร์ติเกิร์น", char: "oberon_vortigern" }],
     avatar: 0,
     difficulty: "medium",
     img: "/characters/oberon(summer)/oberon_summer.webp",
@@ -86,6 +88,10 @@ const CHARACTERS = [
     passive: {
       name: "หน้าไหว้หลังหลอก",
       desc: "จบเทิร์นที่ไม่ถูกโจมตีเลย (ถูกเลือกเป็นเป้าก็นับ แม้หลบได้) ได้แต้มสกิล +1 และเหรียญ +1",
+    },
+    passive2: {
+      name: "แต้มความเกลียดชัง",
+      desc: "ถูกศัตรูโจมตี (ถูกเลือกเป็นเป้าก็นับ แม้หลบได้) +1 · ครบ 5 = ปุ่มลอกคราบเป็นโอเบรอน (วอร์ติเกิร์น) ถาวร · พลังชีวิต/เกราะคงสัดส่วน · สถานะเดิมหายหมด",
     },
     basic: {
       name: "ม่านแห่งราตรี",
@@ -111,6 +117,55 @@ const CHARACTERS = [
       area: { kind: "target", range: "mov", self: true },
       cost: 4,
       img: "/characters/oberon/oberon_skill3_morning.webp",
+      instant: true,
+      effect: null,
+    },
+  },
+  {
+    // ---------- โอเบรอน (วอร์ติเกิร์น) — กลาง — ดู characters/oberon_vortigern.js (GRID_PLAN §7.46) ----------
+    //  ไม่มีการ์ดแยก (modeOf → โหมดของ oberon_summer) · ยังขึ้นในสมุดไดอารี่ของ Echo · ค่าฐาน 7/3 ไม่บวกโบนัสกลาง
+    //  ช่องไม้ตาย = สนธยายามค่ำคืน · ระหว่างสนามของตัวเองทับด้วย Lie Like Vortigern (skillPub)
+    id: "oberon_vortigern",
+    gender: "m",
+    name: "โอเบรอน (วอร์ติเกิร์น)",
+    modeOf: "oberon_summer",
+    avatar: 0,
+    difficulty: "medium",
+    img: "/characters/oberon_vortigern/oberon_vortigern.webp",
+    mov: 4,
+    range: [1, 1],
+    passive: {
+      name: "Vesper",
+      desc: "เริ่มเกมขี่ Vesper · ขึ้น/ลง (0 แต้ม · ไม่ล็อกการเดิน) · ขี่ = เดิน 6 · ตีระยะ 1–3 แบบขี่ชน + พิษร้าย 1 เทิร์น + ผุพัง 2 เทิร์น · Vesper พลังชีวิต 5 รับดาเมจก่อนเกราะ · ตาย = เรียกไม่ได้ 3 เทิร์น",
+    },
+    passive2: {
+      name: "ราชาแห่งการจอมหลอกลวง",
+      desc: "พิษร้ายที่ติดตัวเองกลับผล: ต้นเทิร์นฟื้นพลังชีวิตแทนเสีย · พลังโจมตี +1 แทน −1 · ในสนธยายามค่ำคืน พลังโจมตี +1",
+    },
+    basic: {
+      name: "ก็แค่เศษขยะ",
+      desc: "ทำลายไอเทมในกระเป๋า (1 ชิ้น / ทั้งหมด) · ต่อชิ้น: พลังชีวิต +2 · เกราะ +1 · แต้มสกิล +1",
+      area: { kind: "self" },
+      cost: 2,
+      img: "/characters/oberon_vortigern/skill1.jpg",
+      instant: true,
+      effect: null, // ตัวเลือกจากไอเทมในกระเป๋า (characters/oberon_vortigern.js skillPub)
+    },
+    secondary: {
+      name: "ชีวิตพวกแกมีค่าพอไหม",
+      desc: "3 เทิร์น ตีปกติเป็นเคียวยมทูต: ตีโดน = ดูดแต้มสกิล 1 (ขาดแต้มละ ความเสียหาย +1) · ไร้ทางเยียวยา 2 เทิร์น · ผนึกพลังงาน 1 เทิร์น · คูลดาวน์ไม้ตาย −1 · ในสนธยา: ดูด 2 · พลังโจมตี +1 · ไม่ลดคูลดาวน์",
+      area: { kind: "self" },
+      cost: 3,
+      img: "/characters/oberon_vortigern/skill2.webp",
+      instant: true,
+      effect: null,
+    },
+    ultimate: {
+      name: "สนธยายามค่ำคืน",
+      desc: "กลืนทุกคนลงหลุม 10×10 นาน 5 เทิร์น · เวลาโลกหยุด · กลางคืน · แต้มสกิล +1/เทิร์น · ติดพิษร้ายตลอด · ศัตรู: สนธยา +1 ต้นเทิร์น (ต้านไม่ได้ · ล้างได้ทีละ 1 · 3 ขึ้นไป = อ่อนแอ 1) · เน่าเปื่อย: สุ่มล็อกสกิล 1 ช่องทุกเทิร์น · ตาย = สนามหาย · ใช้ Lie Like Vortigern ได้ (คูลดาวน์ 6 เทิร์น นับหลังสนามหมด)",
+      area: { kind: "self" },
+      cost: 4,
+      img: "/characters/oberon_vortigern/skill3.webp",
       instant: true,
       effect: null,
     },

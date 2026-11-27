@@ -7,7 +7,8 @@
 ## ตัวละคร
 
 - `muimi` (มุยมิ)
-- `oberon_summer` (โอเบรอน ฤดูร้อน)
+- `oberon_summer` (โอเบรอน ฤดูร้อน — การ์ด "โอเบรอน" 2 โหมด · แต้มความเกลียดชัง 5 (`obsHate`) → ปุ่มลอกคราบเป็นวอร์ติเกิร์นถาวร)
+- `oberon_vortigern` (โอเบรอน วอร์ติเกิร์น — โหมดของ `oberon_summer` (`modeOf`) · 7/3 ไม่บวกโบนัส · Vesper แมลง (`_horse.js`) ขี่ชนระยะ 3 · เคียวยมทูตดูดแต้ม · **สนธยายามค่ำคืน สนามกลืนกิน 10×10** `server/oberonField.js` (หยุดนาฬิกาโลก · สนธยา · เน่าเปื่อย `p.skillRot`) · Lie Like Vortigern หลับไหลตามสนธยา · พิษกลับผล `poisonInverts` · GRID_PLAN §7.46 · GAME_SYSTEM §69)
 - `sliver_bullet` (นักบินปริศนา — สองโหมด สายลับ/ผู้กอบกู้ `p.charMode` · กล่องของลาพลัส → ร่างบานาจ ลิงซ์ · โล่บินได้ `flies`/`walkLeash` · ล่อเป้า `p.taunt`)
 - `echo` (เจ้าหญิง Echo — รื้อใหม่ 2026-11-10 · unique · ไดอารี่ความทรงจำ = สวมร่างตัวอื่น คัดลอกทุกอย่างรวมค่าสถานะ (`p.characterId` ชั่วคราว · `statId` = ร่างที่สวม · ตัวตนจริง `baseId` · ยกเว้นภาพ/ชื่อ `lookOf` + สกิลติดตัวของ Echo — ผู้ใช้สั่ง 2026-11-12) · คืนร่างปุ่ม HUD คูลดาวน์ 3) · สมุดเลือกตัว `DiaryBook.jsx` · ตัวละครใหม่ที่ผูกค่าสถานะต้องผ่าน `statId` · GRID_PLAN §7.6)
 - `sora_otosumi` (โซระ โอโตสุมิ — สองร่าง โซระ/My-Th (+1 พลังโจมตี) · ร่างย่อย Fire / Eagle / Tutle / Orca Frame · กระดองเต่า `board.soraShells` + ปุ่มวาร์ป `soraWarp` · ฮุค `shieldsFrom` / `trueSight` / `swims` · PVE ท่าไม้ตาย +6)

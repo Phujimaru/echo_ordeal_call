@@ -103,6 +103,7 @@ function pickNextArea(from) {
 // ภูมิภาค/ช่วงเวลาของเทิร์นปัจจุบัน — null = ไม่ได้อยู่ในโหมดที่มีการเดินทาง
 function current(engine) {
   if (!active(engine)) return null;
+  if (require("../server/oberonField").active()) return null; // สนธยายามค่ำคืน: อยู่ในสนามของโอเบรอน ไม่ใช่ภูมิภาค — ผลภูมิภาคไม่เกิด
   const round = worldRoundOf(engine);
   return { area: areaNow(engine), night: !!engine.isNightRound(round) };
 }
@@ -128,6 +129,7 @@ module.exports = {
   // ภาษีสกิลกลางคืน (สุ่มพื้นฐาน/รอง +1) — ในการเดินทางเหลือเฉพาะ 1 กลางคืน
   nightTaxOn(engine, legacyNight) {
     if (engine.world === "fodlan" || engine.world === "eos" || engine.world === "nautilus" || engine.world === "roadtrip") return false; // Fodlan + Eos + Nautilus + Road Trip: กลางวัน/กลางคืนไม่มีผล (ผู้ใช้สั่ง)
+    if (require("../server/oberonField").active()) return false; // สนธยายามค่ำคืน: ไม่ใช่กลางคืนของภูมิภาค
     return active(engine) ? is(engine, 1, "night") : legacyNight;
   },
   // แต้มสกิลโบนัสจบเทิร์น (ต่อคน) — ในการเดินทางแทนโบนัสเช้าคู่เดิมทั้งหมด

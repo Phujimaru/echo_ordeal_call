@@ -45,6 +45,7 @@ const STAT_BONUS_OF = {
   gyro_zeppeli: { hp: 3, armor: 0 }, diego_alt: { hp: 3, armor: 0 }, diego_dino: { hp: 3, armor: 0 },
   joshua_rosfield: { hp: 0, armor: 0 }, // โจชัว: พลังชีวิต 6 / เกราะ 2 ตามสเปก (ฮุค maxHp/maxArmor · GRID_PLAN §7.41)
   ophy: { hp: 0, armor: 0 }, // Ophy: พลังชีวิต 13 / เกราะ 2 ตามสเปก (ฮุค maxHp/maxArmor · GRID_PLAN §7.43)
+  oberon_vortigern: { hp: 0, armor: 0 }, // โอเบรอน (วอร์ติเกิร์น): 7 / 3 ตามสเปก (ผู้ใช้คิดรวมแล้ว · ฮุค maxHp/maxArmor · GRID_PLAN §7.46)
   aizen_makoto: { hp: 0, armor: 0 }, // ไอเซ็น มาโคโตะ: พลังชีวิต 7 / เกราะ 3 ตามสเปก · ร่างไคจูที่สิง 5 / 5 (GRID_PLAN §7.44)
   master: { hp: 0, armor: 0 }, // Master: พลังชีวิต 25 (patch 1 · ฮุค maxHp) · เกราะ 0 ตามสเปก (GRID_PLAN §7.34)
 };
@@ -335,6 +336,13 @@ function tookDamage(p) {
   require("./matchStats").onDamage(p, match.effectSourceId); // สรุปผลแมตช์ (หน้าจบเกม)
   const hook = CHAR_HOOKS[p.characterId];
   if (hook && hook.onDamageTaken) hook.onDamageTaken(engine, p, 1);
+  // หลับไหล: ถูกตีแล้วตื่น — ทุกแหล่ง (กฎผู้ใช้ 2026-11-27 · GRID_PLAN §7.46) ยกเว้นดาเมจจากสถานะ (ลุกไหม้/พิษ/…) · ปฏิกิริยาธาตุยังปลุก
+  if ((p.statuses.sleep || 0) > 0 && (!p._statusDamage || match.reactEls)) {
+    delete p.statuses.sleep;
+    if (p.statusAmt) delete p.statusAmt.sleep;
+    p.sleepFresh = false;
+    match.lastLog.push(`⏰ ${p.name} ถูกโจมตีจนตื่นจากหลับไหล`);
+  }
   // ถูกผู้เล่นอื่นทำให้เสียหาย = ถูกโจมตี — คนที่ขี่อยู่ร่วง (server/ride.js)
   const src = match.effectSourceId && match.players[match.effectSourceId];
   if (src && src.id !== p.id) {

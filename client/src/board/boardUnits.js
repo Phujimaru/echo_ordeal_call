@@ -14,6 +14,7 @@ import { arjUnitBack } from "./arjunaBoardFx";
 import { drawRider } from "./yunaFx";
 import { GYRO_RIDE_Z, gyroHorse, gyroUnitBack, gyroUnitFront } from "./gyroFx";
 import { DIEGO_RIDE_Z, diegoHorse, diegoUnitBack, diegoUnitFront } from "./diegoFx";
+import { VESPER_RIDE_Z, oberonVesper } from "./oberonFx";
 import { drawValUnit } from "./valentineFx";
 import { drawBloodCorpse } from "./ryougiFx";
 import { faizGhosts, faizTrailClear } from "./faizFx";
@@ -397,6 +398,8 @@ function drawUnit(g, u, now, boxes) {
   if (u.gyro) gyroHorse(g, u, now, wx, wy, (u.hz || 0) - (u.gyro.mounted ? GYRO_RIDE_Z : 0));
   // ดิเอโก้ขี่ซิลเวอร์ บูลเล็ต (หรือกำลังควบกลอุบาย — charge) · เพิ่งลง/ม้าตาย = ม้าถอยออก/สลาย
   if (u.diego) diegoHorse(g, u, now, wx, wy, (u.hz || 0) - (u.diego.mounted || u.diego.charge ? DIEGO_RIDE_Z : 0));
+  // โอเบรอน (วอร์ติเกิร์น) ขี่ Vesper (แมลง) · เพิ่งลง/ตาย = จาง
+  if (u.obv) oberonVesper(g, u, now, wx, wy, (u.hz || 0) - (u.obv.mounted ? VESPER_RIDE_Z : 0));
   if (tb) { /* ร่างรถ: วาดรถไปแล้วด้านบน — ไม่มีหกเหลี่ยม */ }
   else if (u.sq) { g.save(); g.translate(bx, hy + hexR); g.scale(1 + u.sq, 1 - u.sq); g.translate(-bx, -hy - hexR); unitHex(g, u, bx, hy, hexR); g.restore(); }
   else {

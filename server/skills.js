@@ -66,6 +66,7 @@ function runSkill(id, tier, targets, opts = {}) {
   if ((p.statuses.noskill || 0) > 0 && !(hook && hook.ignoresNoSkill && hook.ignoresNoSkill(p, tier))) return;
   if (match.action && match.action.noSkill) return; // ถูกคัดค้าน! (รอเดี๋ยว!!! ของนารุโฮโดะ — server/court.js) / ตาแทรก / แพ้คดี
   if (require("./fodlan").noSkill(p)) return; // สนาม Eos: อยู่ในรถ = ใช้สกิลไม่ได้
+  if (require("./oberonField").rotBlocks(p, tier)) return; // เน่าเปื่อย (สนธยายามค่ำคืนของโอเบรอน): ช่องที่สุ่มได้เทิร์นนี้ใช้ไม่ได้
   if (require("./morph").noSkill(p)) return; // ไก่ / นก (น้ำยาแปลงร่างของ Ophy — server/morph.js): ไม่มีสกิล
 
   // ราคาจริง (สูตรเดียวกับป้ายราคาบนปุ่ม — skillCostOf) · opts.form = ตัวเลือกที่กดจากปุ่มแบบหลายตัวเลือก (เคท: แส้/ดาบ/ปีก)

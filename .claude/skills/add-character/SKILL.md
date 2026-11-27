@@ -259,6 +259,9 @@ description: เพิ่มตัวละครใหม่หรือรื�
 | เสียงหลายตัวต่อกัน (ไม่ซ้อน) / เสียงเฉพาะคนกด | server `engine.sfx()` ตามลำดับ + client เพิ่มคีย์ขึ้นต้นใน `SFX_QUEUED` (`client/src/audio.js` — ชื่อที่ขึ้นต้นตรง = คิวเดียวกัน เล่นทีละตัว) · เสียงเฉพาะคนกด = client `playSfx` เอง (คาซุมะ: การ์ด → ชื่อท่า · `kazuma_open` — GAME_SYSTEM §33) | `audio.playSfx` |
 | ท่าตีปกติยาวกว่าฉากตีปกติ (ร่าย/ชาร์จก่อนปะทะ) | `attackFxExtra(p)` → วินาทีที่ยืดฉาก ATTACKING · client เล่นเสียงก่อนปะทะเอง (เฟิร์น: `FERN_SFX_LEAD` ใน fernFx.js + `fernZ` ใน BoardStage) | `attack.playAttackCard` |
 | ล็อก/คูลดาวน์รายช่องให้ client | `skillLocks(engine, p)` | `server/view.js` |
+| สนามเฉพาะตัว (กลืนทุกคนเข้ากระดานชั่วคราว แล้วคืนกระดานเดิม) · หยุดนาฬิกาโลก | `engine.oberonField.enter(p, until)` / `exit(reason)` / `extend(n)` — ตอนนี้ผูก area 90 ของโอเบรอน (ตัวใหม่ที่อยากได้สนามของตัวเองต้องเพิ่ม area + ธีม + ขยายโมดูล) · GAME_SYSTEM §69 | `server/oberonField.js` |
+| ล็อกช่องสกิลของคนอื่นเฉพาะเทิร์น (เน่าเปื่อย) | ตั้ง `t.skillRot = { tier, round, by }` — ด่าน `useSkill` + ป้ายล็อกบน HUD ให้เอง (ตอนนี้มีผลเฉพาะตอนสนามกลืนกินเปิด — `oberonField.rotTier`) | `server/skills.js` · `server/view.js` |
+| พิษร้ายกลับผลบนตัวเอง | ฮุค `poisonInverts(p)` → true (ฟื้นแทนเสีย · หักพลังโจมตีเป็น 0 — บวกเองใน `damageBonus`) | `_universal_status.tickPoison` |
 | เปลี่ยนรูปบนกระดาน | `displayImg(p)` | `server/view.js` |
 | โบนัส/หักพลังโจมตี | `damageBonus(engine, attacker, target, ctx)` · แทนฐานทั้งหมด `attackBaseOverride` · สกิลพื้นที่ `hostile` ทุบหนามน้ำแข็ง/ผนึกด้วยท่อนี้ **หลัง** ผลของสกิล (`useSkill` ต่อคิวไว้) — โบนัสเฉพาะสกิลต้องยังอยู่ตอนนั้น (ต้นแบบ `p.muimiWave` ของมุยมิ) | `computeAttackBase()` — `server/phases/attack.js` |
 | หลบ/ลดดาเมจ | `adjustIncomingDamage(engine, p, n, isNormalAttack, kind)` | `server/combat.js` |
@@ -474,6 +477,8 @@ description: เพิ่มตัวละครใหม่หรือรื�
 
 **14. `Object.assign(module.exports, {...})` บนสุดของไฟล์ใช้ได้กับ function declaration เท่านั้น** — `const` ที่ใส่ไว้ตรงนั้นพังทั้งเซิร์ฟเวอร์
 (`Cannot access ... before initialization`) ให้ export ค่าคงที่หลังบรรทัดที่ประกาศ (ดู `server/ice.js`)
+
+**15a. `resetCombat` ถูกเรียกกับผู้เล่นทุกคน** — สร้างสถานะเฉพาะตัวเฉพาะเมื่อ `p.characterId` เป็นตัวเอง · อ็อบเจกต์ที่มี `{ mounted: true, horseHp }` บนตัวคนอื่น = Eos นับว่าขี่ม้า ขี่โชโกโบะ/รถไม่ได้ (บั๊กที่เกือบหลุด 2026-11-27)
 
 **15. ยูนิตที่ถูกเรียกเป็นระเบียนใน `match.players`** — ลูปที่ไล่ผู้เล่นทุกคนเพื่อ "นับคน/ส่ง socket/แจกของ" ต้องข้าม `p.summon` (ดู GAME_SYSTEM §26) · ร่างแยกที่ใช้ `characterId` ของตัวละครเองจะโดนฮุคของตัวละครทุกตัว — เช็ค `!p.summon` ก่อนอ่านสถานะเฉพาะตัว
 

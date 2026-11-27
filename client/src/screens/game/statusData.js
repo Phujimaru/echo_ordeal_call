@@ -85,6 +85,9 @@ const STATUS_INFO = {
   // ดิเอโก้ แบรนโด (โลกคู่ขนาน)
   oilSoaked:     { icon: "🛢️", label: "ชุ่มน้ำมัน", cls: "bg-amber-800 text-white", desc: "ถูกโยนไม้ขีดไฟใส่จะระเบิดรอบตัว 3×3 ช่อง คนในพื้นที่เสียพลังชีวิต 2 เกราะรับก่อน ติดลุกไหม้ แล้วพื้นกลายเป็นกองไฟ" },
   kenzoCorrode:  { icon: "🧪", label: "การกัดกิน", cls: "bg-fuchsia-800 text-white", desc: "พลังโจมตี −1 ต่อหน่วย" },
+  twilight:      { icon: "🌘", label: "สนธยา", cls: "bg-rose-950 text-white", desc: "สะสมต้นเทิร์นในสนธยายามค่ำคืน · 3 ขึ้นไป อ่อนแอ 1 · Lie Like Vortigern หลับไหลเท่าจำนวนนี้ (ต้านไม่ได้ · ล้างได้ทีละ 1)" },
+  obsHate:       { icon: "🖤", label: "ความเกลียดชัง", cls: "bg-zinc-900 text-white", desc: "ถูกศัตรูโจมตี +1 · ครบ 5 ลอกคราบเป็นวอร์ติเกิร์นได้" },
+  obvScythe:     { icon: "⚰️", label: "เคียวยมทูต", cls: "bg-red-950 text-white", desc: "ตีปกติดูดแต้มสกิล · ไร้ทางเยียวยา · ผนึกพลังงาน" },
   dinoVirus:     { icon: "🦠", label: "ไวรัสบรรพกาล", cls: "bg-lime-700 text-white", desc: "ครบ 3 = ถูกควบคุมร่างได้ · ไม่ได้รับเพิ่ม 3 เทิร์นจะลดลง 1" },
   diegoNet:      { icon: "🕸️", label: "ติดตาข่าย", cls: "bg-stone-500 text-white", desc: "โดนไม้ขีดไฟหรือแรงระเบิดน้ำมันจะติดลุกไหม้ 3 แทน 1" },
   yunaBless:     { icon: "🕊️", label: "คำอวยพรสุดท้าย", cls: "bg-amber-200 text-gray-900", desc: "พลังโจมตีเพิ่ม 1" },

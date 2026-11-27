@@ -39,6 +39,7 @@ const match = {
   timeLeft: 0,
   phaseTimerId: null,
   // ---------- กระดาน (GRID_PLAN.md) — ตำแหน่งผู้เล่นอยู่ที่ p.pos ----------
+  oberonField: null,   // สนธยายามค่ำคืน (server/oberonField.js): { on, by, until, round0, seq, saved } — กระดานเดิมที่เก็บไว้ตอนถูกกลืน
   board: null,         // { area } — แผนที่จริงอ่านผ่าน board.mapOf(area)
   turnOrder: [],       // ลำดับเดินของเทิร์นนี้ (playerId) — เรียงตอนเปิดไพ่
   actorIndex: -1,

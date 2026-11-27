@@ -46,6 +46,8 @@ const Dim = require("./dimension");
 // โซ่ Soul Chain (server/soulChain.js): ช่องสกิลที่เป็นสกิลเคลื่อนที่ = ล็อก (ทับ skillLocks ของตัวละคร)
 function chainLocks(p, locks) {
   const Chain = require("./soulChain");
+  const rot = require("./oberonField").rotTier(p); // เน่าเปื่อย (สนธยายามค่ำคืนของโอเบรอน): ช่องที่สุ่มได้เทิร์นนี้ = ล็อก
+  if (rot) locks = { ...(locks || {}), [rot]: { ...((locks && locks[rot]) || {}), locked: true, rot: true } };
   if (!Chain.linked(p)) return locks;
   let out = locks;
   for (const tier of ["basic", "secondary", "ultimate"]) {
@@ -211,6 +213,7 @@ function buildStateInner(viewerId) {
     roundNumber: match.roundNumber,
     deckEmpty: match.centralDeck.length === 0,
     cycle: nightNow ? "night" : "day", // กลางวัน/กลางคืน
+    oberonField: require("./oberonField").publicInfo(), // สนธยายามค่ำคืน — สนามกลืนกิน 10×10 ของโอเบรอน (client board/oberonFx.js)
     bloodMoon: dayNight.forcedNightAt(match.roundNumber), // กลางคืนบังคับจันทร์แดง (Wake Up 1 ของคุเรไน โอโตยะ — client otoyaFx.js)
     // การเดินทาง (ffa/duo/trio): ภูมิภาค + กลางวัน/กลางคืน + คำอธิบายผลสนาม + ฉากแผนที่ที่กำลังพักเกมรอ
     journey: Journey.publicInfo(engine, match.journeyScene),
@@ -453,6 +456,7 @@ function buildStateInner(viewerId) {
         roland: hook && hook.rolandState ? hook.rolandState(engine, p) : undefined, // โรลันด์: Emotion / Furioso charge / BS Page ที่เหลือ
         zect: hook && hook.zectState ? hook.zectState(engine, p) : undefined, // ไรเดอร์ ZECT: ร่าง / ปุ่ม Clock Up นอกตา — GRID_PLAN §7.28
         kiritsugu: hook && hook.kiritsuguState ? hook.kiritsuguState(engine, p) : undefined, // เอมิยะ คริซุงุ: กระสุน Thompson / กับดัก / Time Alter / ปุ่มแทรกตา — GRID_PLAN §7.31
+        obv: hook && hook.obvState ? hook.obvState(engine, p) : undefined, // โอเบรอน (วอร์ติเกิร์น): Vesper ใต้หมาก / เคียว / สนามของตัวเอง — GRID_PLAN §7.46
         kenzo: hook && hook.kenzoState ? hook.kenzoState(engine, p) : undefined, // เค็นโซ ซุกะ: ร่างไรเดอร์ / เคยเล่นคลิปแปลงร่าง — GRID_PLAN §7.45
         inui: hook && hook.inuiState ? hook.inuiState(engine, p) : undefined, // อินุอิ: เปิดกระเป๋า / ร่าง / กระสุน / อุปกรณ์ / Exceed / Start Up — GRID_PLAN §7.27
         kazuma: hook && hook.kazumaState ? hook.kazumaState(engine, p) : undefined, // คาซุมะ: ร่าง / กองการ์ด / ท่าที่เซ็ต / เลือกได้อีก / ผล Rouze ที่รอตี / METAL — GRID_PLAN §7.19

@@ -19,6 +19,7 @@ import { FERN_EVENT_FX } from "../fernFx";
 import { OT_ARC_HIT, OT_ARC_MS, OT_EVENT_FX } from "../optimusFx";
 import { GIO_EVENT_FX, GIO_FX_DUR, GIO_REWIND_HIT, GIO_SLAM_HIT } from "../giornoFx";
 import { BAKE_EVENT_FX, BAKE_FX_DUR } from "../bakeFx";
+import { OBV_EVENT_FX, OBV_FX_DUR } from "../oberonFx";
 import { ARJ_EVENT_FX } from "../arjunaBoardFx";
 import { otoyaEventFx } from "../otoyaFx";
 import { sameSide } from "../../duo";
@@ -202,6 +203,23 @@ export default function useBoardEventFx(ctx) {
     hitFx.current.bakeFx = onBake;
     socket.on("bakeFx", onBake);
     return () => socket.off("bakeFx", onBake);
+  }, [pushFx]);
+  // โอเบรอน (วอร์ติเกิร์น): socket "oberonFx" { kind, id, at, targets?, hits?, mode?, n?, reason? } → oberonFx.js
+  //  swallow/release/lie = ฉากใหญ่ทั้งกระดาน (จอสั่น) · เสียงมาจาก server (ผู้ใช้จะส่งเสียงจริงมาภายหลัง)
+  useEffect(() => {
+    const onObv = (e) => {
+      const kind = e && OBV_EVENT_FX[e.kind];
+      if (!kind || !e.at || !Number.isFinite(e.at.x) || !Number.isFinite(e.at.y)) return;
+      const f = { kind, x: e.at.x, y: e.at.y, size: e.size || 1, n: e.n | 0, mode: e.mode || null, dur: OBV_FX_DUR[kind] };
+      if (Array.isArray(e.targets)) f.targets = e.targets;
+      if (Array.isArray(e.hits)) f.hits = e.hits;
+      const out = [f];
+      if (kind === "obvSwallow" || kind === "obvLie") out.push({ kind: "iceShake", x: 0, y: 0, amp: kind === "obvLie" ? 9 : 7, dur: kind === "obvLie" ? 1400 : 1100 });
+      pushFx(out);
+    };
+    hitFx.current.oberonFx = onObv;
+    socket.on("oberonFx", onObv);
+    return () => socket.off("oberonFx", onObv);
   }, [pushFx]);
   // คุเรไน โอโตยะ: socket "otoyaFx" { kind, id, at, size, to?, targetId?, tsize?, n? } → otoyaFx.js · เสียงมาจาก server
   useEffect(() => {

@@ -905,6 +905,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
       gyro: !mk && p.gyro ? { mounted: !!p.gyro.mounted, empowered: !!p.gyro.empowered, horseHp: p.gyro.horseHp } : null,
       // ดิเอโก้: ซิลเวอร์ บูลเล็ตใต้หมาก (mounted) · ม้าโดนตี = แวบ · ชุ่มน้ำมัน/ติดตาข่าย = หยดน้ำมัน/ลวดรัดตัว (ใครก็ติดได้) — diegoFx.js
       diego: !mk && p.diego ? { mounted: !!p.diego.mounted, horseHp: p.diego.horseHp } : null,
+      obv: !mk && p.obv ? { mounted: !!p.obv.mounted, vesperHp: p.obv.vesperHp } : null, // โอเบรอน (วอร์ติเกิร์น): Vesper ใต้หมาก (oberonFx.js)
       // รถบรรทุกเก่า: ร่างรถ = รถใต้หมาก · ผู้พิทักษ์ตั้งท่า = วงโล่ฟ้า (optimusFx.js)
       truck: !mk && p.oldTruck ? { form: p.oldTruck.form, stance: !!p.oldTruck.stance } : null,
       jbird: !mk && p.joshua && p.joshua.bird ? { down: !!p.joshua.down } : null, // (hatch = ระหว่างระเบิดเพลิง/คลิป ยังวาดหมากเดิม) // โจชัว ร่างนกฟีนิกซ์: นกเพลิงกระพือปีก 3×3 (joshuaFx.drawPhoenixBird)

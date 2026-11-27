@@ -159,7 +159,7 @@ const BASIC_DEBUFF_CLEAR = ["discord", "sleep", "stun", "nodraw", "noskill", "we
   "kenzoCorrode", // การกัดกิน (เค็นโซ ซุกะ): พลังโจมตี −N สะสม — ล้าง = หายทั้งก้อน
   "noPassive"];   // ลบสกิลติดตัว (server/passiveSeal.js — Rule Breaker ของชิโร่ระหว่าง UBW)
 // ดีบัฟที่ล้างได้ทีละขั้น (คำสาป / ช็อต): โดนล้าง = ลดลงทีละ 1 หน่วย ไม่หายทั้งหมด
-const SOFT_DEBUFF_STEP = ["curse", "shock"];
+const SOFT_DEBUFF_STEP = ["curse", "shock", "twilight"]; // twilight = สนธยา (โอเบรอน วอร์ติเกิร์น): สแตค ต้านไม่ได้ ล้างได้ทีละ 1
 
 function cleanseDebuffs(p) {
   let purged = 0;
@@ -199,12 +199,24 @@ function applyPoison(p, turns) {
 
 // พลังโจมตีที่หายไปจากพิษ (อ่านที่ computeAttackBase คู่กับ "อ่อนแอ")
 function poisonAtkPenalty(p) {
+  if (poisonInverts(p)) return 0; // ราชาแห่งการจอมหลอกลวง (โอเบรอน วอร์ติเกิร์น): พิษกลับเป็นพลังโจมตี +1 (ฮุค damageBonus ของตัวนั้น)
   return (((p && p.statuses && p.statuses.poison) || 0) > 0) ? 1 : 0;
 }
 
+// พิษกลับผล (ฮุค poisonInverts(p) ของตัวละคร — โอเบรอน วอร์ติเกิร์น: ราชาแห่งการจอมหลอกลวง) — ต้นเทิร์นฟื้นแทนเสีย · พลังโจมตี +1 แทน −1
+function poisonInverts(p) {
+  if (!p || p.summon) return false;
+  const hook = require("./index")[p.characterId];
+  return !!(hook && typeof hook.poisonInverts === "function" && hook.poisonInverts(p));
+}
 // ติกต้นเทิร์น — ท่อตายชุดเดียวกับลุกไหม้/เลือดไหล
 function tickPoison(engine, p) {
   if (!p || !p.alive || !(((p.statuses && p.statuses.poison) || 0) > 0)) return 0;
+  if (poisonInverts(p)) {
+    const got = engine.healHp(p, 1 + dotFieldBonus(engine));
+    engine.log(`🧪 ${p.name} พิษร้ายกลับผล — ฟื้นพลังชีวิต +${got} และพลังโจมตี +1 (เหลืออีก ${p.statuses.poison} เทิร์น)`);
+    return 0;
+  }
   const dmg = 1 + dotFieldBonus(engine); // การเดินทาง (ป่าไม้ต้องสาป กลางคืน): 50% แรงขึ้น +1
   p._statusDamage = true;   // ดาเมจจากสถานะ ไม่ใช่จากสกิล/การโจมตี
   engine.dealMixed(p, dmg); // ลดเกราะก่อน หมดเกราะจึงเข้าเลือดจริง
@@ -547,7 +559,7 @@ function applyEvade(p, pct) {
 
 // สถานะที่ "ไม่ลดเทิร์นเอง" — ลูปลดเทิร์นของ endTurn() (server/phases/endTurn.js) ข้ามคีย์ในชุดนี้
 //  ต้องตรงกับ client/src/data/permanentStatus.js (tests/permanentStatus.test.js เทียบให้)
-const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite", "rolandUrging", "rolandScars", "rolandKiss", "rolandLies", "dinoVirus", "kenzoCorrode"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
+const NO_TICK_STATUS = new Set(["hburn", "hbleed", "fortune", "empower", "spRegen", "mend", "rolandIce", "frostbite", "rolandUrging", "rolandScars", "rolandKiss", "rolandLies", "dinoVirus", "kenzoCorrode", "twilight", "obsHate"]); // frostbite = น้ำแข็งกัด (server/element.js tickFrost)
 
 module.exports = {
   SPELLBURDEN_MAX,
@@ -570,7 +582,7 @@ module.exports = {
   cleanseOneStep,
   cleanseLatestDebuff,
   applyPoison,
-  poisonAtkPenalty,
+  poisonAtkPenalty, poisonInverts,
   tickPoison,
   SHOCK_STUN_CHANCE,
   SHOCK_STUN_TURNS,
