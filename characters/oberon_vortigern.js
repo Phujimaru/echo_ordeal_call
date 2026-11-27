@@ -135,6 +135,7 @@ function scrap(engine, p, items) {
 // ---------- สนาม ----------
 function openField(engine, p) {
   const s = st(p);
+  if (!p.alive || !p.pos) return false; // ตายระหว่างคลิป
   if (!Field().enter(p, engine.roundNumber + FIELD_TURNS)) return false;
   s.fieldMine = true; s.lieUsed = false; s.fieldAt = { at: engine.severStamp() }; s.fieldSeq = engine.severStamp();
   selfPoison(engine, p);
@@ -182,6 +183,7 @@ function rotAll(engine, p, silent = false) {
 }
 function lie(engine, p) {
   const s = st(p);
+  if (!p.alive || !fieldMine(p)) return []; // ตาย/สนามหายระหว่างคลิป = ท่าไม่ลงผล
   s.lieUsed = true;
   Field().extend(LIE_EXTEND);
   const hit = [];
@@ -195,7 +197,11 @@ function lie(engine, p) {
       if (t.alive && t.hp <= 0) { engine.instantDeath(t); if (!t.alive) { t.pos = null; hit.push({ id: t.id, at, size, dmg: LIE_DMG, kill: true }); continue; } }
       engine.applyDebuff(t, "decay", null, LIE_DECAY);
       let slept = 0;
-      if (stacks > 0 && engine.applyDebuff(t, "sleep", null, stacks)) { t.sleepFresh = true; slept = stacks; }
+      if (stacks > 0 && engine.applyDebuff(t, "sleep", null, stacks)) {
+        t.sleepFresh = true; slept = stacks;
+        // หลับไหลกินสนธยาทั้งหมด (ผู้ใช้สั่ง 2026-11-27) — ต้านได้ = สนธยายังอยู่
+        delete t.statuses.twilight; if (t.statusAmt) delete t.statusAmt.twilight;
+      }
       hit.push({ id: t.id, at, size, dmg: LIE_DMG, sleep: slept });
     }
   });
@@ -396,9 +402,9 @@ module.exports = {
     if (!isMe(caster)) return; // Echo คืนร่างกลางสนาม: สนามค้างจนหมดเวลา แต่ไม่ให้ผลต่อเทิร์น
     for (const t of engine.alivePlayers()) {
       if (!enemyOf(engine, caster, t) || t.summon) continue;
-      const asleep = (t.statuses.sleep || 0) > 0 && !t.sleepFresh;
+      const asleep = (t.statuses.sleep || 0) > 0;
       const cur = t.statuses.twilight || 0;
-      const next = asleep ? Math.max(0, cur - 1) : Math.min(TWILIGHT_MAX, cur + 1); // หลับอยู่ = สนธยาลดตามการหลับ
+      const next = asleep ? 0 : Math.min(TWILIGHT_MAX, cur + 1); // หลับอยู่ = ไม่สะสม (หลับไหลกินสนธยาไปแล้ว) · ตื่นแล้วเริ่มสะสมใหม่
       if (next > 0) { t.statuses.twilight = next; t.statusAmt.twilight = next; } else { delete t.statuses.twilight; if (t.statusAmt) delete t.statusAmt.twilight; }
       if (next >= TWILIGHT_WEAK_AT) engine.applyDebuff(t, "weak", 1, 1);
     }

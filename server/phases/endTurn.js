@@ -25,6 +25,7 @@ const Ice = require("../ice");
 const Duo = require("../duo");
 const Soot = require("../soot");
 const Summon = require("../summon");
+const Board = require("../board");
 const Colony = require("../colony");
 const Moon = require("../moonCell");
 const Fodlan = require("../fodlan");
@@ -145,8 +146,11 @@ function gameOver() {
   if (RT.active()) return RT.outcome();
   // สนาม Eos (GRID_PLAN §8.6): ชนะด้วยแต้มยึดเสาเท่านั้น (ตายแล้วฟื้น — ไม่ใช้กติกาคนสุดท้ายที่รอด)
   //  PVE (ผู้ใช้สั่ง 2026-11-10): แต้มรวมครบ = ผู้เล่นทุกคนชนะ · ผู้เล่นล้มหมดพร้อมกัน = แพ้ทุกคน
-  if (Fodlan.isEos() && Fodlan.active() && !match.forcedWinnerId) {
-    const res = Fodlan.eosOutcome();
+  const Field = require("../oberonField"); // สนธยายามค่ำคืน: ตัดสินตามโหมดของกระดานเดิม (ไม่ใช่สนาม 10×10)
+  const fieldArea = Field.savedArea();
+  const moonOn = Moon.active() || (fieldArea != null && Board.isMoonArea(fieldArea));
+  if (Fodlan.isEos() && (Fodlan.active() || (fieldArea != null && Board.isEosArea(fieldArea))) && !match.forcedWinnerId) {
+    const res = Field.withSavedBoard(() => Fodlan.eosOutcome());
     if (!res) return false;
     match.eosResult = res;
     match.winningTeamId = res === "win" ? TEAM_IDS[0] : null;
@@ -161,8 +165,8 @@ function gameOver() {
   // ผู้ชนะที่ถูกกำหนด (ระเบิดของยูกิ มาโคโตะ — engine.declareWinner): ชนะคนเดียวทุกโหมด (ทีมได้ winningTeamId · Moon Cell = ผู้เล่นชนะ)
   const champ = match.forcedWinnerId && match.players[match.forcedWinnerId];
   if (champ) {
-    match.winningTeamId = lobby.teamModeActive() || Moon.active() ? champ.teamId || null : null;
-    if (Moon.active()) match.moon.result = "win";
+    match.winningTeamId = lobby.teamModeActive() || moonOn ? champ.teamId || null : null;
+    if (moonOn) match.moon.result = "win";
     match.lastLog.push(`🏆 ${Duo.ownerOf(champ).name} คือผู้ชนะ!`);
     const champOwner = Duo.ownerOf(champ);
     recordCharStats((p) => (p === champOwner || (match.winningTeamId && p.teamId === match.winningTeamId) ? "win" : "loss"));
@@ -173,8 +177,8 @@ function gameOver() {
     return true;
   }
   // Moon Cell (GRID_PLAN §8.4): ชนะ = ทำลาย Moon Cell / ฮาคุโนะตายพร้อมกันทั้งคู่ · แพ้ = ผู้เล่นตายหมด — ไม่ใช้กติกาทีมเหลือทีมเดียว
-  if (Moon.active()) {
-    const res = Moon.outcome();
+  if (moonOn) {
+    const res = Field.withSavedBoard(() => Moon.outcome());
     if (!res) return false;
     match.moon.result = res;
     match.winningTeamId = res === "win" ? TEAM_IDS[0] : null;

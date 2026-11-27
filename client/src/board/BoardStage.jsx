@@ -1260,7 +1260,7 @@ export default function BoardStage({ state, me, onRtSelect, lowQ, vp, pick, onIn
         storms={state.board ? state.board.storms : null}
         elemFields={state.board ? state.board.elemFields : null}
         colony={colonyView}
-        roadtrip={(state.world === "roadtrip" || state.gameMode === "roadtrip") && state.roadtrip && state.roadtrip.phase === "combat" ? state.roadtrip : null}
+        roadtrip={(state.world === "roadtrip" || state.gameMode === "roadtrip") && state.roadtrip && state.roadtrip.phase === "combat" && !(state.oberonField && state.oberonField.on) ? state.roadtrip : null /* สนธยายามค่ำคืน = กระดาน 2D ของสนาม ไม่ใช่ถนน 3D */}
         moon={state.moon || null}
         fodlan={fodlanProp}
         colonyEvents={colonyEvents}

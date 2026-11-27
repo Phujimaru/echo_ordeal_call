@@ -9,7 +9,7 @@
 //   ออกจากสนาม = เลื่อน legStart / cycleShift / รอบร้านเท่าจำนวนเทิร์นในสนาม (ตั้งจากค่าที่จดไว้ตรงๆ — ไม่บวกสะสม)
 //  กลางคืน: dayNight.isNightRound = true ระหว่างสนาม (ตัวละครที่ผูกกับกลางคืนได้ผล) · ผลภูมิภาคทั้งหมดไม่เกิด (Journey.current = null)
 // ============================================================
-Object.assign(module.exports, { active, casterId, enter, exit, extend, untilRound, publicInfo, frozenWorld, blocksWorld, rotTier, rotBlocks });
+Object.assign(module.exports, { active, casterId, enter, exit, extend, untilRound, publicInfo, frozenWorld, blocksWorld, rotTier, rotBlocks, savedArea, withSavedBoard });
 
 const match = require("./match");
 const Board = require("./board");
@@ -116,7 +116,9 @@ function exit(reason = "end") {
   if (s.shopCycleRound != null) match.shopCycleRound = s.shopCycleRound + elapsed;
   if (s.merchantCycle != null) match.merchantCycle = s.merchantCycle + elapsed;
   // กลับช่องเดิม — คนที่ยืนช่องเดิมได้ลงก่อน · ยูนิตที่เกิดในสนาม = ข้างเจ้าของ
-  const alive = C.alivePlayers().filter((u) => u.pos);
+  // ทุกตัวที่ยังมีชีวิต: ที่เคยอยู่กระดานเดิม (รวมตัวที่ไม่มีที่ลงในสนาม — pos null ระหว่างสนาม) กลับช่องเดิม · ตัวที่เกิดในสนาม = ข้างเจ้าของ
+  //  ตัวที่ไม่มี pos และไม่เคยอยู่กระดาน (คนขี่ผู้เล่นอื่น — server/ride.js) ไม่แตะ
+  const alive = C.alivePlayers().filter((u) => u.pos || s.pos[u.id]);
   for (const u of alive) u.pos = null;
   const back = alive.filter((u) => s.pos[u.id]);
   const born = alive.filter((u) => !s.pos[u.id]);
@@ -149,3 +151,17 @@ function rotTier(p) {
   return r && active() && r.round === match.roundNumber ? r.tier : null;
 }
 function rotBlocks(p, tier) { return rotTier(p) === tier; }
+
+// ---------- กติกาแพ้ชนะของโหมดที่ผูกกับแผนที่ (Moon Cell / Eos) ระหว่างอยู่ในสนาม ----------
+//  Moon.active / Fodlan.active เช็คจากพื้นที่ของกระดาน → ในสนาม (area 90) เป็น false → endTurn.gameOver ตกไปใช้กติกาทีมสุดท้ายที่รอด = ผู้เล่นชนะทันทีผิดๆ (บั๊กที่เจอ 2026-11-27)
+//  savedArea() = พื้นที่ของกระดานเดิม · withSavedBoard(fn) = อ่านผลแพ้ชนะของโหมดโดยสลับกระดานเดิมกลับมาชั่วคราว
+function savedArea() {
+  const f = match.oberonField;
+  return f && f.on && f.saved && f.saved.board ? f.saved.board.area : null;
+}
+function withSavedBoard(fn) {
+  if (!active()) return fn();
+  const cur = match.board;
+  match.board = match.oberonField.saved.board;
+  try { return fn(); } finally { match.board = cur; }
+}

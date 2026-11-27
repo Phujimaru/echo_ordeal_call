@@ -306,16 +306,19 @@ function presenceChanged() {
   // (จุดพัก: H.stop().presence() ด้านบน)
 }
 function blocksCombatCmd() { return active() && phase() !== "combat"; } // socket.js: สกิล/ท่าไม้ตาย/ตี/ปุ่มตัวละคร นอกการต่อสู้
+// สนธยายามค่ำคืน (โอเบรอน วอร์ติเกิร์น — server/oberonField.js): ทุกคนอยู่ในสนาม 10×10 · นาฬิกาโลกหยุด = ระบบสู้บนถนน/รถตู้พักไว้
+//  (ไม่งั้น enforceVan/offVan/ป้อมปืนใช้พิกัดของแผนที่ถนนกับกระดานสนาม — ลากคนกลับขึ้นรถผิดที่)
+const inField = () => require("../oberonField").active();
 function blocksDeal() { return active() && phase() !== "combat"; }      // draw.dealRound: ไม่แจกไพ่นอกการต่อสู้ (ตัวจับเวลาเก่าค้าง)
-function preRound(resume) { return active() && inCombat() ? H.fight().preRound(resume) : false; }
-function onEndTurn() { if (active() && inCombat()) H.fight().onEndTurn(); }
+function preRound(resume) { return active() && inCombat() && !inField() ? H.fight().preRound(resume) : false; }
+function onEndTurn() { if (active() && inCombat() && !inField()) H.fight().onEndTurn(); }
 // phases/endTurn.js gameOver → true = จัดการแล้ว (จบสู้ → ขับต่อ หรือ แพ้)
 function outcome() { return active() ? H.fight().outcome() : false; }
 function onMobDeath(m, killerId) { if (active()) H.fight().onMobDeath(m, killerId); }
 // ระยะตีปกติ: ประตูท้ายเปิด + ยืนแถวท้ายรถ = +1
 // ระยะตีปกติ/สกิลตอนสู้ (ผู้ใช้ 2026-11-14): ประตูท้ายเปิด + ยืนแถวท้ายรถ = +1 · หน้าต่างข้าง (สู้บนรถตู้) = อย่างน้อย 2 · บนหลังคา = +2
 function rangeMod(p, r, skill = false) {
-  if (!active() || !inCombat() || !p || !p.pos || p.summon || !Array.isArray(r)) return r;
+  if (!active() || !inCombat() || inField() || !p || !p.pos || p.summon || !Array.isArray(r)) return r;
   const rt = match.roadtrip, d = mapDef();
   if (!d) return r;
   const on = (list) => !!list && list.some(([x, y]) => x === p.pos.x && y === p.pos.y);
@@ -329,9 +332,9 @@ function rangeMod(p, r, skill = false) {
 function areaRangeMod(p, n) { return n >= 1 ? rangeMod(p, [0, n], true)[1] : n; }
 // ร้านที่จุดพัก: ซื้อได้นอกตาเดิน (ยืนติดร้าน · ยังมีชีวิต)
 // สู้บนรถตู้: ช่องนอกรถห้ามฝั่งผู้เล่น (action.boardBlocked) · จบตาของแต่ละตัว = เช็คร่วง (action.endUnitTile)
-function offVan(selfId) { return active() && inCombat() ? H.fight().offVan(selfId) : null; }
-function onUnitEnd(p) { if (active() && inCombat() && p && p.alive && p.pos) { H.fight().enforceVan(); H.fight().roofSync(); } }
-function placeSpot(near, selfId = null) { return active() && inCombat() ? H.fight().placeSpot(near, selfId) : null; }
+function offVan(selfId) { return active() && inCombat() && !inField() ? H.fight().offVan(selfId) : null; }
+function onUnitEnd(p) { if (active() && inCombat() && !inField() && p && p.alive && p.pos) { H.fight().enforceVan(); H.fight().roofSync(); } }
+function placeSpot(near, selfId = null) { return active() && inCombat() && !inField() ? H.fight().placeSpot(near, selfId) : null; }
 function freeShop(p) { return active() && phase() === "stop" && !!p && p.alive && !!p.pos && !p.summon; }
 function bagBonus() { return active() ? Van.bagBonus(match.roadtrip.van) : 0; }
 

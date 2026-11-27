@@ -180,11 +180,12 @@ test('Lie Like Vortigern: เฉพาะในสนาม · ดาเมจ 2
   assert.equal(T.hp, 8);
   assert.ok(T.statuses.decay > 0);
   assert.equal(T.statuses.sleep, 3);
+  assert.equal(T.statuses.twilight, undefined, 'หลับไหลกินสนธยาทั้งหมด');
   assert.equal(engine.oberonField.untilRound(), until + 5);
   nextRound();
   assert.ok(T.statuses.sleep > 0);
   assert.equal(T.hp, 7, 'หลับเสีย 1 ไม่สนเกราะ');
-  assert.equal(T.statuses.twilight, 2, 'หลับอยู่ สนธยาลด');
+  assert.equal(T.statuses.twilight, undefined, 'หลับอยู่ ไม่สะสมสนธยา');
   engine.setActor('O');
   engine.withEffectSource(O, () => engine.dealMixed(T, 1, true));
   assert.equal(T.statuses.sleep, undefined, 'ถูกตีตื่น');
@@ -242,4 +243,46 @@ test('ป้ายฉากตี (onStrikeLanded) เป็น array ไม่�
   assert.ok(Array.isArray(r));
   assert.ok(r.includes('Vesper ชน'));
   assert.deepEqual(obv.onStrikeLanded(engine, O, T, { counter: true }), []);
+});
+
+test('Moon Cell/Eos: เปิดสนามแล้วไม่ตัดสินชนะผิด (กติกาทีมสุดท้ายที่รอด) · ยูนิตที่ไม่มีที่ลงกลับกระดานเดิม', () => {
+  const Field = require('../../server/oberonField.js');
+  const endTurn = require('../../server/phases/endTurn.js');
+  const { O, T } = setup();
+  // จำลองยูนิตที่ไม่มีที่ลงในสนาม: pos null ระหว่างสนาม แต่จดช่องเดิมไว้
+  engine.useSkill('O', 'ultimate', []);
+  const saved = engine.board === null ? null : Field.savedArea();
+  assert.ok(saved != null);
+  const tPos = require('../../server/match.js').oberonField.saved.pos.T;
+  T.pos = null;
+  Field.exit('end');
+  assert.deepEqual(T.pos, tPos, 'กลับช่องเดิมแม้ไม่มีที่ในสนาม');
+  assert.equal(typeof endTurn.gameOver, 'function');
+});
+
+test('Moon Cell: เปิดสนามกลืนกินแล้วเกมไม่จบด้วยกติกาทีม (เดิมผู้เล่นชนะทันที) · ฮาคุโนะ/Moon Cell ถูกกลืนด้วย', () => {
+  const match = require('../../server/match.js');
+  const Moon = require('../../server/moonCell.js');
+  const endTurn = require('../../server/phases/endTurn.js');
+  for (const id of Object.keys(engine.players)) delete engine.players[id];
+  engine.players.O = { ...blank('O', 'oberon_vortigern', 'A'), position: 1, teamConfirmed: true };
+  engine.players.Q = { ...blank('Q', 'dummy', 'A'), position: 2, teamConfirmed: true };
+  engine.setGameMode('moon');
+  match.world = 'moon';
+  Moon.setAiDelay(0);
+  engine.startMatch();
+  engine.clearPhaseTimer();
+  const O = engine.players.O;
+  O.skillPoints = 8; O.skillUsedRound = false;
+  engine.setActor('O');
+  engine.useSkill('O', 'ultimate', []);
+  assert.equal(engine.oberonField.active(), true);
+  assert.equal(endTurn.gameOver(), false, 'บอสยังอยู่ = เกมยังไม่จบ');
+  assert.notEqual(engine.gameState, 'GAMEOVER');
+  const units = Object.values(engine.players).filter((u) => u.alive && u.pos);
+  assert.ok(units.some((u) => u.summon), 'ฮาคุโนะ/Moon Cell อยู่ในสนามด้วย');
+  engine.oberonField.exit('end');
+  Moon.setAiDelay(700);
+  match.world = 'earth';
+  engine.setGameMode('ffa');
 });
