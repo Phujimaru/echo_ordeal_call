@@ -21,7 +21,7 @@ import { P, gEllipse } from "./boardGeo";
 
 const TAU = Math.PI * 2;
 const BLOOD = "150,8,20", CRIMSON = "220,30,40", ROT = "96,120,44", PUS = "170,150,70", BILE = "128,180,60";
-const VOID = "12,4,10", BONE = "226,214,190", DUSK = "150,60,130", GLOW = "255,90,60", WING = "200,230,255";
+const VOID = "12,4,10", BONE = "226,214,190", DUSK = "150,60,130", GLOW = "255,90,60";
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const rgba = (rgb, a) => `rgba(${rgb},${clamp01(a)})`;
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -397,9 +397,10 @@ export function oberonVesper(g, u, now, wx, wy, liftZ = 0) {
   if (!im) return;
   let tr = track.get(u.id);
   const [sx] = P(wx, wy);
-  if (!tr) { if (track.size > 24) track.clear(); tr = { sx, face: 1, on: !!O.mounted, offT: -1e9, die: false, hp: O.vesperHp, hitT: -1e9 }; track.set(u.id, tr); }
-  if (Math.abs(sx - tr.sx) > 0.3) tr.face = sx > tr.sx ? -1 : 1;
-  tr.sx = sx;
+  // หันตามทิศเดินบนจอ (ผู้ใช้สั่ง 2026-11-27): ภาพต้นฉบับหัวชี้ซ้าย · face -1 = กลับภาพ หัวชี้ขวา (ค่าเริ่ม)
+  //  จุดอ้างอิงขยับเมื่อเคลื่อนเกิน 2 px (ก้าวทีละเฟรมเล็กกว่านั้น — เทียบทุกเฟรมจะไม่เคยเปลี่ยนทิศ)
+  if (!tr) { if (track.size > 24) track.clear(); tr = { refX: sx, face: -1, on: !!O.mounted, offT: -1e9, die: false, hp: O.vesperHp, hitT: -1e9 }; track.set(u.id, tr); }
+  if (Math.abs(sx - tr.refX) > 2) { tr.face = sx > tr.refX ? -1 : 1; tr.refX = sx; }
   if (!!O.mounted !== tr.on) { tr.on = !!O.mounted; if (!tr.on) { tr.offT = now; tr.die = !(O.vesperHp > 0); } }
   if (Number.isFinite(O.vesperHp) && Number.isFinite(tr.hp) && O.vesperHp < tr.hp) tr.hitT = now;
   tr.hp = O.vesperHp;
